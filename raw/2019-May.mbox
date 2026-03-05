@@ -1,0 +1,1184 @@
+From robin.girard at mines-paristech.fr  Thu May  2 19:04:21 2019
+From: robin.girard at mines-paristech.fr (Robin GIRARD)
+Date: Thu, 2 May 2019 19:04:21 +0200
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+Message-ID: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+
+Dear all, avec a Mac update today I obtained the following error while compiling a package of mine using Rcpp : 
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+                    Exporter( SEXP x ) : t(x){}
+I’m pretty sure this has something to do with Mac, I updated the Command line tool, I manage to compile simple examples with sourceRcpp (trying to follow instructions here http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/ <http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/>) I’m still trying to reproduce my error on a simple example. 
+I have R 3.6 and clang7 installed. 
+
+Another strange point (might be connected) is that when I try to install RcppArmadillo from source (as suggested in link above with install.packages("RcppArmadillo", type = "source »)) it gives something about cross compiling:
+
+checking whether the C++ compiler works... yes
+checking for C++ compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... configure: error: in `/private/var/folders/zt/7cz1y9md79l_h08bbqymt4w9z8xlw7/T/Rtmpgi7WQZ/R.INSTALL4f4110aa3f/RcppArmadillo':
+configure: error: cannot run C++ compiled programs.
+If you meant to cross compile, use `--host'.
+See `config.log' for more details
+ERROR: configuration failed for package ‘RcppArmadillo’
+
+
+Thanks in advance for your help
+Regards
+Robin
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190502/3bf07e85/attachment.html>
+
+From simon.urbanek at R-project.org  Thu May  2 23:18:48 2019
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Thu, 2 May 2019 17:18:48 -0400
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+In-Reply-To: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+References: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+Message-ID: <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+
+Robin,
+
+this is unlikely a Mac issue, merely newer compilers give you better error handling pointing to issues in the code that may not have been detected before. If you post the code we can have a look.
+
+Also check your tools - the RcppArmadillo error points out that your compiler setup is broken since it cannot create runnable executable. Check config.log for details.
+
+Cheers,
+Simon
+
+
+
+> On May 2, 2019, at 1:04 PM, Robin GIRARD <robin.girard at mines-paristech.fr> wrote:
+> 
+> Dear all, avec a Mac update today I obtained the following error while compiling a package of mine using Rcpp : 
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+>                     Exporter( SEXP x ) : t(x){}
+> 
+> I’m pretty sure this has something to do with Mac, I updated the Command line tool, I manage to compile simple examples with sourceRcpp (trying to follow instructions here http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/) I’m still trying to reproduce my error on a simple example. 
+> I have R 3.6 and clang7 installed. 
+> 
+> Another strange point (might be connected) is that when I try to install RcppArmadillo from source (as suggested in link above with install.packages("", type = "source »)) it gives something about cross compiling:
+> 
+> checking whether the C++ compiler works... yes
+> checking for C++ compiler default output file name... a.out
+> checking for suffix of executables... 
+> checking whether we are cross compiling... configure: error: in `/private/var/folders/zt/7cz1y9md79l_h08bbqymt4w9z8xlw7/T/Rtmpgi7WQZ/R.INSTALL4f4110aa3f/RcppArmadillo':
+> configure: error: cannot run C++ compiled programs.
+> If you meant to cross compile, use `--host'.
+> See `config.log' for more details
+> ERROR: configuration failed for package ‘RcppArmadillo’
+> 
+> 
+> Thanks in advance for your help
+> Regards
+> Robin
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From robin.girard at mines-paristech.fr  Fri May  3 08:32:21 2019
+From: robin.girard at mines-paristech.fr (Robin GIRARD)
+Date: Fri, 3 May 2019 08:32:21 +0200
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+In-Reply-To: <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+References: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+ <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+Message-ID: <5014C0FB-BE39-4857-AFDB-9511817B7D42@mines-paristech.fr>
+
+Dear Simon, 
+
+**regarding RcppArmadillo build from source pb**  the config.log is attached and points the following error while checking something about cross  compilation.
+In file included from conftest.cpp:9:
+/usr/local/clang7/include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+#include_next <stdio.h>
+
+But this file exists. 
+
+** regarding my compilation error** it is obtained while trying to build the module file, when calling #include "Rcpp.h » (line 4 of file Client.hpp) 
+/usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -std=c++11 -I../inst/include/ -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c mod_client.cc -o mod_client.o
+
+In file included from mod_client.cc:1:
+In file included from ../inst/include/Client.hpp:4:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+                    Exporter( SEXP x ) : t(x){}
+
+Thanks in advance for your help
+Regards
+Robin
+
+
+> Le 2 mai 2019 à 23:18, Simon Urbanek <simon.urbanek at R-project.org> a écrit :
+> 
+> Robin,
+> 
+> this is unlikely a Mac issue, merely newer compilers give you better error handling pointing to issues in the code that may not have been detected before. If you post the code we can have a look.
+> 
+> Also check your tools - the RcppArmadillo error points out that your compiler setup is broken since it cannot create runnable executable. Check config.log for details.
+> 
+> Cheers,
+> Simon
+> 
+> 
+> 
+>> On May 2, 2019, at 1:04 PM, Robin GIRARD <robin.girard at mines-paristech.fr> wrote:
+>> 
+>> Dear all, avec a Mac update today I obtained the following error while compiling a package of mine using Rcpp : 
+>> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+>>                    Exporter( SEXP x ) : t(x){}
+>> 
+>> I’m pretty sure this has something to do with Mac, I updated the Command line tool, I manage to compile simple examples with sourceRcpp (trying to follow instructions here http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/) I’m still trying to reproduce my error on a simple example. 
+>> I have R 3.6 and clang7 installed. 
+>> 
+>> Another strange point (might be connected) is that when I try to install RcppArmadillo from source (as suggested in link above with install.packages("", type = "source »)) it gives something about cross compiling:
+>> 
+>> checking whether the C++ compiler works... yes
+>> checking for C++ compiler default output file name... a.out
+>> checking for suffix of executables... 
+>> checking whether we are cross compiling... configure: error: in `/private/var/folders/zt/7cz1y9md79l_h08bbqymt4w9z8xlw7/T/Rtmpgi7WQZ/R.INSTALL4f4110aa3f/RcppArmadillo':
+>> configure: error: cannot run C++ compiled programs.
+>> If you meant to cross compile, use `--host'.
+>> See `config.log' for more details
+>> ERROR: configuration failed for package ‘RcppArmadillo’
+>> 
+>> 
+>> Thanks in advance for your help
+>> Regards
+>> Robin
+>> 
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190503/a9526909/attachment-0002.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: config.log
+Type: application/octet-stream
+Size: 5670 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190503/a9526909/attachment-0001.obj>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190503/a9526909/attachment-0003.html>
+
+From robin.girard at mines-paristech.fr  Fri May  3 08:41:51 2019
+From: robin.girard at mines-paristech.fr (Robin GIRARD)
+Date: Fri, 3 May 2019 08:41:51 +0200
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+In-Reply-To: <5014C0FB-BE39-4857-AFDB-9511817B7D42@mines-paristech.fr>
+References: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+ <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+ <5014C0FB-BE39-4857-AFDB-9511817B7D42@mines-paristech.fr>
+Message-ID: <85FC1190-4E2B-42C4-A89D-FAF93752310A@mines-paristech.fr>
+
+I found a way to solve my RcppArmadillo problem here https://stackoverflow.com/questions/51761599/cannot-find-stdio-h <https://stackoverflow.com/questions/51761599/cannot-find-stdio-h>
+I don’t really understand what happened because I had the file. 
+The other error is still here
+Regards
+Robin
+
+> Le 3 mai 2019 à 08:32, Robin GIRARD <robin.girard at mines-paristech.fr> a écrit :
+> 
+> Dear Simon, 
+> 
+> **regarding RcppArmadillo build from source pb**  the config.log is attached and points the following error while checking something about cross  compilation.
+> In file included from conftest.cpp:9:
+> /usr/local/clang7/include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+> #include_next <stdio.h>
+> 
+> But this file exists. 
+> 
+> ** regarding my compilation error** it is obtained while trying to build the module file, when calling #include "Rcpp.h » (line 4 of file Client.hpp) 
+> /usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -std=c++11 -I../inst/include/ -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c mod_client.cc <http://mod_client.cc/> -o mod_client.o
+> 
+> In file included from mod_client.cc <http://mod_client.cc/>:1:
+> In file included from ../inst/include/Client.hpp:4:
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+>                     Exporter( SEXP x ) : t(x){}
+> 
+> Thanks in advance for your help
+> Regards
+> Robin
+> 
+> <config.log>
+> 
+>> Le 2 mai 2019 à 23:18, Simon Urbanek <simon.urbanek at R-project.org <mailto:simon.urbanek at R-project.org>> a écrit :
+>> 
+>> Robin,
+>> 
+>> this is unlikely a Mac issue, merely newer compilers give you better error handling pointing to issues in the code that may not have been detected before. If you post the code we can have a look.
+>> 
+>> Also check your tools - the RcppArmadillo error points out that your compiler setup is broken since it cannot create runnable executable. Check config.log for details.
+>> 
+>> Cheers,
+>> Simon
+>> 
+>> 
+>> 
+>>> On May 2, 2019, at 1:04 PM, Robin GIRARD <robin.girard at mines-paristech.fr <mailto:robin.girard at mines-paristech.fr>> wrote:
+>>> 
+>>> Dear all, avec a Mac update today I obtained the following error while compiling a package of mine using Rcpp : 
+>>> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+>>>                    Exporter( SEXP x ) : t(x){}
+>>> 
+>>> I’m pretty sure this has something to do with Mac, I updated the Command line tool, I manage to compile simple examples with sourceRcpp (trying to follow instructions here http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/ <http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/>) I’m still trying to reproduce my error on a simple example. 
+>>> I have R 3.6 and clang7 installed. 
+>>> 
+>>> Another strange point (might be connected) is that when I try to install RcppArmadillo from source (as suggested in link above with install.packages("", type = "source »)) it gives something about cross compiling:
+>>> 
+>>> checking whether the C++ compiler works... yes
+>>> checking for C++ compiler default output file name... a.out
+>>> checking for suffix of executables... 
+>>> checking whether we are cross compiling... configure: error: in `/private/var/folders/zt/7cz1y9md79l_h08bbqymt4w9z8xlw7/T/Rtmpgi7WQZ/R.INSTALL4f4110aa3f/RcppArmadillo':
+>>> configure: error: cannot run C++ compiled programs.
+>>> If you meant to cross compile, use `--host'.
+>>> See `config.log' for more details
+>>> ERROR: configuration failed for package ‘RcppArmadillo’
+>>> 
+>>> 
+>>> Thanks in advance for your help
+>>> Regards
+>>> Robin
+>>> 
+>>> 
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> 
+> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190503/540bf771/attachment.html>
+
+From robin.girard at mines-paristech.fr  Mon May  6 11:45:03 2019
+From: robin.girard at mines-paristech.fr (Robin GIRARD)
+Date: Mon, 6 May 2019 11:45:03 +0200
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+ (related to the use of module and .constructor<const Rcpp::NumericVector &,
+ int>()
+In-Reply-To: <85FC1190-4E2B-42C4-A89D-FAF93752310A@mines-paristech.fr>
+References: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+ <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+ <5014C0FB-BE39-4857-AFDB-9511817B7D42@mines-paristech.fr>
+ <85FC1190-4E2B-42C4-A89D-FAF93752310A@mines-paristech.fr>
+Message-ID: <5EFD5AD4-D736-4ADC-A677-10DD09A99398@mines-paristech.fr>
+
+Dear all, I created a small example that reproduces my error below. It has to do with my use of module with  .constructor<const Rcpp::NumericVector &, int>() with Rcpp::NumericVector. I guess I’m not doing things the right way but since it is working on windows and used to work until now with my Mac … 
+
+Thanks in advance for your help (below the simple test and the error obtained) 
+Regards
+Robin
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+class MyModel
+{
+public:
+  double a;
+  ~MyModel();
+  MyModel();
+  MyModel(const Rcpp::NumericVector& ModelData, int temp);
+};
+
+RCPP_EXPOSED_CLASS(MyModel)
+  
+  MyModel::~MyModel() 
+  {}
+MyModel::MyModel() : a(0) 
+{}
+MyModel::MyModel(const Rcpp::NumericVector& ModelData, int temp) : a(0)
+{}
+
+RCPP_MODULE(MyModel){
+  
+  Rcpp::class_<MyModel>("MyModel")
+  .constructor()
+  .constructor<const Rcpp::NumericVector &, int>()
+  ;
+}
+
+
+Compilation error : 
+
+/usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Users/robin.girard/Documents/Code/Packages/test_modules/Test2/src" -I"/Users/robin.girard/Documents/Code/Packages/test_modules/Test2/src/../inst/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c test.cpp -o test.o
+In file included from test.cpp:1:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+                    Exporter( SEXP x ) : t(x){}
+                                           ^
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:87:41: note: in instantiation of member function 'Rcpp::traits::Exporter<const Rcpp::Vector<14, PreserveStorage> &>::Exporter' requested here
+            ::Rcpp::traits::Exporter<T> exporter(x);
+                                        ^
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:152:26: note: in instantiation of function template specialization 'Rcpp::internal::as<const Rcpp::Vector<14, PreserveStorage> &>' requested here
+        return internal::as<T>(x, typename traits::r_type_traits<T>::r_category());
+                         ^
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/module/Module_generated_Constructor.h:58:13: note: in instantiation of function template specialization 'Rcpp::as<const Rcpp::Vector<14, PreserveStorage> &>' requested here
+            as<U0>(args[0]),
+            ^
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/module/Module_generated_class_constructor.h:91:29: note: in instantiation of member function 'Rcpp::Constructor_2<MyModel, const Rcpp::Vector<14, PreserveStorage> &, int>::get_new' requested here
+        AddConstructor( new Constructor_2<Class,U0,U1> , valid, docstring ) ;
+                            ^
+test.cpp:26:4: note: in instantiation of function template specialization 'Rcpp::class_<MyModel>::constructor<const Rcpp::Vector<14, PreserveStorage> &, int>' requested here
+  .constructor<const Rcpp::NumericVector &, int>()
+   ^
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:35:9: note: reference member declared here
+                    T t ;
+1 error generated.
+make: *** [test.o] Error 1
+Error in Rcpp::sourceCpp("src/test.cpp") : 
+  Error 1 occurred building shared library.
+
+
+
+> Le 3 mai 2019 à 08:41, Robin GIRARD <robin.girard at mines-paristech.fr> a écrit :
+> 
+> I found a way to solve my RcppArmadillo problem here https://stackoverflow.com/questions/51761599/cannot-find-stdio-h <https://stackoverflow.com/questions/51761599/cannot-find-stdio-h>
+> I don’t really understand what happened because I had the file. 
+> The other error is still here
+> Regards
+> Robin
+> 
+>> Le 3 mai 2019 à 08:32, Robin GIRARD <robin.girard at mines-paristech.fr <mailto:robin.girard at mines-paristech.fr>> a écrit :
+>> 
+>> Dear Simon, 
+>> 
+>> **regarding RcppArmadillo build from source pb**  the config.log is attached and points the following error while checking something about cross  compilation.
+>> In file included from conftest.cpp:9:
+>> /usr/local/clang7/include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+>> #include_next <stdio.h>
+>> 
+>> But this file exists. 
+>> 
+>> ** regarding my compilation error** it is obtained while trying to build the module file, when calling #include "Rcpp.h » (line 4 of file Client.hpp) 
+>> /usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -std=c++11 -I../inst/include/ -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c mod_client.cc <http://mod_client.cc/> -o mod_client.o
+>> 
+>> In file included from mod_client.cc <http://mod_client.cc/>:1:
+>> In file included from ../inst/include/Client.hpp:4:
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+>> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+>>                     Exporter( SEXP x ) : t(x){}
+>> 
+>> Thanks in advance for your help
+>> Regards
+>> Robin
+>> 
+>> <config.log>
+>> 
+>>> Le 2 mai 2019 à 23:18, Simon Urbanek <simon.urbanek at R-project.org <mailto:simon.urbanek at R-project.org>> a écrit :
+>>> 
+>>> Robin,
+>>> 
+>>> this is unlikely a Mac issue, merely newer compilers give you better error handling pointing to issues in the code that may not have been detected before. If you post the code we can have a look.
+>>> 
+>>> Also check your tools - the RcppArmadillo error points out that your compiler setup is broken since it cannot create runnable executable. Check config.log for details.
+>>> 
+>>> Cheers,
+>>> Simon
+>>> 
+>>> 
+>>> 
+>>>> On May 2, 2019, at 1:04 PM, Robin GIRARD <robin.girard at mines-paristech.fr <mailto:robin.girard at mines-paristech.fr>> wrote:
+>>>> 
+>>>> Dear all, avec a Mac update today I obtained the following error while compiling a package of mine using Rcpp : 
+>>>> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+>>>>                    Exporter( SEXP x ) : t(x){}
+>>>> 
+>>>> I’m pretty sure this has something to do with Mac, I updated the Command line tool, I manage to compile simple examples with sourceRcpp (trying to follow instructions here http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/ <http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/>) I’m still trying to reproduce my error on a simple example. 
+>>>> I have R 3.6 and clang7 installed. 
+>>>> 
+>>>> Another strange point (might be connected) is that when I try to install RcppArmadillo from source (as suggested in link above with install.packages("", type = "source »)) it gives something about cross compiling:
+>>>> 
+>>>> checking whether the C++ compiler works... yes
+>>>> checking for C++ compiler default output file name... a.out
+>>>> checking for suffix of executables... 
+>>>> checking whether we are cross compiling... configure: error: in `/private/var/folders/zt/7cz1y9md79l_h08bbqymt4w9z8xlw7/T/Rtmpgi7WQZ/R.INSTALL4f4110aa3f/RcppArmadillo':
+>>>> configure: error: cannot run C++ compiled programs.
+>>>> If you meant to cross compile, use `--host'.
+>>>> See `config.log' for more details
+>>>> ERROR: configuration failed for package ‘RcppArmadillo’
+>>>> 
+>>>> 
+>>>> Thanks in advance for your help
+>>>> Regards
+>>>> Robin
+>>>> 
+>>>> 
+>>>> _______________________________________________
+>>>> Rcpp-devel mailing list
+>>>> Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+>>> 
+>> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190506/cd6a16c3/attachment.html>
+
+From edd at debian.org  Wed May  8 03:33:56 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 7 May 2019 20:33:56 -0500
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+ (related to the use of module and .constructor<const Rcpp::NumericVector &,
+ int>()
+In-Reply-To: <5EFD5AD4-D736-4ADC-A677-10DD09A99398@mines-paristech.fr>
+References: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+ <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+ <5014C0FB-BE39-4857-AFDB-9511817B7D42@mines-paristech.fr>
+ <85FC1190-4E2B-42C4-A89D-FAF93752310A@mines-paristech.fr>
+ <5EFD5AD4-D736-4ADC-A677-10DD09A99398@mines-paristech.fr>
+Message-ID: <23762.12804.198077.552042@rob.eddelbuettel.com>
+
+
+On 6 May 2019 at 11:45, Robin GIRARD wrote:
+| Dear all, I created a small example that reproduces my error below. It has to do with my use of module with  .constructor<const Rcpp::NumericVector &, int>() with Rcpp::NumericVector. I guess I’m not doing things the right way but since it is working on windows and used to work until now with my Mac … 
+| 
+| Thanks in advance for your help (below the simple test and the error obtained) 
+| Regards
+| Robin
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| class MyModel
+| {
+| public:
+|   double a;
+|   ~MyModel();
+|   MyModel();
+|   MyModel(const Rcpp::NumericVector& ModelData, int temp);
+| };
+| 
+| RCPP_EXPOSED_CLASS(MyModel)
+|   
+|   MyModel::~MyModel() 
+|   {}
+| MyModel::MyModel() : a(0) 
+| {}
+| MyModel::MyModel(const Rcpp::NumericVector& ModelData, int temp) : a(0)
+| {}
+| 
+| RCPP_MODULE(MyModel){
+|   
+|   Rcpp::class_<MyModel>("MyModel")
+|   .constructor()
+|   .constructor<const Rcpp::NumericVector &, int>()
+|   ;
+| }
+
+Compiles fine for me:
+
+R> sourceCpp("/tmp/robin.cpp", verbose=TRUE, rebuild=TRUE)
+
+Generated extern "C" functions 
+--------------------------------------------------------
+
+
+#include <Rcpp.h>
+
+Generated R functions 
+-------------------------------------------------------
+
+`.sourceCpp_22_DLLInfo` <- dyn.load('/tmp/RtmpduezeN/sourceCpp-x86_64-pc-linux-gnu-1.0.1.2/sourcecpp_438853e7adda/sourceCpp_24.so')
+
+library(Rcpp)
+ populate( Rcpp::Module("MyModel",`.sourceCpp_22_DLLInfo`), environment() ) 
+
+rm(`.sourceCpp_22_DLLInfo`)
+
+Building shared library
+--------------------------------------------------------
+
+DIR: /tmp/RtmpduezeN/sourceCpp-x86_64-pc-linux-gnu-1.0.1.2/sourcecpp_438853e7adda
+
+/usr/lib/R/bin/R CMD SHLIB -o 'sourceCpp_24.so' --preclean  'robin.cpp'  
+ccache g++ -I"/usr/share/R/include" -DNDEBUG   -I"/usr/local/lib/R/site-library/Rcpp/include" -I"/tmp"   -fpic  -g -O3 -Wall -pipe  -Wno-misleading-indentation -Wno-unused -Wno-ignored-attributes -Wno-class-memaccess -c robin.cpp -o robin.o
+ccache g++ -Wl,-S -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o sourceCpp_24.so robin.o -L/usr/lib/R/lib -lR
+R>
+
+Dirk
+ 
+| Compilation error : 
+| 
+| /usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Users/robin.girard/Documents/Code/Packages/test_modules/Test2/src" -I"/Users/robin.girard/Documents/Code/Packages/test_modules/Test2/src/../inst/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c test.cpp -o test.o
+| In file included from test.cpp:1:
+| In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+| In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+| In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+| /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+|                     Exporter( SEXP x ) : t(x){}
+|                                            ^
+| /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:87:41: note: in instantiation of member function 'Rcpp::traits::Exporter<const Rcpp::Vector<14, PreserveStorage> &>::Exporter' requested here
+|             ::Rcpp::traits::Exporter<T> exporter(x);
+|                                         ^
+| /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:152:26: note: in instantiation of function template specialization 'Rcpp::internal::as<const Rcpp::Vector<14, PreserveStorage> &>' requested here
+|         return internal::as<T>(x, typename traits::r_type_traits<T>::r_category());
+|                          ^
+| /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/module/Module_generated_Constructor.h:58:13: note: in instantiation of function template specialization 'Rcpp::as<const Rcpp::Vector<14, PreserveStorage> &>' requested here
+|             as<U0>(args[0]),
+|             ^
+| /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/module/Module_generated_class_constructor.h:91:29: note: in instantiation of member function 'Rcpp::Constructor_2<MyModel, const Rcpp::Vector<14, PreserveStorage> &, int>::get_new' requested here
+|         AddConstructor( new Constructor_2<Class,U0,U1> , valid, docstring ) ;
+|                             ^
+| test.cpp:26:4: note: in instantiation of function template specialization 'Rcpp::class_<MyModel>::constructor<const Rcpp::Vector<14, PreserveStorage> &, int>' requested here
+|   .constructor<const Rcpp::NumericVector &, int>()
+|    ^
+| /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:35:9: note: reference member declared here
+|                     T t ;
+| 1 error generated.
+| make: *** [test.o] Error 1
+| Error in Rcpp::sourceCpp("src/test.cpp") : 
+|   Error 1 occurred building shared library.
+| 
+| 
+| 
+| > Le 3 mai 2019 à 08:41, Robin GIRARD <robin.girard at mines-paristech.fr> a écrit :
+| > 
+| > I found a way to solve my RcppArmadillo problem here https://stackoverflow.com/questions/51761599/cannot-find-stdio-h <https://stackoverflow.com/questions/51761599/cannot-find-stdio-h>
+| > I don’t really understand what happened because I had the file. 
+| > The other error is still here
+| > Regards
+| > Robin
+| > 
+| >> Le 3 mai 2019 à 08:32, Robin GIRARD <robin.girard at mines-paristech.fr <mailto:robin.girard at mines-paristech.fr>> a écrit :
+| >> 
+| >> Dear Simon, 
+| >> 
+| >> **regarding RcppArmadillo build from source pb**  the config.log is attached and points the following error while checking something about cross  compilation.
+| >> In file included from conftest.cpp:9:
+| >> /usr/local/clang7/include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+| >> #include_next <stdio.h>
+| >> 
+| >> But this file exists. 
+| >> 
+| >> ** regarding my compilation error** it is obtained while trying to build the module file, when calling #include "Rcpp.h » (line 4 of file Client.hpp) 
+| >> /usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -std=c++11 -I../inst/include/ -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c mod_client.cc <http://mod_client.cc/> -o mod_client.o
+| >> 
+| >> In file included from mod_client.cc <http://mod_client.cc/>:1:
+| >> In file included from ../inst/include/Client.hpp:4:
+| >> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+| >> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+| >> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+| >> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+| >>                     Exporter( SEXP x ) : t(x){}
+| >> 
+| >> Thanks in advance for your help
+| >> Regards
+| >> Robin
+| >> 
+| >> <config.log>
+| >> 
+| >>> Le 2 mai 2019 à 23:18, Simon Urbanek <simon.urbanek at R-project.org <mailto:simon.urbanek at R-project.org>> a écrit :
+| >>> 
+| >>> Robin,
+| >>> 
+| >>> this is unlikely a Mac issue, merely newer compilers give you better error handling pointing to issues in the code that may not have been detected before. If you post the code we can have a look.
+| >>> 
+| >>> Also check your tools - the RcppArmadillo error points out that your compiler setup is broken since it cannot create runnable executable. Check config.log for details.
+| >>> 
+| >>> Cheers,
+| >>> Simon
+| >>> 
+| >>> 
+| >>> 
+| >>>> On May 2, 2019, at 1:04 PM, Robin GIRARD <robin.girard at mines-paristech.fr <mailto:robin.girard at mines-paristech.fr>> wrote:
+| >>>> 
+| >>>> Dear all, avec a Mac update today I obtained the following error while compiling a package of mine using Rcpp : 
+| >>>> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+| >>>>                    Exporter( SEXP x ) : t(x){}
+| >>>> 
+| >>>> I’m pretty sure this has something to do with Mac, I updated the Command line tool, I manage to compile simple examples with sourceRcpp (trying to follow instructions here http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/ <http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/>) I’m still trying to reproduce my error on a simple example. 
+| >>>> I have R 3.6 and clang7 installed. 
+| >>>> 
+| >>>> Another strange point (might be connected) is that when I try to install RcppArmadillo from source (as suggested in link above with install.packages("", type = "source »)) it gives something about cross compiling:
+| >>>> 
+| >>>> checking whether the C++ compiler works... yes
+| >>>> checking for C++ compiler default output file name... a.out
+| >>>> checking for suffix of executables... 
+| >>>> checking whether we are cross compiling... configure: error: in `/private/var/folders/zt/7cz1y9md79l_h08bbqymt4w9z8xlw7/T/Rtmpgi7WQZ/R.INSTALL4f4110aa3f/RcppArmadillo':
+| >>>> configure: error: cannot run C++ compiled programs.
+| >>>> If you meant to cross compile, use `--host'.
+| >>>> See `config.log' for more details
+| >>>> ERROR: configuration failed for package ‘RcppArmadillo’
+| >>>> 
+| >>>> 
+| >>>> Thanks in advance for your help
+| >>>> Regards
+| >>>> Robin
+| >>>> 
+| >>>> 
+| >>>> _______________________________________________
+| >>>> Rcpp-devel mailing list
+| >>>> Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+| >>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+| >>> 
+| >> 
+| > 
+| > _______________________________________________
+| > Rcpp-devel mailing list
+| > Rcpp-devel at lists.r-forge.r-project.org
+| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at R-project.org  Wed May  8 15:43:37 2019
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Wed, 8 May 2019 09:43:37 -0400
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+ (related to the use of module and .constructor<const Rcpp::NumericVector &,
+ int>()
+In-Reply-To: <23762.12804.198077.552042@rob.eddelbuettel.com>
+References: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+ <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+ <5014C0FB-BE39-4857-AFDB-9511817B7D42@mines-paristech.fr>
+ <85FC1190-4E2B-42C4-A89D-FAF93752310A@mines-paristech.fr>
+ <5EFD5AD4-D736-4ADC-A677-10DD09A99398@mines-paristech.fr>
+ <23762.12804.198077.552042@rob.eddelbuettel.com>
+Message-ID: <73AAE5C0-BBDD-4D28-BCCC-332000E62E01@R-project.org>
+
+It fails for me on Linux as well:
+
+$ clang++-7  -I"/usr/local/R/3.5/include" -DNDEBUG   -I"/usr/local/R/site-lib/3.5/Rcpp/include" -I"/data/users/su" -I/usr/local/include   -fpic  -g -O2  -c t.cpp -o t.o
+In file included from t.cpp:1:
+In file included from /usr/local/R/site-lib/3.5/Rcpp/include/Rcpp.h:27:
+In file included from /usr/local/R/site-lib/3.5/Rcpp/include/RcppCommon.h:168:
+In file included from /usr/local/R/site-lib/3.5/Rcpp/include/Rcpp/as.h:25:
+/usr/local/R/site-lib/3.5/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the
+      constructed object
+                    Exporter( SEXP x ) : t(x){}
+                                           ^
+/usr/local/R/site-lib/3.5/Rcpp/include/Rcpp/as.h:87:41: note: in instantiation of member function 'Rcpp::traits::Exporter<const Rcpp::Vector<14, PreserveStorage> &>::Exporter' requested here
+            ::Rcpp::traits::Exporter<T> exporter(x);
+                                        ^
+/usr/local/R/site-lib/3.5/Rcpp/include/Rcpp/as.h:152:26: note: in instantiation of function template specialization 'Rcpp::internal::as<const Rcpp::Vector<14, PreserveStorage> &>' requested
+      here
+        return internal::as<T>(x, typename traits::r_type_traits<T>::r_category());
+                         ^
+/usr/local/R/site-lib/3.5/Rcpp/include/Rcpp/module/Module_generated_Constructor.h:58:13: note: in instantiation of function template specialization
+      'Rcpp::as<const Rcpp::Vector<14, PreserveStorage> &>' requested here
+            as<U0>(args[0]),
+            ^
+/usr/local/R/site-lib/3.5/Rcpp/include/Rcpp/module/Module_generated_class_constructor.h:91:29: note: in instantiation of member function 'Rcpp::Constructor_2<MyModel, const Rcpp::Vector<14,
+      PreserveStorage> &, int>::get_new' requested here
+        AddConstructor( new Constructor_2<Class,U0,U1> , valid, docstring ) ;
+                            ^
+t.cpp:26:4: note: in instantiation of function template specialization 'Rcpp::class_<MyModel>::constructor<const Rcpp::Vector<14, PreserveStorage> &, int>' requested here
+  .constructor<const Rcpp::NumericVector &, int>()
+   ^
+/usr/local/R/site-lib/3.5/Rcpp/include/Rcpp/internal/Exporter.h:35:9: note: reference member declared here
+                    T t ;
+                      ^
+1 error generated.
+
+
+[Ubuntu 18.04.1 LTS; clang 7.0.0-3~ubuntu0.18.04.1]
+
+
+> On May 7, 2019, at 9:33 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 6 May 2019 at 11:45, Robin GIRARD wrote:
+> | Dear all, I created a small example that reproduces my error below. It has to do with my use of module with  .constructor<const Rcpp::NumericVector &, int>() with Rcpp::NumericVector. I guess I’m not doing things the right way but since it is working on windows and used to work until now with my Mac … 
+> | 
+> | Thanks in advance for your help (below the simple test and the error obtained) 
+> | Regards
+> | Robin
+> | 
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> | 
+> | class MyModel
+> | {
+> | public:
+> |   double a;
+> |   ~MyModel();
+> |   MyModel();
+> |   MyModel(const Rcpp::NumericVector& ModelData, int temp);
+> | };
+> | 
+> | RCPP_EXPOSED_CLASS(MyModel)
+> |   
+> |   MyModel::~MyModel() 
+> |   {}
+> | MyModel::MyModel() : a(0) 
+> | {}
+> | MyModel::MyModel(const Rcpp::NumericVector& ModelData, int temp) : a(0)
+> | {}
+> | 
+> | RCPP_MODULE(MyModel){
+> |   
+> |   Rcpp::class_<MyModel>("MyModel")
+> |   .constructor()
+> |   .constructor<const Rcpp::NumericVector &, int>()
+> |   ;
+> | }
+> 
+> Compiles fine for me:
+> 
+> R> sourceCpp("/tmp/robin.cpp", verbose=TRUE, rebuild=TRUE)
+> 
+> Generated extern "C" functions 
+> --------------------------------------------------------
+> 
+> 
+> #include <Rcpp.h>
+> 
+> Generated R functions 
+> -------------------------------------------------------
+> 
+> `.sourceCpp_22_DLLInfo` <- dyn.load('/tmp/RtmpduezeN/sourceCpp-x86_64-pc-linux-gnu-1.0.1.2/sourcecpp_438853e7adda/sourceCpp_24.so')
+> 
+> library(Rcpp)
+> populate( Rcpp::Module("MyModel",`.sourceCpp_22_DLLInfo`), environment() ) 
+> 
+> rm(`.sourceCpp_22_DLLInfo`)
+> 
+> Building shared library
+> --------------------------------------------------------
+> 
+> DIR: /tmp/RtmpduezeN/sourceCpp-x86_64-pc-linux-gnu-1.0.1.2/sourcecpp_438853e7adda
+> 
+> /usr/lib/R/bin/R CMD SHLIB -o 'sourceCpp_24.so' --preclean  'robin.cpp'  
+> ccache g++ -I"/usr/share/R/include" -DNDEBUG   -I"/usr/local/lib/R/site-library/Rcpp/include" -I"/tmp"   -fpic  -g -O3 -Wall -pipe  -Wno-misleading-indentation -Wno-unused -Wno-ignored-attributes -Wno-class-memaccess -c robin.cpp -o robin.o
+> ccache g++ -Wl,-S -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o sourceCpp_24.so robin.o -L/usr/lib/R/lib -lR
+> R>
+> 
+> Dirk
+> 
+> | Compilation error : 
+> | 
+> | /usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Users/robin.girard/Documents/Code/Packages/test_modules/Test2/src" -I"/Users/robin.girard/Documents/Code/Packages/test_modules/Test2/src/../inst/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c test.cpp -o test.o
+> | In file included from test.cpp:1:
+> | In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+> | In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+> | In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+> | /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+> |                     Exporter( SEXP x ) : t(x){}
+> |                                            ^
+> | /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:87:41: note: in instantiation of member function 'Rcpp::traits::Exporter<const Rcpp::Vector<14, PreserveStorage> &>::Exporter' requested here
+> |             ::Rcpp::traits::Exporter<T> exporter(x);
+> |                                         ^
+> | /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:152:26: note: in instantiation of function template specialization 'Rcpp::internal::as<const Rcpp::Vector<14, PreserveStorage> &>' requested here
+> |         return internal::as<T>(x, typename traits::r_type_traits<T>::r_category());
+> |                          ^
+> | /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/module/Module_generated_Constructor.h:58:13: note: in instantiation of function template specialization 'Rcpp::as<const Rcpp::Vector<14, PreserveStorage> &>' requested here
+> |             as<U0>(args[0]),
+> |             ^
+> | /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/module/Module_generated_class_constructor.h:91:29: note: in instantiation of member function 'Rcpp::Constructor_2<MyModel, const Rcpp::Vector<14, PreserveStorage> &, int>::get_new' requested here
+> |         AddConstructor( new Constructor_2<Class,U0,U1> , valid, docstring ) ;
+> |                             ^
+> | test.cpp:26:4: note: in instantiation of function template specialization 'Rcpp::class_<MyModel>::constructor<const Rcpp::Vector<14, PreserveStorage> &, int>' requested here
+> |   .constructor<const Rcpp::NumericVector &, int>()
+> |    ^
+> | /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:35:9: note: reference member declared here
+> |                     T t ;
+> | 1 error generated.
+> | make: *** [test.o] Error 1
+> | Error in Rcpp::sourceCpp("src/test.cpp") : 
+> |   Error 1 occurred building shared library.
+> | 
+> | 
+> | 
+> | > Le 3 mai 2019 à 08:41, Robin GIRARD <robin.girard at mines-paristech.fr> a écrit :
+> | > 
+> | > I found a way to solve my RcppArmadillo problem here https://stackoverflow.com/questions/51761599/cannot-find-stdio-h <https://stackoverflow.com/questions/51761599/cannot-find-stdio-h>
+> | > I don’t really understand what happened because I had the file. 
+> | > The other error is still here
+> | > Regards
+> | > Robin
+> | > 
+> | >> Le 3 mai 2019 à 08:32, Robin GIRARD <robin.girard at mines-paristech.fr <mailto:robin.girard at mines-paristech.fr>> a écrit :
+> | >> 
+> | >> Dear Simon, 
+> | >> 
+> | >> **regarding RcppArmadillo build from source pb**  the config.log is attached and points the following error while checking something about cross  compilation.
+> | >> In file included from conftest.cpp:9:
+> | >> /usr/local/clang7/include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+> | >> #include_next <stdio.h>
+> | >> 
+> | >> But this file exists. 
+> | >> 
+> | >> ** regarding my compilation error** it is obtained while trying to build the module file, when calling #include "Rcpp.h » (line 4 of file Client.hpp) 
+> | >> /usr/local/clang7/bin/clang++  -Wall -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -std=c++11 -I../inst/include/ -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c mod_client.cc <http://mod_client.cc/> -o mod_client.o
+> | >> 
+> | >> In file included from mod_client.cc <http://mod_client.cc/>:1:
+> | >> In file included from ../inst/include/Client.hpp:4:
+> | >> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+> | >> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:168:
+> | >> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/as.h:25:
+> | >> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+> | >>                     Exporter( SEXP x ) : t(x){}
+> | >> 
+> | >> Thanks in advance for your help
+> | >> Regards
+> | >> Robin
+> | >> 
+> | >> <config.log>
+> | >> 
+> | >>> Le 2 mai 2019 à 23:18, Simon Urbanek <simon.urbanek at R-project.org <mailto:simon.urbanek at R-project.org>> a écrit :
+> | >>> 
+> | >>> Robin,
+> | >>> 
+> | >>> this is unlikely a Mac issue, merely newer compilers give you better error handling pointing to issues in the code that may not have been detected before. If you post the code we can have a look.
+> | >>> 
+> | >>> Also check your tools - the RcppArmadillo error points out that your compiler setup is broken since it cannot create runnable executable. Check config.log for details.
+> | >>> 
+> | >>> Cheers,
+> | >>> Simon
+> | >>> 
+> | >>> 
+> | >>> 
+> | >>>> On May 2, 2019, at 1:04 PM, Robin GIRARD <robin.girard at mines-paristech.fr <mailto:robin.girard at mines-paristech.fr>> wrote:
+> | >>>> 
+> | >>>> Dear all, avec a Mac update today I obtained the following error while compiling a package of mine using Rcpp : 
+> | >>>> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/internal/Exporter.h:31:30: error: reference member 't' binds to a temporary object whose lifetime would be shorter than the lifetime of the constructed object
+> | >>>>                    Exporter( SEXP x ) : t(x){}
+> | >>>> 
+> | >>>> I’m pretty sure this has something to do with Mac, I updated the Command line tool, I manage to compile simple examples with sourceRcpp (trying to follow instructions here http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/ <http://thecoatlessprofessor.com/programming/r-compiler-tools-for-rcpp-on-macos/>) I’m still trying to reproduce my error on a simple example. 
+> | >>>> I have R 3.6 and clang7 installed. 
+> | >>>> 
+> | >>>> Another strange point (might be connected) is that when I try to install RcppArmadillo from source (as suggested in link above with install.packages("", type = "source »)) it gives something about cross compiling:
+> | >>>> 
+> | >>>> checking whether the C++ compiler works... yes
+> | >>>> checking for C++ compiler default output file name... a.out
+> | >>>> checking for suffix of executables... 
+> | >>>> checking whether we are cross compiling... configure: error: in `/private/var/folders/zt/7cz1y9md79l_h08bbqymt4w9z8xlw7/T/Rtmpgi7WQZ/R.INSTALL4f4110aa3f/RcppArmadillo':
+> | >>>> configure: error: cannot run C++ compiled programs.
+> | >>>> If you meant to cross compile, use `--host'.
+> | >>>> See `config.log' for more details
+> | >>>> ERROR: configuration failed for package ‘RcppArmadillo’
+> | >>>> 
+> | >>>> 
+> | >>>> Thanks in advance for your help
+> | >>>> Regards
+> | >>>> Robin
+> | >>>> 
+> | >>>> 
+> | >>>> _______________________________________________
+> | >>>> Rcpp-devel mailing list
+> | >>>> Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+> | >>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+> | >>> 
+> | >> 
+> | > 
+> | > _______________________________________________
+> | > Rcpp-devel mailing list
+> | > Rcpp-devel at lists.r-forge.r-project.org
+> | > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> | 
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> 
+
+
+From edd at debian.org  Wed May  8 16:19:17 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 8 May 2019 09:19:17 -0500
+Subject: [Rcpp-devel] Package compilation error after a Mac update
+ (related to the use of module and .constructor<const Rcpp::NumericVector &,
+ int>()
+In-Reply-To: <73AAE5C0-BBDD-4D28-BCCC-332000E62E01@R-project.org>
+References: <1FC9185E-8F78-4D7D-ADE1-D2C11CD20AF8@mines-paristech.fr>
+ <5ADFF5C2-65BA-45BA-919A-EA4493ABB520@R-project.org>
+ <5014C0FB-BE39-4857-AFDB-9511817B7D42@mines-paristech.fr>
+ <85FC1190-4E2B-42C4-A89D-FAF93752310A@mines-paristech.fr>
+ <5EFD5AD4-D736-4ADC-A677-10DD09A99398@mines-paristech.fr>
+ <23762.12804.198077.552042@rob.eddelbuettel.com>
+ <73AAE5C0-BBDD-4D28-BCCC-332000E62E01@R-project.org>
+Message-ID: <23762.58725.905286.640148@rob.eddelbuettel.com>
+
+
+On 8 May 2019 at 09:43, Simon Urbanek wrote:
+| It fails for me on Linux as well:
+[...] 
+| [Ubuntu 18.04.1 LTS; clang 7.0.0-3~ubuntu0.18.04.1]
+
+I can confirm that on Ubuntu 18.10 if I uncomment / reset these in ~/.R/Makevars:
+
+  CXX=ccache clang++
+  CXX11=ccache clang++
+  CC=ccache clang
+  SHLIB_CXXLD=clang
+  CXXFLAGS=-Wall -O3
+
+Yet it also works as soon as remove the (understandable, from a pure C++
+viewpoint) reference semantic (which with SEXP object is a lie anyway).
+
+
+R> Rcpp::sourceCpp("/tmp/robin.cpp", verbose=TRUE, rebuild=TRUE)
+
+Generated extern "C" functions 
+--------------------------------------------------------
+
+
+#include <Rcpp.h>
+
+Generated R functions 
+-------------------------------------------------------
+
+`.sourceCpp_1_DLLInfo` <- dyn.load('/tmp/Rtmp6RAHjE/sourceCpp-x86_64-pc-linux-gnu-1.0.1.2/sourcecpp_314b38b4e773/sourceCpp_6.so')
+
+library(Rcpp)
+ populate( Rcpp::Module("MyModel",`.sourceCpp_1_DLLInfo`), environment() ) 
+
+rm(`.sourceCpp_1_DLLInfo`)
+
+Building shared library
+--------------------------------------------------------
+
+DIR: /tmp/Rtmp6RAHjE/sourceCpp-x86_64-pc-linux-gnu-1.0.1.2/sourcecpp_314b38b4e773
+
+/usr/lib/R/bin/R CMD SHLIB -o 'sourceCpp_6.so' --preclean  'robin.cpp'  
+ccache clang++ -I"/usr/share/R/include" -DNDEBUG   -I"/usr/local/lib/R/site-library/Rcpp/include" -I"/tmp"   -fpic  -Wall -O3 -c robin.cpp -o robin.o
+clang -Wl,-S -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o sourceCpp_6.so robin.o -L/usr/lib/R/lib -lR
+R> 
+
+
+Repaired code (which whitespace and identation to my and Emacs's liking)
+below.
+
+Dirk
+
+-----------------------------------------------------------------------------
+#include <Rcpp.h>
+using namespace Rcpp;
+
+class MyModel {
+public:
+  double a;
+  ~MyModel();
+  MyModel();
+  MyModel(const Rcpp::NumericVector ModelData, int temp);
+};
+
+RCPP_EXPOSED_CLASS(MyModel)
+
+MyModel::~MyModel() {}
+MyModel::MyModel() : a(0) {}
+MyModel::MyModel(const Rcpp::NumericVector ModelData, int temp) : a(0) {}
+
+RCPP_MODULE(MyModel) {
+  Rcpp::class_<MyModel>("MyModel")
+  .constructor()
+  .constructor<const Rcpp::NumericVector, int>()
+  ;
+}
+-----------------------------------------------------------------------------
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From ripley at stats.ox.ac.uk  Sat May 11 03:02:50 2019
+From: ripley at stats.ox.ac.uk (ripley at stats.ox.ac.uk)
+Date: Sat, 11 May 2019 09:02:50 +0800
+Subject: [Rcpp-devel] Message could not be delivered
+Message-ID: <mailman.0.1557536619.886.rcpp-devel@lists.r-forge.r-project.org>
+
+The original message was received at Sat, 11 May 2019 09:02:50 +0800
+from stats.ox.ac.uk [153.84.100.83]
+
+----- The following addresses had permanent fatal errors -----
+<rcpp-devel at lists.r-forge.r-project.org>
+
+
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: text.zip
+Type: application/octet-stream
+Size: 50226 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190511/397f1996/attachment.obj>
+
+From edd at debian.org  Sat May 11 14:35:06 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 11 May 2019 07:35:06 -0500
+Subject: [Rcpp-devel] Spoofed mail on rcpp-devel
+In-Reply-To: <20190511010320.8536918E2F9@r-forge.r-project.org>
+References: <20190511010320.8536918E2F9@r-forge.r-project.org>
+Message-ID: <23766.49530.76122.48409@rob.eddelbuettel.com>
+
+
+Do not open the message with the subject
+
+   [Rcpp-devel] Message could not be delivered
+
+pretending to be sent by
+
+   ripley at stats.ox.ac
+
+Be particularly careful on a Windows computer.
+
+The headers show it originates from 153.84.100.83 which does not traceroute
+back to Oxford. It also carries a header
+
+   X-ACL-Warn: X-malware detected: Win.Worm.Mydoom-5
+
+I hope this doesn't foretell more breakage of the mailman subscription layer.
+Someone clearly fudged this on purpose to plant a worm. Don't let them.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From barthriley at comcast.net  Mon May 13 17:52:47 2019
+From: barthriley at comcast.net (Barth Riley)
+Date: Mon, 13 May 2019 10:52:47 -0500
+Subject: [Rcpp-devel] NULL value passed as symbol address
+Message-ID: <eddd3d10-7739-451e-d0ac-5481060279d6@comcast.net>
+
+Dear list
+
+I a writing a package containing 2 C++ functions using Rcpp version 
+1.00. I am using R version 3.5.3 and devtools version 2.0.2. I have had 
+devtools/Rcpp generate the RcppExport.cpp and RcpExport.R files. The 
+package compiles fine but when I attempt to call these C++ functions, I 
+receive a NULL value passed as symbol address error. Below is my 
+generated RcppExport.R file:
+
+
+# Generated by using Rcpp::compileAttributes() -> do not edit by hand
+# Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
+
+logit <- function(x, xMin, xMax, adjustment = 0.3) {
+     .Call('_MFRM_logit', PACKAGE = 'MFRM', x, xMin, xMax, adjustment)
+}
+
+#'
+#' count_valid
+#' @name count_valid
+#' @param x A vector of integer values, including missing values
+#' @return An integer representing the number of unique non-missing 
+values in x.
+#' @export
+#'
+count_valid <- function(x) {
+     .Call('_MFRM_count_valid', PACKAGE = 'MFRM', x)
+}
+
+*And here is RcppExport.cpp:*
+
+// Generated by using Rcpp::compileAttributes() -> do not edit by hand
+// Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
+
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+// logit
+Rcpp::NumericVector logit(Rcpp::NumericVector x, Rcpp::NumericVector 
+xMin, Rcpp::NumericVector xMax, double adjustment);
+RcppExport SEXP _MFRM_logit(SEXP xSEXP, SEXP xMinSEXP, SEXP xMaxSEXP, 
+SEXP adjustmentSEXP) {
+BEGIN_RCPP
+     Rcpp::RObject rcpp_result_gen;
+     Rcpp::RNGScope rcpp_rngScope_gen;
+     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
+     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type 
+xMin(xMinSEXP);
+     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type 
+xMax(xMaxSEXP);
+     Rcpp::traits::input_parameter< double >::type 
+adjustment(adjustmentSEXP);
+     rcpp_result_gen = Rcpp::wrap(logit(x, xMin, xMax, adjustment));
+     return rcpp_result_gen;
+END_RCPP
+}
+// count_valid
+int count_valid(IntegerVector x);
+RcppExport SEXP _MFRM_count_valid(SEXP xSEXP) {
+BEGIN_RCPP
+     Rcpp::RObject rcpp_result_gen;
+     Rcpp::RNGScope rcpp_rngScope_gen;
+     Rcpp::traits::input_parameter< IntegerVector >::type x(xSEXP);
+     rcpp_result_gen = Rcpp::wrap(count_valid(x));
+     return rcpp_result_gen;
+END_RCPP
+}
+
+static const R_CallMethodDef CallEntries[] = {
+     {"_MFRM_logit", (DL_FUNC) &_MFRM_logit, 4},
+     {"_MFRM_fitCurve", (DL_FUNC) &_MFRM_fitCurve, 10},
+     {"_MFRM_count_valid", (DL_FUNC) &_MFRM_count_valid, 1},
+     {NULL, NULL, 0}
+};
+
+RcppExport void R_init_MFRM(DllInfo *dll) {
+     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+     R_useDynamicSymbols(dll, FALSE);
+}
+
+Do the functions have to be sequentially numbered (1,2,3...) in the 
+R_CallMethodDef structure? And are there any additional procedures 
+required when compiling the package using the latest version of Rcpp?
+
+
+Barth
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190513/8c03f22a/attachment.html>
+
+From edd at debian.org  Mon May 13 19:55:32 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 13 May 2019 12:55:32 -0500
+Subject: [Rcpp-devel] NULL value passed as symbol address
+In-Reply-To: <eddd3d10-7739-451e-d0ac-5481060279d6@comcast.net>
+References: <eddd3d10-7739-451e-d0ac-5481060279d6@comcast.net>
+Message-ID: <23769.44948.195284.882220@rob.eddelbuettel.com>
+
+
+Barth,
+
+You only showed us generated files. We have no reason to believe our
+generators are broken.
+
+What might be more helpful is a complete set of your code -- say the GitHub
+URL -- and an example invocation exhibiting the problem.  If it isn't GitHub
+please still to cook up a small self-contained example.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

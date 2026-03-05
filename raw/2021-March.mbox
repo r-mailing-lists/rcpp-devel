@@ -1,0 +1,655 @@
+From subhomoy25 at gmail.com  Thu Mar  4 17:38:41 2021
+From: subhomoy25 at gmail.com (Subhomoy Ghosh)
+Date: Thu, 4 Mar 2021 11:38:41 -0500
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+Message-ID: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+
+Hi,
+
+  This is related to my post
+<https://stackoverflow.com/questions/66142449/passing-class-as-argument-in-rcpp-function?noredirect=1#comment116942069_66142449>.
+My question is in the same spirit except for one additional complexity. How
+can one create a new instance of a *template* class object with a pointer
+on it and create an external pointer that can be further passed as an
+argument of a function? Here is a small example of my goal that will
+obviously not run and show "Use of class template Uniform2 requires
+template arguments".
+
+// template class
+template <typename T>
+class Uniform2 {
+
+public:
+  Uniform2(T max_,mat D_) :
+  max(max_), D(D_) {}
+
+  ~Uniform2(){};
+
+  T max;
+  mat D;
+};
+
+
+/// get function
+// [[Rcpp::export]]
+XPtr<Uniform2> getUniform(const mat &D, SEXP max,char type) {
+  // create pointer to a template Uniform object and
+  // wrap it as an external pointer
+  if(type=='double') {
+          Rcpp::XPtr<Uniform2> ptr(new Uniform2<double>(as<double>(max), D
+), true);
+          return ptr;
+  } else if(type=='int') {
+          Rcpp::XPtr<Uniform2> ptr(new Uniform2<int>(as<int>(max), D ),
+true);
+          return ptr;
+   }
+  // return the external pointer to the R side
+  return Rcpp::XPtr<Uniform2>(R_NilValue);
+}
+
+
+
+//do something
+// [[Rcpp::export]]
+double test2(double z, XPtr<Uniform2> xp) {
+
+  double CC= z * xp->max;
+
+  return CC;
+
+}
+
+Thanks,
+Subhomoy
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210304/1b10d3c7/attachment.html>
+
+From iucar at fedoraproject.org  Thu Mar  4 17:56:15 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Thu, 4 Mar 2021 17:56:15 +0100
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+Message-ID: <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+
+On Thu, 4 Mar 2021 at 17:39, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:
+>
+> Hi,
+>
+>   This is related to my post. My question is in the same spirit except for one additional complexity. How can one create a new instance of a template class object with a pointer on it and create an external pointer that can be further passed as an argument of a function? Here is a small example of my goal that will obviously not run and show "Use of class template Uniform2 requires template arguments".
+
+You can create a non-template parent class (e.g., Distribution) from
+which your template class derives. Then you just return a pointer to
+the parent. In [1] you'll see an example of this (Activity is the
+parent class; Seize, Release and the others are template classes that
+inherit from Activity). In your example, you can use something like
+
+Rcpp::XPtr<Distribution> ptr(new Uniform2<double>(as<double>(max), D ), true);
+
+[1] https://github.com/r-simmer/simmer/blob/master/src/activity.cpp
+
+Iñaki
+
+> // template class
+> template <typename T>
+> class Uniform2 {
+>
+> public:
+>   Uniform2(T max_,mat D_) :
+>   max(max_), D(D_) {}
+>
+>   ~Uniform2(){};
+>
+>   T max;
+>   mat D;
+> };
+>
+>
+> /// get function
+> // [[Rcpp::export]]
+> XPtr<Uniform2> getUniform(const mat &D, SEXP max,char type) {
+>   // create pointer to a template Uniform object and
+>   // wrap it as an external pointer
+>   if(type=='double') {
+>           Rcpp::XPtr<Uniform2> ptr(new Uniform2<double>(as<double>(max), D ), true);
+>           return ptr;
+>   } else if(type=='int') {
+>           Rcpp::XPtr<Uniform2> ptr(new Uniform2<int>(as<int>(max), D ), true);
+>           return ptr;
+>    }
+>   // return the external pointer to the R side
+>   return Rcpp::XPtr<Uniform2>(R_NilValue);
+> }
+>
+>
+>
+> //do something
+> // [[Rcpp::export]]
+> double test2(double z, XPtr<Uniform2> xp) {
+>
+>   double CC= z * xp->max;
+>
+>   return CC;
+>
+> }
+>
+> Thanks,
+> Subhomoy
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Iñaki Úcar
+
+From edd at debian.org  Thu Mar  4 18:03:13 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 4 Mar 2021 11:03:13 -0600
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+Message-ID: <24641.4817.47894.695930@rob.eddelbuettel.com>
+
+
+Recall that R offers us a C language interface
+
+   SEXP .Call("somename", SEXP a, SEXP b, ...);
+
+which imposes constraints on what you put there. I.e. no C++ fancypants.
+
+You can write yourself a _C_ function interface and pass your desired type as
+a string, or enum (i.e. int), or ... and then dispatch within.
+
+We are playing the hands we've been dealt here.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Mar  4 18:14:55 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 4 Mar 2021 11:14:55 -0600
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <24641.4817.47894.695930@rob.eddelbuettel.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+ <24641.4817.47894.695930@rob.eddelbuettel.com>
+Message-ID: <24641.5519.480227.806068@rob.eddelbuettel.com>
+
+
+PS And building on top of my post and what Inaki told you, you can of course
+have C++ fancypants __provided the fancypants have something as for example
+the operator SEXP() in the Rcpp::Nullable().  In short, whatever you do, it
+(ultimately) has to convert to a SEXP or there is no calling from R.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From subhomoy25 at gmail.com  Thu Mar  4 20:31:34 2021
+From: subhomoy25 at gmail.com (Subhomoy Ghosh)
+Date: Thu, 4 Mar 2021 14:31:34 -0500
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+ <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+Message-ID: <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+
+Thanks, for the solution. I tried what you suggested and it shows "no
+matching constructor for initialization of 'Rcpp::XPtr<Distribution>'".
+Below here is my attempt:
+
+class Distribution {
+
+public:
+  template <typename T>
+  class Uniform2 {
+
+    public:
+    Uniform2(T max_,mat D_) :
+    max(max_), D(D_) {}
+
+    ~Uniform2(){};
+
+    T max;
+    mat D;
+ };
+};
+
+// [[Rcpp::export]]
+XPtr<Distribution> getUniform(const mat &D, SEXP max,int type) {
+  // create pointer to an Uniform object and
+  // wrap it as an external pointer
+  if(type==1) {
+          Rcpp::XPtr<Distribution> ptr(new
+Distribution::Uniform2<double>(as<double>(max), D ), true);
+          return ptr;
+  } else if(type==2) {
+          Rcpp::XPtr<Distribution> ptr(new
+Distribution::Uniform2<int>(as<int>(max), D ), true);
+          return ptr;
+   }
+  // return the external pointer to the R side
+  return Rcpp::XPtr<Distribution>(R_NilValue);
+}
+
+Any idea how this can be fixed?
+
+@Dirk, Thanks! I am aware of the .Call(). I can go that route depending on
+how it goes.
+
+
+
+
+On Thu, Mar 4, 2021 at 11:56 AM Iñaki Ucar <iucar at fedoraproject.org> wrote:
+
+> On Thu, 4 Mar 2021 at 17:39, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:
+> >
+> > Hi,
+> >
+> >   This is related to my post. My question is in the same spirit except
+> for one additional complexity. How can one create a new instance of a
+> template class object with a pointer on it and create an external pointer
+> that can be further passed as an argument of a function? Here is a small
+> example of my goal that will obviously not run and show "Use of class
+> template Uniform2 requires template arguments".
+>
+> You can create a non-template parent class (e.g., Distribution) from
+> which your template class derives. Then you just return a pointer to
+> the parent. In [1] you'll see an example of this (Activity is the
+> parent class; Seize, Release and the others are template classes that
+> inherit from Activity). In your example, you can use something like
+>
+> Rcpp::XPtr<Distribution> ptr(new Uniform2<double>(as<double>(max), D ),
+> true);
+>
+> [1] https://github.com/r-simmer/simmer/blob/master/src/activity.cpp
+>
+> Iñaki
+>
+> > // template class
+> > template <typename T>
+> > class Uniform2 {
+> >
+> > public:
+> >   Uniform2(T max_,mat D_) :
+> >   max(max_), D(D_) {}
+> >
+> >   ~Uniform2(){};
+> >
+> >   T max;
+> >   mat D;
+> > };
+> >
+> >
+> > /// get function
+> > // [[Rcpp::export]]
+> > XPtr<Uniform2> getUniform(const mat &D, SEXP max,char type) {
+> >   // create pointer to a template Uniform object and
+> >   // wrap it as an external pointer
+> >   if(type=='double') {
+> >           Rcpp::XPtr<Uniform2> ptr(new Uniform2<double>(as<double>(max),
+> D ), true);
+> >           return ptr;
+> >   } else if(type=='int') {
+> >           Rcpp::XPtr<Uniform2> ptr(new Uniform2<int>(as<int>(max), D ),
+> true);
+> >           return ptr;
+> >    }
+> >   // return the external pointer to the R side
+> >   return Rcpp::XPtr<Uniform2>(R_NilValue);
+> > }
+> >
+> >
+> >
+> > //do something
+> > // [[Rcpp::export]]
+> > double test2(double z, XPtr<Uniform2> xp) {
+> >
+> >   double CC= z * xp->max;
+> >
+> >   return CC;
+> >
+> > }
+> >
+> > Thanks,
+> > Subhomoy
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+> --
+> Iñaki Úcar
+>
+
+
+-- 
+Subhomoy
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210304/efd019ec/attachment-0001.html>
+
+From edd at debian.org  Thu Mar  4 20:57:35 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 4 Mar 2021 13:57:35 -0600
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+ <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+ <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+Message-ID: <24641.15279.515817.533099@rob.eddelbuettel.com>
+
+
+On 4 March 2021 at 14:31, Subhomoy Ghosh wrote:
+| @Dirk, Thanks! I am aware of the .Call(). I can go that route depending on
+| how it goes.
+
+I may not have been explicit enough. Everything we do goes that route, it's
+just that some of the code accessing it is written for you by Rcpp
+Attributes. The constraints still apply.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Thu Mar  4 20:58:42 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Thu, 4 Mar 2021 20:58:42 +0100
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+ <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+ <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+Message-ID: <CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>
+
+On Thu, 4 Mar 2021 at 20:31, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:
+>
+> Thanks, for the solution. I tried what you suggested and it shows "no matching constructor for initialization of 'Rcpp::XPtr<Distribution>'". Below here is my attempt:
+>
+> class Distribution {
+>
+> public:
+>   template <typename T>
+>   class Uniform2 {
+
+This is a nested class, which makes little sense in this context.
+Uniform2 should *inherit* from Distribution. Again, see my package as
+an example, which does exactly what you want.
+
+-- 
+Iñaki Úcar
+
+From subhomoy25 at gmail.com  Fri Mar  5 17:14:57 2021
+From: subhomoy25 at gmail.com (Subhomoy Ghosh)
+Date: Fri, 5 Mar 2021 11:14:57 -0500
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+ <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+ <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+ <CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>
+Message-ID: <CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>
+
+Thanks, Iñaki! Your package gave me enough hints to create the following
+attempt which seemed to have worked.
+
+#include <RcppArmadillo.h>
+
+using namespace Rcpp;
+using namespace arma;
+
+// [[Rcpp::depends(RcppArmadillo)]]
+
+class Distribution {
+
+public:
+  virtual Distribution* clone() {return (new Distribution(*this));}
+  virtual ~Distribution() {}
+
+};
+
+template <typename T>
+class Uniform : public Distribution {
+
+public:
+  virtual Uniform<T>* clone() {return (new Uniform<T>(*this));}
+  Uniform(const T &max,int i_) :
+  max(max), i(i_) {}
+
+  ~Uniform(){};
+
+  T max;
+  int i;
+};
+
+
+
+// [[Rcpp::export]]
+XPtr<Distribution> getUniformParam( SEXP max,int i,int type) {
+  // create pointer to an Uniform object and
+  // wrap it as an external pointer for base class
+  if(type==1) {
+          return Rcpp::XPtr<Distribution> (new
+Uniform<double>(as<double>(max), i) );
+  } else if(type==2) {
+          return Rcpp::XPtr<Distribution> (new Uniform<int>(as<int>(max),
+i) );
+
+   }
+  // return the external pointer to the R side
+  return Rcpp::XPtr<Distribution>(R_NilValue);
+}
+
+
+
+// [[Rcpp::export]]
+double test2(double z, XPtr<Distribution> xp, int type) {
+
+  Distribution* d=xp->clone();
+  double tt=1;
+  // convert the base pointer to derived class pointer
+  if(type==1){
+       Uniform<double> *f = dynamic_cast<Uniform<double> *>(d);
+       tt = z * f->max;
+  } else if (type==2){
+       Uniform<int> *f = dynamic_cast<Uniform<int> *>(d);
+       tt =z * f->max;
+    }
+
+ return tt;
+}
+
+// R side
+xp<- getUniformParam(2.3,2,1)
+test2(2,xp,1)
+
+
+On Thu, Mar 4, 2021 at 2:58 PM Iñaki Ucar <iucar at fedoraproject.org> wrote:
+
+> On Thu, 4 Mar 2021 at 20:31, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:
+> >
+> > Thanks, for the solution. I tried what you suggested and it shows "no
+> matching constructor for initialization of 'Rcpp::XPtr<Distribution>'".
+> Below here is my attempt:
+> >
+> > class Distribution {
+> >
+> > public:
+> >   template <typename T>
+> >   class Uniform2 {
+>
+> This is a nested class, which makes little sense in this context.
+> Uniform2 should *inherit* from Distribution. Again, see my package as
+> an example, which does exactly what you want.
+>
+> --
+> Iñaki Úcar
+>
+
+
+-- 
+Subhomoy
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210305/80e73789/attachment.html>
+
+From iucar at fedoraproject.org  Fri Mar  5 18:44:08 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Fri, 5 Mar 2021 18:44:08 +0100
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+ <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+ <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+ <CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>
+ <CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>
+Message-ID: <CALEXWq2A=Dwcn99SOgXABn9fQLFbcPsgpj_13sMXz1DzdKGp8w@mail.gmail.com>
+
+Excellent. Note that the clone method was required for my use case, but it
+may be superfluous for yours.
+
+Iñaki
+
+El vie., 5 mar. 2021 17:15, Subhomoy Ghosh <subhomoy25 at gmail.com> escribió:
+
+> Thanks, Iñaki! Your package gave me enough hints to create the following
+> attempt which seemed to have worked.
+>
+> #include <RcppArmadillo.h>
+>
+> using namespace Rcpp;
+> using namespace arma;
+>
+> // [[Rcpp::depends(RcppArmadillo)]]
+>
+> class Distribution {
+>
+> public:
+>   virtual Distribution* clone() {return (new Distribution(*this));}
+>   virtual ~Distribution() {}
+>
+> };
+>
+> template <typename T>
+> class Uniform : public Distribution {
+>
+> public:
+>   virtual Uniform<T>* clone() {return (new Uniform<T>(*this));}
+>   Uniform(const T &max,int i_) :
+>   max(max), i(i_) {}
+>
+>   ~Uniform(){};
+>
+>   T max;
+>   int i;
+> };
+>
+>
+>
+> // [[Rcpp::export]]
+> XPtr<Distribution> getUniformParam( SEXP max,int i,int type) {
+>   // create pointer to an Uniform object and
+>   // wrap it as an external pointer for base class
+>   if(type==1) {
+>           return Rcpp::XPtr<Distribution> (new
+> Uniform<double>(as<double>(max), i) );
+>   } else if(type==2) {
+>           return Rcpp::XPtr<Distribution> (new Uniform<int>(as<int>(max),
+> i) );
+>
+>    }
+>   // return the external pointer to the R side
+>   return Rcpp::XPtr<Distribution>(R_NilValue);
+> }
+>
+>
+>
+> // [[Rcpp::export]]
+> double test2(double z, XPtr<Distribution> xp, int type) {
+>
+>   Distribution* d=xp->clone();
+>   double tt=1;
+>   // convert the base pointer to derived class pointer
+>   if(type==1){
+>        Uniform<double> *f = dynamic_cast<Uniform<double> *>(d);
+>        tt = z * f->max;
+>   } else if (type==2){
+>        Uniform<int> *f = dynamic_cast<Uniform<int> *>(d);
+>        tt =z * f->max;
+>     }
+>
+>  return tt;
+> }
+>
+> // R side
+> xp<- getUniformParam(2.3,2,1)
+> test2(2,xp,1)
+>
+>
+> On Thu, Mar 4, 2021 at 2:58 PM Iñaki Ucar <iucar at fedoraproject.org> wrote:
+>
+>> On Thu, 4 Mar 2021 at 20:31, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:
+>> >
+>> > Thanks, for the solution. I tried what you suggested and it shows "no
+>> matching constructor for initialization of 'Rcpp::XPtr<Distribution>'".
+>> Below here is my attempt:
+>> >
+>> > class Distribution {
+>> >
+>> > public:
+>> >   template <typename T>
+>> >   class Uniform2 {
+>>
+>> This is a nested class, which makes little sense in this context.
+>> Uniform2 should *inherit* from Distribution. Again, see my package as
+>> an example, which does exactly what you want.
+>>
+>> --
+>> Iñaki Úcar
+>>
+>
+>
+> --
+> Subhomoy
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210305/e78cbb37/attachment.html>
+
+From edd at debian.org  Fri Mar  5 18:59:01 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 5 Mar 2021 11:59:01 -0600
+Subject: [Rcpp-devel] Passing template class as argument in Rcpp function
+In-Reply-To: <CALEXWq2A=Dwcn99SOgXABn9fQLFbcPsgpj_13sMXz1DzdKGp8w@mail.gmail.com>
+References: <CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>
+ <CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>
+ <CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>
+ <CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>
+ <CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>
+ <CALEXWq2A=Dwcn99SOgXABn9fQLFbcPsgpj_13sMXz1DzdKGp8w@mail.gmail.com>
+Message-ID: <24642.29029.318297.426812@rob.eddelbuettel.com>
+
+
+On 5 March 2021 at 18:44, Iñaki Ucar wrote:
+| Excellent. Note that the clone method was required for my use case, but it
+| may be superfluous for yours.
+
+It's very nice to do it straight up with the XPtr class.
+
+A variant using Rcpp Modules is offerend byy RcppAnnoy -- also templated.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

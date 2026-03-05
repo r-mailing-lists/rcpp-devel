@@ -1,0 +1,163 @@
+From tom.haber at uhasselt.be  Thu Mar 14 16:23:02 2019
+From: tom.haber at uhasselt.be (Tom HABER)
+Date: Thu, 14 Mar 2019 16:23:02 +0100
+Subject: [Rcpp-devel] How to provide a custom generator/constructor for an
+	Rcpp class?
+In-Reply-To: <CAH2GPm2_PiMjbC6E1puqfF9kPB96XWKWBwDHyHRZG+zf+SGQqg@mail.gmail.com>
+References: <CAH2GPm2_PiMjbC6E1puqfF9kPB96XWKWBwDHyHRZG+zf+SGQqg@mail.gmail.com>
+Message-ID: <CAH2GPm1PmUbnYzAp2J704G8f2WmKBXoL-WrrDkY0cSC+GtAWXA@mail.gmail.com>
+
+Hey,
+
+I asked this question on stackoverflow (
+https://stackoverflow.com/questions/54234934/how-to-provide-a-custom-generator-constructor-for-an-rcpp-class)
+a while back but never got an answer, so I'm trying my luck here.
+
+-----
+
+I've written R bindings for my C++ library, but for usability I would like
+to change the behavior of the methods and constructors somewhat in R:
+adding defaults and packing variables into a list.
+
+For example: instead of calling the generator ClassName(name, list(var1=1,
+var2=2)), I would like to have ClassName(name, var1=1, var2=2)
+
+Initially I was just using loadModules and using the C++ methods directly,
+but then switched to setRcppClass which allows me to override the methods
+including initialize. At first I tried using callNextMethod to no avail and
+then basically resorted to copy-pasting what the Rcpp provided
+initialize method
+does with some small adjustments.
+
+setRcppClass("ClassName", module="mymodule",
+        methods=list(
+            initialize=function(.Object, name, ...) {
+                args <- list(...)
+                argNames <- allNames(args)
+                cppArgs <- nzchar(argNames)
+                .CppObject <<- .CppGenerator$new(name, args[cppArgs])
+            },
+            show=function() {
+                cat('ClassName of type:', .CppObject$name(), '\n')
+            }))
+
+This does almost what I want, except that I need to explicitly name the name
+ parameter: ClassName(name="Foo", var1=1, var2=2)
+
+Obviously I also want to avoid copying the Rcpp code, but instead call it
+somehow.
+
+Additionally R CMD check is complaining about all references to .CppGenerator
+.CppObject allNames
+-------
+
+Thanks a lot in advance
+
+Tom Haber
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190314/561b5fa5/attachment-0001.html>
+
+From edd at debian.org  Tue Mar 26 01:10:37 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 25 Mar 2019 19:10:37 -0500
+Subject: [Rcpp-devel] macOS and RcppGSL
+Message-ID: <23705.28157.414533.380728@rob.eddelbuettel.com>
+
+
+I got a bug report for RcppGSL on macOS:
+
+    https://github.com/eddelbuettel/rcppgsl/issues/19
+
+and I can't make progress on this for
+    a) lack of a mac machine,
+    b) inability to reproduce on rhub (no GSL installed; ticked filed
+       earlier), and of course
+    c) the fact that is passes at CRAN on platforms.
+
+If someone with a mac could chime and re-affirm that RcppGSL 0.3.6 builds for
+them I'd appreciate it. If it fails I'd appreciate pointers too :)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From hankin.robin at gmail.com  Tue Mar 26 01:33:12 2019
+From: hankin.robin at gmail.com (robin hankin)
+Date: Tue, 26 Mar 2019 13:33:12 +1300
+Subject: [Rcpp-devel] macOS and RcppGSL
+In-Reply-To: <23705.28157.414533.380728@rob.eddelbuettel.com>
+References: <23705.28157.414533.380728@rob.eddelbuettel.com>
+Message-ID: <CAHHjBM7zLv5BLsHR8y8rjbZB8HUD6rO-Hjsvz_BdNAFtFqJxqA@mail.gmail.com>
+
+Hi Dirk,
+
+R CMD check RcppGSL_0.3.6.tar.gz clean for me under R-3.5.2, mac os 10.13.6
+
+HTH
+
+Robin
+
+
+<hankin.robin at gmail.com>
+hankin.robin at gmail.com
+
+<hankin.robin at gmail.com>
+
+<hankin.robin at gmail.com>
+
+
+On Tue, Mar 26, 2019 at 1:10 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> I got a bug report for RcppGSL on macOS:
+>
+>     https://github.com/eddelbuettel/rcppgsl/issues/19
+>
+> and I can't make progress on this for
+>     a) lack of a mac machine,
+>     b) inability to reproduce on rhub (no GSL installed; ticked filed
+>        earlier), and of course
+>     c) the fact that is passes at CRAN on platforms.
+>
+> If someone with a mac could chime and re-affirm that RcppGSL 0.3.6 builds
+> for
+> them I'd appreciate it. If it fails I'd appreciate pointers too :)
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190326/9fb06f49/attachment.html>
+
+From edd at debian.org  Tue Mar 26 02:05:22 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 25 Mar 2019 20:05:22 -0500
+Subject: [Rcpp-devel] macOS and RcppGSL
+In-Reply-To: <CAHHjBM7zLv5BLsHR8y8rjbZB8HUD6rO-Hjsvz_BdNAFtFqJxqA@mail.gmail.com>
+References: <23705.28157.414533.380728@rob.eddelbuettel.com>
+ <CAHHjBM7zLv5BLsHR8y8rjbZB8HUD6rO-Hjsvz_BdNAFtFqJxqA@mail.gmail.com>
+Message-ID: <23705.31442.978819.997267@rob.eddelbuettel.com>
+
+
+Hi Robin.
+
+On 26 March 2019 at 13:33, robin hankin wrote:
+| R CMD check RcppGSL_0.3.6.tar.gz clean for me under R-3.5.2, mac os 10.13.6
+
+Thanks a lot -- and also to Kevin who chimed in over at GitHub (and for whom
+it also works).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

@@ -1,0 +1,1352 @@
+From edd at debian.org  Tue Feb  1 18:52:49 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 1 Feb 2022 11:52:49 -0600
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+Message-ID: <25081.29553.394328.957785@rob.eddelbuettel.com>
+
+
+Lionel,
+
+Thanks a bunch for the prompt and detailed reply. CCing Jeroen now, I think I
+had poked him over DM on this but not followed. Easy for us to delegate to V8 :)
+That is of course a complicated (and toolchain-dependent) package too so we
+shall see what we can do there.  But the good news on our end is that we can
+likely just enable RCPP_UNWIND_PROTECT and everybody (apart from V8) may
+indeed be better off.
+
+Cheers, Dirk
+
+On 1 February 2022 at 12:08, Lionel Henry wrote:
+| Hi Iñaki,
+| 
+| IIRC, at the time I was concerned it might be undefined behaviour (from R's
+| viewpoint) to catch a longjump exception (wich wraps an R unwind token) without
+| rethrowing it. I think this is why I didn't have `LongjumpException` inherit
+| from `std::exception` because there seemed to be an assumption that an exception
+| inheriting from that class can be arbitrarily caught, and perhaps reported in
+| some way to users or callers via the `what()` method.
+| 
+| A longjump token may represent different kinds of long jumps. If it represents
+| an error, it might be reasonable to catch the token and recover. However it can
+| also represent a restart invokation, a condition being caught by another handler
+| upstack, or a long return (see `base::callCC()`). For these cases the R language
+| does not provide a way of interrupting the unwinding. Except, maybe, through
+| `on.exit()` expressions on the stack which can throw or long-return, and thus
+| overtake the current jump.
+| 
+| Whether it's UB or not could be checked with Luke. That said, even if well
+| defined, I would generally not recommand catching a longjump token and transform
+| it to an unknown exception. In general it'd be better to resume the unwinding
+| with the token. As mentioned above, it does not necessarily represent an error
+| or abnormal situation.
+| 
+| I'm not familiar with V8 but I took a quick look. IIUC R is called back from JS
+| through Rcpp? E.g. via `console.r.call()`? And it looks like throwing exceptions
+| (or longjumping) over the JS stack is UB. So I think the proper thing to do is
+| to catch `Rcpp::LongjumpException()`, then unwind the JS stack, probably with
+| `v8::ThrowException()`, but the longjump exception (or at least the unwind token
+| it wraps) needs to be somehow communicated to the other side. Once back in a
+| safe Rcpp context with no JS on the stack, resume the longjump with the
+| exception or token.
+| 
+| Of course it's easier to just disable unwind-protection in V8. But implementing
+| the approach above would not only improve performance, it would also improve the
+| semantics of V8 callbacks to R.
+| 
+| Best,
+| Lionel
+| 
+| 
+| On 1/31/22, Iñaki Ucar <iucar at fedoraproject.org> wrote:
+| > Hi Lionel,
+| >
+| > I've been setting this for years in my own packages, and particularly
+| > in a simulator that greatly benefits from this due to its heavy usage
+| > of R calls from the C++ simulation loop. Now, we're looking into
+| > setting this feature on by default in the next release of Rcpp to
+| > improve the performance of other packages, such as httpuv [1], as
+| > well.
+| >
+| > Dirk has run a full revdep check that looks very promising, with just
+| > one new failure (the V8 package), and it would be great if you could
+| > take a look when you have time. It seems that the UNWIND_PROTECT
+| > mechanism somehow collides with v8's exception handling:
+| >
+| >> test_check("V8")
+| >   terminate called after throwing an instance of 'Rcpp::LongjumpException'
+| >   Aborted
+| >
+| > V8 sees this exception, doesn't know what to do with it, and then the
+| > program is aborted. This is kind of a Russian Doll, and probably an
+| > extreme case, but we are wondering whether we can do something on the
+| > Rcpp side to support v8's engine. V8 can always undefine
+| > UNWIND_PROTECT if we ship this by default, but this is clearly one of
+| > those packages that could benefit from the improved performance that
+| > this feature enables.
+| >
+| > So far, I found that Rcpp::LongjumpException is the only exception in
+| > Rcpp that doesn't inherit from std::exception (which is what V8
+| > expects). Is this intended/required? I checked that, if
+| > LongjumpException inherits from std::exception, V8 doesn't crash there
+| > (the exception is recognized), but then two errors are shown in the R
+| > console, which is not ideal either:
+| >
+| >> ctx <- V8::v8()
+| >> ctx$eval("console.r.eval('doesnotexists')")
+| > Error in eval(ei, envir) : object 'doesnotexists' not found
+| > Error: std::exception
+| >> x <- try(ctx$eval("console.r.eval('doesnotexists')"))
+| > Error : std::exception
+| >> x
+| > [1] "Error : std::exception\n"
+| > attr(,"class")
+| > [1] "try-error"
+| > attr(,"condition")
+| > <std::runtime_error: std::exception>
+| >
+| > Please let us know if you have some time for this. Any help would be
+| > appreciated.
+| >
+| > Cheers,
+| > Iñaki
+| >
+| > [1] https://github.com/rstudio/httpuv/issues/244
+| >
+| > --
+| > Iñaki Úcar
+| >
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jeroenooms at gmail.com  Sun Feb  6 17:40:12 2022
+From: jeroenooms at gmail.com (Jeroen Ooms)
+Date: Sun, 6 Feb 2022 17:40:12 +0100
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <25081.29553.394328.957785@rob.eddelbuettel.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+Message-ID: <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+
+We can try to take V8 out of the equation, and see what actually
+causes the change. V8 uses (and tests!) the Rcpp feature to call an R
+function from C++. This behaves quite differently when using
+RCPP_UNWIND_PROTECT.
+
+Here is a dummy package to demonstrate this: https://github.com/jeroen/uptest
+
+The use case is simple: we want to call some R function from C++, and
+if it fails, catch the error message and deal with it in C++. I
+suspect there are more packages doing this, but perhaps they are not
+testing this case.
+
+The example from uptest above show that when we compile with
+RCPP_UNWIND_PROTECT, any R error is always printed directly to the
+console. Even if we catch the Rcpp::LongjumpException in C++, the R
+error still seems to bubble up (as Iñaki also noted). I think this is
+at least surprising.
+
+Then I am not sure what we do in C++ now with this
+Rcpp::LongjumpException if we catch it. We certainly don't want to
+unwind all the way in the middle of running the javascript code. The
+JavaScript code should be able to catch the R error, and continue
+running the script.
+
+Anyway if you want to make RCPP_UNWIND_PROTECT the default, I can
+obviously opt-out in V8, but as an Rcpp user I am not convinced this
+is an improvement.
+
+
+
+On Tue, Feb 1, 2022 at 6:52 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> Lionel,
+>
+> Thanks a bunch for the prompt and detailed reply. CCing Jeroen now, I think I
+> had poked him over DM on this but not followed. Easy for us to delegate to V8 :)
+> That is of course a complicated (and toolchain-dependent) package too so we
+> shall see what we can do there.  But the good news on our end is that we can
+> likely just enable RCPP_UNWIND_PROTECT and everybody (apart from V8) may
+> indeed be better off.
+>
+> Cheers, Dirk
+>
+> On 1 February 2022 at 12:08, Lionel Henry wrote:
+> | Hi Iñaki,
+> |
+> | IIRC, at the time I was concerned it might be undefined behaviour (from R's
+> | viewpoint) to catch a longjump exception (wich wraps an R unwind token) without
+> | rethrowing it. I think this is why I didn't have `LongjumpException` inherit
+> | from `std::exception` because there seemed to be an assumption that an exception
+> | inheriting from that class can be arbitrarily caught, and perhaps reported in
+> | some way to users or callers via the `what()` method.
+> |
+> | A longjump token may represent different kinds of long jumps. If it represents
+> | an error, it might be reasonable to catch the token and recover. However it can
+> | also represent a restart invokation, a condition being caught by another handler
+> | upstack, or a long return (see `base::callCC()`). For these cases the R language
+> | does not provide a way of interrupting the unwinding. Except, maybe, through
+> | `on.exit()` expressions on the stack which can throw or long-return, and thus
+> | overtake the current jump.
+> |
+> | Whether it's UB or not could be checked with Luke. That said, even if well
+> | defined, I would generally not recommand catching a longjump token and transform
+> | it to an unknown exception. In general it'd be better to resume the unwinding
+> | with the token. As mentioned above, it does not necessarily represent an error
+> | or abnormal situation.
+> |
+> | I'm not familiar with V8 but I took a quick look. IIUC R is called back from JS
+> | through Rcpp? E.g. via `console.r.call()`? And it looks like throwing exceptions
+> | (or longjumping) over the JS stack is UB. So I think the proper thing to do is
+> | to catch `Rcpp::LongjumpException()`, then unwind the JS stack, probably with
+> | `v8::ThrowException()`, but the longjump exception (or at least the unwind token
+> | it wraps) needs to be somehow communicated to the other side. Once back in a
+> | safe Rcpp context with no JS on the stack, resume the longjump with the
+> | exception or token.
+> |
+> | Of course it's easier to just disable unwind-protection in V8. But implementing
+> | the approach above would not only improve performance, it would also improve the
+> | semantics of V8 callbacks to R.
+> |
+> | Best,
+> | Lionel
+> |
+> |
+> | On 1/31/22, Iñaki Ucar <iucar at fedoraproject.org> wrote:
+> | > Hi Lionel,
+> | >
+> | > I've been setting this for years in my own packages, and particularly
+> | > in a simulator that greatly benefits from this due to its heavy usage
+> | > of R calls from the C++ simulation loop. Now, we're looking into
+> | > setting this feature on by default in the next release of Rcpp to
+> | > improve the performance of other packages, such as httpuv [1], as
+> | > well.
+> | >
+> | > Dirk has run a full revdep check that looks very promising, with just
+> | > one new failure (the V8 package), and it would be great if you could
+> | > take a look when you have time. It seems that the UNWIND_PROTECT
+> | > mechanism somehow collides with v8's exception handling:
+> | >
+> | >> test_check("V8")
+> | >   terminate called after throwing an instance of 'Rcpp::LongjumpException'
+> | >   Aborted
+> | >
+> | > V8 sees this exception, doesn't know what to do with it, and then the
+> | > program is aborted. This is kind of a Russian Doll, and probably an
+> | > extreme case, but we are wondering whether we can do something on the
+> | > Rcpp side to support v8's engine. V8 can always undefine
+> | > UNWIND_PROTECT if we ship this by default, but this is clearly one of
+> | > those packages that could benefit from the improved performance that
+> | > this feature enables.
+> | >
+> | > So far, I found that Rcpp::LongjumpException is the only exception in
+> | > Rcpp that doesn't inherit from std::exception (which is what V8
+> | > expects). Is this intended/required? I checked that, if
+> | > LongjumpException inherits from std::exception, V8 doesn't crash there
+> | > (the exception is recognized), but then two errors are shown in the R
+> | > console, which is not ideal either:
+> | >
+> | >> ctx <- V8::v8()
+> | >> ctx$eval("console.r.eval('doesnotexists')")
+> | > Error in eval(ei, envir) : object 'doesnotexists' not found
+> | > Error: std::exception
+> | >> x <- try(ctx$eval("console.r.eval('doesnotexists')"))
+> | > Error : std::exception
+> | >> x
+> | > [1] "Error : std::exception\n"
+> | > attr(,"class")
+> | > [1] "try-error"
+> | > attr(,"condition")
+> | > <std::runtime_error: std::exception>
+> | >
+> | > Please let us know if you have some time for this. Any help would be
+> | > appreciated.
+> | >
+> | > Cheers,
+> | > Iñaki
+> | >
+> | > [1] https://github.com/rstudio/httpuv/issues/244
+> | >
+> | > --
+> | > Iñaki Úcar
+> | >
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sun Feb  6 17:56:33 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 6 Feb 2022 10:56:33 -0600
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+Message-ID: <25087.64961.192299.345@rob.eddelbuettel.com>
+
+
+On 6 February 2022 at 17:40, Jeroen Ooms wrote:
+| We can try to take V8 out of the equation, and see what actually
+| causes the change. V8 uses (and tests!) the Rcpp feature to call an R
+| function from C++. This behaves quite differently when using
+| RCPP_UNWIND_PROTECT.
+| 
+| Here is a dummy package to demonstrate this: https://github.com/jeroen/uptest
+| 
+| The use case is simple: we want to call some R function from C++, and
+| if it fails, catch the error message and deal with it in C++. I
+| suspect there are more packages doing this, but perhaps they are not
+| testing this case.
+| 
+| The example from uptest above show that when we compile with
+| RCPP_UNWIND_PROTECT, any R error is always printed directly to the
+| console. Even if we catch the Rcpp::LongjumpException in C++, the R
+| error still seems to bubble up (as Iñaki also noted). I think this is
+| at least surprising.
+| 
+| Then I am not sure what we do in C++ now with this
+| Rcpp::LongjumpException if we catch it. We certainly don't want to
+| unwind all the way in the middle of running the javascript code. The
+| JavaScript code should be able to catch the R error, and continue
+| running the script.
+| 
+| Anyway if you want to make RCPP_UNWIND_PROTECT the default, I can
+| obviously opt-out in V8, but as an Rcpp user I am not convinced this
+| is an improvement.
+
+Thanks for the feedback. I think there is an easy-to-understand, easy-to-make
+error in a sample package (but kudos for creating one!).  Because Rcpp will
+always wrap try/catch around the function you create with its mechanism, the
+layer inside is redundant.  So I suggest the C++ function file becomes this
+simpler / shorter variant:
+
+  #include <Rcpp.h>
+  using namespace Rcpp;
+
+  // [[Rcpp::export]]
+  Rcpp::NumericVector call_r_from_rcpp() {
+    Rcpp::Function callback = Rcpp::Environment::namespace_env("uptest")["callback"];
+    callback();
+    return Rcpp::NumericVector::create(42);
+  }
+
+which behaves fine for me in both cases.
+
+First, "as I found the repo" so with the new RCPP_UNWIND_PROTECT added:
+
+  edd at rob:/tmp/uptest(master)$ install.r .                  # the usual wrapper from littler
+  * installing *source* package ‘uptest’ ...
+  ** using staged installation
+  ** libs                                                                                                                                                                                                                                                                                                                                      
+  rm -f uptest.so RcppExports.o callback.o                                                                                                                                                                             
+  ccache g++-11 -I"/usr/share/R/include" -DNDEBUG -DRCPP_USE_UNWIND_PROTECT -I'/usr/local/lib/R/site-library/Rcpp/include'    -fpic  -g -O3 -Wall -pipe -pedantic  -c RcppExports.cpp -o RcppExports.o
+  ccache g++-11 -I"/usr/share/R/include" -DNDEBUG -DRCPP_USE_UNWIND_PROTECT -I'/usr/local/lib/R/site-library/Rcpp/include'    -fpic  -g -O3 -Wall -pipe -pedantic  -c callback.cpp -o callback.o
+  ccache g++-11 -Wl,-S -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -flto=auto -Wl,-z,relro -o uptest.so RcppExports.o callback.o -L/usr/lib/R/lib -lR
+  installing to /usr/local/lib/R/site-library/00LOCK-uptest/00new/uptest/libs                                                                                                                                                                              
+  ** R                                                                                                     
+  ** byte-compile and prepare package for lazy loading 
+  ** help
+  *** installing help indices
+  ** building package indices
+  ** testing if installed package can be loaded from temporary location
+  ** checking absolute paths in shared objects and dynamic libraries
+  ** testing if installed package can be loaded from final location
+  ** testing if installed package keeps a record of temporary installation path
+  * DONE (uptest)
+  edd at rob:/tmp/uptest(master)$ R -q
+  > library(uptest)
+  > uptest()
+  Error in (function ()  : Ouch from R
+  > qn
+  edd at rob:/tmp/uptest(master)$
+
+Second, after editing src/Makevars and removing of object files:
+
+
+  edd at rob:/tmp/uptest(master)$ be src/Makevars                      # an alias for emacsclient inside byobu
+  edd at rob:/tmp/uptest(master)$ rm src/*.o src/*.so
+  edd at rob:/tmp/uptest(master)$ install.r .
+  * installing *source* package ‘uptest’ ...
+  ** using staged installation
+  ** libs
+  rm -f uptest.so RcppExports.o callback.o
+  ccache g++-11 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/Rcpp/include'    -fpic  -g -O3 -Wall -pipe -pedantic  -c RcppExports.cpp -o RcppExports.o
+  ccache g++-11 -I"/usr/share/R/include" -DNDEBUG  -I'/usr/local/lib/R/site-library/Rcpp/include'    -fpic  -g -O3 -Wall -pipe -pedantic  -c callback.cpp -o callback.o
+  ccache g++-11 -Wl,-S -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -flto=auto -Wl,-z,relro -o uptest.so RcppExports.o callback.o -L/usr/lib/R/lib -lR
+  installing to /usr/local/lib/R/site-library/00LOCK-uptest/00new/uptest/libs
+  ** R
+  ** byte-compile and prepare package for lazy loading
+  ** help
+  *** installing help indices
+  ** building package indices
+  ** testing if installed package can be loaded from temporary location
+  ** checking absolute paths in shared objects and dynamic libraries
+  ** testing if installed package can be loaded from final location
+  ** testing if installed package keeps a record of temporary installation path
+  * DONE (uptest)
+  edd at rob:/tmp/uptest(master)$ R -q
+  > library(uptest)
+  > uptest()
+  Error in call_r_from_rcpp() : Evaluation error: Ouch from R.
+  > qn
+  edd at rob:/tmp/uptest(master)$ 
+
+So in short
+
+  Rcpp on CRAN:      Error in call_r_from_rcpp() : Evaluation error: Ouch from R.
+
+  Rcpp proposed:     Error in (function ()  : Ouch from R
+
+which thanks to the hard work by Lionel a while back is both faster and nicer.
+
+It's Sunday and I only had one pot of coffee so far so it is plausible and
+possible I omitted something, but it looks like this is actually net better.
+
+Cheers, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+  
+
+From jeroenooms at gmail.com  Sun Feb  6 18:18:27 2022
+From: jeroenooms at gmail.com (Jeroen Ooms)
+Date: Sun, 6 Feb 2022 18:18:27 +0100
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <25087.64961.192299.345@rob.eddelbuettel.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+Message-ID: <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+
+On Sun, Feb 6, 2022 at 5:56 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 6 February 2022 at 17:40, Jeroen Ooms wrote:
+> | We can try to take V8 out of the equation, and see what actually
+> | causes the change. V8 uses (and tests!) the Rcpp feature to call an R
+> | function from C++. This behaves quite differently when using
+> | RCPP_UNWIND_PROTECT.
+> |
+> | Here is a dummy package to demonstrate this: https://github.com/jeroen/uptest
+> |
+> | The use case is simple: we want to call some R function from C++, and
+> | if it fails, catch the error message and deal with it in C++. I
+> | suspect there are more packages doing this, but perhaps they are not
+> | testing this case.
+> |
+> | The example from uptest above show that when we compile with
+> | RCPP_UNWIND_PROTECT, any R error is always printed directly to the
+> | console. Even if we catch the Rcpp::LongjumpException in C++, the R
+> | error still seems to bubble up (as Iñaki also noted). I think this is
+> | at least surprising.
+> |
+> | Then I am not sure what we do in C++ now with this
+> | Rcpp::LongjumpException if we catch it. We certainly don't want to
+> | unwind all the way in the middle of running the javascript code. The
+> | JavaScript code should be able to catch the R error, and continue
+> | running the script.
+> |
+> | Anyway if you want to make RCPP_UNWIND_PROTECT the default, I can
+> | obviously opt-out in V8, but as an Rcpp user I am not convinced this
+> | is an improvement.
+>
+> Thanks for the feedback. I think there is an easy-to-understand, easy-to-make
+> error in a sample package (but kudos for creating one!).  Because Rcpp will
+> always wrap try/catch around the function you create with its mechanism, the
+> layer inside is redundant.  So I suggest the C++ function file becomes this
+> simpler / shorter variant:
+>
+>   #include <Rcpp.h>
+>   using namespace Rcpp;
+>
+>   // [[Rcpp::export]]
+>   Rcpp::NumericVector call_r_from_rcpp() {
+>     Rcpp::Function callback = Rcpp::Environment::namespace_env("uptest")["callback"];
+>     callback();
+>     return Rcpp::NumericVector::create(42);
+>   }
+>
+> which behaves fine for me in both cases.
+
+Well not really, this kind of misses my point that it the
+unwind-protect makes it impossible to meaningfully catch the R error
+in C++, handle it, and continue running the C++ code, without aborting
+the entire mission and throwing the user back in the console.
+
+From kevinushey at gmail.com  Sun Feb  6 18:21:06 2022
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sun, 6 Feb 2022 09:21:06 -0800
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+Message-ID: <CAJXgQP3XAPwGR7b_6Yxu_m5-Ubq6zMR9tiywCLy17D3KOQL2Zg@mail.gmail.com>
+
+Is it possible the issue here is ultimately just that our
+LongjumpException class doesn't inherit from std::exception?
+
+On Sun, Feb 6, 2022 at 9:18 AM Jeroen Ooms <jeroenooms at gmail.com> wrote:
+
+> On Sun, Feb 6, 2022 at 5:56 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> >
+> > On 6 February 2022 at 17:40, Jeroen Ooms wrote:
+> > | We can try to take V8 out of the equation, and see what actually
+> > | causes the change. V8 uses (and tests!) the Rcpp feature to call an R
+> > | function from C++. This behaves quite differently when using
+> > | RCPP_UNWIND_PROTECT.
+> > |
+> > | Here is a dummy package to demonstrate this:
+> https://github.com/jeroen/uptest
+> > |
+> > | The use case is simple: we want to call some R function from C++, and
+> > | if it fails, catch the error message and deal with it in C++. I
+> > | suspect there are more packages doing this, but perhaps they are not
+> > | testing this case.
+> > |
+> > | The example from uptest above show that when we compile with
+> > | RCPP_UNWIND_PROTECT, any R error is always printed directly to the
+> > | console. Even if we catch the Rcpp::LongjumpException in C++, the R
+> > | error still seems to bubble up (as Iñaki also noted). I think this is
+> > | at least surprising.
+> > |
+> > | Then I am not sure what we do in C++ now with this
+> > | Rcpp::LongjumpException if we catch it. We certainly don't want to
+> > | unwind all the way in the middle of running the javascript code. The
+> > | JavaScript code should be able to catch the R error, and continue
+> > | running the script.
+> > |
+> > | Anyway if you want to make RCPP_UNWIND_PROTECT the default, I can
+> > | obviously opt-out in V8, but as an Rcpp user I am not convinced this
+> > | is an improvement.
+> >
+> > Thanks for the feedback. I think there is an easy-to-understand,
+> easy-to-make
+> > error in a sample package (but kudos for creating one!).  Because Rcpp
+> will
+> > always wrap try/catch around the function you create with its mechanism,
+> the
+> > layer inside is redundant.  So I suggest the C++ function file becomes
+> this
+> > simpler / shorter variant:
+> >
+> >   #include <Rcpp.h>
+> >   using namespace Rcpp;
+> >
+> >   // [[Rcpp::export]]
+> >   Rcpp::NumericVector call_r_from_rcpp() {
+> >     Rcpp::Function callback =
+> Rcpp::Environment::namespace_env("uptest")["callback"];
+> >     callback();
+> >     return Rcpp::NumericVector::create(42);
+> >   }
+> >
+> > which behaves fine for me in both cases.
+>
+> Well not really, this kind of misses my point that it the
+> unwind-protect makes it impossible to meaningfully catch the R error
+> in C++, handle it, and continue running the C++ code, without aborting
+> the entire mission and throwing the user back in the console.
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220206/ec064954/attachment-0001.html>
+
+From kevinushey at gmail.com  Sun Feb  6 18:24:42 2022
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sun, 6 Feb 2022 09:24:42 -0800
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CAJXgQP3XAPwGR7b_6Yxu_m5-Ubq6zMR9tiywCLy17D3KOQL2Zg@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+ <CAJXgQP3XAPwGR7b_6Yxu_m5-Ubq6zMR9tiywCLy17D3KOQL2Zg@mail.gmail.com>
+Message-ID: <CAJXgQP3o9C7i6x9qo9XqKxOR38htEbWyB0kYxr1a1nsgNQ+Q1g@mail.gmail.com>
+
+If I tweak your example package code so that all exceptions are caught via
+a catch (...) {} block, I can see something like:
+
+> uptest::uptest()
+Error in (function ()  : Ouch from R
+Caught some other exception.
+
+The fact that we're still printing the R error message seems undesirable,
+but it looks like the exception can be caught -- just not via
+std::exception.
+
+On Sun, Feb 6, 2022 at 9:21 AM Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> Is it possible the issue here is ultimately just that our
+> LongjumpException class doesn't inherit from std::exception?
+>
+> On Sun, Feb 6, 2022 at 9:18 AM Jeroen Ooms <jeroenooms at gmail.com> wrote:
+>
+>> On Sun, Feb 6, 2022 at 5:56 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>> >
+>> >
+>> > On 6 February 2022 at 17:40, Jeroen Ooms wrote:
+>> > | We can try to take V8 out of the equation, and see what actually
+>> > | causes the change. V8 uses (and tests!) the Rcpp feature to call an R
+>> > | function from C++. This behaves quite differently when using
+>> > | RCPP_UNWIND_PROTECT.
+>> > |
+>> > | Here is a dummy package to demonstrate this:
+>> https://github.com/jeroen/uptest
+>> > |
+>> > | The use case is simple: we want to call some R function from C++, and
+>> > | if it fails, catch the error message and deal with it in C++. I
+>> > | suspect there are more packages doing this, but perhaps they are not
+>> > | testing this case.
+>> > |
+>> > | The example from uptest above show that when we compile with
+>> > | RCPP_UNWIND_PROTECT, any R error is always printed directly to the
+>> > | console. Even if we catch the Rcpp::LongjumpException in C++, the R
+>> > | error still seems to bubble up (as Iñaki also noted). I think this is
+>> > | at least surprising.
+>> > |
+>> > | Then I am not sure what we do in C++ now with this
+>> > | Rcpp::LongjumpException if we catch it. We certainly don't want to
+>> > | unwind all the way in the middle of running the javascript code. The
+>> > | JavaScript code should be able to catch the R error, and continue
+>> > | running the script.
+>> > |
+>> > | Anyway if you want to make RCPP_UNWIND_PROTECT the default, I can
+>> > | obviously opt-out in V8, but as an Rcpp user I am not convinced this
+>> > | is an improvement.
+>> >
+>> > Thanks for the feedback. I think there is an easy-to-understand,
+>> easy-to-make
+>> > error in a sample package (but kudos for creating one!).  Because Rcpp
+>> will
+>> > always wrap try/catch around the function you create with its
+>> mechanism, the
+>> > layer inside is redundant.  So I suggest the C++ function file becomes
+>> this
+>> > simpler / shorter variant:
+>> >
+>> >   #include <Rcpp.h>
+>> >   using namespace Rcpp;
+>> >
+>> >   // [[Rcpp::export]]
+>> >   Rcpp::NumericVector call_r_from_rcpp() {
+>> >     Rcpp::Function callback =
+>> Rcpp::Environment::namespace_env("uptest")["callback"];
+>> >     callback();
+>> >     return Rcpp::NumericVector::create(42);
+>> >   }
+>> >
+>> > which behaves fine for me in both cases.
+>>
+>> Well not really, this kind of misses my point that it the
+>> unwind-protect makes it impossible to meaningfully catch the R error
+>> in C++, handle it, and continue running the C++ code, without aborting
+>> the entire mission and throwing the user back in the console.
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220206/18787f2a/attachment.html>
+
+From edd at debian.org  Sun Feb  6 18:31:10 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 6 Feb 2022 11:31:10 -0600
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+Message-ID: <25088.1502.62436.883480@rob.eddelbuettel.com>
+
+
+On 6 February 2022 at 18:18, Jeroen Ooms wrote:
+| Well not really, this kind of misses my point that it the
+| unwind-protect makes it impossible to meaningfully catch the R error
+| in C++, handle it, and continue running the C++ code, without aborting
+| the entire mission and throwing the user back in the console.
+
+I see. Well if we wanted to catch an R error on the R side, adding tryCatch
+still works. Here are your initial R function, renamed, and a new one:
+
+  callbackWithoutTry <- function() {
+    stop("Ouch from R")
+  }
+  
+  callback <- function() {
+      tryCatch(stop("Ouch from R"),
+               error = function(e) { cat("Well that went south\n") },
+               finally = function(e) { cat("Normal end\n") } )
+  }
+
+This (under UNWIND_PROTECT) behaves:
+
+  edd at rob:/tmp/uptest(master)$ install.r .
+  * installing *source* package ‘uptest’ ...
+  ** using staged installation
+  ** libs
+  rm -f uptest.so RcppExports.o callback.o
+  ccache g++-11 -I"/usr/share/R/include" -DNDEBUG -DRCPP_USE_UNWIND_PROTECT -I'/usr/local/lib/R/site-library/Rcpp/include'    -fpic  -g -O3 -Wall -pipe -pedantic  -c RcppExports.cpp -o RcppExports.o
+  ccache g++-11 -I"/usr/share/R/include" -DNDEBUG -DRCPP_USE_UNWIND_PROTECT -I'/usr/local/lib/R/site-library/Rcpp/include'    -fpic  -g -O3 -Wall -pipe -pedantic  -c callback.cpp -o callback.o
+  ccache g++-11 -Wl,-S -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -flto=auto -Wl,-z,relro -o uptest.so RcppExports.o callback.o -L/usr/lib/R/lib -lR
+  installing to /usr/local/lib/R/site-library/00LOCK-uptest/00new/uptest/libs
+  ** R
+  ** byte-compile and prepare package for lazy loading
+  ** help
+  *** installing help indices
+  ** building package indices
+  ** testing if installed package can be loaded from temporary location
+  ** checking absolute paths in shared objects and dynamic libraries
+  ** testing if installed package can be loaded from final location
+  ** testing if installed package keeps a record of temporary installation path
+  * DONE (uptest)
+  edd at rob:/tmp/uptest(master)$ R -q
+  > uptest::uptest()
+  Well that went south
+  [1] 42
+  > 
+
+So this catches the stop(), enters a designates block and resumes in the C++
+function that called it all still returning the 42 we desired as The Answer.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Sun Feb  6 18:35:41 2022
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sun, 6 Feb 2022 09:35:41 -0800
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <25088.1502.62436.883480@rob.eddelbuettel.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+ <25088.1502.62436.883480@rob.eddelbuettel.com>
+Message-ID: <CAJXgQP3Wf=gsOzZ0PMxAKyvPMtQgKpYriFg_OOyK8uwNwyJRsQ@mail.gmail.com>
+
+And I'm seeing you pointed that out at the end of the README... so yes, we
+should probably just have our exception inherit from std::exception.
+
+On Sun, Feb 6, 2022 at 9:31 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 6 February 2022 at 18:18, Jeroen Ooms wrote:
+> | Well not really, this kind of misses my point that it the
+> | unwind-protect makes it impossible to meaningfully catch the R error
+> | in C++, handle it, and continue running the C++ code, without aborting
+> | the entire mission and throwing the user back in the console.
+>
+> I see. Well if we wanted to catch an R error on the R side, adding tryCatch
+> still works. Here are your initial R function, renamed, and a new one:
+>
+>   callbackWithoutTry <- function() {
+>     stop("Ouch from R")
+>   }
+>
+>   callback <- function() {
+>       tryCatch(stop("Ouch from R"),
+>                error = function(e) { cat("Well that went south\n") },
+>                finally = function(e) { cat("Normal end\n") } )
+>   }
+>
+> This (under UNWIND_PROTECT) behaves:
+>
+>   edd at rob:/tmp/uptest(master)$ install.r .
+>   * installing *source* package ‘uptest’ ...
+>   ** using staged installation
+>   ** libs
+>   rm -f uptest.so RcppExports.o callback.o
+>   ccache g++-11 -I"/usr/share/R/include" -DNDEBUG
+> -DRCPP_USE_UNWIND_PROTECT -I'/usr/local/lib/R/site-library/Rcpp/include'
+> -fpic  -g -O3 -Wall -pipe -pedantic  -c RcppExports.cpp -o RcppExports.o
+>   ccache g++-11 -I"/usr/share/R/include" -DNDEBUG
+> -DRCPP_USE_UNWIND_PROTECT -I'/usr/local/lib/R/site-library/Rcpp/include'
+> -fpic  -g -O3 -Wall -pipe -pedantic  -c callback.cpp -o callback.o
+>   ccache g++-11 -Wl,-S -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions
+> -flto=auto -Wl,-z,relro -o uptest.so RcppExports.o callback.o
+> -L/usr/lib/R/lib -lR
+>   installing to
+> /usr/local/lib/R/site-library/00LOCK-uptest/00new/uptest/libs
+>   ** R
+>   ** byte-compile and prepare package for lazy loading
+>   ** help
+>   *** installing help indices
+>   ** building package indices
+>   ** testing if installed package can be loaded from temporary location
+>   ** checking absolute paths in shared objects and dynamic libraries
+>   ** testing if installed package can be loaded from final location
+>   ** testing if installed package keeps a record of temporary installation
+> path
+>   * DONE (uptest)
+>   edd at rob:/tmp/uptest(master)$ R -q
+>   > uptest::uptest()
+>   Well that went south
+>   [1] 42
+>   >
+>
+> So this catches the stop(), enters a designates block and resumes in the
+> C++
+> function that called it all still returning the 42 we desired as The
+> Answer.
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220206/d9b320a2/attachment.html>
+
+From jeroenooms at gmail.com  Sun Feb  6 18:39:35 2022
+From: jeroenooms at gmail.com (Jeroen Ooms)
+Date: Sun, 6 Feb 2022 18:39:35 +0100
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CAJXgQP3o9C7i6x9qo9XqKxOR38htEbWyB0kYxr1a1nsgNQ+Q1g@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+ <CAJXgQP3XAPwGR7b_6Yxu_m5-Ubq6zMR9tiywCLy17D3KOQL2Zg@mail.gmail.com>
+ <CAJXgQP3o9C7i6x9qo9XqKxOR38htEbWyB0kYxr1a1nsgNQ+Q1g@mail.gmail.com>
+Message-ID: <CABFfbXt4En_uVa3B-o2+tj5wKLMrezmeA-ysQ8UQOdLaunzy2Q@mail.gmail.com>
+
+On Sun, Feb 6, 2022 at 6:25 PM Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+> If I tweak your example package code so that all exceptions are caught via a catch (...) {} block, I can see something like:
+>
+> > uptest::uptest()
+> Error in (function ()  : Ouch from R
+> Caught some other exception.
+>
+> The fact that we're still printing the R error message seems undesirable, but it looks like the exception can be caught -- just not via std::exception.
+
+Yes that is also what Iñaki and me alluded to above. But I think this
+way, what we are catching is not the R error itself (which seems lost
+after it was printed), but rather a token that tells the application
+we should let Rcpp unwind all the way back to the R console. Which is
+what happens if we don't catch it, then it makes sense. But if we _do_
+want to handle the situation in C++, this doesn't give us much to work
+with.
+
+From edd at debian.org  Sun Feb  6 20:15:14 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 6 Feb 2022 13:15:14 -0600
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CABFfbXt4En_uVa3B-o2+tj5wKLMrezmeA-ysQ8UQOdLaunzy2Q@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+ <CAJXgQP3XAPwGR7b_6Yxu_m5-Ubq6zMR9tiywCLy17D3KOQL2Zg@mail.gmail.com>
+ <CAJXgQP3o9C7i6x9qo9XqKxOR38htEbWyB0kYxr1a1nsgNQ+Q1g@mail.gmail.com>
+ <CABFfbXt4En_uVa3B-o2+tj5wKLMrezmeA-ysQ8UQOdLaunzy2Q@mail.gmail.com>
+Message-ID: <25088.7746.936981.151763@rob.eddelbuettel.com>
+
+
+To sum up:
+
+   ¯\_(ツ)_/¯
+
+I have no bone in this fight.  Leaving it as is works for me too.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jeroenooms at gmail.com  Mon Feb  7 00:12:47 2022
+From: jeroenooms at gmail.com (Jeroen Ooms)
+Date: Mon, 7 Feb 2022 00:12:47 +0100
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CAJf4E3qf3_S291tLCBCUG6gzzdD6Sm=cLmXM=_WiqFn7LBwABA@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <CAJf4E3qf3_S291tLCBCUG6gzzdD6Sm=cLmXM=_WiqFn7LBwABA@mail.gmail.com>
+Message-ID: <CABFfbXsdvZEQOMChzZyXyhwHxu0AdAwwKcPgvOTMuRgKtiT5bA@mail.gmail.com>
+
+I have pushed a new version of V8 to CRAN that wraps the R callbacks
+in another tryCatch() such that we do not make any assumptions on the
+sort of exception handing provided by Rcpp. This should unblock you if
+you want to move forward on this change.
+
+
+
+
+On Sun, Feb 6, 2022 at 9:30 PM Lionel Henry <lionel at rstudio.com> wrote:
+>
+> A few points:
+>
+> - As argued in my previous mail, a longjump exception does not necessarily
+>   represent an error and doesn't always represent something that should be
+>   allowed to be caught. If an R function invokes a restart or a long return, or
+>   more commonly if a condition handler upstack catches a condition emitted by
+>   the R callback, C++ code shouldn't regain control during the unwind.
+>
+> - If you want to catch R errors, I think the proper way is to wrap the callback
+>   in `tryCatch()` and convert to an `std::exception`. The interface for this is
+>   `Rcpp_eval()`.
+>
+> - It may be that `Rcpp::function` calls should use `Rcpp_eval()` instead of
+>   `Rcpp_fast_eval()`. They will be slower but will properly emit catchable
+>   `std::exception` in case of errors or interrupts.
+>
+> - Even if you use `Rcpp_eval()`, longjump exceptions might still be thrown when
+>   the long jump happens for another reason, e.g. when an R function upstack
+>   catches a condition. These shouldn't be caught.
+>
+> - When a longjump exception is encountered, I think that V8 should unwind the JS
+>   stack and thread the unwind token back to a safe place and resume the jump.
+>
+> Best,
+> Lionel
+>
+>
+> On 2/6/22, Jeroen Ooms <jeroenooms at gmail.com> wrote:
+> > We can try to take V8 out of the equation, and see what actually
+> > causes the change. V8 uses (and tests!) the Rcpp feature to call an R
+> > function from C++. This behaves quite differently when using
+> > RCPP_UNWIND_PROTECT.
+> >
+> > Here is a dummy package to demonstrate this:
+> > https://github.com/jeroen/uptest
+> >
+> > The use case is simple: we want to call some R function from C++, and
+> > if it fails, catch the error message and deal with it in C++. I
+> > suspect there are more packages doing this, but perhaps they are not
+> > testing this case.
+> >
+> > The example from uptest above show that when we compile with
+> > RCPP_UNWIND_PROTECT, any R error is always printed directly to the
+> > console. Even if we catch the Rcpp::LongjumpException in C++, the R
+> > error still seems to bubble up (as Iñaki also noted). I think this is
+> > at least surprising.
+> >
+> > Then I am not sure what we do in C++ now with this
+> > Rcpp::LongjumpException if we catch it. We certainly don't want to
+> > unwind all the way in the middle of running the javascript code. The
+> > JavaScript code should be able to catch the R error, and continue
+> > running the script.
+> >
+> > Anyway if you want to make RCPP_UNWIND_PROTECT the default, I can
+> > obviously opt-out in V8, but as an Rcpp user I am not convinced this
+> > is an improvement.
+> >
+> >
+> >
+> > On Tue, Feb 1, 2022 at 6:52 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+> >>
+> >>
+> >> Lionel,
+> >>
+> >> Thanks a bunch for the prompt and detailed reply. CCing Jeroen now, I
+> >> think I
+> >> had poked him over DM on this but not followed. Easy for us to delegate to
+> >> V8 :)
+> >> That is of course a complicated (and toolchain-dependent) package too so
+> >> we
+> >> shall see what we can do there.  But the good news on our end is that we
+> >> can
+> >> likely just enable RCPP_UNWIND_PROTECT and everybody (apart from V8) may
+> >> indeed be better off.
+> >>
+> >> Cheers, Dirk
+> >>
+> >> On 1 February 2022 at 12:08, Lionel Henry wrote:
+> >> | Hi Iñaki,
+> >> |
+> >> | IIRC, at the time I was concerned it might be undefined behaviour (from
+> >> R's
+> >> | viewpoint) to catch a longjump exception (wich wraps an R unwind token)
+> >> without
+> >> | rethrowing it. I think this is why I didn't have `LongjumpException`
+> >> inherit
+> >> | from `std::exception` because there seemed to be an assumption that an
+> >> exception
+> >> | inheriting from that class can be arbitrarily caught, and perhaps
+> >> reported in
+> >> | some way to users or callers via the `what()` method.
+> >> |
+> >> | A longjump token may represent different kinds of long jumps. If it
+> >> represents
+> >> | an error, it might be reasonable to catch the token and recover. However
+> >> it can
+> >> | also represent a restart invokation, a condition being caught by another
+> >> handler
+> >> | upstack, or a long return (see `base::callCC()`). For these cases the R
+> >> language
+> >> | does not provide a way of interrupting the unwinding. Except, maybe,
+> >> through
+> >> | `on.exit()` expressions on the stack which can throw or long-return, and
+> >> thus
+> >> | overtake the current jump.
+> >> |
+> >> | Whether it's UB or not could be checked with Luke. That said, even if
+> >> well
+> >> | defined, I would generally not recommand catching a longjump token and
+> >> transform
+> >> | it to an unknown exception. In general it'd be better to resume the
+> >> unwinding
+> >> | with the token. As mentioned above, it does not necessarily represent an
+> >> error
+> >> | or abnormal situation.
+> >> |
+> >> | I'm not familiar with V8 but I took a quick look. IIUC R is called back
+> >> from JS
+> >> | through Rcpp? E.g. via `console.r.call()`? And it looks like throwing
+> >> exceptions
+> >> | (or longjumping) over the JS stack is UB. So I think the proper thing to
+> >> do is
+> >> | to catch `Rcpp::LongjumpException()`, then unwind the JS stack, probably
+> >> with
+> >> | `v8::ThrowException()`, but the longjump exception (or at least the
+> >> unwind token
+> >> | it wraps) needs to be somehow communicated to the other side. Once back
+> >> in a
+> >> | safe Rcpp context with no JS on the stack, resume the longjump with the
+> >> | exception or token.
+> >> |
+> >> | Of course it's easier to just disable unwind-protection in V8. But
+> >> implementing
+> >> | the approach above would not only improve performance, it would also
+> >> improve the
+> >> | semantics of V8 callbacks to R.
+> >> |
+> >> | Best,
+> >> | Lionel
+> >> |
+> >> |
+> >> | On 1/31/22, Iñaki Ucar <iucar at fedoraproject.org> wrote:
+> >> | > Hi Lionel,
+> >> | >
+> >> | > I've been setting this for years in my own packages, and particularly
+> >> | > in a simulator that greatly benefits from this due to its heavy usage
+> >> | > of R calls from the C++ simulation loop. Now, we're looking into
+> >> | > setting this feature on by default in the next release of Rcpp to
+> >> | > improve the performance of other packages, such as httpuv [1], as
+> >> | > well.
+> >> | >
+> >> | > Dirk has run a full revdep check that looks very promising, with just
+> >> | > one new failure (the V8 package), and it would be great if you could
+> >> | > take a look when you have time. It seems that the UNWIND_PROTECT
+> >> | > mechanism somehow collides with v8's exception handling:
+> >> | >
+> >> | >> test_check("V8")
+> >> | >   terminate called after throwing an instance of
+> >> 'Rcpp::LongjumpException'
+> >> | >   Aborted
+> >> | >
+> >> | > V8 sees this exception, doesn't know what to do with it, and then the
+> >> | > program is aborted. This is kind of a Russian Doll, and probably an
+> >> | > extreme case, but we are wondering whether we can do something on the
+> >> | > Rcpp side to support v8's engine. V8 can always undefine
+> >> | > UNWIND_PROTECT if we ship this by default, but this is clearly one of
+> >> | > those packages that could benefit from the improved performance that
+> >> | > this feature enables.
+> >> | >
+> >> | > So far, I found that Rcpp::LongjumpException is the only exception in
+> >> | > Rcpp that doesn't inherit from std::exception (which is what V8
+> >> | > expects). Is this intended/required? I checked that, if
+> >> | > LongjumpException inherits from std::exception, V8 doesn't crash
+> >> there
+> >> | > (the exception is recognized), but then two errors are shown in the R
+> >> | > console, which is not ideal either:
+> >> | >
+> >> | >> ctx <- V8::v8()
+> >> | >> ctx$eval("console.r.eval('doesnotexists')")
+> >> | > Error in eval(ei, envir) : object 'doesnotexists' not found
+> >> | > Error: std::exception
+> >> | >> x <- try(ctx$eval("console.r.eval('doesnotexists')"))
+> >> | > Error : std::exception
+> >> | >> x
+> >> | > [1] "Error : std::exception\n"
+> >> | > attr(,"class")
+> >> | > [1] "try-error"
+> >> | > attr(,"condition")
+> >> | > <std::runtime_error: std::exception>
+> >> | >
+> >> | > Please let us know if you have some time for this. Any help would be
+> >> | > appreciated.
+> >> | >
+> >> | > Cheers,
+> >> | > Iñaki
+> >> | >
+> >> | > [1] https://github.com/rstudio/httpuv/issues/244
+> >> | >
+> >> | > --
+> >> | > Iñaki Úcar
+> >> | >
+> >>
+> >> --
+> >> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> >
+
+From edd at debian.org  Mon Feb  7 01:10:14 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 6 Feb 2022 18:10:14 -0600
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CABFfbXsdvZEQOMChzZyXyhwHxu0AdAwwKcPgvOTMuRgKtiT5bA@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <CAJf4E3qf3_S291tLCBCUG6gzzdD6Sm=cLmXM=_WiqFn7LBwABA@mail.gmail.com>
+ <CABFfbXsdvZEQOMChzZyXyhwHxu0AdAwwKcPgvOTMuRgKtiT5bA@mail.gmail.com>
+Message-ID: <25088.25446.394435.605668@rob.eddelbuettel.com>
+
+
+On 7 February 2022 at 00:12, Jeroen Ooms wrote:
+| I have pushed a new version of V8 to CRAN that wraps the R callbacks
+| in another tryCatch() such that we do not make any assumptions on the
+| sort of exception handing provided by Rcpp. This should unblock you if
+| you want to move forward on this change.
+
+Thank you!
+
+No rush from our end. By our standard release process we have five months to
+debate (or ignore) this.  But appreciate the proactive help!
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Mon Feb  7 03:10:54 2022
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sun, 6 Feb 2022 18:10:54 -0800
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CABFfbXt4En_uVa3B-o2+tj5wKLMrezmeA-ysQ8UQOdLaunzy2Q@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+ <CAJXgQP3XAPwGR7b_6Yxu_m5-Ubq6zMR9tiywCLy17D3KOQL2Zg@mail.gmail.com>
+ <CAJXgQP3o9C7i6x9qo9XqKxOR38htEbWyB0kYxr1a1nsgNQ+Q1g@mail.gmail.com>
+ <CABFfbXt4En_uVa3B-o2+tj5wKLMrezmeA-ysQ8UQOdLaunzy2Q@mail.gmail.com>
+Message-ID: <CAJXgQP3zh+Uy6GWOWVie6jkAGndDBsRgWszsOGeORNBq_UhEew@mail.gmail.com>
+
+Thanks, I think I understand the issue better now. Ultimately, it comes
+down to the fact that UnwindProtect doesn't really allow handling of R
+conditions in the "regular" way as e.g. tryCatch() does; instead, it gives
+us just enough to properly unwind the C++ stack when an R error occurs. If
+I can summarize:
+
+1. Client packages can catch the Rcpp LongjumpException and handle it
+themselves if they need to, but it's not obvious how to do this correctly.
+2. R error messages are printed by R when the error is emitted.
+3. It's not clear to the LongJumpException handler what R error triggered
+the longjmp exception.
+
+In particular, for (1), Rcpp is normally responsible for unprotecting its
+unwind token, and then continuing the unwind:
+
+https://github.com/RcppCore/Rcpp/blob/1c8a1946db56e4d8041593906eddcb0da8ba07a0/inst/include/Rcpp/exceptions.h#L148-L157
+
+If we want to make it safe for client packages to catch these exceptions,
+we'd need to provide a helper for cleaning up Rcpp's unwind state, or make
+that happen automatically. (Maybe the token's protection status could be
+managed as part of the exception's lifetime? Not sure.) However, the fact
+that the LongjumpException needs special handling implies that it probably
+shouldn't inherit from std::exception.
+
+For (2), I don't see a clean way of handling this beyond setting the
+'show.error.messages' option to false. Unfortunately, because UnwindProtect
+is not a "real" R condition handler, it gets processed only after the
+"regular" R error machinery runs (which includes printing the error before
+actually jumping).
+
+I'm similarly not aware of any solution for (3).
+
+In other words, my understanding is that if you're a client of Rcpp and you
+want to be able to catch and handle R errors at the C++ level,
+UnwindProtect() isn't the right tool -- you'll want a proper tryCatch()
+handler.
+
+It does also imply (as had been shown) that switching to unwind-protect
+would be a behavior change in Rcpp, which may not be ideal.
+
+Thanks,
+Kevin
+
+
+
+
+On Sun, Feb 6, 2022 at 9:39 AM Jeroen Ooms <jeroenooms at gmail.com> wrote:
+
+> On Sun, Feb 6, 2022 at 6:25 PM Kevin Ushey <kevinushey at gmail.com> wrote:
+> >
+> > If I tweak your example package code so that all exceptions are caught
+> via a catch (...) {} block, I can see something like:
+> >
+> > > uptest::uptest()
+> > Error in (function ()  : Ouch from R
+> > Caught some other exception.
+> >
+> > The fact that we're still printing the R error message seems
+> undesirable, but it looks like the exception can be caught -- just not via
+> std::exception.
+>
+> Yes that is also what Iñaki and me alluded to above. But I think this
+> way, what we are catching is not the R error itself (which seems lost
+> after it was printed), but rather a token that tells the application
+> we should let Rcpp unwind all the way back to the R console. Which is
+> what happens if we don't catch it, then it makes sense. But if we _do_
+> want to handle the situation in C++, this doesn't give us much to work
+> with.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220206/dc08ac08/attachment.html>
+
+From iucar at fedoraproject.org  Mon Feb  7 11:31:00 2022
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 7 Feb 2022 11:31:00 +0100
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+In-Reply-To: <CAJXgQP3zh+Uy6GWOWVie6jkAGndDBsRgWszsOGeORNBq_UhEew@mail.gmail.com>
+References: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+ <CAJf4E3rFzhz3EU86SRZiu3_Ayfg8Fmj2GVeO9-fr4bXo6Utuwg@mail.gmail.com>
+ <25081.29553.394328.957785@rob.eddelbuettel.com>
+ <CABFfbXsF7MaX3dLaH6SnHkzqoVLGEGKZQFUqbkgRe4wzQkxGRA@mail.gmail.com>
+ <25087.64961.192299.345@rob.eddelbuettel.com>
+ <CABFfbXsuLouwG1eJsPikeHxEYiozDTZfFwLk+wVTiwz1k6L4hA@mail.gmail.com>
+ <CAJXgQP3XAPwGR7b_6Yxu_m5-Ubq6zMR9tiywCLy17D3KOQL2Zg@mail.gmail.com>
+ <CAJXgQP3o9C7i6x9qo9XqKxOR38htEbWyB0kYxr1a1nsgNQ+Q1g@mail.gmail.com>
+ <CABFfbXt4En_uVa3B-o2+tj5wKLMrezmeA-ysQ8UQOdLaunzy2Q@mail.gmail.com>
+ <CAJXgQP3zh+Uy6GWOWVie6jkAGndDBsRgWszsOGeORNBq_UhEew@mail.gmail.com>
+Message-ID: <CALEXWq1P_ZcYH9hdW10r=bfsejPest8kVpFwK12oORnX57ORSA@mail.gmail.com>
+
+Thanks all. My summary here differs a bit though:
+
+1. The point that a longjump does not necessarily represent an error
+is crucial here. That's the rationale behind Lionel's implementation
+of this exception. My understanding then is that client packages
+should *never ever* catch it, and thus it shouldn't inherit from
+std::exception.
+
+2. UnwindProtect is a mechanism introduced in R back in 2017 for fast
+and safe C++ stack unwinding, so I think it's time we stick to it.
+When enabled, Rcpp leverages this via Rcpp_fast_eval. Before that,
+Rcpp_eval was/is... kind of hackish (no offense intended; it was the
+best thing to do before R properly supported C++ via UnwindProtect),
+because it relied on tryCatch, which sometimes resulted in several
+tryCatch stacked together. Rcpp_fast_eval is called in a number of
+places in Rcpp, and thus client packages would greatly benefit from
+finally switching to UnwindProtect, including V8.
+
+3. But then, V8 *really needs* to catch R errors in the JS virtual
+machine. So the solution... is to add *a* tryCatch in the proper place
+(not a matrioska of tryCatches, as it happens without UnwindProtect).
+And this is exactly what Jeroen did [1]. I think that the solution is
+brilliant and the proper way to go here (as it happens, that tryCatch
+was in place before, for other reasons I suppose, and now it has been
+repurposed to properly catch errors too).
+
+4. Another way to address this was mentioned by Lionel: Rcpp_eval is
+still there. Arguably though, this interface is not very
+user-friendly, and Rcpp::Function is much nicer. I don't think that
+Rcpp::Function should switch to Rcpp_eval, but we could offer some
+kind of Rcpp::TryCatchFunction (ok, the name can be improved) that
+uses Rcpp_eval, or some kind of wrapper class that forces
+Rcpp::Function to use Rcpp_eval instead.
+
+[1] https://github.com/jeroen/V8/commit/3258ce61dd02eaed51edef5391dc5afcd456d16c
+
+Iñaki
+
+
+On Mon, 7 Feb 2022 at 03:11, Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+> Thanks, I think I understand the issue better now. Ultimately, it comes down to the fact that UnwindProtect doesn't really allow handling of R conditions in the "regular" way as e.g. tryCatch() does; instead, it gives us just enough to properly unwind the C++ stack when an R error occurs. If I can summarize:
+>
+> 1. Client packages can catch the Rcpp LongjumpException and handle it themselves if they need to, but it's not obvious how to do this correctly.
+> 2. R error messages are printed by R when the error is emitted.
+> 3. It's not clear to the LongJumpException handler what R error triggered the longjmp exception.
+>
+> In particular, for (1), Rcpp is normally responsible for unprotecting its unwind token, and then continuing the unwind:
+>
+> https://github.com/RcppCore/Rcpp/blob/1c8a1946db56e4d8041593906eddcb0da8ba07a0/inst/include/Rcpp/exceptions.h#L148-L157
+>
+> If we want to make it safe for client packages to catch these exceptions, we'd need to provide a helper for cleaning up Rcpp's unwind state, or make that happen automatically. (Maybe the token's protection status could be managed as part of the exception's lifetime? Not sure.) However, the fact that the LongjumpException needs special handling implies that it probably shouldn't inherit from std::exception.
+>
+> For (2), I don't see a clean way of handling this beyond setting the 'show.error.messages' option to false. Unfortunately, because UnwindProtect is not a "real" R condition handler, it gets processed only after the "regular" R error machinery runs (which includes printing the error before actually jumping).
+>
+> I'm similarly not aware of any solution for (3).
+>
+> In other words, my understanding is that if you're a client of Rcpp and you want to be able to catch and handle R errors at the C++ level, UnwindProtect() isn't the right tool -- you'll want a proper tryCatch() handler.
+>
+> It does also imply (as had been shown) that switching to unwind-protect would be a behavior change in Rcpp, which may not be ideal.
+>
+> Thanks,
+> Kevin
+>
+>
+>
+>
+> On Sun, Feb 6, 2022 at 9:39 AM Jeroen Ooms <jeroenooms at gmail.com> wrote:
+>>
+>> On Sun, Feb 6, 2022 at 6:25 PM Kevin Ushey <kevinushey at gmail.com> wrote:
+>> >
+>> > If I tweak your example package code so that all exceptions are caught via a catch (...) {} block, I can see something like:
+>> >
+>> > > uptest::uptest()
+>> > Error in (function ()  : Ouch from R
+>> > Caught some other exception.
+>> >
+>> > The fact that we're still printing the R error message seems undesirable, but it looks like the exception can be caught -- just not via std::exception.
+>>
+>> Yes that is also what Iñaki and me alluded to above. But I think this
+>> way, what we are catching is not the R error itself (which seems lost
+>> after it was printed), but rather a token that tells the application
+>> we should let Rcpp unwind all the way back to the R console. Which is
+>> what happens if we don't catch it, then it makes sense. But if we _do_
+>> want to handle the situation in C++, this doesn't give us much to work
+>> with.
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Iñaki Úcar
+

@@ -1,0 +1,1136 @@
+From maechler at stat.math.ethz.ch  Fri Jan  1 12:32:33 2021
+From: maechler at stat.math.ethz.ch (Martin Maechler)
+Date: Fri, 1 Jan 2021 12:32:33 +0100
+Subject: [Rcpp-devel] [ANN] Matrix package bug fix release
+	RcppArmadillo	0.10.1.2.1 on drat
+In-Reply-To: <mailman.1.1609498802.23749.rcpp-devel@lists.r-forge.r-project.org>, 
+ <24557.58771.418555.285020@rob.eddelbuettel.com>
+Message-ID: <24559.2129.348410.85086@stat.math.ethz.ch>
+
+
+Dirk Eddelbuettel <edd at debian.org> on Thu, 31 Dec 2020 08:52 wrote
+
+> Binxiang and I indepedently noticed (and independently fixed, my bad for not
+> committing earlier) that the very recent Matrix 1.3.0 (on CRAN) breaks one
+> our (optional) unit tests related to sparse matrix conversion.
+
+> So I made a fix release 0.10.1.2.1 which is now in the usual Rcpp drat repo
+> from where you can install it e.g. via
+
+>   install.packages("RcppArmadillo", repos="https:://rcppcore.github.io/drat")
+
+> or by using one of the drat helper functions to set or update repos.
+
+> Once CRAN reopens, I will likely submit this.  The breakage is a little
+> unusual in that CRAN normally does better than this, or communicates. In a
+> fuller reverse dependency backtest of Rcpp several packages had related
+> hickups.  When reverse-dependency testing RcppArmadillo itself, four packages
+> came up.  I am sure package Matrix had good reasons for the change, I am just
+> a little surprised by the shrapnel.
+
+This is mostly my fault (as 'Matrix' package maintainer), as
+indeed, you are right that the CRAN would handle this with more
+care.
+This was from a coincidence of two different mistakes by myself (one
+of my own R-devel changes [all.equal.function()] breaking one
+example check in Matrix, easily correctable but not noticed in
+due time), and then a new bug in Matrix 1.3-0 ((but that's not
+the RcppArmadillo error I hope !! -- but rather the change below ?)),
+then upcoming holidays for everybody and then the usual well
+deserved CRAN end-of-year vacation.
+
+I'm really sorry for that, and apologize here.
+I had wanted to send e-mail to all Matrix reverse dependent
+packages affected,  as one of the changes indeed was very much
+on purpose and listed among the (very rare!!) user visible NEWS
+of Matrix:
+
+   ---------------------------------------------------------------------------------
+    * Significant User-Visible Change
+
+    Matrix(*, doDiag=TRUE) where doDiag=TRUE has always been the default is now 
+    obeyed also in the sparse case, as all "diagonalMatrix" are also "sparseMatrix".
+
+    Matrix(0, 3,3) returns a "ddiMatrix" instead of a "dsCMatrix" previously.
+    The latter is still returned from Matrix(0, 3,3, doDiag=FALSE), and
+    e.g., .symDiagonal(3,pi).
+
+    Also a triangular matrix, e.g., "dtrMatrix" is detected now in cases with NAs.
+
+    This is both a bug fix and an API change which breaks code that assumes
+    Matrix(.) to return a "CsparseMatrix" in cases where it now returns a
+    "diagonalMatrix" (which does extend "sparseMatrix").
+   ---------------------------------------------------------------------------------
+
+With the very best wishes for a safe and good New Year 2021,
+Martin
+
+Martin Maechler
+ETH Zurich  and  R Core team
+
+
+> Anyway, small stuff -- and 2020 is almost over here, and already is in some
+> places such as Auckland and Sidney which already live in the future so with
+> that a very happy and hopefully calmer 2021 to all!
+
+> Dirk
+
+> -- 
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Fri Jan  1 17:02:18 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 1 Jan 2021 10:02:18 -0600
+Subject: [Rcpp-devel] [ANN] Matrix package bug fix
+	release	RcppArmadillo	0.10.1.2.1 on drat
+In-Reply-To: <24559.2129.348410.85086@stat.math.ethz.ch>
+References: <mailman.1.1609498802.23749.rcpp-devel@lists.r-forge.r-project.org>
+ <24557.58771.418555.285020@rob.eddelbuettel.com>
+ <24559.2129.348410.85086@stat.math.ethz.ch>
+Message-ID: <24559.18314.29330.626766@rob.eddelbuettel.com>
+
+
+Happy New Year Martin and everybody!
+
+On 1 January 2021 at 12:32, Martin Maechler wrote:
+| I had wanted to send e-mail to all Matrix reverse dependent
+| packages affected,  as one of the changes indeed was very much
+| on purpose and listed among the (very rare!!) user visible NEWS
+| of Matrix:
+| 
+|    ---------------------------------------------------------------------------------
+|     * Significant User-Visible Change
+| 
+|     Matrix(*, doDiag=TRUE) where doDiag=TRUE has always been the default is now 
+|     obeyed also in the sparse case, as all "diagonalMatrix" are also "sparseMatrix".
+| 
+|     Matrix(0, 3,3) returns a "ddiMatrix" instead of a "dsCMatrix" previously.
+|     The latter is still returned from Matrix(0, 3,3, doDiag=FALSE), and
+|     e.g., .symDiagonal(3,pi).
+| 
+|     Also a triangular matrix, e.g., "dtrMatrix" is detected now in cases with NAs.
+| 
+|     This is both a bug fix and an API change which breaks code that assumes
+|     Matrix(.) to return a "CsparseMatrix" in cases where it now returns a
+|     "diagonalMatrix" (which does extend "sparseMatrix").
+|    ---------------------------------------------------------------------------------
+
+(Without explicitly checking) I think that is the change we then made, and
+such a change is totally legitimate.  What my previous email tried to express
+was more a slight "surprise" at the release and CRAN process for this.
+
+"Known significant" (and ever-so-slightly breaking) changes are "usually"
+communicated ex-ante to dependent packages, and in the case of CRAN breakage
+(as happened here, with the lack of a heads-up) I am surprise 1.3.0 got
+released there. I noticed this with looking into the (planned, upcoming, non
+breaking) next Rcpp release and a higher-than-anticipated number of packages
+had some test issues.
+
+But I am sure we can sort all this out in the coming days.
+
+Cheers, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fbischoff at med.up.pt  Tue Jan  5 14:58:25 2021
+From: fbischoff at med.up.pt (Francisco Bischoff)
+Date: Tue, 5 Jan 2021 13:58:25 +0000
+Subject: [Rcpp-devel] Ranges and Casting
+Message-ID: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+
+Hello everyone,
+
+First of all, let me thank all involved with the Rcpp package!
+
+I just have a (maybe silly) question, but I struggle with this frequently
+in my codes:
+
+Range() vs IntegerVector
+
+One example is when I need a reverse index, like R's 10:1, so I had to
+write my own function that returns an IntegerVector. But, to work I have to
+do this ugly code:
+
+          IntegerVector dot_rev_idxs1 = ::seq((i - 1), beginidx);
+          IntegerVector dot_rev_idxs2 = ::seq((idx_nn - 1), (beginidx +
+idx_diff));
+          IntegerVector dot_rev_idxs3 = ::seq((i - 1 + window_size), (
+beginidx + window_size));
+          IntegerVector dot_rev_idxs4 = ::seq((idx_nn - 1 + window_size), (
+beginidx + idx_diff + window_size));
+          dotproduct[dot_rev_idxs1] = (NumericVector)((NumericVector)cumsum(
+data[dot_rev_idxs1] * data[dot_rev_idxs2] -
+
+data[dot_rev_idxs3] * data[dot_rev_idxs4]) +
+                                                      dotproduct[i]);
+
+I frequently have to cast the results with (NumericVector)...
+
+This also happens using Range(). But there is a difference if I use Range()
+this way: my_vector[Range(0,10)]; or Range range = Range(0,
+10); my_vector[range];
+
+How is the proper way to deal with it?
+
+Other question: as<NumericVector() doesn't 'cast' right? Does it try to
+'convert' formats?
+
+And finally, I see that Matlab has a unique way to deal with ranges:
+
+Ex.:
+
+1) (1:10) --> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+2) (10:1) --> returns a vector with size zero
+3) (10:-1:1) --> 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+
+Range() shouldn't at least reproduce the R's counterpart and accept Range(10,1)
+== 10:1?
+
+Thanks in advance!
+
+my package: https://CRAN.R-project.org/package=tsmp
+<https://mailtrack.io/trace/link/9b0962ae6d75a7caaaf14e3c8d77db64148aabc1?url=https%3A%2F%2Fcran.r-project.org%2Fpackage%3Dtsmp&userId=3785237&signature=c65e6b4074bf11ac>
+
+--
+Francisco Bischoff, MD, MSc
+Faculty of Medicine of the University of Porto, Portugal
+
+- Master of Medical Informatics | topic: time series
+- Research Associate | artificial intelligence for health
+<https://mailtrack.io/trace/link/93d55bc6ee2a8fc10541d0274f3fde245e944698?url=http%3A%2F%2Fcintesis.eu%2Fai4health%2F&userId=3785237&signature=decc8b53c66739e9>
+@ cintesis.eu
+<https://mailtrack.io/trace/link/02df11fcc383816c96681205a4142a6ccb60bfaa?url=http%3A%2F%2Fcintesis.eu&userId=3785237&signature=9d174b79c4ee78b7>
+- Teaching Assistant | department of community medicine, information and
+health decision sciences @ med.up.pt
+<https://mailtrack.io/trace/link/50de7c0f37c419aafee22f9492fdfdbd1da63c1d?url=http%3A%2F%2Fmed.up.pt&userId=3785237&signature=66de0e074d671cf7>
+
+ORCID: 0000-0002-5301-8672 | Mendeley: francisco-bischoff | Google:
+tCeA0uUAAAAJ | ResearcherID: H-8261-2016 | ResearchGate: Francisco_Bischoff
+| CiênciaID B413-E0A0-DE8D | LinkedIn: franzbischoff
+
+
+
+*"Quality is not an act, it is a habit."-- Aristotle*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210105/a14b5774/attachment.html>
+
+From edd at debian.org  Wed Jan  6 07:10:48 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 6 Jan 2021 00:10:48 -0600
+Subject: [Rcpp-devel] Ranges and Casting
+In-Reply-To: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+References: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+Message-ID: <24565.21608.820603.792256@rob.eddelbuettel.com>
+
+
+Francisco,
+
+On 5 January 2021 at 13:58, Francisco Bischoff wrote:
+| First of all, let me thank all involved with the Rcpp package!
+| 
+| I just have a (maybe silly) question, but I struggle with this frequently
+| in my codes:
+| 
+| Range() vs IntegerVector
+| 
+| One example is when I need a reverse index, like R's 10:1, so I had to
+| write my own function that returns an IntegerVector. But, to work I have to
+| do this ugly code:
+| 
+|           IntegerVector dot_rev_idxs1 = ::seq((i - 1), beginidx);
+|           IntegerVector dot_rev_idxs2 = ::seq((idx_nn - 1), (beginidx +
+| idx_diff));
+|           IntegerVector dot_rev_idxs3 = ::seq((i - 1 + window_size), (
+| beginidx + window_size));
+|           IntegerVector dot_rev_idxs4 = ::seq((idx_nn - 1 + window_size), (
+| beginidx + idx_diff + window_size));
+|           dotproduct[dot_rev_idxs1] = (NumericVector)((NumericVector)cumsum(
+| data[dot_rev_idxs1] * data[dot_rev_idxs2] -
+| 
+| data[dot_rev_idxs3] * data[dot_rev_idxs4]) +
+|                                                       dotproduct[i]);
+| 
+| I frequently have to cast the results with (NumericVector)...
+| 
+| This also happens using Range(). But there is a difference if I use Range()
+| this way: my_vector[Range(0,10)]; or Range range = Range(0,
+| 10); my_vector[range];
+| 
+| How is the proper way to deal with it?
+
+I am not sure I fully understand what it is that you try to and what you are
+struggling with.
+
+Could you construct a small self-contained example?
+ 
+| Other question: as<NumericVector() doesn't 'cast' right? Does it try to
+| 'convert' formats?
+| 
+| And finally, I see that Matlab has a unique way to deal with ranges:
+| 
+| Ex.:
+| 
+| 1) (1:10) --> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+| 2) (10:1) --> returns a vector with size zero
+| 3) (10:-1:1) --> 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+| 
+| Range() shouldn't at least reproduce the R's counterpart and accept Range(10,1)
+| == 10:1?
+
+We could probably generalize seq() to count down from 'high' to 'low'. Pull
+requests welcome...
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Jan  9 19:19:54 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 9 Jan 2021 12:19:54 -0600
+Subject: [Rcpp-devel] [ANN] Refined Matrix package bug fix release
+	RcppArmadillo 0.10.1.2.2 on drat
+In-Reply-To: <24559.18314.29330.626766@rob.eddelbuettel.com>
+References: <mailman.1.1609498802.23749.rcpp-devel@lists.r-forge.r-project.org>
+ <24557.58771.418555.285020@rob.eddelbuettel.com>
+ <24559.2129.348410.85086@stat.math.ethz.ch>
+ <24559.18314.29330.626766@rob.eddelbuettel.com>
+Message-ID: <24569.62410.142666.331276@rob.eddelbuettel.com>
+
+
+With Matrix 1.3.2 now on CRAN, and thanks to the hints by Martin and Binxiang
+(plus an unrelated upstream buglet fix from Conrad), a new and refined
+RcppArmadillo release 0.10.1.2.2 is now uploaded to CRAN.
+
+Where it has been stuck is incoming with an apparently frozen pretest queue.
+After which it will reverse-depends test, and CRAN will email me about the
+issues see -- there will be at least bigsnpr and optisel (which both also
+fail at CRAN, so no 'change to worse') and lidR (fixed by a version stuck in
+CRAN's own incoming for five days now) which we can easily explain away. But
+all that will take days to sort out as everybody is busy.
+
+So in the meantime, RcppArmadillo 0.10.1.2.2 is also on the Rcpp-drat. Use
+
+  install.packages("RcppArmadillo", repos="https://rcppcore.github.io/drat")
+
+or use any of the usual drat helper functions to adjust your repo list
+temporarily or (in a startup file) for longer.
+
+My thanks to everybody who helped with the release.
+
+Cheers, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Jan 16 01:34:02 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 15 Jan 2021 18:34:02 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp 1.0.6 now on CRAN
+In-Reply-To: <24569.62410.142666.331276@rob.eddelbuettel.com>
+References: <mailman.1.1609498802.23749.rcpp-devel@lists.r-forge.r-project.org>
+ <24557.58771.418555.285020@rob.eddelbuettel.com>
+ <24559.2129.348410.85086@stat.math.ethz.ch>
+ <24559.18314.29330.626766@rob.eddelbuettel.com>
+ <24569.62410.142666.331276@rob.eddelbuettel.com>
+Message-ID: <24578.13434.487714.703515@rob.eddelbuettel.com>
+
+
+Rcpp 1.0.6 is now on CRAN, following the six months release cycle adopted in July.
+A brief blog post is at http://dirk.eddelbuettel.com/blog/2021/01/15#rcpp_1.0.6
+and you know where to find it :)
+
+My thanks to Walter Somerville, Mattias Ellert and Benjamin Christoffersen
+for three fine PRs rounded out by three more from Kevin and myself.
+
+Cheers, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fbischoff at med.up.pt  Sat Jan 16 02:35:47 2021
+From: fbischoff at med.up.pt (Francisco Bischoff)
+Date: Sat, 16 Jan 2021 01:35:47 +0000
+Subject: [Rcpp-devel] Ranges and Casting
+In-Reply-To: <24565.21608.820603.792256@rob.eddelbuettel.com>
+References: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+ <24565.21608.820603.792256@rob.eddelbuettel.com>
+Message-ID: <CAD2nUiRs9L2v5m9Zr-b=npf7-wByEF1ksQ3gYGbsO2WjuO2dLQ@mail.gmail.com>
+
+Hello,
+
+About the Range() function, I think it should handle decreasing ranges
+too...
+But, idk if using Matlabs approach or R approach:
+
+R's:
+
+a <- 1
+b <- 10
+
+print(a:b)
+1 2 3 4 5 6 7 8 9 10
+print(b:a)
+10 9 8 7 6 5 4 3 2 1
+
+Matlab's
+a = 1;
+b = 10;
+disp(a:b);
+1 2 3 4 5 6 7 8 9 10
+disp(b:a);
+numeric(0)
+disp(b:-1:a)
+10 9 8 7 6 5 4 3 2 1
+
+I think that we are in the R domain, so we should use Range(b, a) normally
+(my humble opinion).
+
+About Casting, this is a good example:
+
+Rcout << Range(0, 10) << std::endl;
+
+This does not compute...
+
+What should I do?
+
+Rcout << as<IntegerVector>(Range(0, 10)) << std::endl;
+or
+Rcout << (IntegerVector)(Range(0, 10)) << std::endl;
+
+--
+Francisco Bischoff, MD, MSc
+Faculty of Medicine of the University of Porto, Portugal
+
+- Master of Medical Informatics | topic: time series
+- Research Associate | artificial intelligence for health
+<https://mailtrack.io/trace/link/261f22c687548623a329c468d9ee8e2177eb0450?url=http%3A%2F%2Fcintesis.eu%2Fai4health%2F&userId=3785237&signature=3e0be0b7841b95c4>
+@ cintesis.eu
+<https://mailtrack.io/trace/link/37900be19872e834994af798ab1d53480613e66c?url=http%3A%2F%2Fcintesis.eu&userId=3785237&signature=91ac56f3d356e8bd>
+- Teaching Assistant | department of community medicine, information and
+health decision sciences @ med.up.pt
+<https://mailtrack.io/trace/link/6951087469cd0e54d4bc365eedae9d9ad24d5970?url=http%3A%2F%2Fmed.up.pt&userId=3785237&signature=ac6fffd4ce8944ca>
+
+ORCID: 0000-0002-5301-8672 | Mendeley: francisco-bischoff | Google:
+tCeA0uUAAAAJ | ResearcherID: H-8261-2016 | ResearchGate: Francisco_Bischoff
+| CiênciaID B413-E0A0-DE8D | LinkedIn: franzbischoff
+
+
+On Wed, Jan 6, 2021 at 6:11 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Francisco,
+>
+> On 5 January 2021 at 13:58, Francisco Bischoff wrote:
+> | First of all, let me thank all involved with the Rcpp package!
+> |
+> | I just have a (maybe silly) question, but I struggle with this frequently
+> | in my codes:
+> |
+> | Range() vs IntegerVector
+> |
+> | One example is when I need a reverse index, like R's 10:1, so I had to
+> | write my own function that returns an IntegerVector. But, to work I have
+> to
+> | do this ugly code:
+> |
+> |           IntegerVector dot_rev_idxs1 = ::seq((i - 1), beginidx);
+> |           IntegerVector dot_rev_idxs2 = ::seq((idx_nn - 1), (beginidx +
+> | idx_diff));
+> |           IntegerVector dot_rev_idxs3 = ::seq((i - 1 + window_size), (
+> | beginidx + window_size));
+> |           IntegerVector dot_rev_idxs4 = ::seq((idx_nn - 1 +
+> window_size), (
+> | beginidx + idx_diff + window_size));
+> |           dotproduct[dot_rev_idxs1] =
+> (NumericVector)((NumericVector)cumsum(
+> | data[dot_rev_idxs1] * data[dot_rev_idxs2] -
+> |
+> | data[dot_rev_idxs3] * data[dot_rev_idxs4]) +
+> |                                                       dotproduct[i]);
+> |
+> | I frequently have to cast the results with (NumericVector)...
+> |
+> | This also happens using Range(). But there is a difference if I use
+> Range()
+> | this way: my_vector[Range(0,10)]; or Range range = Range(0,
+> | 10); my_vector[range];
+> |
+> | How is the proper way to deal with it?
+>
+> I am not sure I fully understand what it is that you try to and what you
+> are
+> struggling with.
+>
+> Could you construct a small self-contained example?
+>
+> | Other question: as<NumericVector() doesn't 'cast' right? Does it try to
+> | 'convert' formats?
+> |
+> | And finally, I see that Matlab has a unique way to deal with ranges:
+> |
+> | Ex.:
+> |
+> | 1) (1:10) --> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+> | 2) (10:1) --> returns a vector with size zero
+> | 3) (10:-1:1) --> 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+> |
+> | Range() shouldn't at least reproduce the R's counterpart and accept
+> Range(10,1)
+> | == 10:1?
+>
+> We could probably generalize seq() to count down from 'high' to 'low'. Pull
+> requests welcome...
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com
+> <https://mailtrack.io/trace/link/3dc4aa6120269dd41ea957abba6a53feaf80a120?url=https%3A%2F%2Fdirk.eddelbuettel.com&userId=3785237&signature=a0cad3f7fa0cc627>
+> | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210116/fb5c3744/attachment.html>
+
+From edd at debian.org  Sat Jan 16 02:54:12 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 15 Jan 2021 19:54:12 -0600
+Subject: [Rcpp-devel] Ranges and Casting
+In-Reply-To: <CAD2nUiRs9L2v5m9Zr-b=npf7-wByEF1ksQ3gYGbsO2WjuO2dLQ@mail.gmail.com>
+References: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+ <24565.21608.820603.792256@rob.eddelbuettel.com>
+ <CAD2nUiRs9L2v5m9Zr-b=npf7-wByEF1ksQ3gYGbsO2WjuO2dLQ@mail.gmail.com>
+Message-ID: <24578.18244.79515.951686@rob.eddelbuettel.com>
+
+
+On 16 January 2021 at 01:35, Francisco Bischoff wrote:
+| About the Range() function, I think it should handle decreasing ranges
+| too...
+| But, idk if using Matlabs approach or R approach:
+| 
+| R's:
+| 
+| a <- 1
+| b <- 10
+| 
+| print(a:b)
+| 1 2 3 4 5 6 7 8 9 10
+| print(b:a)
+| 10 9 8 7 6 5 4 3 2 1
+| 
+| Matlab's
+| a = 1;
+| b = 10;
+| disp(a:b);
+| 1 2 3 4 5 6 7 8 9 10
+| disp(b:a);
+| numeric(0)
+| disp(b:-1:a)
+| 10 9 8 7 6 5 4 3 2 1
+| 
+| I think that we are in the R domain, so we should use Range(b, a) normally
+| (my humble opinion).
+
+Hm but I think the Range class in Rcpp is not the same as R's seq(). It is
+used internally in a few places and may not generalize well to the 'b:-1:a'
+use.
+
+I had a quick look, and Armadillo may not have anything directly relevant
+either. linspace() is close but not quite the same.
+
+I would probably just write myself a little helper function.
+
+| About Casting, this is a good example:
+| 
+| Rcout << Range(0, 10) << std::endl;
+| 
+| This does not compute...
+| 
+| What should I do?
+| 
+| Rcout << as<IntegerVector>(Range(0, 10)) << std::endl;
+| or
+| Rcout << (IntegerVector)(Range(0, 10)) << std::endl;
+
+That can happen as template expressions can get in the way. Alternatives are
+maybe using Armadillo types for, again, just using a quick loop and printing
+elements.
+
+Rcpp has a lot of functions. But it doesn't have "all of R's functions" and
+should not be seen as aiming for that.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fbischoff at med.up.pt  Sat Jan 16 03:05:05 2021
+From: fbischoff at med.up.pt (Francisco Bischoff)
+Date: Sat, 16 Jan 2021 02:05:05 +0000
+Subject: [Rcpp-devel] Ranges and Casting
+In-Reply-To: <24578.18244.79515.951686@rob.eddelbuettel.com>
+References: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+ <24565.21608.820603.792256@rob.eddelbuettel.com>
+ <CAD2nUiRs9L2v5m9Zr-b=npf7-wByEF1ksQ3gYGbsO2WjuO2dLQ@mail.gmail.com>
+ <24578.18244.79515.951686@rob.eddelbuettel.com>
+Message-ID: <CAD2nUiQFM3dyrpHLrJ0N8y3dAeuLt2syEtTQv29ENNjCmYiatQ@mail.gmail.com>
+
+Thanks for the tips.
+
+Still, Range() is the correct way to write:
+
+NumericVector my_vec(200);
+
+my_vec(Range(0,10)) = 10;
+
+?
+
+Thanks in advance
+
+
+
+
+--
+Francisco Bischoff, MD, MSc
+Faculty of Medicine of the University of Porto, Portugal
+
+- Master of Medical Informatics | topic: time series
+- Research Associate | artificial intelligence for health
+<https://mailtrack.io/trace/link/1765b288bbce44d233e851a8d862ec594378aa04?url=http%3A%2F%2Fcintesis.eu%2Fai4health%2F&userId=3785237&signature=1b62d7a180130981>
+@ cintesis.eu
+<https://mailtrack.io/trace/link/89b15c4212d5d6c8d4ba354ec92ab002ba9a96ef?url=http%3A%2F%2Fcintesis.eu&userId=3785237&signature=5fa97b31373fa664>
+- Teaching Assistant | department of community medicine, information and
+health decision sciences @ med.up.pt
+<https://mailtrack.io/trace/link/32f5f446b7bc0d597241524764b3636b5a75d466?url=http%3A%2F%2Fmed.up.pt&userId=3785237&signature=cfbca25f5fe210b3>
+
+ORCID: 0000-0002-5301-8672 | Mendeley: francisco-bischoff | Google:
+tCeA0uUAAAAJ | ResearcherID: H-8261-2016 | ResearchGate: Francisco_Bischoff
+| CiênciaID B413-E0A0-DE8D | LinkedIn: franzbischoff
+
+
+On Sat, Jan 16, 2021 at 1:54 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 16 January 2021 at 01:35, Francisco Bischoff wrote:
+> | About the Range() function, I think it should handle decreasing ranges
+> | too...
+> | But, idk if using Matlabs approach or R approach:
+> |
+> | R's:
+> |
+> | a <- 1
+> | b <- 10
+> |
+> | print(a:b)
+> | 1 2 3 4 5 6 7 8 9 10
+> | print(b:a)
+> | 10 9 8 7 6 5 4 3 2 1
+> |
+> | Matlab's
+> | a = 1;
+> | b = 10;
+> | disp(a:b);
+> | 1 2 3 4 5 6 7 8 9 10
+> | disp(b:a);
+> | numeric(0)
+> | disp(b:-1:a)
+> | 10 9 8 7 6 5 4 3 2 1
+> |
+> | I think that we are in the R domain, so we should use Range(b, a)
+> normally
+> | (my humble opinion).
+>
+> Hm but I think the Range class in Rcpp is not the same as R's seq(). It is
+> used internally in a few places and may not generalize well to the 'b:-1:a'
+> use.
+>
+> I had a quick look, and Armadillo may not have anything directly relevant
+> either. linspace() is close but not quite the same.
+>
+> I would probably just write myself a little helper function.
+>
+> | About Casting, this is a good example:
+> |
+> | Rcout << Range(0, 10) << std::endl;
+> |
+> | This does not compute...
+> |
+> | What should I do?
+> |
+> | Rcout << as<IntegerVector>(Range(0, 10)) << std::endl;
+> | or
+> | Rcout << (IntegerVector)(Range(0, 10)) << std::endl;
+>
+> That can happen as template expressions can get in the way. Alternatives
+> are
+> maybe using Armadillo types for, again, just using a quick loop and
+> printing
+> elements.
+>
+> Rcpp has a lot of functions. But it doesn't have "all of R's functions" and
+> should not be seen as aiming for that.
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com
+> <https://mailtrack.io/trace/link/ec16eaacf00108f6b925d8cd55d469ea736d3313?url=https%3A%2F%2Fdirk.eddelbuettel.com&userId=3785237&signature=5ff5161e5ff16475>
+> | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210116/20aacb04/attachment-0001.html>
+
+From balamut2 at illinois.edu  Sat Jan 16 20:26:32 2021
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Sat, 16 Jan 2021 19:26:32 +0000
+Subject: [Rcpp-devel] Ranges and Casting
+In-Reply-To: <CAD2nUiQFM3dyrpHLrJ0N8y3dAeuLt2syEtTQv29ENNjCmYiatQ@mail.gmail.com>
+References: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+ <24565.21608.820603.792256@rob.eddelbuettel.com>
+ <CAD2nUiRs9L2v5m9Zr-b=npf7-wByEF1ksQ3gYGbsO2WjuO2dLQ@mail.gmail.com>
+ <24578.18244.79515.951686@rob.eddelbuettel.com>
+ <CAD2nUiQFM3dyrpHLrJ0N8y3dAeuLt2syEtTQv29ENNjCmYiatQ@mail.gmail.com>
+Message-ID: <D4974BF5-ACBB-44FB-AD03-57130B2A0476@illinois.edu>
+
+Francisco,
+
+Based on the opening post, I’d probably push you more toward Armadillo as Dirk was in the previous message. Using linspace<>(), may be a drop-in replacement for seq() with the appropriate helper functions. Long ago (~4+ years now) I wrote a few, see:
+
+https://github.com/coatless/r-to-armadillo/blob/master/src/seq.cpp
+
+That said, Range is definitely preferred inside of subsets operations into Rcpp-like data structures. However, the subset and assign operation is a bit problematic with template expansion. So, the given example needs to have an intermediary:
+
+  // Initialization:
+  Rcpp::NumericVector my_vec = Rcpp::NumericVector::create(1, 2, 3, 4, 5, 6);
+
+  // Subset and Assign to 5:
+  Rcpp::IntegerVector subset_idx = Rcpp::Range(0, 3);
+  my_vec[subset_idx] = 20;
+
+  // Subset Positions:
+ Rcpp::NumericVector subset_result = my_vec[Rcpp::Range(4, 5)];
+
+Hope it helps.
+
+Best,
+
+JJB
+
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Francisco Bischoff <fbischoff at med.up.pt>
+Date: Friday, January 15, 2021 at 8:05 PM
+To: Dirk Eddelbuettel <edd at debian.org>
+Cc: "rcpp-devel at lists.r-forge.r-project.org" <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Ranges and Casting
+
+Thanks for the tips.
+
+Still, Range() is the correct way to write:
+
+NumericVector my_vec(200);
+
+my_vec(Range(0,10)) = 10;
+
+?
+
+Thanks in advance
+
+
+
+
+--
+Francisco Bischoff, MD, MSc
+Faculty of Medicine of the University of Porto, Portugal
+
+- Master of Medical Informatics | topic: time series
+- Research Associate | artificial intelligence for health<https://urldefense.com/v3/__https:/mailtrack.io/trace/link/1765b288bbce44d233e851a8d862ec594378aa04?url=http*3A*2F*2Fcintesis.eu*2Fai4health*2F&userId=3785237&signature=1b62d7a180130981__;JSUlJSU!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4ByfJyNzg$> @ cintesis.eu<https://urldefense.com/v3/__https:/mailtrack.io/trace/link/89b15c4212d5d6c8d4ba354ec92ab002ba9a96ef?url=http*3A*2F*2Fcintesis.eu&userId=3785237&signature=5fa97b31373fa664__;JSUl!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4B0QFIUzg$>
+- Teaching Assistant | department of community medicine, information and health decision sciences @ med.up.pt<https://urldefense.com/v3/__https:/mailtrack.io/trace/link/32f5f446b7bc0d597241524764b3636b5a75d466?url=http*3A*2F*2Fmed.up.pt&userId=3785237&signature=cfbca25f5fe210b3__;JSUl!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4BoT_L--M$>
+
+ORCID: 0000-0002-5301-8672 | Mendeley: francisco-bischoff | Google: tCeA0uUAAAAJ | ResearcherID: H-8261-2016 | ResearchGate: Francisco_Bischoff | CiênciaID B413-E0A0-DE8D | LinkedIn: franzbischoff
+
+
+On Sat, Jan 16, 2021 at 1:54 AM Dirk Eddelbuettel <edd at debian.org<mailto:edd at debian.org>> wrote:
+
+On 16 January 2021 at 01:35, Francisco Bischoff wrote:
+| About the Range() function, I think it should handle decreasing ranges
+| too...
+| But, idk if using Matlabs approach or R approach:
+|
+| R's:
+|
+| a <- 1
+| b <- 10
+|
+| print(a:b)
+| 1 2 3 4 5 6 7 8 9 10
+| print(b:a)
+| 10 9 8 7 6 5 4 3 2 1
+|
+| Matlab's
+| a = 1;
+| b = 10;
+| disp(a:b);
+| 1 2 3 4 5 6 7 8 9 10
+| disp(b:a);
+| numeric(0)
+| disp(b:-1:a)
+| 10 9 8 7 6 5 4 3 2 1
+|
+| I think that we are in the R domain, so we should use Range(b, a) normally
+| (my humble opinion).
+
+Hm but I think the Range class in Rcpp is not the same as R's seq(). It is
+used internally in a few places and may not generalize well to the 'b:-1:a'
+use.
+
+I had a quick look, and Armadillo may not have anything directly relevant
+either. linspace() is close but not quite the same.
+
+I would probably just write myself a little helper function.
+
+| About Casting, this is a good example:
+|
+| Rcout << Range(0, 10) << std::endl;
+|
+| This does not compute...
+|
+| What should I do?
+|
+| Rcout << as<IntegerVector>(Range(0, 10)) << std::endl;
+| or
+| Rcout << (IntegerVector)(Range(0, 10)) << std::endl;
+
+That can happen as template expressions can get in the way. Alternatives are
+maybe using Armadillo types for, again, just using a quick loop and printing
+elements.
+
+Rcpp has a lot of functions. But it doesn't have "all of R's functions" and
+should not be seen as aiming for that.
+
+Dirk
+
+--
+https://dirk.eddelbuettel.com<https://urldefense.com/v3/__https:/mailtrack.io/trace/link/ec16eaacf00108f6b925d8cd55d469ea736d3313?url=https*3A*2F*2Fdirk.eddelbuettel.com&userId=3785237&signature=5ff5161e5ff16475__;JSUl!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4BxG2v_1M$> | @eddelbuettel | edd at debian.org<mailto:edd at debian.org>
+[Image removed by sender.]
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210116/ed12186e/attachment.html>
+
+From fbischoff at med.up.pt  Sat Jan 16 22:08:06 2021
+From: fbischoff at med.up.pt (Francisco Bischoff)
+Date: Sat, 16 Jan 2021 21:08:06 +0000
+Subject: [Rcpp-devel] Ranges and Casting
+In-Reply-To: <D4974BF5-ACBB-44FB-AD03-57130B2A0476@illinois.edu>
+References: <CAD2nUiTAteYUr7ircMusgNpCS9Boutg+o1Tp5hBtEgMcAE6B3A@mail.gmail.com>
+ <24565.21608.820603.792256@rob.eddelbuettel.com>
+ <CAD2nUiRs9L2v5m9Zr-b=npf7-wByEF1ksQ3gYGbsO2WjuO2dLQ@mail.gmail.com>
+ <24578.18244.79515.951686@rob.eddelbuettel.com>
+ <CAD2nUiQFM3dyrpHLrJ0N8y3dAeuLt2syEtTQv29ENNjCmYiatQ@mail.gmail.com>
+ <D4974BF5-ACBB-44FB-AD03-57130B2A0476@illinois.edu>
+Message-ID: <CAD2nUiStmSQwtwc=H8Sk1zxUJmPLXEcHXYfmjq41F5aUWOk-3Q@mail.gmail.com>
+
+Yes, it helps a lot.
+
+This confirms that I've been doing the right workarounds in my code. I
+thought there was a better way of doing it :-)
+
+Best regards!
+
+PS: today I've learned how to strip debug info using Makevars, thanks @Dirk
+Eddelbuettel <edd at debian.org>  :)
+
+--
+Francisco Bischoff, MD, MSc
+Faculty of Medicine of the University of Porto, Portugal
+
+- Master of Medical Informatics | topic: time series
+- Research Associate | artificial intelligence for health
+<https://mailtrack.io/trace/link/9ef37dc54ba00ab7d340b722996cf6daf3e79982?url=http%3A%2F%2Fcintesis.eu%2Fai4health%2F&userId=3785237&signature=697deaf46289f1d7>
+@ cintesis.eu
+<https://mailtrack.io/trace/link/d2c9af4c46c5055871a1945a700b99ae5c72fb94?url=http%3A%2F%2Fcintesis.eu&userId=3785237&signature=c78e57822e67732e>
+- Teaching Assistant | department of community medicine, information and
+health decision sciences @ med.up.pt
+<https://mailtrack.io/trace/link/5fda09f77e58c396486a5c7cec1f9b982a334c58?url=http%3A%2F%2Fmed.up.pt&userId=3785237&signature=9bd0b3da0cbd0f7a>
+
+ORCID: 0000-0002-5301-8672 | Mendeley: francisco-bischoff | Google:
+tCeA0uUAAAAJ | ResearcherID: H-8261-2016 | ResearchGate: Francisco_Bischoff
+| CiênciaID B413-E0A0-DE8D | LinkedIn: franzbischoff
+
+
+On Sat, Jan 16, 2021 at 7:26 PM Balamuta, James Joseph <
+balamut2 at illinois.edu> wrote:
+
+> Francisco,
+>
+>
+>
+> Based on the opening post, I’d probably push you more toward Armadillo as
+> Dirk was in the previous message. Using linspace<>(), may be a drop-in
+> replacement for seq() with the appropriate helper functions. Long ago (~4+
+> years now) I wrote a few, see:
+>
+>
+>
+> https://github.com/coatless/r-to-armadillo/blob/master/src/seq.cpp
+> <https://mailtrack.io/trace/link/80d9c725d261dfb303ccd7ab084979cdd2470c1b?url=https%3A%2F%2Fgithub.com%2Fcoatless%2Fr-to-armadillo%2Fblob%2Fmaster%2Fsrc%2Fseq.cpp&userId=3785237&signature=71713cb13a1d39e3>
+>
+>
+>
+> That said, Range is definitely preferred inside of subsets operations into
+> Rcpp-like data structures. However, the subset and assign operation is a
+> bit problematic with template expansion. So, the given example needs to
+> have an intermediary:
+>
+>
+>
+>   // Initialization:
+>
+>   Rcpp::NumericVector my_vec = Rcpp::NumericVector::create(1, 2, 3, 4, 5,
+> 6);
+>
+>
+>
+>   // Subset and Assign to 5:
+>
+>   Rcpp::IntegerVector subset_idx = Rcpp::Range(0, 3);
+>
+>   my_vec[subset_idx] = 20;
+>
+>
+>
+>   // Subset Positions:
+>
+>  Rcpp::NumericVector subset_result = my_vec[Rcpp::Range(4, 5)];
+>
+>
+>
+> Hope it helps.
+>
+>
+>
+> Best,
+>
+>
+>
+> JJB
+>
+>
+>
+> *From: *Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on
+> behalf of Francisco Bischoff <fbischoff at med.up.pt>
+> *Date: *Friday, January 15, 2021 at 8:05 PM
+> *To: *Dirk Eddelbuettel <edd at debian.org>
+> *Cc: *"rcpp-devel at lists.r-forge.r-project.org" <
+> rcpp-devel at lists.r-forge.r-project.org>
+> *Subject: *Re: [Rcpp-devel] Ranges and Casting
+>
+>
+>
+> Thanks for the tips.
+>
+>
+>
+> Still, Range() is the correct way to write:
+>
+>
+>
+> NumericVector my_vec(200);
+>
+>
+>
+> my_vec(Range(0,10)) = 10;
+>
+>
+>
+> ?
+>
+>
+>
+> Thanks in advance
+>
+>
+>
+>
+>
+>
+>
+>
+> --
+> Francisco Bischoff, MD, MSc
+>
+> Faculty of Medicine of the University of Porto, Portugal
+>
+>
+>
+> - Master of Medical Informatics | topic: time series
+> - Research Associate | artificial intelligence for health
+> <https://mailtrack.io/trace/link/81d202d5907c5004ac87fa7189a5f43096f298cb?url=https%3A%2F%2Furldefense.com%2Fv3%2F__https%3A%2Fmailtrack.io%2Ftrace%2Flink%2F1765b288bbce44d233e851a8d862ec594378aa04%3Furl%3Dhttp*3A*2F*2Fcintesis.eu*2Fai4health*2F%26userId%3D3785237%26signature%3D1b62d7a180130981__%3BJSUlJSU!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4ByfJyNzg%24&userId=3785237&signature=6f861a4b397dfc79>
+> @ cintesis.eu
+> <https://mailtrack.io/trace/link/5daf3fbe3ec2bde304cedb67b9c667f32b984de5?url=https%3A%2F%2Furldefense.com%2Fv3%2F__https%3A%2Fmailtrack.io%2Ftrace%2Flink%2F89b15c4212d5d6c8d4ba354ec92ab002ba9a96ef%3Furl%3Dhttp*3A*2F*2Fcintesis.eu%26userId%3D3785237%26signature%3D5fa97b31373fa664__%3BJSUl!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4B0QFIUzg%24&userId=3785237&signature=df96e330eb4e5915>
+> - Teaching Assistant | department of community medicine, information and
+> health decision sciences @ med.up.pt
+> <https://mailtrack.io/trace/link/83fdd729acfe28d35a79adba75b6427b6c655131?url=https%3A%2F%2Furldefense.com%2Fv3%2F__https%3A%2Fmailtrack.io%2Ftrace%2Flink%2F32f5f446b7bc0d597241524764b3636b5a75d466%3Furl%3Dhttp*3A*2F*2Fmed.up.pt%26userId%3D3785237%26signature%3Dcfbca25f5fe210b3__%3BJSUl!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4BoT_L--M%24&userId=3785237&signature=cb0c4f80c0dd44f2>
+>
+> ORCID: 0000-0002-5301-8672 | Mendeley: francisco-bischoff | Google:
+> tCeA0uUAAAAJ | ResearcherID: H-8261-2016 | ResearchGate: Francisco_Bischoff
+> | CiênciaID B413-E0A0-DE8D | LinkedIn: franzbischoff
+>
+>
+>
+>
+>
+> On Sat, Jan 16, 2021 at 1:54 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 16 January 2021 at 01:35, Francisco Bischoff wrote:
+> | About the Range() function, I think it should handle decreasing ranges
+> | too...
+> | But, idk if using Matlabs approach or R approach:
+> |
+> | R's:
+> |
+> | a <- 1
+> | b <- 10
+> |
+> | print(a:b)
+> | 1 2 3 4 5 6 7 8 9 10
+> | print(b:a)
+> | 10 9 8 7 6 5 4 3 2 1
+> |
+> | Matlab's
+> | a = 1;
+> | b = 10;
+> | disp(a:b);
+> | 1 2 3 4 5 6 7 8 9 10
+> | disp(b:a);
+> | numeric(0)
+> | disp(b:-1:a)
+> | 10 9 8 7 6 5 4 3 2 1
+> |
+> | I think that we are in the R domain, so we should use Range(b, a)
+> normally
+> | (my humble opinion).
+>
+> Hm but I think the Range class in Rcpp is not the same as R's seq(). It is
+> used internally in a few places and may not generalize well to the 'b:-1:a'
+> use.
+>
+> I had a quick look, and Armadillo may not have anything directly relevant
+> either. linspace() is close but not quite the same.
+>
+> I would probably just write myself a little helper function.
+>
+> | About Casting, this is a good example:
+> |
+> | Rcout << Range(0, 10) << std::endl;
+> |
+> | This does not compute...
+> |
+> | What should I do?
+> |
+> | Rcout << as<IntegerVector>(Range(0, 10)) << std::endl;
+> | or
+> | Rcout << (IntegerVector)(Range(0, 10)) << std::endl;
+>
+> That can happen as template expressions can get in the way. Alternatives
+> are
+> maybe using Armadillo types for, again, just using a quick loop and
+> printing
+> elements.
+>
+> Rcpp has a lot of functions. But it doesn't have "all of R's functions" and
+> should not be seen as aiming for that.
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com
+> <https://mailtrack.io/trace/link/6980bfa152de9cac3c6fdf921fa97bf34670a814?url=https%3A%2F%2Furldefense.com%2Fv3%2F__https%3A%2Fmailtrack.io%2Ftrace%2Flink%2Fec16eaacf00108f6b925d8cd55d469ea736d3313%3Furl%3Dhttps*3A*2F*2Fdirk.eddelbuettel.com%26userId%3D3785237%26signature%3D5ff5161e5ff16475__%3BJSUl!!DZ3fjg!oa0yWHu4WaDeqycuBEcPRuw3vEvJrYARPPIAzJNsnxdet6loFCJ7O95nLR4BxG2v_1M%24&userId=3785237&signature=6c0196f400190f18>
+> | @eddelbuettel | edd at debian.org
+>
+> [image: Image removed by sender.]
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210116/3d125051/attachment-0001.html>
+
+From edd at debian.org  Wed Jan 20 15:35:32 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 20 Jan 2021 08:35:32 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp Micro Releases on Rcpp Drat Repo
+Message-ID: <24584.16308.785630.487981@rob.eddelbuettel.com>
+
+
+Hi all,
+
+As for the last few years, we are placing minor increments marking Rcpp
+version snapshots into the drat repo at
+
+   http://rcppcore.github.io/drat/
+
+Following the 1.0.6 CRAN release of Rcpp, I first folded in a PR from a
+branch created right before the 1.0.6 allowing packages with dots in their
+names to have per-package type headers: that became Rcpp 1.0.6.1.
+
+Then Inaki very graciously and nicely revived and completed a branch of mine
+from last May finally fixing an issue Luke Tierney had raised and which
+plagued users aggregating large sets of objects (for which I always used STL
+containers avoiding this, but hey a bug is bug). This got fixed in Rcpp
+1.0.6.2 but we did some (inadvertent) changes to the published API so Rcpp
+1.0.6.3 restores this.  If you follow the GitHub repo you see when new
+version are marked in DESCRIPTION; I generally upload new tarballs to the drat.
+
+Please help Rcpp in testing these. It really helps minimize surprises once we
+go to CRAN, for which we need to use some care given the now well over
+two-thousand direct reverse dependencies.  The Rcpp 1.0.6.2 and 1.0.6.3
+versions seem to require a rebuild of packages involving rstan or StanHeaders
+and/or maybe a few others.  In reverse depedency checking I initially ran
+into about 170 or so failures almost all from run-time behaviour of tests and
+odd segfaults.  But having just re-confirmed in the 1.0.6 release what we C++
+programmers "know" that some 'weird' run-time issues do go away sometimes
+under rebuilds, I opted to reinstall several hundred packages (which I had
+not done in May, thinking my branch was doomed when in fact in wasn't) and
+that addressed the concernt. (Summaries of rev.dep checks are always public
+too in the rcpp-logs repo in the RcppCore org.) So that really is a reminder
+that we should test as widely as we can.  Please help if you can---these
+microreleases are stable (they are my default uses) but broader coverage helps.
+
+Once again, big thanks for everybody who helped and this round especially Inaki!
+
+Cheers, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Jan 27 04:56:46 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 26 Jan 2021 21:56:46 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp Micro Releases on Rcpp Drat Repo
+In-Reply-To: <24584.16308.785630.487981@rob.eddelbuettel.com>
+References: <24584.16308.785630.487981@rob.eddelbuettel.com>
+Message-ID: <24592.58494.522397.965905@rob.eddelbuettel.com>
+
+
+And more micro-releases on drat:
+
+- Rcpp 1.0.6.4 now with an additional 'echo' argument to evaluate R code in
+  sourceCpp() silently, plus a removed unused variable
+
+- RcppArmadillo 0.10.2.0.0 with an upstream update, will go to CRAN once a
+  month since last release passed
+
+Both had the usual full reverse-depends checks.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

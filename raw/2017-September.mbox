@@ -1,0 +1,1867 @@
+From jouni.helske at jyu.fi  Mon Sep  4 10:22:04 2017
+From: jouni.helske at jyu.fi (Helske, Jouni)
+Date: Mon, 4 Sep 2017 08:22:04 +0000
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with
+	Xptr export
+Message-ID: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+
+Hi,
+
+
+In the bssm package (https://github.com/helske/bssm), I let the users define a state space model via own C++ functions which are then exported as Xptr to R side, and passed back to C++ function for SMC/MCMC etc. Normally this works fine, but when user repeatedly modifies the model functions and re-exports them via repeated calls sourceCpp, sometimes whole Rstudio crashes. I haven't been able to pinpoint the reason or minimal example. Have anyone else experienced similar issues or is it just me i.e. error in my own implementations?
+
+
+Simplest case of this is the discretized SDE models, this is the function which user modifies: https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp,  <https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp> and the relevant parts of the package codes are in src/function_pointers.h, src/sde_ssm.cpp and src/R_sde.cpp (I don't really expect anyone to read through all of these).
+
+
+Best,
+
+
+Jouni Helske
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170904/e9570630/attachment.html>
+
+From i.ucar86 at gmail.com  Mon Sep  4 11:43:31 2017
+From: i.ucar86 at gmail.com (=?UTF-8?B?ScOxYWtpIMOaY2Fy?=)
+Date: Mon, 4 Sep 2017 11:43:31 +0200
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with Xptr export
+In-Reply-To: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+Message-ID: <CALEXWq3okRcc3HENwCybiWs0JHvTT6CLVm2YH7bd==a2NhL-Bg@mail.gmail.com>
+
+Hi,
+
+2017-09-04 10:22 GMT+02:00 Helske, Jouni <jouni.helske at jyu.fi>:
+> Hi,
+>
+>
+> In the bssm package (https://github.com/helske/bssm), I let the users define
+> a state space model via own C++ functions which are then exported as Xptr to
+> R side, and passed back to C++ function for SMC/MCMC etc. Normally this
+> works fine, but when user repeatedly modifies the model functions and
+> re-exports them via repeated calls sourceCpp, sometimes whole Rstudio
+> crashes. I haven't been able to pinpoint the reason or minimal example. Have
+> anyone else experienced similar issues or is it just me i.e. error in my own
+> implementations?
+
+You can try the same by running R from the command line. If this
+doesn't crash, the problem is in RStudio. You can also run RStudio
+with the "-debug" flag or using valgrind to try to delimit the issue.
+
+> Simplest case of this is the discretized SDE models, this is the function
+> which user modifies:
+> https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp,  and
+> the relevant parts of the package codes are in src/function_pointers.h,
+> src/sde_ssm.cpp and src/R_sde.cpp (I don't really expect anyone to read
+> through all of these).
+
+Let me suggest you the RcppXPtrUtils package (on CRAN) for exporting
+XPtrs without adding all the repetitive scaffolding:
+http://gallery.rcpp.org//articles/passing-cpp-function-pointers-rcppxptrutils/
+
+Regards,
+I?aki
+
+From simon.barthelme at gipsa-lab.fr  Mon Sep  4 12:14:52 2017
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?Q?Simon_Barthelm=c3=a9?=)
+Date: Mon, 4 Sep 2017 12:14:52 +0200
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with Xptr export
+In-Reply-To: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+Message-ID: <59AD279C.3040603@gipsa-lab.fr>
+
+Hi Helske
+
+I've had this happen to me and if memory serves in my case it was due to 
+a memory leak on the C++ side that didn't bother R too much but caused 
+sourceCpp to crash. Maybe try valgrind?
+
+Simon
+
+On 04/09/2017 10:22, Helske, Jouni wrote:
+>
+> Hi,
+>
+>
+> In the bssm package (https://github.com/helske/bssm), I let the users 
+> define a state space model via own C++ functions which are then 
+> exported as Xptr to R side, and passed back to C++ function for 
+> SMC/MCMC etc. Normally this works fine, but when user repeatedly 
+> modifies the model functions and re-exports them via repeated calls 
+> sourceCpp, sometimes whole Rstudio crashes. I haven't been able to 
+> pinpoint the reason or minimal example. Have anyone else experienced 
+> similar issues or is it just me i.e. error in my own implementations?
+>
+>
+> Simplest case of this is the discretized SDE models, this is the 
+> function which user modifies: 
+> https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp, <https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>and 
+> the relevant parts of the package codes are in 
+> src/function_pointers.h, src/sde_ssm.cpp and src/R_sde.cpp (I don't 
+> really expect anyone to read through all of these).
+>
+>
+> Best,
+>
+>
+> Jouni Helske
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170904/dfa280ad/attachment.html>
+
+From jouni.helske at jyu.fi  Mon Sep  4 13:07:14 2017
+From: jouni.helske at jyu.fi (Helske, Jouni)
+Date: Mon, 4 Sep 2017 11:07:14 +0000
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with Xptr export
+In-Reply-To: <59AD279C.3040603@gipsa-lab.fr>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>,
+ <59AD279C.3040603@gipsa-lab.fr>
+Message-ID: <b5d0c07dcb5843e3a3baf4be6678c857@jyu.fi>
+
+Hi,
+
+
+I already tried valgrind, that doesn't give any hints. So far I haven't been able to reproduce this in R console, but could be just bad(?) luck as the whole crash happens so randomly. I am now running sourceCpp with rebuild = TRUE and subsequent function calls on a loop, and it takes seemingly random amount of iterations until Rstudio crashes.
+
+
+Jouni
+
+
+
+________________________________
+L?hett?j?: Simon Barthelm? <simon.barthelme at gipsa-lab.fr>
+L?hetetty: maanantai 4. syyskuuta 2017 13.14.52
+Vastaanottaja: Helske, Jouni; Rcpp-devel at lists.r-forge.r-project.org
+Aihe: Re: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with Xptr export
+
+Hi Helske
+
+I've had this happen to me and if memory serves in my case it was due to a memory leak on the C++ side that didn't bother R too much but caused sourceCpp to crash. Maybe try valgrind?
+
+Simon
+
+On 04/09/2017 10:22, Helske, Jouni wrote:
+
+Hi,
+
+
+In the bssm package (https://github.com/helske/bssm), I let the users define a state space model via own C++ functions which are then exported as Xptr to R side, and passed back to C++ function for SMC/MCMC etc. Normally this works fine, but when user repeatedly modifies the model functions and re-exports them via repeated calls sourceCpp, sometimes whole Rstudio crashes. I haven't been able to pinpoint the reason or minimal example. Have anyone else experienced similar issues or is it just me i.e. error in my own implementations?
+
+
+Simplest case of this is the discretized SDE models, this is the function which user modifies: https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp,  <https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp> and the relevant parts of the package codes are in src/function_pointers.h, src/sde_ssm.cpp and src/R_sde.cpp (I don't really expect anyone to read through all of these).
+
+
+Best,
+
+
+Jouni Helske
+
+
+
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org<mailto:Rcpp-devel at lists.r-forge.r-project.org>
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170904/4db29b94/attachment.html>
+
+From edd at debian.org  Mon Sep  4 14:32:13 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 4 Sep 2017 07:32:13 -0500
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+	with	Xptr export
+In-Reply-To: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+Message-ID: <22957.18381.600845.6555@bud.eddelbuettel.com>
+
+
+Hi Jouni,
+
+On 4 September 2017 at 08:22, Helske, Jouni wrote:
+| In the bssm package (https://github.com/helske/bssm), I let the users
+| define a state space model via own C++ functions which are then exported as
+| Xptr to R side, and passed back to C++ function for SMC/MCMC etc. Normally
+| this works fine, but when user repeatedly modifies the model functions and
+| re-exports them via repeated calls sourceCpp, sometimes whole Rstudio
+| crashes.
+
+Which version of RStudio?  See Help -> About
+
+| I haven't been able to pinpoint the reason or minimal example. Have anyone else experienced similar issues or is it just me i.e. error in my own implementations?
+
+There are a lot of dependencies here [re-indented by me]:
+
+  Suggests: KFAS (>= 1.2.1), knitr (>= 1.11), rmarkdown (>= 0.8.1), testthat,
+     bayesplot
+  Imports: coda (>= 0.18-1), diagis, ggplot2 (>= 2.0.0), Rcpp (>= 0.12.3)
+  LinkingTo: BH, Rcpp, RcppArmadillo, ramcmc, sitmo
+
+We do know Boost interactions (between code compiled 'by us' as R extensions
+using Boost, and RStudio itself also using an older version of Boost) had
+thrown spanners in the past. A while back Kevin updated RStudio internals and
+shielded "their" Boost better.
+
+I happen to run RStudio "Daily" builds on all my machines -- those have the
+fix and "behave". Maybe worth a try for you.
+ 
+| Simplest case of this is the discretized SDE models, this is the function
+| which user modifies:
+| https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp,
+| <https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+| and the relevant parts of the package codes are in src/function_pointers.h,
+| src/sde_ssm.cpp and src/R_sde.cpp (I don't really expect anyone to read
+| through all of these).
+
+We'd probably need a reproducible example to really help.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jouni.helske at jyu.fi  Tue Sep  5 11:31:15 2017
+From: jouni.helske at jyu.fi (Helske, Jouni)
+Date: Tue, 5 Sep 2017 09:31:15 +0000
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with	Xptr export
+In-Reply-To: <22957.18381.600845.6555@bud.eddelbuettel.com>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>,
+ <22957.18381.600845.6555@bud.eddelbuettel.com>
+Message-ID: <222f66610ca046bd9fa1d0ef87de5df3@jyu.fi>
+
+
+I was finally able to get reproducible, although likely not minimal segfault even without Rstudio.  I built a new package and running a weird loop with rebuilding of the source files and doing some other random stuff as well, I was able to get a segfault. valgrind output looks like this:
+
+==26398== Jump to the invalid address stated on the next line
+==26398==    at 0x1DD75010: ???
+==26398==    by 0x4F7D026: R_RunWeakRefFinalizer (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F7D213: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4A679: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4EA11: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4AB99: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4D723: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4AA9F: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4CABE: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F42F67: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F50D55: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F512FF: ??? (in /usr/lib/R/lib/libR.so)
+==26398==  Address 0x1dd75010 is not stack'd, malloc'd or (recently) free'd
+==26398==
+
+ *** caught segfault ***
+address 0x1dd75010, cause 'memory not mapped'
+An irrecoverable exception occurred. R is aborting now ...
+==26398==
+==26398== Process terminating with default action of signal 11 (SIGSEGV)
+==26398==    at 0x547451D: raise (raise.c:53)
+==26398==    by 0x547466F: ??? (in /lib/x86_64-linux-gnu/libpthread-2.24.so)
+==26398==    by 0x1DD7500F: ???
+==26398==
+==26398== HEAP SUMMARY:
+==26398==     in use at exit: 259,162,338 bytes in 28,465 blocks
+==26398==   total heap usage: 315,728 allocs, 287,263 frees, 1,311,929,706 bytes allocated
+==26398==
+==26398== LEAK SUMMARY:
+==26398==    definitely lost: 0 bytes in 0 blocks
+==26398==    indirectly lost: 0 bytes in 0 blocks
+==26398==      possibly lost: 0 bytes in 0 blocks
+==26398==    still reachable: 259,162,338 bytes in 28,465 blocks
+==26398==                       of which reachable via heuristic:
+==26398==                         newarray           : 4,264 bytes in 1 blocks
+==26398==         suppressed: 0 bytes in 0 blocks
+==26398== Reachable blocks (those to which a pointer was found) are not shown.
+==26398== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==26398==
+==26398== For counts of detected and suppressed errors, rerun with: -v
+==26398== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+Segmentation fault (core dumped)
+
+
+What is super weird is that currently I have this extra C++ function which is not even used at all:
+
+double log_prior_pdf(const arma::vec& theta) {
+
+  double log_pdf = 0.0;
+  double infinite = -arma::datum::inf; //comment out this line and everything works??
+  return log_pdf;
+}
+
+If I remove the middle line, I seem to get rid of the segfault. However, I also have some extra stuff on the R script (crash.R) as well which looks to be necessary for the segfault to trigger at certain point (third iteration of the outer loop).
+
+
+
+Jouni
+
+________________________________
+L?hett?j?: Dirk Eddelbuettel <dirk.eddelbuettel at gmail.com> k?ytt?j?n Dirk Eddelbuettel <edd at debian.org> puolesta
+L?hetetty: maanantai 4. syyskuuta 2017 15.32.13
+Vastaanottaja: Helske, Jouni
+Kopio: Rcpp-devel at lists.r-forge.r-project.org
+Aihe: Re: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with Xptr export
+
+
+Hi Jouni,
+
+On 4 September 2017 at 08:22, Helske, Jouni wrote:
+| In the bssm package (https://github.com/helske/bssm), I let the users
+| define a state space model via own C++ functions which are then exported as
+| Xptr to R side, and passed back to C++ function for SMC/MCMC etc. Normally
+| this works fine, but when user repeatedly modifies the model functions and
+| re-exports them via repeated calls sourceCpp, sometimes whole Rstudio
+| crashes.
+
+Which version of RStudio?  See Help -> About
+
+| I haven't been able to pinpoint the reason or minimal example. Have anyone else experienced similar issues or is it just me i.e. error in my own implementations?
+
+There are a lot of dependencies here [re-indented by me]:
+
+  Suggests: KFAS (>= 1.2.1), knitr (>= 1.11), rmarkdown (>= 0.8.1), testthat,
+     bayesplot
+  Imports: coda (>= 0.18-1), diagis, ggplot2 (>= 2.0.0), Rcpp (>= 0.12.3)
+  LinkingTo: BH, Rcpp, RcppArmadillo, ramcmc, sitmo
+
+We do know Boost interactions (between code compiled 'by us' as R extensions
+using Boost, and RStudio itself also using an older version of Boost) had
+thrown spanners in the past. A while back Kevin updated RStudio internals and
+shielded "their" Boost better.
+
+I happen to run RStudio "Daily" builds on all my machines -- those have the
+fix and "behave". Maybe worth a try for you.
+
+| Simplest case of this is the discretized SDE models, this is the function
+| which user modifies:
+| https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp,
+[https://avatars2.githubusercontent.com/u/1560448?v=4&s=400]<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+
+bssm/sde_functions.cpp at master ? helske/bssm ? GitHub<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+github.com
+bssm - Bayesian Inference of State Space Models
+
+
+| <https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+[https://avatars2.githubusercontent.com/u/1560448?v=4&s=400]<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+
+bssm/sde_functions.cpp at master ? helske/bssm ? GitHub<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+github.com
+bssm - Bayesian Inference of State Space Models
+
+
+| and the relevant parts of the package codes are in src/function_pointers.h,
+| src/sde_ssm.cpp and src/R_sde.cpp (I don't really expect anyone to read
+| through all of these).
+
+We'd probably need a reproducible example to really help.
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170905/7317fa69/attachment-0001.html>
+
+From jouni.helske at jyu.fi  Tue Sep  5 11:32:05 2017
+From: jouni.helske at jyu.fi (Helske, Jouni)
+Date: Tue, 5 Sep 2017 09:32:05 +0000
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with	Xptr export
+In-Reply-To: <222f66610ca046bd9fa1d0ef87de5df3@jyu.fi>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>,
+ <22957.18381.600845.6555@bud.eddelbuettel.com>,
+ <222f66610ca046bd9fa1d0ef87de5df3@jyu.fi>
+Message-ID: <5db94ec1c8c44192a8c6347aaba11118@jyu.fi>
+
+Oops, forgot the link to the repo: https://github.com/helske/crashtest/issues/1
+
+
+Best,
+
+Jouni
+
+________________________________
+L?hett?j?: Helske, Jouni
+L?hetetty: tiistai 5. syyskuuta 2017 12.31.15
+Vastaanottaja: Dirk Eddelbuettel
+Kopio: Rcpp-devel at lists.r-forge.r-project.org
+Aihe: VS: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with Xptr export
+
+
+
+I was finally able to get reproducible, although likely not minimal segfault even without Rstudio.  I built a new package and running a weird loop with rebuilding of the source files and doing some other random stuff as well, I was able to get a segfault. valgrind output looks like this:
+
+==26398== Jump to the invalid address stated on the next line
+==26398==    at 0x1DD75010: ???
+==26398==    by 0x4F7D026: R_RunWeakRefFinalizer (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F7D213: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4A679: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4EA11: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4AB99: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4D723: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4AA9F: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4CABE: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F42F67: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F50D55: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F512FF: ??? (in /usr/lib/R/lib/libR.so)
+==26398==  Address 0x1dd75010 is not stack'd, malloc'd or (recently) free'd
+==26398==
+
+ *** caught segfault ***
+address 0x1dd75010, cause 'memory not mapped'
+An irrecoverable exception occurred. R is aborting now ...
+==26398==
+==26398== Process terminating with default action of signal 11 (SIGSEGV)
+==26398==    at 0x547451D: raise (raise.c:53)
+==26398==    by 0x547466F: ??? (in /lib/x86_64-linux-gnu/libpthread-2.24.so)
+==26398==    by 0x1DD7500F: ???
+==26398==
+==26398== HEAP SUMMARY:
+==26398==     in use at exit: 259,162,338 bytes in 28,465 blocks
+==26398==   total heap usage: 315,728 allocs, 287,263 frees, 1,311,929,706 bytes allocated
+==26398==
+==26398== LEAK SUMMARY:
+==26398==    definitely lost: 0 bytes in 0 blocks
+==26398==    indirectly lost: 0 bytes in 0 blocks
+==26398==      possibly lost: 0 bytes in 0 blocks
+==26398==    still reachable: 259,162,338 bytes in 28,465 blocks
+==26398==                       of which reachable via heuristic:
+==26398==                         newarray           : 4,264 bytes in 1 blocks
+==26398==         suppressed: 0 bytes in 0 blocks
+==26398== Reachable blocks (those to which a pointer was found) are not shown.
+==26398== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==26398==
+==26398== For counts of detected and suppressed errors, rerun with: -v
+==26398== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+Segmentation fault (core dumped)
+
+
+What is super weird is that currently I have this extra C++ function which is not even used at all:
+
+double log_prior_pdf(const arma::vec& theta) {
+
+  double log_pdf = 0.0;
+  double infinite = -arma::datum::inf; //comment out this line and everything works??
+  return log_pdf;
+}
+
+If I remove the middle line, I seem to get rid of the segfault. However, I also have some extra stuff on the R script (crash.R) as well which looks to be necessary for the segfault to trigger at certain point (third iteration of the outer loop).
+
+
+
+Jouni
+
+________________________________
+L?hett?j?: Dirk Eddelbuettel <dirk.eddelbuettel at gmail.com> k?ytt?j?n Dirk Eddelbuettel <edd at debian.org> puolesta
+L?hetetty: maanantai 4. syyskuuta 2017 15.32.13
+Vastaanottaja: Helske, Jouni
+Kopio: Rcpp-devel at lists.r-forge.r-project.org
+Aihe: Re: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with Xptr export
+
+
+Hi Jouni,
+
+On 4 September 2017 at 08:22, Helske, Jouni wrote:
+| In the bssm package (https://github.com/helske/bssm), I let the users
+| define a state space model via own C++ functions which are then exported as
+| Xptr to R side, and passed back to C++ function for SMC/MCMC etc. Normally
+| this works fine, but when user repeatedly modifies the model functions and
+| re-exports them via repeated calls sourceCpp, sometimes whole Rstudio
+| crashes.
+
+Which version of RStudio?  See Help -> About
+
+| I haven't been able to pinpoint the reason or minimal example. Have anyone else experienced similar issues or is it just me i.e. error in my own implementations?
+
+There are a lot of dependencies here [re-indented by me]:
+
+  Suggests: KFAS (>= 1.2.1), knitr (>= 1.11), rmarkdown (>= 0.8.1), testthat,
+     bayesplot
+  Imports: coda (>= 0.18-1), diagis, ggplot2 (>= 2.0.0), Rcpp (>= 0.12.3)
+  LinkingTo: BH, Rcpp, RcppArmadillo, ramcmc, sitmo
+
+We do know Boost interactions (between code compiled 'by us' as R extensions
+using Boost, and RStudio itself also using an older version of Boost) had
+thrown spanners in the past. A while back Kevin updated RStudio internals and
+shielded "their" Boost better.
+
+I happen to run RStudio "Daily" builds on all my machines -- those have the
+fix and "behave". Maybe worth a try for you.
+
+| Simplest case of this is the discretized SDE models, this is the function
+| which user modifies:
+| https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp,
+[https://avatars2.githubusercontent.com/u/1560448?v=4&s=400]<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+
+bssm/sde_functions.cpp at master ? helske/bssm ? GitHub<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+github.com
+bssm - Bayesian Inference of State Space Models
+
+
+| <https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+[https://avatars2.githubusercontent.com/u/1560448?v=4&s=400]<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+
+bssm/sde_functions.cpp at master ? helske/bssm ? GitHub<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+github.com
+bssm - Bayesian Inference of State Space Models
+
+
+| and the relevant parts of the package codes are in src/function_pointers.h,
+| src/sde_ssm.cpp and src/R_sde.cpp (I don't really expect anyone to read
+| through all of these).
+
+We'd probably need a reproducible example to really help.
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170905/94f3d3fc/attachment.html>
+
+From jouni.helske at jyu.fi  Tue Sep  5 12:12:57 2017
+From: jouni.helske at jyu.fi (Helske, Jouni)
+Date: Tue, 5 Sep 2017 10:12:57 +0000
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with	Xptr export
+In-Reply-To: <5db94ec1c8c44192a8c6347aaba11118@jyu.fi>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>,
+ <22957.18381.600845.6555@bud.eddelbuettel.com>,
+ <222f66610ca046bd9fa1d0ef87de5df3@jyu.fi>,
+ <5db94ec1c8c44192a8c6347aaba11118@jyu.fi>
+Message-ID: <59c179064fb54062862d68c1b7163d84@jyu.fi>
+
+It looks like the issue has something to do with the cache from the previous sourceCpp calls: If inside of the segfaulting loop (with index i) I set Rcpp::sourceCpp("sde_functions1.cpp", rebuild = TRUE, cacheDir = paste0("dir", i)) everything works fine. Note that by just using cleanupCacheDir = TRUE does not help, which I though would do essentially the same thing.
+
+
+Best,
+
+Jouni
+
+
+
+________________________________
+L?hett?j?: rcpp-devel-bounces at r-forge.wu-wien.ac.at <rcpp-devel-bounces at r-forge.wu-wien.ac.at> k?ytt?j?n Helske, Jouni <jouni.helske at jyu.fi> puolesta
+L?hetetty: tiistai 5. syyskuuta 2017 12.32.05
+Vastaanottaja: Dirk Eddelbuettel
+Kopio: Rcpp-devel at lists.r-forge.r-project.org
+Aihe: Re: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with Xptr export
+
+
+Oops, forgot the link to the repo: https://github.com/helske/crashtest/issues/1
+
+
+Best,
+
+Jouni
+
+________________________________
+L?hett?j?: Helske, Jouni
+L?hetetty: tiistai 5. syyskuuta 2017 12.31.15
+Vastaanottaja: Dirk Eddelbuettel
+Kopio: Rcpp-devel at lists.r-forge.r-project.org
+Aihe: VS: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with Xptr export
+
+
+
+I was finally able to get reproducible, although likely not minimal segfault even without Rstudio.  I built a new package and running a weird loop with rebuilding of the source files and doing some other random stuff as well, I was able to get a segfault. valgrind output looks like this:
+
+==26398== Jump to the invalid address stated on the next line
+==26398==    at 0x1DD75010: ???
+==26398==    by 0x4F7D026: R_RunWeakRefFinalizer (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F7D213: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4A679: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4EA11: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4AB99: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4D723: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4AA9F: Rf_eval (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F4CABE: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F42F67: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F50D55: ??? (in /usr/lib/R/lib/libR.so)
+==26398==    by 0x4F512FF: ??? (in /usr/lib/R/lib/libR.so)
+==26398==  Address 0x1dd75010 is not stack'd, malloc'd or (recently) free'd
+==26398==
+
+ *** caught segfault ***
+address 0x1dd75010, cause 'memory not mapped'
+An irrecoverable exception occurred. R is aborting now ...
+==26398==
+==26398== Process terminating with default action of signal 11 (SIGSEGV)
+==26398==    at 0x547451D: raise (raise.c:53)
+==26398==    by 0x547466F: ??? (in /lib/x86_64-linux-gnu/libpthread-2.24.so)
+==26398==    by 0x1DD7500F: ???
+==26398==
+==26398== HEAP SUMMARY:
+==26398==     in use at exit: 259,162,338 bytes in 28,465 blocks
+==26398==   total heap usage: 315,728 allocs, 287,263 frees, 1,311,929,706 bytes allocated
+==26398==
+==26398== LEAK SUMMARY:
+==26398==    definitely lost: 0 bytes in 0 blocks
+==26398==    indirectly lost: 0 bytes in 0 blocks
+==26398==      possibly lost: 0 bytes in 0 blocks
+==26398==    still reachable: 259,162,338 bytes in 28,465 blocks
+==26398==                       of which reachable via heuristic:
+==26398==                         newarray           : 4,264 bytes in 1 blocks
+==26398==         suppressed: 0 bytes in 0 blocks
+==26398== Reachable blocks (those to which a pointer was found) are not shown.
+==26398== To see them, rerun with: --leak-check=full --show-leak-kinds=all
+==26398==
+==26398== For counts of detected and suppressed errors, rerun with: -v
+==26398== ERROR SUMMARY: 1 errors from 1 contexts (suppressed: 0 from 0)
+Segmentation fault (core dumped)
+
+
+What is super weird is that currently I have this extra C++ function which is not even used at all:
+
+double log_prior_pdf(const arma::vec& theta) {
+
+  double log_pdf = 0.0;
+  double infinite = -arma::datum::inf; //comment out this line and everything works??
+  return log_pdf;
+}
+
+If I remove the middle line, I seem to get rid of the segfault. However, I also have some extra stuff on the R script (crash.R) as well which looks to be necessary for the segfault to trigger at certain point (third iteration of the outer loop).
+
+
+
+Jouni
+
+________________________________
+L?hett?j?: Dirk Eddelbuettel <dirk.eddelbuettel at gmail.com> k?ytt?j?n Dirk Eddelbuettel <edd at debian.org> puolesta
+L?hetetty: maanantai 4. syyskuuta 2017 15.32.13
+Vastaanottaja: Helske, Jouni
+Kopio: Rcpp-devel at lists.r-forge.r-project.org
+Aihe: Re: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp with Xptr export
+
+
+Hi Jouni,
+
+On 4 September 2017 at 08:22, Helske, Jouni wrote:
+| In the bssm package (https://github.com/helske/bssm), I let the users
+| define a state space model via own C++ functions which are then exported as
+| Xptr to R side, and passed back to C++ function for SMC/MCMC etc. Normally
+| this works fine, but when user repeatedly modifies the model functions and
+| re-exports them via repeated calls sourceCpp, sometimes whole Rstudio
+| crashes.
+
+Which version of RStudio?  See Help -> About
+
+| I haven't been able to pinpoint the reason or minimal example. Have anyone else experienced similar issues or is it just me i.e. error in my own implementations?
+
+There are a lot of dependencies here [re-indented by me]:
+
+  Suggests: KFAS (>= 1.2.1), knitr (>= 1.11), rmarkdown (>= 0.8.1), testthat,
+     bayesplot
+  Imports: coda (>= 0.18-1), diagis, ggplot2 (>= 2.0.0), Rcpp (>= 0.12.3)
+  LinkingTo: BH, Rcpp, RcppArmadillo, ramcmc, sitmo
+
+We do know Boost interactions (between code compiled 'by us' as R extensions
+using Boost, and RStudio itself also using an older version of Boost) had
+thrown spanners in the past. A while back Kevin updated RStudio internals and
+shielded "their" Boost better.
+
+I happen to run RStudio "Daily" builds on all my machines -- those have the
+fix and "behave". Maybe worth a try for you.
+
+| Simplest case of this is the discretized SDE models, this is the function
+| which user modifies:
+| https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp,
+[https://avatars2.githubusercontent.com/u/1560448?v=4&s=400]<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+
+bssm/sde_functions.cpp at master ? helske/bssm ? GitHub<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+github.com
+bssm - Bayesian Inference of State Space Models
+
+
+| <https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+[https://avatars2.githubusercontent.com/u/1560448?v=4&s=400]<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+
+bssm/sde_functions.cpp at master ? helske/bssm ? GitHub<https://github.com/helske/bssm/blob/master/vignettes/sde_functions.cpp>
+github.com
+bssm - Bayesian Inference of State Space Models
+
+
+| and the relevant parts of the package codes are in src/function_pointers.h,
+| src/sde_ssm.cpp and src/R_sde.cpp (I don't really expect anyone to read
+| through all of these).
+
+We'd probably need a reproducible example to really help.
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170905/40ee706e/attachment.html>
+
+From edd at debian.org  Tue Sep  5 12:28:27 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 5 Sep 2017 05:28:27 -0500
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with	Xptr export
+In-Reply-To: <5db94ec1c8c44192a8c6347aaba11118@jyu.fi>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+ <22957.18381.600845.6555@bud.eddelbuettel.com>
+ <222f66610ca046bd9fa1d0ef87de5df3@jyu.fi>
+ <5db94ec1c8c44192a8c6347aaba11118@jyu.fi>
+Message-ID: <22958.31819.743992.532210@bud.eddelbuettel.com>
+
+
+On 5 September 2017 at 09:32, Helske, Jouni wrote:
+| Oops, forgot the link to the repo: https://github.com/helske/crashtest/issues/1
+
+And for those reading here, Jouni and I are now down to looking after
+sourceCpp() repeatedly running in the same directory --- this seems to need a
+bit a cleanup.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Sep  5 12:31:21 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 5 Sep 2017 05:31:21 -0500
+Subject: [Rcpp-devel] Rstudio crashes with repeated calls to sourceCpp
+ with	Xptr export
+In-Reply-To: <59c179064fb54062862d68c1b7163d84@jyu.fi>
+References: <5361c84cc698417bb7b0b56bd5342e51@jyu.fi>
+ <22957.18381.600845.6555@bud.eddelbuettel.com>
+ <222f66610ca046bd9fa1d0ef87de5df3@jyu.fi>
+ <5db94ec1c8c44192a8c6347aaba11118@jyu.fi>
+ <59c179064fb54062862d68c1b7163d84@jyu.fi>
+Message-ID: <22958.31993.458034.456076@bud.eddelbuettel.com>
+
+
+On 5 September 2017 at 10:12, Helske, Jouni wrote:
+| It looks like the issue has something to do with the cache from the previous sourceCpp calls: If inside of the segfaulting loop (with index i) I set Rcpp::sourceCpp("sde_functions1.cpp", rebuild = TRUE, cacheDir = paste0("dir", i)) everything works fine. Note that by just using cleanupCacheDir = TRUE does not help, which I though would do essentially the same thing.
+
+sourceCpp() does this:
+
+    # cleanup the cache dir if requested
+    if (cleanupCacheDir)
+        cleanupSourceCppCache(cacheDir, context$cppSourcePath, context$buildDirectory)
+
+I think we should try to focus on which if any files are still left behind by
+cleanupSourceCppCache() and also remove them.
+
+This ought to be fixable.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jwijffels at bnosac.be  Wed Sep  6 15:03:40 2017
+From: jwijffels at bnosac.be (Jan Wijffels)
+Date: Wed, 6 Sep 2017 15:03:40 +0200
+Subject: [Rcpp-devel] C++11 Solaris cmath/math.H
+Message-ID: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+
+Hello,
+
+I'm trying to fix the installation issue I have with the package udpipe:
+https://github.com/bnosac/udpipe but I'm getting issues on Solaris giving
+messages like this:
+
+/opt/csw/bin/g++ -std=gnu++11
+-I/opt/R/R-3.4.1-patched-gcc/lib/R/include -DNDEBUG
+-I"/export/home/XyG0aYI/R/Rcpp/include" -I/opt/csw/include
+-I/usr/local/include   -fPIC  -O2 -c RcppExports.cpp -o RcppExports.o
+In file included from /opt/csw/include/c++/5.2.0/cmath:44:0,
+                 from
+/export/home/XyG0aYI/R/Rcpp/include/Rcpp/platform/compiler.h:100,
+                 from /export/home/XyG0aYI/R/Rcpp/include/Rcpp/r/headers.h:48,
+                 from /export/home/XyG0aYI/R/Rcpp/include/RcppCommon.h:29,
+                 from /export/home/XyG0aYI/R/Rcpp/include/Rcpp.h:27,
+                 from RcppExports.cpp:4:
+/usr/include/math.h:45:12: error: ?std::float_t? has not been declared
+ using std::float_t;
+            ^
+/usr/include/math.h:46:12: error: ?std::double_t? has not been declared
+ using std::double_t;
+
+This type of error seems to be something that has been mentioned in
+https://journal.r-project.org/archive/2011-2/RJournal_2011-2_Plummer.pdf
+but still can't seem to find the solution.
+
+To make this problem as tiny as possible, I've made a reproducible example.
+Let's say I have an R package with the following inside the src folder
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::plugins(cpp11)]]
+CharacterVector na_locf(CharacterVector x) {
+  return x;
+}
+
+If the DESCRIPTION file mentions the following:
+
+Imports: Rcpp (>= 0.12.12)
+LinkingTo: Rcpp
+SystemRequirements: C++11
+
+Or if there is CXX_STD=CXX11 in the Makevars file, I get the errors like
+this when building on Solaris (see log on
+https://builder.r-hub.io/status/original/ttt_0.1.0.tar.gz-26c279a1b07047fea8ded89b4e07c6ad),
+using rhub::check(platform  = "solaris-x86-patched"), while on Ubuntu this
+is working fine.
+
+/opt/csw/bin/g++ -std=gnu++11
+-I/opt/R/R-3.4.1-patched-gcc/lib/R/include -DNDEBUG
+-I"/export/home/XyG0aYI/R/Rcpp/include" -I/opt/csw/include
+-I/usr/local/include   -fPIC  -O2 -c RcppExports.cpp -o RcppExports.o
+In file included from /opt/csw/include/c++/5.2.0/cmath:44:0,
+                 from
+/export/home/XyG0aYI/R/Rcpp/include/Rcpp/platform/compiler.h:100,
+                 from /export/home/XyG0aYI/R/Rcpp/include/Rcpp/r/headers.h:48,
+                 from /export/home/XyG0aYI/R/Rcpp/include/RcppCommon.h:29,
+                 from /export/home/XyG0aYI/R/Rcpp/include/Rcpp.h:27,
+                 from RcppExports.cpp:4:
+/usr/include/math.h:45:12: error: ?std::float_t? has not been declared
+ using std::float_t;
+
+I
+?f I do not add ?SystemRequirements: C++11 and remove the Makevars file,
+this works fine on Solaris. I need however C++11 as I need it in the udpipe
+R package for building udpipe.cpp but can't add
+to that udpipe.cpp file the following types of statements due to conflicts
+on the use of the Free macro.
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::plugins(cpp11)]]
+
+Is there anyone having similar problems that can give an indication on how
+to solve this Solaris build issue?
+
+many thanks,
+Jan
+
+
+
+Jan Wijffels
+Statistician
+www.bnosac.be  | +32 486 611708
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170906/c8af4900/attachment.html>
+
+From jwijffels at bnosac.be  Wed Sep  6 15:10:49 2017
+From: jwijffels at bnosac.be (Jan Wijffels)
+Date: Wed, 6 Sep 2017 15:10:49 +0200
+Subject: [Rcpp-devel] C++11 Solaris cmath/math.H
+In-Reply-To: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+References: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+Message-ID: <CAJ9GNam74QqHkk5uDTLv+0fnKOR=55a82CxSs7i4JP6RSfm1-w@mail.gmail.com>
+
+Small update on this question. The issue appears when exporting the Rcpp
+function and the error messages are caused by RcppExports.cpp
+which is generated when running Rcpp::compileAttributes()
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::plugins(cpp11)]]
+// [[Rcpp::export]]
+CharacterVector na_locf(CharacterVector x) {
+  return x;
+}
+
+This is the output from Rcpp::compileAttributes()
+
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+// na_locf
+CharacterVector na_locf(CharacterVector x);
+RcppExport SEXP _ttt_na_locf(SEXP xSEXP) {
+  BEGIN_RCPP
+  Rcpp::RObject rcpp_result_gen;
+  Rcpp::RNGScope rcpp_rngScope_gen;
+  Rcpp::traits::input_parameter< CharacterVector >::type x(xSEXP);
+  rcpp_result_gen = Rcpp::wrap(na_locf(x));
+  return rcpp_result_gen;
+  END_RCPP
+}
+
+static const R_CallMethodDef CallEntries[] = {
+  {"_ttt_na_locf", (DL_FUNC) &_ttt_na_locf, 1},
+  {NULL, NULL, 0}
+};
+
+RcppExport void R_init_ttt(DllInfo *dll) {
+  R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+  R_useDynamicSymbols(dll, FALSE);
+}
+
+My excuses for this update.
+
+Jan
+
+
+Jan Wijffels
+Statistician
+www.bnosac.be  | +32 486 611708
+
+On 6 September 2017 at 15:03, Jan Wijffels <jwijffels at bnosac.be> wrote:
+
+> Hello,
+>
+> I'm trying to fix the installation issue I have with the package udpipe:
+> https://github.com/bnosac/udpipe but I'm getting issues on Solaris giving
+> messages like this:
+>
+> /opt/csw/bin/g++ -std=gnu++11 -I/opt/R/R-3.4.1-patched-gcc/lib/R/include -DNDEBUG  -I"/export/home/XyG0aYI/R/Rcpp/include" -I/opt/csw/include -I/usr/local/include   -fPIC  -O2 -c RcppExports.cpp -o RcppExports.o
+> In file included from /opt/csw/include/c++/5.2.0/cmath:44:0,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/Rcpp/platform/compiler.h:100,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/Rcpp/r/headers.h:48,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/RcppCommon.h:29,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/Rcpp.h:27,
+>                  from RcppExports.cpp:4:
+> /usr/include/math.h:45:12: error: ?std::float_t? has not been declared
+>  using std::float_t;
+>             ^
+> /usr/include/math.h:46:12: error: ?std::double_t? has not been declared
+>  using std::double_t;
+>
+> This type of error seems to be something that has been mentioned in
+> https://journal.r-project.org/archive/2011-2/RJournal_2011-2_Plummer.pdf
+> but still can't seem to find the solution.
+>
+> To make this problem as tiny as possible, I've made a reproducible
+> example. Let's say I have an R package with the following inside the src
+> folder
+>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> // [[Rcpp::plugins(cpp11)]]
+> CharacterVector na_locf(CharacterVector x) {
+>   return x;
+> }
+>
+> If the DESCRIPTION file mentions the following:
+>
+> Imports: Rcpp (>= 0.12.12)
+> LinkingTo: Rcpp
+> SystemRequirements: C++11
+>
+> Or if there is CXX_STD=CXX11 in the Makevars file, I get the errors like
+> this when building on Solaris (see log on https://builder.r-hub.io/
+> status/original/ttt_0.1.0.tar.gz-26c279a1b07047fea8ded89b4e07c6ad), using
+> rhub::check(platform  = "solaris-x86-patched"), while on Ubuntu this is
+> working fine.
+>
+> /opt/csw/bin/g++ -std=gnu++11 -I/opt/R/R-3.4.1-patched-gcc/lib/R/include -DNDEBUG  -I"/export/home/XyG0aYI/R/Rcpp/include" -I/opt/csw/include -I/usr/local/include   -fPIC  -O2 -c RcppExports.cpp -o RcppExports.o
+> In file included from /opt/csw/include/c++/5.2.0/cmath:44:0,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/Rcpp/platform/compiler.h:100,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/Rcpp/r/headers.h:48,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/RcppCommon.h:29,
+>                  from /export/home/XyG0aYI/R/Rcpp/include/Rcpp.h:27,
+>                  from RcppExports.cpp:4:
+> /usr/include/math.h:45:12: error: ?std::float_t? has not been declared
+>  using std::float_t;
+>
+> I
+> ?f I do not add ?SystemRequirements: C++11 and remove the Makevars file,
+> this works fine on Solaris. I need however C++11 as I need it in the udpipe
+> R package for building udpipe.cpp but can't add
+> to that udpipe.cpp file the following types of statements due to conflicts
+> on the use of the Free macro.
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> // [[Rcpp::plugins(cpp11)]]
+>
+> Is there anyone having similar problems that can give an indication on how
+> to solve this Solaris build issue?
+>
+> many thanks,
+> Jan
+>
+>
+>
+> Jan Wijffels
+> Statistician
+> www.bnosac.be  | +32 486 611708
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170906/56a8fca0/attachment-0001.html>
+
+From edd at debian.org  Wed Sep  6 18:49:36 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 6 Sep 2017 11:49:36 -0500
+Subject: [Rcpp-devel] C++11 Solaris cmath/math.H
+In-Reply-To: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+References: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+Message-ID: <22960.10016.763677.958692@bud.eddelbuettel.com>
+
+
+Hi Jan,
+
+On 6 September 2017 at 15:03, Jan Wijffels wrote:
+| I'm trying to fix the installation issue I have with the package udpipe:
+| https://github.com/bnosac/udpipe but I'm getting issues on Solaris giving
+| messages like this:
+
+Solaris no longer really matters.
+
+| If I do not add ?SystemRequirements: C++11 and remove the Makevars file,
+| this works fine on Solaris.
+
+You could add C++11 conditionally, ie only on Linux/macOS/Windows.  You could
+use (even a shell script named) configure for that.
+
+| I need however C++11 as I need it in the udpipe
+| R package for building udpipe.cpp but can't add
+| to that udpipe.cpp file the following types of statements due to conflicts
+| on the use of the Free macro.
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| // [[Rcpp::plugins(cpp11)]]
+
+Can you explain a bit more?  What Free macro?  Do you know about forcing R to
+add Rf_ to its macros?
+
+Also [[Rcpp::plugins(cpp11)]] should not be needed in a package.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jwijffels at bnosac.be  Sun Sep 10 22:35:06 2017
+From: jwijffels at bnosac.be (Jan Wijffels)
+Date: Sun, 10 Sep 2017 22:35:06 +0200
+Subject: [Rcpp-devel] C++11 Solaris cmath/math.H
+In-Reply-To: <22960.10016.763677.958692@bud.eddelbuettel.com>
+References: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+ <22960.10016.763677.958692@bud.eddelbuettel.com>
+Message-ID: <CAJ9GNamjg22o+0HkHn3-cgHh1DJ-m4YbLpd_GbXT9YDUi2HZ+Q@mail.gmail.com>
+
+ Solaris no longer really matters.
+Does that mean that CRAN will accept a package which gives errors on
+Solaris?
+
+You could add C++11 conditionally, ie only on Linux/macOS/Windows
+Yes, but I always need C++11 for this package. I just wanted to make a
+small reproducible example. The bigger reproducible example is the package
+at https://github.com/bnosac/udpipe
+
+If I add the Rcpp.h header to file
+https://github.com/bnosac/udpipe/blob/master/src/udpipe.cpp, I'm getting
+issues similar to this
+
+udpipe.cpp:23406:30: error: macro "Free" passed 2 arguments, but takes just 1
+   alloc->Free(alloc, p->probs);
+
+
+? Also [[Rcpp::plugins(cpp11)]] should not be needed in a package.
+Thank you for the remark. The udpipe package currently uses CXX_STD=CXX11
+in Makevars and specifies SystemRequirements: C++11 in DESCRIPTION. Example
+was just put there to show a minimal example of the error, coming from when
+Rcpp compiles the attributes.
+
+If you could provide a pointer where I should look for a solution, this
+would be great otherwise the package which is now on CRAN will be rejected
+any time soon I think.
+
+best,
+Jan
+
+
+
+
+
+
+Jan Wijffels
+Statistician
+www.bnosac.be  | +32 486 611708
+
+On 6 September 2017 at 18:49, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Jan,
+>
+> On 6 September 2017 at 15:03, Jan Wijffels wrote:
+> | I'm trying to fix the installation issue I have with the package udpipe:
+> | https://github.com/bnosac/udpipe but I'm getting issues on Solaris
+> giving
+> | messages like this:
+>
+> Solaris no longer really matters.
+>
+> | If I do not add ?SystemRequirements: C++11 and remove the Makevars file,
+> | this works fine on Solaris.
+>
+> You could add C++11 conditionally, ie only on Linux/macOS/Windows.  You
+> could
+> use (even a shell script named) configure for that.
+>
+> | I need however C++11 as I need it in the udpipe
+> | R package for building udpipe.cpp but can't add
+> | to that udpipe.cpp file the following types of statements due to
+> conflicts
+> | on the use of the Free macro.
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> | // [[Rcpp::plugins(cpp11)]]
+>
+> Can you explain a bit more?  What Free macro?  Do you know about forcing R
+> to
+> add Rf_ to its macros?
+>
+> Also [[Rcpp::plugins(cpp11)]] should not be needed in a package.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170910/2f6b0bae/attachment.html>
+
+From edd at debian.org  Mon Sep 11 13:28:30 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 11 Sep 2017 06:28:30 -0500
+Subject: [Rcpp-devel] C++11 Solaris cmath/math.H
+In-Reply-To: <CAJ9GNamjg22o+0HkHn3-cgHh1DJ-m4YbLpd_GbXT9YDUi2HZ+Q@mail.gmail.com>
+References: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+ <22960.10016.763677.958692@bud.eddelbuettel.com>
+ <CAJ9GNamjg22o+0HkHn3-cgHh1DJ-m4YbLpd_GbXT9YDUi2HZ+Q@mail.gmail.com>
+Message-ID: <22966.29534.191673.820604@bud.eddelbuettel.com>
+
+
+Jan: This is hard/impossible for me to read. I do not use a html email
+client, so if you used colour here, I don't see.  Please use indentation if
+you can.
+
+On 10 September 2017 at 22:35, Jan Wijffels wrote:
+|  Solaris no longer really matters.
+| Does that mean that CRAN will accept a package which gives errors on
+| Solaris?
+
+I don't know. Only CRAN can speak to that. But Solaris no exists (as an
+Oracle product) and is no longer maintained at U Oxford meaning CRAN may noe
+have test machines any more.
+
+| 
+| You could add C++11 conditionally, ie only on Linux/macOS/Windows
+| Yes, but I always need C++11 for this package. I just wanted to make a
+| small reproducible example. The bigger reproducible example is the package
+| at https://github.com/bnosac/udpipe
+
+Fine, then use it. I use CXX_STD=CXX11 in many of my packages too.
+ 
+| If I add the Rcpp.h header to file
+| https://github.com/bnosac/udpipe/blob/master/src/udpipe.cpp, I'm getting
+| issues similar to this
+| 
+| udpipe.cpp:23406:30: error: macro "Free" passed 2 arguments, but takes just 1
+|    alloc->Free(alloc, p->probs);
+
+Quite possibly not a Solaris issue but a simply _ordering issue_: place
+Rcpp.h last, not first, and/or tell R not to define macros. An `#undef`
+may help too.
+ 
+| ? Also [[Rcpp::plugins(cpp11)]] should not be needed in a package.
+| Thank you for the remark. The udpipe package currently uses CXX_STD=CXX11
+| in Makevars and specifies SystemRequirements: C++11 in DESCRIPTION. Example
+
+You need one of these two, not both.
+
+| was just put there to show a minimal example of the error, coming from when
+| Rcpp compiles the attributes.
+| 
+| If you could provide a pointer where I should look for a solution, this
+| would be great otherwise the package which is now on CRAN will be rejected
+| any time soon I think.
+
+Try reordering.
+
+Hth,  Dirk
+
+| 
+| best,
+| Jan
+| 
+| 
+| 
+| 
+| 
+| 
+| Jan Wijffels
+| Statistician
+| www.bnosac.be  | +32 486 611708
+| 
+| On 6 September 2017 at 18:49, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > Hi Jan,
+| >
+| > On 6 September 2017 at 15:03, Jan Wijffels wrote:
+| > | I'm trying to fix the installation issue I have with the package udpipe:
+| > | https://github.com/bnosac/udpipe but I'm getting issues on Solaris
+| > giving
+| > | messages like this:
+| >
+| > Solaris no longer really matters.
+| >
+| > | If I do not add ?SystemRequirements: C++11 and remove the Makevars file,
+| > | this works fine on Solaris.
+| >
+| > You could add C++11 conditionally, ie only on Linux/macOS/Windows.  You
+| > could
+| > use (even a shell script named) configure for that.
+| >
+| > | I need however C++11 as I need it in the udpipe
+| > | R package for building udpipe.cpp but can't add
+| > | to that udpipe.cpp file the following types of statements due to
+| > conflicts
+| > | on the use of the Free macro.
+| > | #include <Rcpp.h>
+| > | using namespace Rcpp;
+| > | // [[Rcpp::plugins(cpp11)]]
+| >
+| > Can you explain a bit more?  What Free macro?  Do you know about forcing R
+| > to
+| > add Rf_ to its macros?
+| >
+| > Also [[Rcpp::plugins(cpp11)]] should not be needed in a package.
+| >
+| > Dirk
+| >
+| > --
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jwijffels at bnosac.be  Sat Sep 16 11:10:59 2017
+From: jwijffels at bnosac.be (Jan Wijffels)
+Date: Sat, 16 Sep 2017 11:10:59 +0200
+Subject: [Rcpp-devel] C++11 Solaris cmath/math.H
+In-Reply-To: <22966.29534.191673.820604@bud.eddelbuettel.com>
+References: <CAJ9GNamozcUgafbFwcL3Di91cLpaYNi-sRDFVNxeT4tna5qGjw@mail.gmail.com>
+ <22960.10016.763677.958692@bud.eddelbuettel.com>
+ <CAJ9GNamjg22o+0HkHn3-cgHh1DJ-m4YbLpd_GbXT9YDUi2HZ+Q@mail.gmail.com>
+ <22966.29534.191673.820604@bud.eddelbuettel.com>
+Message-ID: <CAJ9GNanGPyPv4D3cwAb3Uz-7LQwfF3NZCahc3=24NLsN0Fwfww@mail.gmail.com>
+
+Thank you for the feedback. It helped, although not in the direction I had
+in mind originally but the proposed directions are equally fine.
+
+many thanks,
+Jan
+
+
+Jan Wijffels
+Statistician
+www.bnosac.be  | +32 486 611708
+
+On 11 September 2017 at 13:28, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Jan: This is hard/impossible for me to read. I do not use a html email
+> client, so if you used colour here, I don't see.  Please use indentation if
+> you can.
+>
+> On 10 September 2017 at 22:35, Jan Wijffels wrote:
+> |  Solaris no longer really matters.
+> | Does that mean that CRAN will accept a package which gives errors on
+> | Solaris?
+>
+> I don't know. Only CRAN can speak to that. But Solaris no exists (as an
+> Oracle product) and is no longer maintained at U Oxford meaning CRAN may
+> noe
+> have test machines any more.
+>
+> |
+> | You could add C++11 conditionally, ie only on Linux/macOS/Windows
+> | Yes, but I always need C++11 for this package. I just wanted to make a
+> | small reproducible example. The bigger reproducible example is the
+> package
+> | at https://github.com/bnosac/udpipe
+>
+> Fine, then use it. I use CXX_STD=CXX11 in many of my packages too.
+>
+> | If I add the Rcpp.h header to file
+> | https://github.com/bnosac/udpipe/blob/master/src/udpipe.cpp, I'm getting
+> | issues similar to this
+> |
+> | udpipe.cpp:23406:30: error: macro "Free" passed 2 arguments, but takes
+> just 1
+> |    alloc->Free(alloc, p->probs);
+>
+> Quite possibly not a Solaris issue but a simply _ordering issue_: place
+> Rcpp.h last, not first, and/or tell R not to define macros. An `#undef`
+> may help too.
+>
+> | ? Also [[Rcpp::plugins(cpp11)]] should not be needed in a package.
+> | Thank you for the remark. The udpipe package currently uses CXX_STD=CXX11
+> | in Makevars and specifies SystemRequirements: C++11 in DESCRIPTION.
+> Example
+>
+> You need one of these two, not both.
+>
+> | was just put there to show a minimal example of the error, coming from
+> when
+> | Rcpp compiles the attributes.
+> |
+> | If you could provide a pointer where I should look for a solution, this
+> | would be great otherwise the package which is now on CRAN will be
+> rejected
+> | any time soon I think.
+>
+> Try reordering.
+>
+> Hth,  Dirk
+>
+> |
+> | best,
+> | Jan
+> |
+> |
+> |
+> |
+> |
+> |
+> | Jan Wijffels
+> | Statistician
+> | www.bnosac.be  | +32 486 611708
+> |
+> | On 6 September 2017 at 18:49, Dirk Eddelbuettel <edd at debian.org> wrote:
+> |
+> | >
+> | > Hi Jan,
+> | >
+> | > On 6 September 2017 at 15:03, Jan Wijffels wrote:
+> | > | I'm trying to fix the installation issue I have with the package
+> udpipe:
+> | > | https://github.com/bnosac/udpipe but I'm getting issues on Solaris
+> | > giving
+> | > | messages like this:
+> | >
+> | > Solaris no longer really matters.
+> | >
+> | > | If I do not add ?SystemRequirements: C++11 and remove the Makevars
+> file,
+> | > | this works fine on Solaris.
+> | >
+> | > You could add C++11 conditionally, ie only on Linux/macOS/Windows.  You
+> | > could
+> | > use (even a shell script named) configure for that.
+> | >
+> | > | I need however C++11 as I need it in the udpipe
+> | > | R package for building udpipe.cpp but can't add
+> | > | to that udpipe.cpp file the following types of statements due to
+> | > conflicts
+> | > | on the use of the Free macro.
+> | > | #include <Rcpp.h>
+> | > | using namespace Rcpp;
+> | > | // [[Rcpp::plugins(cpp11)]]
+> | >
+> | > Can you explain a bit more?  What Free macro?  Do you know about
+> forcing R
+> | > to
+> | > add Rf_ to its macros?
+> | >
+> | > Also [[Rcpp::plugins(cpp11)]] should not be needed in a package.
+> | >
+> | > Dirk
+> | >
+> | > --
+> | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | >
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170916/4b9dcef0/attachment.html>
+
+From michael at benesty.fr  Mon Sep 18 16:55:59 2017
+From: michael at benesty.fr (=?UTF-8?Q?Micha=C3=ABl_BENESTY?=)
+Date: Mon, 18 Sep 2017 16:55:59 +0200
+Subject: [Rcpp-devel] Stripping symbols and Cran
+Message-ID: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+
+Hi all,
+
+Because of (the great) Rcpp, the size of my package was over 5Mb, which was
+an issue for a Cran release.
+
+I read with interest this article
+http://dirk.eddelbuettel.com/blog/2017/08/14/#009_compact_shared_libraries
+
+In particular, I was interested in the Makevars modification:
+
+strippedLib: $(SHLIB)
+        if test -e "/usr/bin/strip"; then /usr/bin/strip --strip-debug
+$(SHLIB); fi
+
+Unfortunately it crashed compilation on Mac OS because for some reason
+--strip-debug doesn't exist.
+
+But this small modification works:
+strippedLib: $(SHLIB)
+        if test -e "/usr/bin/strip" & test -e "/bin/uname" & [[
+`uname` == "Linux" ]] ; then /usr/bin/strip --strip-debug $(SHLIB); fi
+
+May be there is a way to make strip works correctly on Mac, but as I
+have no size issue on both Windows and Mac OS... I don't care.
+
+I thought it was useful enough to share it with you.
+
+Kind regards,
+
+________________
+Micha?l BENESTY
+michael at benesty.fr
+Please do not print this e-mail unless you really need to.
+
+From edd at debian.org  Mon Sep 18 17:19:17 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 18 Sep 2017 10:19:17 -0500
+Subject: [Rcpp-devel] Stripping symbols and Cran
+In-Reply-To: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+References: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+Message-ID: <22975.58357.831814.258053@bud.eddelbuettel.com>
+
+
+Michael,
+
+On 18 September 2017 at 16:55, Micha?l BENESTY wrote:
+| Because of (the great) Rcpp, the size of my package was over 5Mb, which was
+| an issue for a Cran release.
+
+Are you the OP behind the StackOverflow question here:
+https://stackoverflow.com/questions/46280628/object-files-in-r-package-too-large-rcpp
+
+If so we already tried to answer. This is NOT an issue for CRAN but merely a
+warning.  Do yourself a quick favour and run
+
+  file.info( system.file("libs", "dplyr.so", package="dplyr") )$size
+
+and you see that some well-known and widely used packages are MUCH bigger.
+
+| I read with interest this article
+| http://dirk.eddelbuettel.com/blog/2017/08/14/#009_compact_shared_libraries
+| 
+| In particular, I was interested in the Makevars modification:
+| 
+| strippedLib: $(SHLIB)
+|         if test -e "/usr/bin/strip"; then /usr/bin/strip --strip-debug
+| $(SHLIB); fi
+| 
+| Unfortunately it crashed compilation on Mac OS because for some reason
+| --strip-debug doesn't exist.
+
+Interesting.
+
+It so happens that I just shipped a use of `strip --strip-unneeded` in
+RcppClassic, see https://github.com/eddelbuettel/rcppclassic/blob/7cc5c626952d38cc97a99363131fe7ac9d0a7b28/src/Makevars#L33
+Does --strip-unneeded work on macOS ?
+ 
+| But this small modification works:
+| strippedLib: $(SHLIB)
+|         if test -e "/usr/bin/strip" & test -e "/bin/uname" & [[
+| `uname` == "Linux" ]] ; then /usr/bin/strip --strip-debug $(SHLIB); fi
+
+Maybe --strip-unneeded is for preferable. Otherwise, yes, one needs to check
+for Linux here.
+
+But that is the crux of these Makefile / Makevars tweaks. They get
+non-portable real quickly.
+
+The easiest may just be to NOT worry, and just use -W,-S in the local
+~/.R/Makevars.  That is what I now do.
+
+| May be there is a way to make strip works correctly on Mac, but as I
+| have no size issue on both Windows and Mac OS... I don't care.
+| 
+| I thought it was useful enough to share it with you.
+
+It is useful.  Dan worked quite a bit on this too. See his repo at
+
+   https://github.com/dcdillon/r-stripper
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From michael at benesty.fr  Mon Sep 18 17:35:02 2017
+From: michael at benesty.fr (=?UTF-8?Q?Micha=C3=ABl_BENESTY?=)
+Date: Mon, 18 Sep 2017 17:35:02 +0200
+Subject: [Rcpp-devel] Stripping symbols and Cran
+In-Reply-To: <22975.58357.831814.258053@bud.eddelbuettel.com>
+References: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+ <22975.58357.831814.258053@bud.eddelbuettel.com>
+Message-ID: <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+
+Hi Dirk,
+
+I am not the author of the question on SO, but the timing is perfect :-)
+I am aware of Dplyr size (I read ur blog carefully!!!) but really
+wanted to have 0 note.
+
+Just tried --strip-unneeded : not the silver bullet :-(
+
+#> error: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/strip:
+unrecognized option: --strip-unneeded
+
+
+Kind regards,
+________________
+Micha?l BENESTY
+michael at benesty.fr
+Please do not print this e-mail unless you really need to.
+
+
+On Mon, Sep 18, 2017 at 5:19 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> Michael,
+>
+> On 18 September 2017 at 16:55, Micha?l BENESTY wrote:
+> | Because of (the great) Rcpp, the size of my package was over 5Mb, which was
+> | an issue for a Cran release.
+>
+> Are you the OP behind the StackOverflow question here:
+> https://stackoverflow.com/questions/46280628/object-files-in-r-package-too-large-rcpp
+>
+> If so we already tried to answer. This is NOT an issue for CRAN but merely a
+> warning.  Do yourself a quick favour and run
+>
+>   file.info( system.file("libs", "dplyr.so", package="dplyr") )$size
+>
+> and you see that some well-known and widely used packages are MUCH bigger.
+>
+> | I read with interest this article
+> | http://dirk.eddelbuettel.com/blog/2017/08/14/#009_compact_shared_libraries
+> |
+> | In particular, I was interested in the Makevars modification:
+> |
+> | strippedLib: $(SHLIB)
+> |         if test -e "/usr/bin/strip"; then /usr/bin/strip --strip-debug
+> | $(SHLIB); fi
+> |
+> | Unfortunately it crashed compilation on Mac OS because for some reason
+> | --strip-debug doesn't exist.
+>
+> Interesting.
+>
+> It so happens that I just shipped a use of `strip --strip-unneeded` in
+> RcppClassic, see https://github.com/eddelbuettel/rcppclassic/blob/7cc5c626952d38cc97a99363131fe7ac9d0a7b28/src/Makevars#L33
+> Does --strip-unneeded work on macOS ?
+>
+> | But this small modification works:
+> | strippedLib: $(SHLIB)
+> |         if test -e "/usr/bin/strip" & test -e "/bin/uname" & [[
+> | `uname` == "Linux" ]] ; then /usr/bin/strip --strip-debug $(SHLIB); fi
+>
+> Maybe --strip-unneeded is for preferable. Otherwise, yes, one needs to check
+> for Linux here.
+>
+> But that is the crux of these Makefile / Makevars tweaks. They get
+> non-portable real quickly.
+>
+> The easiest may just be to NOT worry, and just use -W,-S in the local
+> ~/.R/Makevars.  That is what I now do.
+>
+> | May be there is a way to make strip works correctly on Mac, but as I
+> | have no size issue on both Windows and Mac OS... I don't care.
+> |
+> | I thought it was useful enough to share it with you.
+>
+> It is useful.  Dan worked quite a bit on this too. See his repo at
+>
+>    https://github.com/dcdillon/r-stripper
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From dcdillon at gmail.com  Mon Sep 18 17:42:29 2017
+From: dcdillon at gmail.com (Dan Dillon)
+Date: Mon, 18 Sep 2017 10:42:29 -0500
+Subject: [Rcpp-devel] Stripping symbols and Cran
+In-Reply-To: <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+References: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+ <22975.58357.831814.258053@bud.eddelbuettel.com>
+ <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+Message-ID: <CAEWw9xWHFFSrfrHThEc4w5c+upokJUd_ox4qp_wgVGsxSqsCGg@mail.gmail.com>
+
+What is the output of strip --help (or equivalent) on macOS?  Surely there
+is some option that does the same thing.
+
+This doesn't solve your desire for no NOTEs on CRAN because to do it right
+you'd have to detect what strip you were calling and pass the right option
+to each variant, but it could point you in the right direction.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170918/28bd7ef7/attachment.html>
+
+From edd at debian.org  Mon Sep 18 17:53:53 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 18 Sep 2017 10:53:53 -0500
+Subject: [Rcpp-devel] Stripping symbols and Cran
+In-Reply-To: <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+References: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+ <22975.58357.831814.258053@bud.eddelbuettel.com>
+ <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+Message-ID: <22975.60433.569420.216784@bud.eddelbuettel.com>
+
+
+On balance, I think you should ask on r-package-devel.
+
+Rcpp cannot help you here as R does not offer portable and reliable hooks. I
+recommend (and I am dead serious) to just live with the note.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Mon Sep 18 23:34:01 2017
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Mon, 18 Sep 2017 17:34:01 -0400
+Subject: [Rcpp-devel] Stripping symbols and Cran
+In-Reply-To: <CAEWw9xWHFFSrfrHThEc4w5c+upokJUd_ox4qp_wgVGsxSqsCGg@mail.gmail.com>
+References: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+ <22975.58357.831814.258053@bud.eddelbuettel.com>
+ <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+ <CAEWw9xWHFFSrfrHThEc4w5c+upokJUd_ox4qp_wgVGsxSqsCGg@mail.gmail.com>
+Message-ID: <CAJ_LAMBEutkGAhBTfWACRAE2caU7Wj9gUkgh_7EbReULjELfzw@mail.gmail.com>
+
+On OSX, "-strip-all" or "-strip-debug" should work.
+
+See [1] for more information.
+
+Best,
+
+Qiang Kou
+
+[1] http://releases.llvm.org/2.9/docs/CommandGuide/html/llvm-ld.html
+
+On Mon, Sep 18, 2017 at 11:42 AM, Dan Dillon <dcdillon at gmail.com> wrote:
+
+> What is the output of strip --help (or equivalent) on macOS?  Surely there
+> is some option that does the same thing.
+>
+> This doesn't solve your desire for no NOTEs on CRAN because to do it right
+> you'd have to detect what strip you were calling and pass the right option
+> to each variant, but it could point you in the right direction.
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170918/1a0ca4c7/attachment-0001.html>
+
+From simon.urbanek at R-project.org  Mon Sep 18 23:46:41 2017
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Mon, 18 Sep 2017 17:46:41 -0400
+Subject: [Rcpp-devel] Stripping symbols and Cran
+In-Reply-To: <CAJ_LAMBEutkGAhBTfWACRAE2caU7Wj9gUkgh_7EbReULjELfzw@mail.gmail.com>
+References: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+ <22975.58357.831814.258053@bud.eddelbuettel.com>
+ <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+ <CAEWw9xWHFFSrfrHThEc4w5c+upokJUd_ox4qp_wgVGsxSqsCGg@mail.gmail.com>
+ <CAJ_LAMBEutkGAhBTfWACRAE2caU7Wj9gUkgh_7EbReULjELfzw@mail.gmail.com>
+Message-ID: <7D386EFF-6412-49E0-A31E-47FB179A51F0@R-project.org>
+
+Note that macOS doesn't include debugging info in the objects so stripping is meaningless there.
+I wasn't on the full thread - which package are we talking about?
+
+Cheers,
+Simon
+
+
+
+> On Sep 18, 2017, at 5:34 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> 
+> On OSX, "-strip-all" or "-strip-debug" should work.
+> 
+> See [1] for more information.
+> 
+> Best,
+> 
+> Qiang Kou
+> 
+> [1] http://releases.llvm.org/2.9/docs/CommandGuide/html/llvm-ld.html
+> 
+> On Mon, Sep 18, 2017 at 11:42 AM, Dan Dillon <dcdillon at gmail.com> wrote:
+> What is the output of strip --help (or equivalent) on macOS?  Surely there is some option that does the same thing.
+> 
+> This doesn't solve your desire for no NOTEs on CRAN because to do it right you'd have to detect what strip you were calling and pass the right option to each variant, but it could point you in the right direction.
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+> 
+> 
+> -- 
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From edd at debian.org  Tue Sep 19 00:07:09 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 18 Sep 2017 17:07:09 -0500
+Subject: [Rcpp-devel] Stripping symbols and Cran
+In-Reply-To: <7D386EFF-6412-49E0-A31E-47FB179A51F0@R-project.org>
+References: <CABXrzNTmd_kHWmv6kt5SNpMzzczottqJnmxaM=kspryQweabJg@mail.gmail.com>
+ <22975.58357.831814.258053@bud.eddelbuettel.com>
+ <CABXrzNTdbke5cL2fB1_q07rgaOiAaHNko1ikvOWM8uhAqE_X2w@mail.gmail.com>
+ <CAEWw9xWHFFSrfrHThEc4w5c+upokJUd_ox4qp_wgVGsxSqsCGg@mail.gmail.com>
+ <CAJ_LAMBEutkGAhBTfWACRAE2caU7Wj9gUkgh_7EbReULjELfzw@mail.gmail.com>
+ <7D386EFF-6412-49E0-A31E-47FB179A51F0@R-project.org>
+Message-ID: <22976.17293.651822.732914@bud.eddelbuettel.com>
+
+
+On 18 September 2017 at 17:46, Simon Urbanek wrote:
+| Note that macOS doesn't include debugging info in the objects so stripping is meaningless there.
+| I wasn't on the full thread - which package are we talking about?
+
+Michael started the thread generally musing about large sizes of object files
+from C++.  And he has a point :)
+
+And he found my blog post showing the (absurd !!) gains from stripping, tried
+it on macOS and had issues.  It so happens that I just updated the stone-old
+RcppClassic on the weekend, and in my infinite wisdom include such a call to
+strip with the unavailable-on-macOS option :-/   Oops. I broke my build.
+
+Fix coming to a CRAN mirror near you, likely testing for /usr/bin/strip AND
+being on Linux.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Sep 21 18:43:06 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 21 Sep 2017 11:43:06 -0500
+Subject: [Rcpp-devel] [Release Candidate] Rcpp 0.12.12.5
+Message-ID: <22979.60442.992175.490598@bud.eddelbuettel.com>
+
+
+It is September, so we are due for a Rcpp release on the current schedule.
+Not too much new code in this, but a _a lot_ of new or updated documention.
+
+So I just put Rcpp 0.12.12.5 into the 'drat' repo of the RcppCore
+organization.  You can just do
+
+    Rscript -e 'drat:::add("RcppCore"); install.packages("Rcpp")'
+
+(or you can update your repositories list the old-fashioned way).
+
+Please kick the tires, I plan to send this to CRAN in 48 or 72 hours.  It has
+passed a number of reverse dependency tests (always logged in the GitHub repo
+'rcpp-logs')
+
+Dirk
+
+
+\section{Changes in Rcpp version 0.12.13 [unreleased] (2017-09-xx)}{
+  \itemize{
+    \item Changes in Rcpp API:
+    \itemize{
+      \item New const iterators functions \code{cbegin()} and \code{cend()} have
+      been added to several vector and matrix classes (Dan Dillon and James
+      Balamuta in \ghpr{748}) starting to address \ghit{741}).
+      \item The \code{tinyformat.h} header now ends in a newline (\ghit{701}).
+    }
+    \item Changes in Rcpp Modules:
+    \itemize{
+      \item Misplacement of one parenthesis in macro \code{LOAD_RCPP_MODULE}
+      was corrected (Lei Yu in \ghpr{737})
+    }
+    \item Changes in Rcpp Documentation:
+    \itemize{
+      \item Rewrote the macOS sections to depend on official documentation due
+      to large changes in the macOS toolchain. (James Balamuta in \ghpr{742}
+      addressing issue \ghit{682}).
+      \item Added a new vignette \sQuote{Rcpp-introduction} based on new PeerJ
+      preprint, renamed existing introduction to \sQuote{Rcpp-jss-2011}.
+      \item Transitioned all vignettes to the 'pinp' RMarkdown template
+      (James Balamuta and Dirk Eddelbuettel in \ghpr{755} addressing
+      issue \ghit{604}).
+      \item Added an entry on running `compileAttributes()` twice to the
+      Rcpp-FAQ (\ghit{#745}).
+    }
+  }
+}
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From leiyu_1981 at qq.com  Fri Sep 29 09:53:25 2017
+From: leiyu_1981 at qq.com (=?ISO-8859-1?B?bHk=?=)
+Date: Fri, 29 Sep 2017 15:53:25 +0800
+Subject: [Rcpp-devel] Is there a way to run R scripts that are inside a zip
+	file in c++ application
+Message-ID: <tencent_9151F1C6F544B43565D1A4E685A7ED84DF0A@qq.com>
+
+I am using RInside to execute R scripts in c++ applications.
+
+
+if there is only one R script in a zip file, I can unzip the file in memory, read the R script, then call Rinside::parseEvalQ().
+
+
+but if there are multiple R scripts : one main script that uses other scripts that contains functions, classes etc. and these scripts are in different directories. 
+
+
+is there a way to run the main script without unzipping the zip file to disk? I can do this with python. but didn't find a way to do this with R
+
+
+Regards & Thanks
+Lei Yu
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170929/78b6188d/attachment.html>
+

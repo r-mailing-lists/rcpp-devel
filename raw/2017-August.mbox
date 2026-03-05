@@ -1,0 +1,2381 @@
+From michael at benesty.fr  Wed Aug  2 20:22:54 2017
+From: michael at benesty.fr (=?UTF-8?Q?Micha=C3=ABl_BENESTY?=)
+Date: Wed, 2 Aug 2017 20:22:54 +0200
+Subject: [Rcpp-devel] Rcpp + Package -> undefined symbol
+Message-ID: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+
+Hi,
+
+I am trying to wrap the Fasttext lib from Facebook on R.
+I have wrote a minimal code based on Rcpp.package.skeleton(module = TRUE)
+
+The C++ file compiles/works with sourceCpp() but it crashes when
+building a package.
+I have checked many D. Eddelbuettel to get a clue of what to do but no luck.
+I have already setup a Makevars file with a path to the include folder.
+
+The package source code is available there:
+https://github.com/pommedeterresautee/FastRText
+
+My Makevars:
+CXX_STD = CXX11
+ROOT_INCLUDE = ../inst/include/
+PKG_CPPFLAGS=-I$(ROOT_INCLUDE)
+
+
+The error I am seeing:
+==> R CMD INSTALL --preclean --no-multiarch --with-keep.source FastRText
+...
+Error: package or namespace load failed for ?FastRText? in
+dyn.load(file, DLLpath = DLLpath, ...):
+ impossible de charger l'objet partag?
+'/home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so':
+  /home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so:
+undefined symbol: _ZN8fasttext8FastTextC1Ev
+
+
+The full log is available there:
+https://github.com/pommedeterresautee/FastRText/issues/1
+
+According to c++filt
+undefined symbol: _ZN8fasttext8FastTextC1Ev means ->
+fasttext::FastText::FastText()
+
+
+Has anyone an idea?
+
+Kind regards,
+Micha?l
+________________
+Micha?l BENESTY
+michael at benesty.fr
+Please do not print this e-mail unless you really need to.
+
+From edd at debian.org  Wed Aug  2 20:29:45 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 2 Aug 2017 13:29:45 -0500
+Subject: [Rcpp-devel] return Colvec as vector
+In-Reply-To: <9d6abbea-2755-9c7f-df47-431ea0bb5d66@insa-toulouse.fr>
+References: <3e676a22-2c02-f61d-05b8-95fb21a03dc3@gmail.com>
+ <22907.9184.200484.394759@bud.eddelbuettel.com>
+ <fe9ba0f0-7d0a-2daa-c175-6dfb4716ecb5@gmail.com>
+ <22907.47739.982494.877874@bud.eddelbuettel.com>
+ <962b6975-44bb-bb93-99b3-0378f1c163a3@gmail.com>
+ <22908.35726.434683.59337@bud.eddelbuettel.com>
+ <9d6abbea-2755-9c7f-df47-431ea0bb5d66@insa-toulouse.fr>
+Message-ID: <22914.6681.330922.584222@bud.eddelbuettel.com>
+
+
+On 1 August 2017 at 18:54, Sokol Serguei wrote:
+| > If other wants to chime in:  https://github.com/RcppCore/RcppArmadillo/pull/151
+| ... and now with unit tests and comments in RcppArmadilloConfig.h:
+| https://github.com/RcppCore/RcppArmadillo/pull/154
+
+And #151 and #154 are now in the master branch, along with an upgrade to
+Armadillo 7.960.0.
+
+I'll probably cut a new RcppArmadillo release "soon".
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Aug  2 20:32:34 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 2 Aug 2017 13:32:34 -0500
+Subject: [Rcpp-devel] Rcpp + Package -> undefined symbol
+In-Reply-To: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+References: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+Message-ID: <22914.6850.768123.91367@bud.eddelbuettel.com>
+
+
+On 2 August 2017 at 20:22, Micha?l BENESTY wrote:
+| Hi,
+| 
+| I am trying to wrap the Fasttext lib from Facebook on R.
+| I have wrote a minimal code based on Rcpp.package.skeleton(module = TRUE)
+| 
+| The C++ file compiles/works with sourceCpp() but it crashes when
+| building a package.
+| I have checked many D. Eddelbuettel to get a clue of what to do but no luck.
+| I have already setup a Makevars file with a path to the include folder.
+| 
+| The package source code is available there:
+| https://github.com/pommedeterresautee/FastRText
+| 
+| My Makevars:
+| CXX_STD = CXX11
+| ROOT_INCLUDE = ../inst/include/
+| PKG_CPPFLAGS=-I$(ROOT_INCLUDE)
+
+If this is a library then you need to __link__ to it as well. That is
+commonly done via PKG_LIBS=... and it may get you the additional problem of
+having to ensure users of your package have the fastText library installed.
+
+Dirk
+| 
+| 
+| The error I am seeing:
+| ==> R CMD INSTALL --preclean --no-multiarch --with-keep.source FastRText
+| ...
+| Error: package or namespace load failed for ?FastRText? in
+| dyn.load(file, DLLpath = DLLpath, ...):
+|  impossible de charger l'objet partag?
+| '/home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so':
+|   /home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so:
+| undefined symbol: _ZN8fasttext8FastTextC1Ev
+| 
+| 
+| The full log is available there:
+| https://github.com/pommedeterresautee/FastRText/issues/1
+| 
+| According to c++filt
+| undefined symbol: _ZN8fasttext8FastTextC1Ev means ->
+| fasttext::FastText::FastText()
+| 
+| 
+| Has anyone an idea?
+| 
+| Kind regards,
+| Micha?l
+| ________________
+| Micha?l BENESTY
+| michael at benesty.fr
+| Please do not print this e-mail unless you really need to.
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From michael at benesty.fr  Wed Aug  2 21:02:15 2017
+From: michael at benesty.fr (=?UTF-8?Q?Micha=C3=ABl_BENESTY?=)
+Date: Wed, 2 Aug 2017 21:02:15 +0200
+Subject: [Rcpp-devel] Rcpp + Package -> undefined symbol
+In-Reply-To: <22914.6850.768123.91367@bud.eddelbuettel.com>
+References: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+ <22914.6850.768123.91367@bud.eddelbuettel.com>
+Message-ID: <CABXrzNTCdghNsGnPr1MdCC_WVtVZN+WS87AvRz14CZE2RqdgEA@mail.gmail.com>
+
+Thank you Dirk for this answer.
+
+The source code of Fasttext is already embedded in the package (it is
+the content of ../inst/include/ and is linked with PKG_CPPFLAGS +
+include of headers).
+So no issue with user having it or needing to link with PKG_LIBS.
+
+I have checked the compilation with this Makevars:
+CXX_STD = CXX11
+ROOT_INCLUDE = ../inst/include/
+PKG_CPPFLAGS = -I$(ROOT_INCLUDE)
+PKG_LIBS = -L$(ROOT_INCLUDE)
+
+And I still get the same error.
+
+
+Is there anything else to check?
+The error seems related to a shared object, do I have something special to do?
+I am not even sure to understand the error message, why it can't load
+the object if it has compiled?
+
+Kind regards,
+Micha?l
+
+
+On Wed, Aug 2, 2017 at 8:32 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> On 2 August 2017 at 20:22, Micha?l BENESTY wrote:
+> | Hi,
+> |
+> | I am trying to wrap the Fasttext lib from Facebook on R.
+> | I have wrote a minimal code based on Rcpp.package.skeleton(module = TRUE)
+> |
+> | The C++ file compiles/works with sourceCpp() but it crashes when
+> | building a package.
+> | I have checked many D. Eddelbuettel to get a clue of what to do but no luck.
+> | I have already setup a Makevars file with a path to the include folder.
+> |
+> | The package source code is available there:
+> | https://github.com/pommedeterresautee/FastRText
+> |
+> | My Makevars:
+> | CXX_STD = CXX11
+> | ROOT_INCLUDE = ../inst/include/
+> | PKG_CPPFLAGS=-I$(ROOT_INCLUDE)
+>
+> If this is a library then you need to __link__ to it as well. That is
+> commonly done via PKG_LIBS=... and it may get you the additional problem of
+> having to ensure users of your package have the fastText library installed.
+>
+> Dirk
+> |
+> |
+> | The error I am seeing:
+> | ==> R CMD INSTALL --preclean --no-multiarch --with-keep.source FastRText
+> | ...
+> | Error: package or namespace load failed for ?FastRText? in
+> | dyn.load(file, DLLpath = DLLpath, ...):
+> |  impossible de charger l'objet partag?
+> | '/home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so':
+> |   /home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so:
+> | undefined symbol: _ZN8fasttext8FastTextC1Ev
+> |
+> |
+> | The full log is available there:
+> | https://github.com/pommedeterresautee/FastRText/issues/1
+> |
+> | According to c++filt
+> | undefined symbol: _ZN8fasttext8FastTextC1Ev means ->
+> | fasttext::FastText::FastText()
+> |
+> |
+> | Has anyone an idea?
+> |
+> | Kind regards,
+> | Micha?l
+> | ________________
+> | Micha?l BENESTY
+> | michael at benesty.fr
+> | Please do not print this e-mail unless you really need to.
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Aug  2 21:16:11 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 2 Aug 2017 14:16:11 -0500
+Subject: [Rcpp-devel] Rcpp + Package -> undefined symbol
+In-Reply-To: <CABXrzNTCdghNsGnPr1MdCC_WVtVZN+WS87AvRz14CZE2RqdgEA@mail.gmail.com>
+References: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+ <22914.6850.768123.91367@bud.eddelbuettel.com>
+ <CABXrzNTCdghNsGnPr1MdCC_WVtVZN+WS87AvRz14CZE2RqdgEA@mail.gmail.com>
+Message-ID: <22914.9467.246045.457329@bud.eddelbuettel.com>
+
+
+On 2 August 2017 at 21:02, Micha?l BENESTY wrote:
+| Thank you Dirk for this answer.
+| 
+| The source code of Fasttext is already embedded in the package (it is
+| the content of ../inst/include/ and is linked with PKG_CPPFLAGS +
+| include of headers).
+| So no issue with user having it or needing to link with PKG_LIBS.
+| 
+| I have checked the compilation with this Makevars:
+| CXX_STD = CXX11
+| ROOT_INCLUDE = ../inst/include/
+| PKG_CPPFLAGS = -I$(ROOT_INCLUDE)
+| PKG_LIBS = -L$(ROOT_INCLUDE)
+| 
+| And I still get the same error.
+| 
+| 
+| Is there anything else to check?
+| The error seems related to a shared object, do I have something special to do?
+| I am not even sure to understand the error message, why it can't load
+| the object if it has compiled?
+
+Pardon for me being blunt, but you still appear to be confused.
+
+Simply copying headers _and source files_ into inst/include/ does not
+magically create a library.  You are, from the looks of it, simply not fully
+aware of what exactly building a package _against an external library_ needs.
+
+So you need to learn this.
+
+Resist the urge to immediately reply to this email, but rather try to read up
+and study some more package.  Most of mine use _external_ libraries (not
+embedded and built on default) but eg the older RcppMLPACK (by KK) is a
+working example (cf https://github.com/rcppmlpack/RcppMLPACK1) as are several
+of Jeroen's packages (eg https://github.com/ropensci/hunspell/ as one
+semi-random pick).
+
+Dirk
+ 
+| Kind regards,
+| Micha?l
+| 
+| 
+| On Wed, Aug 2, 2017 at 8:32 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| >
+| > On 2 August 2017 at 20:22, Micha?l BENESTY wrote:
+| > | Hi,
+| > |
+| > | I am trying to wrap the Fasttext lib from Facebook on R.
+| > | I have wrote a minimal code based on Rcpp.package.skeleton(module = TRUE)
+| > |
+| > | The C++ file compiles/works with sourceCpp() but it crashes when
+| > | building a package.
+| > | I have checked many D. Eddelbuettel to get a clue of what to do but no luck.
+| > | I have already setup a Makevars file with a path to the include folder.
+| > |
+| > | The package source code is available there:
+| > | https://github.com/pommedeterresautee/FastRText
+| > |
+| > | My Makevars:
+| > | CXX_STD = CXX11
+| > | ROOT_INCLUDE = ../inst/include/
+| > | PKG_CPPFLAGS=-I$(ROOT_INCLUDE)
+| >
+| > If this is a library then you need to __link__ to it as well. That is
+| > commonly done via PKG_LIBS=... and it may get you the additional problem of
+| > having to ensure users of your package have the fastText library installed.
+| >
+| > Dirk
+| > |
+| > |
+| > | The error I am seeing:
+| > | ==> R CMD INSTALL --preclean --no-multiarch --with-keep.source FastRText
+| > | ...
+| > | Error: package or namespace load failed for ?FastRText? in
+| > | dyn.load(file, DLLpath = DLLpath, ...):
+| > |  impossible de charger l'objet partag?
+| > | '/home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so':
+| > |   /home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so:
+| > | undefined symbol: _ZN8fasttext8FastTextC1Ev
+| > |
+| > |
+| > | The full log is available there:
+| > | https://github.com/pommedeterresautee/FastRText/issues/1
+| > |
+| > | According to c++filt
+| > | undefined symbol: _ZN8fasttext8FastTextC1Ev means ->
+| > | fasttext::FastText::FastText()
+| > |
+| > |
+| > | Has anyone an idea?
+| > |
+| > | Kind regards,
+| > | Micha?l
+| > | ________________
+| > | Micha?l BENESTY
+| > | michael at benesty.fr
+| > | Please do not print this e-mail unless you really need to.
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| > --
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Wed Aug  2 22:42:24 2017
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Wed, 2 Aug 2017 13:42:24 -0700
+Subject: [Rcpp-devel] Rcpp + Package -> undefined symbol
+In-Reply-To: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+References: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+Message-ID: <CAJ_LAMAygXHNgk1_1RQvhNWBEQKZtxsuggVezWDf8O9e8K6-Fw@mail.gmail.com>
+
+Hi, Michael,
+
+All the ".cc" files need to be compiled to make your package work. Putting
+them in the inst/include folder is not enough.
+
+I made some quick changes in your package and please check the attachment.
+
+Best,
+
+Qiang Kou
+
+On Wed, Aug 2, 2017 at 11:22 AM, Micha?l BENESTY <michael at benesty.fr> wrote:
+
+> Hi,
+>
+> I am trying to wrap the Fasttext lib from Facebook on R.
+> I have wrote a minimal code based on Rcpp.package.skeleton(module = TRUE)
+>
+> The C++ file compiles/works with sourceCpp() but it crashes when
+> building a package.
+> I have checked many D. Eddelbuettel to get a clue of what to do but no
+> luck.
+> I have already setup a Makevars file with a path to the include folder.
+>
+> The package source code is available there:
+> https://github.com/pommedeterresautee/FastRText
+>
+> My Makevars:
+> CXX_STD = CXX11
+> ROOT_INCLUDE = ../inst/include/
+> PKG_CPPFLAGS=-I$(ROOT_INCLUDE)
+>
+>
+> The error I am seeing:
+> ==> R CMD INSTALL --preclean --no-multiarch --with-keep.source FastRText
+> ...
+> Error: package or namespace load failed for ?FastRText? in
+> dyn.load(file, DLLpath = DLLpath, ...):
+>  impossible de charger l'objet partag?
+> '/home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/
+> FastRText/libs/FastRText.so':
+>   /home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/
+> FastRText/libs/FastRText.so:
+> undefined symbol: _ZN8fasttext8FastTextC1Ev
+>
+>
+> The full log is available there:
+> https://github.com/pommedeterresautee/FastRText/issues/1
+>
+> According to c++filt
+> undefined symbol: _ZN8fasttext8FastTextC1Ev means ->
+> fasttext::FastText::FastText()
+>
+>
+> Has anyone an idea?
+>
+> Kind regards,
+> Micha?l
+> ________________
+> Micha?l BENESTY
+> michael at benesty.fr
+> Please do not print this e-mail unless you really need to.
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170802/086790bf/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: FastRText_1.0.tar.gz
+Type: application/x-gzip
+Size: 23356 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170802/086790bf/attachment-0001.bin>
+
+From michael at benesty.fr  Wed Aug  2 23:26:26 2017
+From: michael at benesty.fr (=?UTF-8?Q?Micha=C3=ABl_BENESTY?=)
+Date: Wed, 2 Aug 2017 23:26:26 +0200
+Subject: [Rcpp-devel] Rcpp + Package -> undefined symbol
+In-Reply-To: <CAJ_LAMAygXHNgk1_1RQvhNWBEQKZtxsuggVezWDf8O9e8K6-Fw@mail.gmail.com>
+References: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+ <CAJ_LAMAygXHNgk1_1RQvhNWBEQKZtxsuggVezWDf8O9e8K6-Fw@mail.gmail.com>
+Message-ID: <CABXrzNSznHZK_58veU0w0coQMwm6Uru1GHRz6a=SjG-OhqBasg@mail.gmail.com>
+
+Thank you a lot Mr. Kou.
+The package is now compiling and I have updated it to load modules at
+loading of the package (was quite tricky).
+Just to understand, the .cc has compiled just because you moved them
+in src/ folder, am I right?
+The -I flag in Makevars was not enough?
+
+Kind regards,
+Micha?l
+________________
+Micha?l BENESTY
+michael at benesty.fr
+Please do not print this e-mail unless you really need to.
+
+
+On Wed, Aug 2, 2017 at 10:42 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> Hi, Michael,
+>
+> All the ".cc" files need to be compiled to make your package work. Putting
+> them in the inst/include folder is not enough.
+>
+> I made some quick changes in your package and please check the attachment.
+>
+> Best,
+>
+> Qiang Kou
+>
+> On Wed, Aug 2, 2017 at 11:22 AM, Micha?l BENESTY <michael at benesty.fr> wrote:
+>>
+>> Hi,
+>>
+>> I am trying to wrap the Fasttext lib from Facebook on R.
+>> I have wrote a minimal code based on Rcpp.package.skeleton(module = TRUE)
+>>
+>> The C++ file compiles/works with sourceCpp() but it crashes when
+>> building a package.
+>> I have checked many D. Eddelbuettel to get a clue of what to do but no
+>> luck.
+>> I have already setup a Makevars file with a path to the include folder.
+>>
+>> The package source code is available there:
+>> https://github.com/pommedeterresautee/FastRText
+>>
+>> My Makevars:
+>> CXX_STD = CXX11
+>> ROOT_INCLUDE = ../inst/include/
+>> PKG_CPPFLAGS=-I$(ROOT_INCLUDE)
+>>
+>>
+>> The error I am seeing:
+>> ==> R CMD INSTALL --preclean --no-multiarch --with-keep.source FastRText
+>> ...
+>> Error: package or namespace load failed for ?FastRText? in
+>> dyn.load(file, DLLpath = DLLpath, ...):
+>>  impossible de charger l'objet partag?
+>>
+>> '/home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so':
+>>
+>> /home/geantvert/R/x86_64-pc-linux-gnu-library/3.4/FastRText/libs/FastRText.so:
+>> undefined symbol: _ZN8fasttext8FastTextC1Ev
+>>
+>>
+>> The full log is available there:
+>> https://github.com/pommedeterresautee/FastRText/issues/1
+>>
+>> According to c++filt
+>> undefined symbol: _ZN8fasttext8FastTextC1Ev means ->
+>> fasttext::FastText::FastText()
+>>
+>>
+>> Has anyone an idea?
+>>
+>> Kind regards,
+>> Micha?l
+>> ________________
+>> Micha?l BENESTY
+>> michael at benesty.fr
+>> Please do not print this e-mail unless you really need to.
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+
+From serguei.sokol at gmail.com  Wed Aug  2 23:44:19 2017
+From: serguei.sokol at gmail.com (Sokol Serguei)
+Date: Wed, 02 Aug 2017 14:44:19 -0700 (PDT)
+Subject: [Rcpp-devel] Rcpp + Package -> undefined symbol
+In-Reply-To: <CABXrzNSznHZK_58veU0w0coQMwm6Uru1GHRz6a=SjG-OhqBasg@mail.gmail.com>
+References: <CABXrzNSk6JObcDebznBGO7gM6yaDr0vbe6io+-=4XHO2gf=FFg@mail.gmail.com>
+ <CAJ_LAMAygXHNgk1_1RQvhNWBEQKZtxsuggVezWDf8O9e8K6-Fw@mail.gmail.com>
+ <CABXrzNSznHZK_58veU0w0coQMwm6Uru1GHRz6a=SjG-OhqBasg@mail.gmail.com>
+Message-ID: <aac3d079-7265-0b78-46c5-a45fd08e0d32@gmail.com>
+
+Micha?l Benesty has written at  Wed, 2 Aug 2017 23:26:26 +0200
+> Thank you a lot Mr. Kou.
+> The package is now compiling and I have updated it to load modules at
+> loading of the package (was quite tricky).
+> Just to understand, the .cc has compiled just because you moved them
+> in src/ folder, am I right?
+>
+Besides compilation issue, it is generally a bad idea to put sources in 
+inst/ tree.
+Because everything in inst/ is installed when binary installation is 
+requested.
+So someone wishing only binaries (let say for the sake of disk space) 
+will drag
+also the sources. A notorious exception to this rule are header only 
+packages,
+like BH. But as far as I understand it is not your case, right?
+
+Serguei.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170802/6d41cd68/attachment.html>
+
+From gminorcoles at gmail.com  Thu Aug  3 17:30:22 2017
+From: gminorcoles at gmail.com (George Coles)
+Date: Thu, 3 Aug 2017 11:30:22 -0400
+Subject: [Rcpp-devel] new to R, so don't understand Rcpp limits
+Message-ID: <CACOkum+Syim-EOVs-K0K2V66COkU38HJqTB1wrvMNc4aP+S9OA@mail.gmail.com>
+
+Hi,
+ I have recently been writing a lot of c++. I have been a big python user
+the last couple of years, and never really use R but have it installed.
+
+I need to share some data between my Python code and my c++ code, C++ does
+not really have a lot of nice ideas like DataFrames. But if you save a
+dataframe from Python into csv, you can readily read it using R. Csv is not
+the best way to go, but it is a simple case.
+
+I have generally been noticing as I google around, that R has a healthy and
+seemingly growing list of packages that can be accessed by c++ code. From
+c++, R does not look so bad to me, and I would like to get access to this
+large library of native routines in R.
+
+First on the list, is that I hope to read a dataframe or something like it
+from data in a file, and then transform that dataframe or other tabular
+object into something I can use in my c++ code for linear algebra, like an
+Armadillo matrix.
+
+So is there any native code in the R world that I can use to read a
+dataframe from a file?
+
+please forgive my ignorance. I think Rcpp is really cool, it might make me
+a backdoor R user.
+
+thx
+George Coles
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170803/17afd8b1/attachment.html>
+
+From edd at debian.org  Thu Aug  3 17:55:14 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 3 Aug 2017 10:55:14 -0500
+Subject: [Rcpp-devel] new to R, so don't understand Rcpp limits
+In-Reply-To: <CACOkum+Syim-EOVs-K0K2V66COkU38HJqTB1wrvMNc4aP+S9OA@mail.gmail.com>
+References: <CACOkum+Syim-EOVs-K0K2V66COkU38HJqTB1wrvMNc4aP+S9OA@mail.gmail.com>
+Message-ID: <22915.18274.902723.115118@bud.eddelbuettel.com>
+
+
+On 3 August 2017 at 11:30, George Coles wrote:
+| Hi,
+|  I have recently been writing a lot of c++. I have been a big python user
+| the last couple of years, and never really use R but have it installed.
+
+Coming from a common base is not a bad starting point at all.  See my
+RcppAnnoy package on top of the C++ (with Python glue) Annoy package, and
+also see https://cran.r-project.org/package=fastcluster which "comes with"
+Python and R bindings.
+ 
+| I need to share some data between my Python code and my c++ code, C++ does
+| not really have a lot of nice ideas like DataFrames. But if you save a
+| dataframe from Python into csv, you can readily read it using R. Csv is not
+| the best way to go, but it is a simple case.
+
+CSVs are indeed a terrible format, yet annoyingly common. Try binary
+alternatives if you can.
+
+There are feather and Apache arrow for 'data.frame' reimplementations usable
+from both R and Python...
+
+Lastly, there is now reticulate (on CRAN) to access Python from R.
+
+| I have generally been noticing as I google around, that R has a healthy and
+| seemingly growing list of packages that can be accessed by c++ code. From
+| c++, R does not look so bad to me, and I would like to get access to this
+| large library of native routines in R.
+| 
+| First on the list, is that I hope to read a dataframe or something like it
+| from data in a file, and then transform that dataframe or other tabular
+| object into something I can use in my c++ code for linear algebra, like an
+| Armadillo matrix.
+| 
+| So is there any native code in the R world that I can use to read a
+| dataframe from a file?
+| 
+| please forgive my ignorance. I think Rcpp is really cool, it might make me
+| a backdoor R user.
+
+Poke around the examples, and eg the Rcpp Gallery (at gallery.rcpp.org).  The
+seamless passage from R to C++ and back is really, really useful and smooth.
+JJ and I have riffing for years on the need for a talk on 'R as C++ shell'.
+No time for that yet though :)
+
+Cheers, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From xian at unm.edu  Fri Aug  4 20:17:53 2017
+From: xian at unm.edu (Christian Gunning)
+Date: Fri, 4 Aug 2017 12:17:53 -0600
+Subject: [Rcpp-devel] new to R, so don't understand Rcpp limits
+Message-ID: <CADNH-PtpFRB-nSqbwkK=4oUTRzpNBhxfv_w=OewYaEOGVuzrBw@mail.gmail.com>
+
+> | Hi,
+> | I need to share some data between my Python code and my c++ code, C++
+> does
+> | not really have a lot of nice ideas like DataFrames. But if you save a
+> | dataframe from Python into csv, you can readily read it using R. Csv is
+> not
+> | the best way to go, but it is a simple case.
+>
+> CSVs are indeed a terrible format, yet annoyingly common. Try binary
+> alternatives if you can.
+>
+
+I disagree with Dirk that CSV is "a terrible format" - it excels (hah) at
+human readability, is decently machine-readable and easily compressible,
+but certainly is inappropriate for many tasks that require efficiency.
+
+
+> | I have generally been noticing as I google around, that R has a healthy
+> and
+> | seemingly growing list of packages that can be accessed by c++ code. From
+> | c++, R does not look so bad to me, and I would like to get access to this
+> | large library of native routines in R.
+> |
+> | First on the list, is that I hope to read a dataframe or something like
+> it
+> | from data in a file, and then transform that dataframe or other tabular
+> | object into something I can use in my c++ code for linear algebra, like
+> an
+> | Armadillo matrix.
+> |
+> | So is there any native code in the R world that I can use to read a
+> | dataframe from a file?
+>
+
+First off, only use a data.frame if what you really want is a data.frame.
+Otherwise, stick with a matrix (or convert to one as early as possible).
+
+* Data.frame = ordered collection of like-sized vectors, possibly of
+heterogeneous type.
+* Matrix = ordered collection values, of known / fixed dimension, by
+default represented internally as columns of vectors in both R and
+armadillo (as in LAPACK).
+
+In R, for modest-sized objects, going between these two types is
+"relatively seamless". But in C++/Rcpp, the underlying differences are more
+apparent to the user.  Matrices "just work" (e.g. easy construction of an
+"identical" armadillo object), whereas data.frames require some care and
+attention, and possibly extra object creation destruction.  When possible,
+stick with matrices.
+
+
+> |
+> | I think Rcpp is really cool,
+>
+it might make me
+> | a backdoor R user.
+>
+
+I became a backdoor C++ programmer through C++.  +1 really cool.
+
+I found Google Protocol Buffers absurdly useful for moving between R and
+cpp in complex projects.  It's well-documented, fast, encourages
+separate/good metadata documentation, and works smoothly for R, C++, and
+Python.   I never did use protobufs for vector data, though. I did write
+some test code using repeated fields, but didn't get to the point of
+comfort there. For arrays of fixed dimension, I can imagine using one field
+per dimension to code that dimension's length, and then a final repeated
+field with the payload.  See below for example.
+
+Question for Dirk (et al):
+
+Has anyone used protobuf messages for, e.g., passing arrays? Any obvious
+downsides?  When I last googled, I didn't find much re protobuf repeated
+fields or Rcpp + protobufs...
+
+
+// File PbTest.proto
+syntax = "proto2";
+package Array;
+// see
+https://developers.google.com/protocol-buffers/docs/reference/cpp-generated#fields
+
+message a2d {
+    optional uint32 dim1 = 10;
+    optional uint32 dim2 = 20;
+    // add more dims here
+    //
+    // numeric vector
+    repeated float  payload = 50;
+}
+
+## File pbarray.R
+library(RProtoBuf)
+aa <- matrix(1:30, ncol=3)
+bb <- new(P("Array.a2d", file='PbTest.proto'))
+bb$dim1 <- dim(aa)[1]
+bb$dim2 <- dim(aa)[2]
+bb$add(field='payload', values=aa)
+
+cat(as.character(bb))
+
+best,
+Christian
+http://www.x14n.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170804/a261d18e/attachment.html>
+
+From ravindra_kota at freddiemac.com  Tue Aug 15 10:45:52 2017
+From: ravindra_kota at freddiemac.com (Kota, Ravindra B)
+Date: Tue, 15 Aug 2017 08:45:52 +0000
+Subject: [Rcpp-devel] RInside Using JNI
+Message-ID: <d552b142b2f942b78d41216a64fd0218@he1sntppexc002.fhlmc.com>
+
+Hi,
+
+We have financial models written in C++, exposed to Java applications using the JNI. Lately, we have started writing these models in R, and trying to integrate them in C++ using RInside. Standalone integration with C++/RInside/R works fine. We get seg faults when integrated with JNI.
+
+Questions.
+
+
+1.       Are there any limitations integrating RInside inside the JVM?
+
+2.       Do we have any best practices for this.?
+
+3.       Do we have tools available to debug this better?
+
+We have narrowed  down to the source of the seg fault. Both 'e' and 'rho' are invalid references.
+
+/* Return value of "e" evaluated in "rho". */
+
+/* some places, e.g. deparse2buff, call this with a promise and rho = NULL */
+SEXP eval(SEXP e, SEXP rho)
+{
+    SEXP op, tmp;
+    static int evalcount = 0;
+
+    R_Visible = TRUE;
+
+    /* this is needed even for self-evaluating objects or something like
+       'while (TRUE) NULL' will not be interruptable */
+    if (++evalcount > 1000) { /* was 100 before 2.8.0 */
+        R_CheckUserInterrupt();
+#ifndef IMMEDIATE_FINALIZERS
+        /* finalizers are run here since this should only be called at
+           points where running arbitrary code should be safe */
+        R_RunPendingFinalizers();
+#endif
+        evalcount = 0 ;
+    }
+
+    /* handle self-evaluating objects with minimal overhead */
+    switch (TYPEOF(e)) {
+    case NILSXP:
+    case LISTSXP:
+    case LGLSXP:
+    case INTSXP:
+    case REALSXP:
+    case STRSXP:
+    case CPLXSXP:
+    case RAWSXP:
+    case S4SXP:
+    case SPECIALSXP:
+    case BUILTINSXP:
+    case ENVSXP:
+    case CLOSXP:
+    case VECSXP:
+    case EXTPTRSXP:
+    case WEAKREFSXP:
+    case EXPRSXP:
+
+
+#0  0x00002b1a1cd9866f in bcEval (body=0x0, rho=0x0, useCache=FALSE) at eval.c:5873
+#1  0x00002b1a1cd8bc11 in Rf_eval (e=0x2b1a15190b38, rho=0x2b1a21180a28) at eval.c:624
+#2  0x00002b1a1cd8b944 in forcePromise (e=0x2b1a21180a60) at eval.c:520
+#3  0x00002b1a1cd950b7 in FORCE_PROMISE (value=0x2b1a21180a60, symbol=0x2b1a151751a8, rho=0x2b1a21180b40, keepmiss=FALSE)
+    at eval.c:4714
+#4  0x00002b1a1cd95285 in getvar (symbol=0x2b1a151751a8, rho=0x2b1a21180b40, dd=FALSE, keepmiss=FALSE, vcache=0x2b1a14c57f50,
+    sidx=3) at eval.c:4756
+#5  0x00002b1a1cd9ac1e in bcEval (body=0x2b1a151764f0, rho=0x2b1a21180b40, useCache=TRUE) at eval.c:6189
+#6  0x00002b1a1cd8bc11 in Rf_eval (e=0x2b1a151764f0, rho=0x2b1a21180b40) at eval.c:624
+#7  0x00002b1a1cd8e2e2 in R_execClosure (call=0x2b1a151910e8, newrho=0x2b1a21180b40, sysparent=0x2b1a21180a28, rho=0x2b1a21180a28,
+    arglist=0x2b1a21180a98, op=0x2b1a15176608) at eval.c:1614
+#8  0x00002b1a1cd8e000 in Rf_applyClosure (call=0x2b1a151910e8, op=0x2b1a15176608, arglist=0x2b1a21180a98, rho=0x2b1a21180a28,
+    suppliedvars=0x2b1a14957188) at eval.c:1549
+#9  0x00002b1a1cd9d2d1 in bcEval (body=0x2b1a1518eaf0, rho=0x2b1a21180a28, useCache=TRUE) at eval.c:6400
+#10 0x00002b1a1cd8bc11 in Rf_eval (e=0x2b1a1518eaf0, rho=0x2b1a21180a28) at eval.c:624
+#11 0x00002b1a1cd8e2e2 in R_execClosure (call=0x2b1a179b4100, newrho=0x2b1a21180a28, sysparent=0x2b1a211812c8, rho=0x2b1a211812c8,
+    arglist=0x2b1a211816f0, op=0x2b1a1518ebd0) at eval.c:1614
+#12 0x00002b1a1cd8e000 in Rf_applyClosure (call=0x2b1a179b4100, op=0x2b1a1518ebd0, arglist=0x2b1a211816f0, rho=0x2b1a211812c8,
+    suppliedvars=0x2b1a14957188) at eval.c:1549
+#13 0x00002b1a1cd9d2d1 in bcEval (body=0x2b1a179b3fb0, rho=0x2b1a211812c8, useCache=TRUE) at eval.c:6400
+#14 0x00002b1a1cd8bc11 in Rf_eval (e=0x2b1a179b3fb0, rho=0x2b1a211812c8) at eval.c:624
+#15 0x00002b1a1cd8b944 in forcePromise (e=0x2b1a211814f8) at eval.c:520
+#16 0x00002b1a1cd950b7 in FORCE_PROMISE (value=0x2b1a211814f8, symbol=0x2b1a149af960, rho=0x2b1a21181610, keepmiss=FALSE)
+    at eval.c:4714
+
+
+Help is greatly appreciated. You can reach me at 571-340-1578 for any kind of questions.
+
+Regards
+Ravindra
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170815/87cb98bb/attachment.html>
+
+From edd at debian.org  Tue Aug 15 13:53:15 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 15 Aug 2017 06:53:15 -0500
+Subject: [Rcpp-devel] RInside Using JNI
+In-Reply-To: <d552b142b2f942b78d41216a64fd0218@he1sntppexc002.fhlmc.com>
+References: <d552b142b2f942b78d41216a64fd0218@he1sntppexc002.fhlmc.com>
+Message-ID: <22930.57515.464732.29719@bud.eddelbuettel.com>
+
+
+Ravindra,
+
+Thanks for posting here.
+
+On 15 August 2017 at 08:45, Kota, Ravindra B wrote:
+| We have financial models written in C++, exposed to Java applications using the JNI. Lately, we have started writing these models in R, and trying to integrate them in C++ using RInside. Standalone integration with C++/RInside/R works fine. We get seg faults when integrated with JNI.
+
+Can you go multi-machine?  Have one engine deal with C++ models and their R
+integration.  Have another engine deal with the Java UI and integration.
+
+There are by now multiple ways to 'request' R answers over tcp/ip, starting
+from the good old Rserve by Simon (initially written with a Java client, no
+less) to Jeroen's opencpu and more.  I actually like Google's Protocol
+Buffers (package RProtoBuf) and the by-now added gRPC networking.
+
+Methink you have less of an Rcpp / RInside question and more of an overall
+architecting question.  For which this list may be less relevant.
+
+As for your questions:
+
+| 1.       Are there any limitations integrating RInside inside the JVM?
+
+I prefer to stay as far from JVM and CLI and all that as I can. But maybe
+that's just me.
+ 
+| 2.       Do we have any best practices for this.?
+
+See above. Separation of concern?
+ 
+| 3.       Do we have tools available to debug this better?
+
+Not really.
+
+Cheers, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From ravindra_kota at freddiemac.com  Tue Aug 15 14:17:01 2017
+From: ravindra_kota at freddiemac.com (Kota, Ravindra B)
+Date: Tue, 15 Aug 2017 12:17:01 +0000
+Subject: [Rcpp-devel] RInside Using JNI
+In-Reply-To: <22930.57515.464732.29719@bud.eddelbuettel.com>
+References: <d552b142b2f942b78d41216a64fd0218@he1sntppexc002.fhlmc.com>
+ <22930.57515.464732.29719@bud.eddelbuettel.com>
+Message-ID: <3a14b70d1eae4fe48e6afacac3d0820a@he1sntppexc002.fhlmc.com>
+
+Dirk,
+
+Thanks for the reply. It was a pleasure speaking with you yesterday, over the phone.
+
+Now, all our front end and web service applications are integrated with JNI with C++ Quant frameworks behind it. Going multi machine, would be a significant architectural change. This might not be feasible in the short run.
+
+A couple of options to consider.
+
+1. We would really like to know, why the seg faults are happening, before we give up this path. Rcpp/RInside protocol fits very well within our framework.  It will be very sad to see if this option does not work.
+     1.1 We will be working on debugging this issue today.
+2. Client Server Design:
+	2.1 We run large portfolios using monte carlo simulations with about 150-300 paths. This means at any given point of time we would be running 1000 cores in parallel, all running an R model. Does Rserve/opencpu/gRPC scale to this level?
+              2.2. If we do go down this path, our C++ quant library needs to be the client. Currently we are using Rcpp template data types to go back and forth between R. Which client server option is close to this model, so that we leverage the existing Rcpp investment.
+3.What is your availability, if we need to bring you down to Northern Virginia for a day?
+ 
+
+Regards
+Ravindra
+
+-----Original Message-----
+From: Dirk Eddelbuettel [mailto:dirk.eddelbuettel at gmail.com] On Behalf Of Dirk Eddelbuettel
+Sent: Tuesday, August 15, 2017 7:53 AM
+To: Kota, Ravindra B <ravindra_kota at freddiemac.com>
+Cc: rcpp-devel at lists.r-forge.r-project.org
+Subject: Re: [Rcpp-devel] RInside Using JNI
+
+CAUTION: This email originated from outside of the organization. Do not click links or open attachments unless you recognize the sender and know the content is safe.
+
+
+Ravindra,
+
+Thanks for posting here.
+
+On 15 August 2017 at 08:45, Kota, Ravindra B wrote:
+| We have financial models written in C++, exposed to Java applications using the JNI. Lately, we have started writing these models in R, and trying to integrate them in C++ using RInside. Standalone integration with C++/RInside/R works fine. We get seg faults when integrated with JNI.
+
+Can you go multi-machine?  Have one engine deal with C++ models and their R integration.  Have another engine deal with the Java UI and integration.
+
+There are by now multiple ways to 'request' R answers over tcp/ip, starting from the good old Rserve by Simon (initially written with a Java client, no
+less) to Jeroen's opencpu and more.  I actually like Google's Protocol Buffers (package RProtoBuf) and the by-now added gRPC networking.
+
+Methink you have less of an Rcpp / RInside question and more of an overall architecting question.  For which this list may be less relevant.
+
+As for your questions:
+
+| 1.       Are there any limitations integrating RInside inside the JVM?
+
+I prefer to stay as far from JVM and CLI and all that as I can. But maybe that's just me.
+
+| 2.       Do we have any best practices for this.?
+
+See above. Separation of concern?
+
+| 3.       Do we have tools available to debug this better?
+
+Not really.
+
+Cheers, Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Aug 15 14:37:40 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 15 Aug 2017 07:37:40 -0500
+Subject: [Rcpp-devel] RInside Using JNI
+In-Reply-To: <3a14b70d1eae4fe48e6afacac3d0820a@he1sntppexc002.fhlmc.com>
+References: <d552b142b2f942b78d41216a64fd0218@he1sntppexc002.fhlmc.com>
+ <22930.57515.464732.29719@bud.eddelbuettel.com>
+ <3a14b70d1eae4fe48e6afacac3d0820a@he1sntppexc002.fhlmc.com>
+Message-ID: <22930.60180.409985.148376@bud.eddelbuettel.com>
+
+
+On 15 August 2017 at 12:17, Kota, Ravindra B wrote:
+| Thanks for the reply. It was a pleasure speaking with you yesterday, over the phone.
+
+As you now bring this up in public, I have no choice but to be VERY clear about this:
+
+ - I consider it totally inappropriate for you to cold call me at work.
+  
+ - Please do not do this again.  Please do not recommend it either. 
+   
+ - I do all this as a volunteer.  Please respect that.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.cc  Tue Aug 15 19:46:23 2017
+From: jon at thon.cc (Jonathon Love)
+Date: Tue, 15 Aug 2017 19:46:23 +0200
+Subject: [Rcpp-devel] grDevices issue with RInside
+Message-ID: <99a3eca1-e9d5-e154-ace6-df8d0e16f5f4@thon.love>
+
+hi dirk,
+
+i'm having an issue with grDevices, but the issue only seems to appear 
+when i using my library with RInside on windows.
+
+one of the packages we use (ggjoy) calls the grDevices::pdf() function, 
+which tries to load the enc/WinAnsi.enc file from grDevices package. 
+however, as can be seen here
+
+https://jona.thon.love/rinside.png
+
+it doesn't look relative to the R_HOME, but to `C:\`.
+
+fossicking through the grDevices source code, i find this:
+
+https://github.com/wch/r-source/blob/b7e8221be0266371b5b12e3549cf052c1eed10bc/src/library/grDevices/src/devPS.c#L507
+
+suggesting that the value of this R_Home variable is an empty string
+
+however, the R_HOME environmental variable is set appropriately, and 
+calling any number of the `R.home()`, `Sys.getenv('R_HOME')` return the 
+expected value. further, this particular installation is used by tens of 
+thousand of users, and produces plots fine ... this is the only 
+exception we've found so far.
+
+you don't have any intuitions as to what may be the problem here, and 
+how we could work around it?
+
+with thanks
+
+jonathon
+
+
+
+From edd at debian.org  Tue Aug 15 19:55:49 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 15 Aug 2017 12:55:49 -0500
+Subject: [Rcpp-devel] grDevices issue with RInside
+In-Reply-To: <99a3eca1-e9d5-e154-ace6-df8d0e16f5f4@thon.love>
+References: <99a3eca1-e9d5-e154-ace6-df8d0e16f5f4@thon.love>
+Message-ID: <22931.13733.717207.458981@bud.eddelbuettel.com>
+
+
+Hi Jonathon,
+
+On 15 August 2017 at 19:46, Jonathon Love wrote:
+| i'm having an issue with grDevices, but the issue only seems to appear 
+| when i using my library with RInside on windows.
+| 
+| one of the packages we use (ggjoy) calls the grDevices::pdf() function, 
+| which tries to load the enc/WinAnsi.enc file from grDevices package. 
+| however, as can be seen here
+| 
+| https://jona.thon.love/rinside.png
+| 
+| it doesn't look relative to the R_HOME, but to `C:\`.
+| 
+| fossicking through the grDevices source code, i find this:
+| 
+| https://github.com/wch/r-source/blob/b7e8221be0266371b5b12e3549cf052c1eed10bc/src/library/grDevices/src/devPS.c#L507
+| 
+| suggesting that the value of this R_Home variable is an empty string
+| 
+| however, the R_HOME environmental variable is set appropriately, and 
+| calling any number of the `R.home()`, `Sys.getenv('R_HOME')` return the 
+| expected value. further, this particular installation is used by tens of 
+| thousand of users, and produces plots fine ... this is the only 
+| exception we've found so far.
+| 
+| you don't have any intuitions as to what may be the problem here, and 
+| how we could work around it?
+
+Might it be that you are shooting the messenger? You see the issue via
+RInside as you implemented it via RInside.
+
+But we "merely" give you access to the embedded R instance, and methinks that
+the issue may be with ggjoy and/or the pdf() device. Are you really sure RInside
+plays any part here?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.cc  Tue Aug 15 20:06:25 2017
+From: jon at thon.cc (Jonathon Love)
+Date: Tue, 15 Aug 2017 20:06:25 +0200
+Subject: [Rcpp-devel] grDevices issue with RInside
+Message-ID: <ef4df652-71df-6b07-6059-be65c51df22c@thon.love>
+
+hi dirk,
+
+i'm having an issue with grDevices, but the issue only seems to appear 
+when i using my library with RInside on windows.
+
+one of the packages we use (ggjoy) calls the grDevices::pdf() function, 
+which tries to load the enc/WinAnsi.enc file from grDevices package. 
+however, as can be seen here
+
+https://jona.thon.love/rinside.png
+
+it doesn't look relative to the R_HOME, but to `C:\`.
+
+fossicking through the grDevices source code, i find this:
+
+https://github.com/wch/r-source/blob/b7e8221be0266371b5b12e3549cf052c1eed10bc/src/library/grDevices/src/devPS.c#L507
+
+suggesting that the value of this R_Home variable is an empty string
+
+however, the R_HOME environmental variable is set appropriately, and 
+calling any number of the `R.home()`, `Sys.getenv('R_HOME')` return the 
+expected value. further, this particular installation is used by tens of 
+thousand of users, and produces plots fine ... this is the only 
+exception we've found so far.
+
+you don't have any intuitions as to what may be the problem here, and 
+how we could work around it?
+
+with thanks
+
+jonathon
+
+
+
+From jon at thon.cc  Tue Aug 15 20:07:22 2017
+From: jon at thon.cc (Jonathon Love)
+Date: Tue, 15 Aug 2017 20:07:22 +0200
+Subject: [Rcpp-devel] grDevices issue with RInside
+In-Reply-To: <22931.13733.717207.458981@bud.eddelbuettel.com>
+References: <99a3eca1-e9d5-e154-ace6-df8d0e16f5f4@thon.love>
+ <22931.13733.717207.458981@bud.eddelbuettel.com>
+Message-ID: <5735d79d-e350-8902-66df-4f3a03ecad1b@thon.love>
+
+hi dirk,
+
+> Might it be that you are shooting the messenger? You see the issue via
+> RInside as you implemented it via RInside.
+>
+> But we "merely" give you access to the embedded R instance, and methinks that
+> the issue may be with ggjoy and/or the pdf() device. Are you really sure RInside
+> plays any part here?
+
+yeah, i totally recognise RInside may only be related in an incredibly 
+tangential way.
+
+all this code works fine when run interactively (and on macOS and 
+linux), and i haven't been able to reproduce the issue outside of 
+rinside ... i expect it's some subtle interaction, but i thought i'd 
+check in with you that you'd not encountered something like this before.
+
+to me it looks like an R issue, but it's almost impossible to get anyone 
+to take you seriously when your minimal example is an executable 
+embedding RInside :P
+
+with thanks
+
+jonathon
+
+From lmavila at gmail.com  Wed Aug 16 01:12:07 2017
+From: lmavila at gmail.com (Luis Avila)
+Date: Tue, 15 Aug 2017 16:12:07 -0700
+Subject: [Rcpp-devel] best way of documenting Rcpp Modules
+Message-ID: <CALug_W-1AbXXsn7GvBfi2Pu7AaC6sCQYxKhpZokkKgdsBxgvNA@mail.gmail.com>
+
+I've used Roxygen to document my R classes
+but having problems now documenting Rcpp exposed classes from my C++ code.
+
+I am creating .Rd files manually and that partially solves the problem but
+looking for a better way.
+
+I have a module expossing c++ classes Model and NormalModel.
+Running R CMD check --as-cran I get:
+
+Undocumented code objects:
+'Model'
+
+Undocumented S4 classes
+'Rcpp_Model' 'Rcpp_NormalModel'
+
+I managed to get the "undocumented code object" message to stop reporting
+"NormalModel" as undocumented by manually setting up a NormalModel-class.Rd
+file in man but can't get rid of Rcpp_NormalModel.
+
+Is there a way to hide the classes with the Rcpp suffix, or what is the
+recommended way to fix this problem?
+
+Thank you.
+
+Luis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170815/ef20b20c/attachment.html>
+
+From hye at ucsd.edu  Wed Aug 16 03:12:30 2017
+From: hye at ucsd.edu (Hao Ye)
+Date: Tue, 15 Aug 2017 18:12:30 -0700
+Subject: [Rcpp-devel] best way of documenting Rcpp Modules
+In-Reply-To: <99a9d5e650c0460b944fabbd57c2ded6@XCORE-CUB1.AD.UCSD.EDU>
+References: <99a9d5e650c0460b944fabbd57c2ded6@XCORE-CUB1.AD.UCSD.EDU>
+Message-ID: <CAK1kXLzbsDe0kAmqa7AJuFTf6rnS7bGuJaqEPi+kGLBPWXBiGA@mail.gmail.com>
+
+Hi Luis,
+
+I recall having this problem, and I, too, had solved it by creating .Rd
+files for the c++ class objects.
+
+I don't have this error anymore, and I believe the main difference is that
+I am curating my NAMESPACE file manually to only export the R functions
+instead of everything ~ `exportPattern("^[[:alpha:]]+")`
+
+You may want to give that a try.
+
+If that doesn't work, it would help to see this issue as a minimal
+reproducible example, e.g. a link to a GitHub repo.
+
+Best,
+--
+Hao Ye
+hye at ucsd.edu
+
+On Tue, Aug 15, 2017 at 4:12 PM, Luis Avila <lmavila at gmail.com> wrote:
+
+> I've used Roxygen to document my R classes
+> but having problems now documenting Rcpp exposed classes from my C++ code.
+>
+> I am creating .Rd files manually and that partially solves the problem but
+> looking for a better way.
+>
+> I have a module expossing c++ classes Model and NormalModel.
+> Running R CMD check --as-cran I get:
+>
+> Undocumented code objects:
+> 'Model'
+>
+> Undocumented S4 classes
+> 'Rcpp_Model' 'Rcpp_NormalModel'
+>
+> I managed to get the "undocumented code object" message to stop reporting
+> "NormalModel" as undocumented by manually setting up a NormalModel-class.Rd
+> file in man but can't get rid of Rcpp_NormalModel.
+>
+> Is there a way to hide the classes with the Rcpp suffix, or what is the
+> recommended way to fix this problem?
+>
+> Thank you.
+>
+> Luis
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170815/e9550d87/attachment.html>
+
+From edd at debian.org  Wed Aug 16 03:41:29 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 15 Aug 2017 20:41:29 -0500
+Subject: [Rcpp-devel] best way of documenting Rcpp Modules
+In-Reply-To: <CALug_W-1AbXXsn7GvBfi2Pu7AaC6sCQYxKhpZokkKgdsBxgvNA@mail.gmail.com>
+References: <CALug_W-1AbXXsn7GvBfi2Pu7AaC6sCQYxKhpZokkKgdsBxgvNA@mail.gmail.com>
+Message-ID: <22931.41673.651562.629401@bud.eddelbuettel.com>
+
+
+On 15 August 2017 at 16:12, Luis Avila wrote:
+| I've used Roxygen to document my R classes
+| but having problems now documenting Rcpp exposed classes from my C++ code.
+| 
+| I am creating .Rd files manually and that partially solves the problem but
+| looking for a better way.
+| 
+| I have a module expossing c++ classes Model and NormalModel.
+| Running R CMD check --as-cran I get:
+| 
+| Undocumented code objects:
+| 'Model'
+| 
+| Undocumented S4 classes
+| 'Rcpp_Model' 'Rcpp_NormalModel'
+| 
+| I managed to get the "undocumented code object" message to stop reporting
+| "NormalModel" as undocumented by manually setting up a NormalModel-class.Rd
+| file in man but can't get rid of Rcpp_NormalModel.
+
+One \alias{} entry in the Rd should do. See eg the (still rather basic /
+stub) page I put in for RcppAnnoy (which is just Rcpp Modules):
+
+https://github.com/eddelbuettel/rcppannoy/blob/master/man/RcppAnnoy-package.Rd
+
+You can write it as Rd, or you can write it in an (empty) R file to be used
+by roxygen2 (though I still never let roxygen touch my NAMESPACE, DESCRIPTION
+or other files -- but Rd creation I trust).
+ 
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Aug 16 15:08:07 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 16 Aug 2017 08:08:07 -0500
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.7.960.1.0
+Message-ID: <22932.17335.91011.280949@bud.eddelbuettel.com>
+
+
+RcppArmadillo 0.7.960.1.0 has been ready for a few days and sitting at CRAN,
+due to a seemingly unlucky combination of travel, weekend,, systems outage
+and what not.  But it has been five full days now , and nobody has told me
+what if anything is non-standard with the package so ... I give up now.
+
+So it is as of now also in the drat repo for the RcppCore org, so just see
+the README.md at
+    https://github.com/RcppCore/drat
+which has the following example which is applicable:
+
+    # first add the repo
+    drat:::add("RcppCore")
+    # either install just one or more given packages
+    install.packages("RcppArmadillo")
+    # or update already installed packages
+    update.packages()
+
+You can also add the repo URL by hand to options("repos"), or supply it to
+install.packages(), or ...  I happen to like drat.
+
+The files NEWS.Rd and ChangeLog have the goods, I make a fuller announcement
+if and when it makes it to CRAN.
+
+This release features a lot of excellent Google Summer of Code work by
+Binxiang Ni.  Again, more about that if and when we get to make a true
+release announcement.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Kurt.Hornik at wu.ac.at  Wed Aug 16 17:23:48 2017
+From: Kurt.Hornik at wu.ac.at (Kurt Hornik)
+Date: Wed, 16 Aug 2017 17:23:48 +0200
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.7.960.1.0
+In-Reply-To: <22932.17335.91011.280949@bud.eddelbuettel.com>
+References: <22932.17335.91011.280949@bud.eddelbuettel.com>
+Message-ID: <22932.25476.988670.706632@hornik.net>
+
+>>>>> Dirk Eddelbuettel writes:
+
+Dirk:
+
+When checking the reverse depends, we're seeing problems with quanteda,
+both with the old version of this as well as the new one published last
+night.  E.g.
+
+Package: quanteda [Old version: 0.9.9-65, New version: 0.99]
+Check: examples
+New result: ERROR
+  Running examples in ?quanteda-Ex.R? failed
+  The error most likely occurred in:
+  
+  > base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+  > ### Name: textmodel_wordfish
+  > ### Title: wordfish text model
+  > ### Aliases: textmodel_wordfish
+  > 
+  > ### ** Examples
+  > 
+  > textmodel_wordfish(data_dfm_lbgexample, dir = c(1,5))
+  Error in wordfishcpp_mt(x, as.integer(dir), 1/(priors^2), tol, disp, dispersion_floor,  : 
+    dfmSparse is not supported.
+  Calls: textmodel_wordfish -> textmodel_wordfish.dfm -> wordfishcpp_mt -> .Call
+  Execution halted
+
+and in fact all problems seem to have the "dfmSparse is not supported."
+errors.  Are you seeing these too?  Should we contact the quanteda
+maintainer about this?
+
+Best
+-k
+
+
+> RcppArmadillo 0.7.960.1.0 has been ready for a few days and sitting at CRAN,
+> due to a seemingly unlucky combination of travel, weekend,, systems outage
+> and what not.  But it has been five full days now , and nobody has told me
+> what if anything is non-standard with the package so ... I give up now.
+
+> So it is as of now also in the drat repo for the RcppCore org, so just see
+> the README.md at
+>     https://github.com/RcppCore/drat
+> which has the following example which is applicable:
+
+>     # first add the repo
+>     drat:::add("RcppCore")
+>     # either install just one or more given packages
+>     install.packages("RcppArmadillo")
+>     # or update already installed packages
+>     update.packages()
+
+> You can also add the repo URL by hand to options("repos"), or supply it to
+> install.packages(), or ...  I happen to like drat.
+
+> The files NEWS.Rd and ChangeLog have the goods, I make a fuller announcement
+> if and when it makes it to CRAN.
+
+> This release features a lot of excellent Google Summer of Code work by
+> Binxiang Ni.  Again, more about that if and when we get to make a true
+> release announcement.
+
+> Dirk
+
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+From edd at debian.org  Wed Aug 16 17:44:09 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 16 Aug 2017 10:44:09 -0500
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.7.960.1.0
+In-Reply-To: <22932.25476.988670.706632@hornik.net>
+References: <22932.17335.91011.280949@bud.eddelbuettel.com>
+ <22932.25476.988670.706632@hornik.net>
+Message-ID: <22932.26697.83885.845574@bud.eddelbuettel.com>
+
+
+Hi Kurt,
+
+Much appreciate the update.
+
+On 16 August 2017 at 17:23, Kurt Hornik wrote:
+| >>>>> Dirk Eddelbuettel writes:
+| 
+| Dirk:
+| 
+| When checking the reverse depends, we're seeing problems with quanteda,
+| both with the old version of this as well as the new one published last
+| night.  E.g.
+| 
+| Package: quanteda [Old version: 0.9.9-65, New version: 0.99]
+| Check: examples
+| New result: ERROR
+|   Running examples in ?quanteda-Ex.R? failed
+|   The error most likely occurred in:
+|   
+|   > base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+|   > ### Name: textmodel_wordfish
+|   > ### Title: wordfish text model
+|   > ### Aliases: textmodel_wordfish
+|   > 
+|   > ### ** Examples
+|   > 
+|   > textmodel_wordfish(data_dfm_lbgexample, dir = c(1,5))
+|   Error in wordfishcpp_mt(x, as.integer(dir), 1/(priors^2), tol, disp, dispersion_floor,  : 
+|     dfmSparse is not supported.
+|   Calls: textmodel_wordfish -> textmodel_wordfish.dfm -> wordfishcpp_mt -> .Call
+|   Execution halted
+| 
+| and in fact all problems seem to have the "dfmSparse is not supported."
+| errors.  Are you seeing these too?  Should we contact the quanteda
+| maintainer about this?
+
+I have been seeing _fairly consistent_ failures for quanteda with both Rcpp
+and RcppArmadillo for quite some time.  You can see more details at the usual
+rcpp-logs repo.
+
+As such, I have ignored its most recent failure with RcppArmadillo
+0.7.960.1.0. The last (of several) reverse depends logs preceding the upload
+has its summary here:
+https://github.com/RcppCore/rcpp-logs/blob/master/results/rcpparmadillo/RcppArmadillo-Summary-20170810.txt
+As you can see: 372 passed, 3 failed and 2 were skipped by my choice.
+
+On occassion, I dive into packages that fail, ie Rob's "forecast" apparently
+only failed for me but not elsewhere.  As it was reproducible, Rob and I
+agreed on a change he made.  So it no longer fails for me either.
+
+Similarly, preceding the currently-pending upload of a new BH I have reached
+out to two packages one of which was already updated, the other is pending.
+But I don't have the bandwidth to chase all failures for all packages, and
+some are too persistent. And that is why I uploaded RcppArmadillo last Friday.
+
+Dirk
+
+| Best
+| -k
+| 
+| 
+| > RcppArmadillo 0.7.960.1.0 has been ready for a few days and sitting at CRAN,
+| > due to a seemingly unlucky combination of travel, weekend,, systems outage
+| > and what not.  But it has been five full days now , and nobody has told me
+| > what if anything is non-standard with the package so ... I give up now.
+| 
+| > So it is as of now also in the drat repo for the RcppCore org, so just see
+| > the README.md at
+| >     https://github.com/RcppCore/drat
+| > which has the following example which is applicable:
+| 
+| >     # first add the repo
+| >     drat:::add("RcppCore")
+| >     # either install just one or more given packages
+| >     install.packages("RcppArmadillo")
+| >     # or update already installed packages
+| >     update.packages()
+| 
+| > You can also add the repo URL by hand to options("repos"), or supply it to
+| > install.packages(), or ...  I happen to like drat.
+| 
+| > The files NEWS.Rd and ChangeLog have the goods, I make a fuller announcement
+| > if and when it makes it to CRAN.
+| 
+| > This release features a lot of excellent Google Summer of Code work by
+| > Binxiang Ni.  Again, more about that if and when we get to make a true
+| > release announcement.
+| 
+| > Dirk
+| 
+| > -- 
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Kurt.Hornik at wu.ac.at  Wed Aug 16 18:11:31 2017
+From: Kurt.Hornik at wu.ac.at (Kurt Hornik)
+Date: Wed, 16 Aug 2017 18:11:31 +0200
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.7.960.1.0
+In-Reply-To: <22932.26697.83885.845574@bud.eddelbuettel.com>
+References: <22932.17335.91011.280949@bud.eddelbuettel.com>
+ <22932.25476.988670.706632@hornik.net>
+ <22932.26697.83885.845574@bud.eddelbuettel.com>
+Message-ID: <22932.28339.790472.264924@hornik.net>
+
+>>>>> Dirk Eddelbuettel writes:
+
+Thanks.  So I guess we should publish the new RcppArmadillo and ask the
+quanteda maintainer to fix as necessary?
+
+Best
+-k
+
+> Hi Kurt,
+
+> Much appreciate the update.
+
+> On 16 August 2017 at 17:23, Kurt Hornik wrote:
+> | >>>>> Dirk Eddelbuettel writes:
+> | 
+> | Dirk:
+> | 
+> | When checking the reverse depends, we're seeing problems with quanteda,
+> | both with the old version of this as well as the new one published last
+> | night.  E.g.
+> | 
+> | Package: quanteda [Old version: 0.9.9-65, New version: 0.99]
+> | Check: examples
+> | New result: ERROR
+> |   Running examples in ?quanteda-Ex.R? failed
+> |   The error most likely occurred in:
+> |   
+> |   > base::assign(".ptime", proc.time(), pos = "CheckExEnv")
+> |   > ### Name: textmodel_wordfish
+> |   > ### Title: wordfish text model
+> |   > ### Aliases: textmodel_wordfish
+> |   > 
+> |   > ### ** Examples
+> |   > 
+> |   > textmodel_wordfish(data_dfm_lbgexample, dir = c(1,5))
+> |   Error in wordfishcpp_mt(x, as.integer(dir), 1/(priors^2), tol, disp, dispersion_floor,  : 
+> |     dfmSparse is not supported.
+> |   Calls: textmodel_wordfish -> textmodel_wordfish.dfm -> wordfishcpp_mt -> .Call
+> |   Execution halted
+> | 
+> | and in fact all problems seem to have the "dfmSparse is not supported."
+> | errors.  Are you seeing these too?  Should we contact the quanteda
+> | maintainer about this?
+
+> I have been seeing _fairly consistent_ failures for quanteda with both Rcpp
+> and RcppArmadillo for quite some time.  You can see more details at the usual
+> rcpp-logs repo.
+
+> As such, I have ignored its most recent failure with RcppArmadillo
+> 0.7.960.1.0. The last (of several) reverse depends logs preceding the upload
+> has its summary here:
+> https://github.com/RcppCore/rcpp-logs/blob/master/results/rcpparmadillo/RcppArmadillo-Summary-20170810.txt
+> As you can see: 372 passed, 3 failed and 2 were skipped by my choice.
+
+> On occassion, I dive into packages that fail, ie Rob's "forecast" apparently
+> only failed for me but not elsewhere.  As it was reproducible, Rob and I
+> agreed on a change he made.  So it no longer fails for me either.
+
+> Similarly, preceding the currently-pending upload of a new BH I have reached
+> out to two packages one of which was already updated, the other is pending.
+> But I don't have the bandwidth to chase all failures for all packages, and
+> some are too persistent. And that is why I uploaded RcppArmadillo last Friday.
+
+> Dirk
+
+> | Best
+> | -k
+> | 
+> | 
+> | > RcppArmadillo 0.7.960.1.0 has been ready for a few days and sitting at CRAN,
+> | > due to a seemingly unlucky combination of travel, weekend,, systems outage
+> | > and what not.  But it has been five full days now , and nobody has told me
+> | > what if anything is non-standard with the package so ... I give up now.
+> | 
+> | > So it is as of now also in the drat repo for the RcppCore org, so just see
+> | > the README.md at
+> | >     https://github.com/RcppCore/drat
+> | > which has the following example which is applicable:
+> | 
+> | >     # first add the repo
+> | >     drat:::add("RcppCore")
+> | >     # either install just one or more given packages
+> | >     install.packages("RcppArmadillo")
+> | >     # or update already installed packages
+> | >     update.packages()
+> | 
+> | > You can also add the repo URL by hand to options("repos"), or supply it to
+> | > install.packages(), or ...  I happen to like drat.
+> | 
+> | > The files NEWS.Rd and ChangeLog have the goods, I make a fuller announcement
+> | > if and when it makes it to CRAN.
+> | 
+> | > This release features a lot of excellent Google Summer of Code work by
+> | > Binxiang Ni.  Again, more about that if and when we get to make a true
+> | > release announcement.
+> | 
+> | > Dirk
+> | 
+> | > -- 
+> | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | 
+
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Aug 16 18:34:50 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 16 Aug 2017 11:34:50 -0500
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.7.960.1.0
+In-Reply-To: <22932.28339.790472.264924@hornik.net>
+References: <22932.17335.91011.280949@bud.eddelbuettel.com>
+ <22932.25476.988670.706632@hornik.net>
+ <22932.26697.83885.845574@bud.eddelbuettel.com>
+ <22932.28339.790472.264924@hornik.net>
+Message-ID: <22932.29738.945187.889556@bud.eddelbuettel.com>
+
+
+On 16 August 2017 at 18:11, Kurt Hornik wrote:
+| >>>>> Dirk Eddelbuettel writes:
+| 
+| Thanks.  So I guess we should publish the new RcppArmadillo and ask the
+| quanteda maintainer to fix as necessary?
+
+And I'll help. I have not interacted much with Ken, but we have mutual
+acquaintances and I am sure we can sort this out "pronto".
+
+And I looked some more, and it seems "weird" as it fails more with
+RcppArmadillo than with Rcpp (see below).  But I am sure we will get this
+squared away.
+
+Much appreciate the feedback.
+
+Cheers, Dirk
+
+~/git/rcpp-logs/results/rcpparmadillo(master)$ grep quanteda result-20170*txt
+result-20170206-223442.txt:"228","quanteda",0
+result-20170411-202011.txt:"250","quanteda","ok"
+result-20170503-184823.txt:"251","quanteda","ok"
+result-20170504-125802.txt:"251","quanteda","ok"
+result-20170516-173035.txt:"253","quanteda","ok"
+result-20170523-182911.txt:"253","quanteda","failed"
+result-20170525-022447.txt:"253","quanteda","failed"
+result-20170531-133609.txt:"253","quanteda","ok"
+result-20170619-161821.txt:"258","quanteda","failed"
+result-20170801-235421.txt:"271","quanteda","failed"
+result-20170803-183132.txt:"272","quanteda","failed"
+result-20170808-173708.txt:"272","quanteda","failed"
+result-20170810-164134.txt:"272","quanteda","failed"
+~/git/rcpp-logs/results/rcpparmadillo(master)$ cd ../
+~/git/rcpp-logs/results(master)$ grep quanteda result-20170*txt
+result-20170103-192706.txt:"592","quanteda",1
+result-20170104-181933.txt:"590","quanteda",1
+result-20170105-175736.txt:"590","quanteda",1
+result-20170106-183041.txt:"590","quanteda",1
+result-20170110-150305.txt:"590","quanteda",0
+result-20170216-192443.txt:"623","quanteda",0
+result-20170303-041605.txt:"634","quanteda",0
+result-20170313-235138.txt:"643","quanteda",0
+result-20170316-080319.txt:"645","quanteda",0
+result-20170330-114205.txt:"651","quanteda","ok"
+result-20170414-061229.txt:"661","quanteda","ok"
+result-20170414-232420.txt:"663","quanteda","ok"
+result-20170415-224120.txt:"664","quanteda","ok"
+result-20170418-002743.txt:"660","quanteda","ok"
+result-20170419-211655.txt:"664","quanteda","ok"
+result-20170507-012101.txt:"677","quanteda","ok"
+result-20170508-000918.txt:"677","quanteda","ok"
+result-20170509-044332.txt:"677","quanteda","ok"
+result-20170519-031106.txt:"686","quanteda","ok"
+result-20170615-072413.txt:"703","quanteda","ok"
+result-20170619-004031.txt:"710","quanteda","ok"
+result-20170630-045018.txt:"720","quanteda","failed"
+result-20170706-042937.txt:"724","quanteda","ok"
+result-20170709-132757.txt:"727","quanteda","ok"
+result-20170711-085311.txt:"729","quanteda","ok"
+~/git/rcpp-logs/results(master)$ 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.cc  Wed Aug 16 19:50:11 2017
+From: jon at thon.cc (Jonathon Love)
+Date: Wed, 16 Aug 2017 19:50:11 +0200
+Subject: [Rcpp-devel] grDevices issue with RInside
+In-Reply-To: <5735d79d-e350-8902-66df-4f3a03ecad1b@thon.love>
+References: <99a3eca1-e9d5-e154-ace6-df8d0e16f5f4@thon.love>
+ <22931.13733.717207.458981@bud.eddelbuettel.com>
+ <5735d79d-e350-8902-66df-4f3a03ecad1b@thon.love>
+Message-ID: <8ae0ab07-214d-aa12-251b-ac60ec56c839@thon.love>
+
+hi dirk,
+
+i've got it!
+
+Rst.rhome is assigned here from getenv() (and no copy is made):
+
+https://github.com/eddelbuettel/rinside/blob/d94b999b1f9a5b9a7c1eaefc89abe40ea0d2d4d2/src/RInside.cpp#L164
+
+It makes it's way down inside of R, and is assigned to R_Home:
+
+https://github.com/wch/r-source/blob/3234382b4b4632b114fc8400885300b04e4934a0/src/gnuwin32/system.c#L724
+
+strings returned by getenv() are invalidated by subsequent calls to 
+getenv().
+
+the offending code exists in a #ifdef _WIN32 which is why it's windows only.
+
+i'll have a PR for you shortly.
+
+this has been a bit of an epic.
+
+jonathon
+
+
+
+> hi dirk,
+>
+>> Might it be that you are shooting the messenger? You see the issue via
+>> RInside as you implemented it via RInside.
+>>
+>> But we "merely" give you access to the embedded R instance, and 
+>> methinks that
+>> the issue may be with ggjoy and/or the pdf() device. Are you really 
+>> sure RInside
+>> plays any part here?
+>
+> yeah, i totally recognise RInside may only be related in an incredibly 
+> tangential way.
+>
+> all this code works fine when run interactively (and on macOS and 
+> linux), and i haven't been able to reproduce the issue outside of 
+> rinside ... i expect it's some subtle interaction, but i thought i'd 
+> check in with you that you'd not encountered something like this before.
+>
+> to me it looks like an R issue, but it's almost impossible to get 
+> anyone to take you seriously when your minimal example is an 
+> executable embedding RInside :P
+>
+> with thanks
+>
+> jonathon
+
+
+From edd at debian.org  Wed Aug 16 21:21:05 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 16 Aug 2017 14:21:05 -0500
+Subject: [Rcpp-devel] grDevices issue with RInside
+In-Reply-To: <8ae0ab07-214d-aa12-251b-ac60ec56c839@thon.love>
+References: <99a3eca1-e9d5-e154-ace6-df8d0e16f5f4@thon.love>
+ <22931.13733.717207.458981@bud.eddelbuettel.com>
+ <5735d79d-e350-8902-66df-4f3a03ecad1b@thon.love>
+ <8ae0ab07-214d-aa12-251b-ac60ec56c839@thon.love>
+Message-ID: <22932.39713.756863.300376@bud.eddelbuettel.com>
+
+
+On 16 August 2017 at 19:50, Jonathon Love wrote:
+| hi dirk,
+| 
+| i've got it!
+| 
+| Rst.rhome is assigned here from getenv() (and no copy is made):
+| 
+| https://github.com/eddelbuettel/rinside/blob/d94b999b1f9a5b9a7c1eaefc89abe40ea0d2d4d2/src/RInside.cpp#L164
+| 
+| It makes it's way down inside of R, and is assigned to R_Home:
+| 
+| https://github.com/wch/r-source/blob/3234382b4b4632b114fc8400885300b04e4934a0/src/gnuwin32/system.c#L724
+| 
+| strings returned by getenv() are invalidated by subsequent calls to 
+| getenv().
+| 
+| the offending code exists in a #ifdef _WIN32 which is why it's windows only.
+| 
+| i'll have a PR for you shortly.
+
+Seeing it now, thanks!
+ 
+| this has been a bit of an epic.
+
+I can imagine.  Windows embedding is simply less well used which is probably
+why you were the first to find this particular banane peel ...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From ravindra_kota at freddiemac.com  Thu Aug 17 13:14:43 2017
+From: ravindra_kota at freddiemac.com (Kota, Ravindra B)
+Date: Thu, 17 Aug 2017 11:14:43 +0000
+Subject: [Rcpp-devel] RInside Using JNI
+In-Reply-To: <22930.60180.409985.148376@bud.eddelbuettel.com>
+References: <d552b142b2f942b78d41216a64fd0218@he1sntppexc002.fhlmc.com>
+ <22930.57515.464732.29719@bud.eddelbuettel.com>
+ <3a14b70d1eae4fe48e6afacac3d0820a@he1sntppexc002.fhlmc.com>
+ <22930.60180.409985.148376@bud.eddelbuettel.com>
+Message-ID: <19bd359efd1a44a5a8f3f0d4658e855a@he1sntppexc002.fhlmc.com>
+
+Dirk,
+
+After compiling R with "--enable-java" , I am not getting any seg faults so far. Do we know what that option does to the JVM?
+
+Regards
+Ravindra
+
+-----Original Message-----
+From: Dirk Eddelbuettel [mailto:dirk.eddelbuettel at gmail.com] On Behalf Of Dirk Eddelbuettel
+Sent: Tuesday, August 15, 2017 8:38 AM
+To: Kota, Ravindra B <ravindra_kota at freddiemac.com>
+Cc: Dirk Eddelbuettel <edd at debian.org>; rcpp-devel at lists.r-forge.r-project.org
+Subject: RE: [Rcpp-devel] RInside Using JNI
+
+CAUTION: This email originated from outside of the organization. Do not click links or open attachments unless you recognize the sender and know the content is safe.
+
+
+On 15 August 2017 at 12:17, Kota, Ravindra B wrote:
+| Thanks for the reply. It was a pleasure speaking with you yesterday, over the phone.
+
+As you now bring this up in public, I have no choice but to be VERY clear about this:
+
+ - I consider it totally inappropriate for you to cold call me at work.
+
+ - Please do not do this again.  Please do not recommend it either.
+
+ - I do all this as a volunteer.  Please respect that.
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Kurt.Hornik at wu.ac.at  Thu Aug 17 14:42:30 2017
+From: Kurt.Hornik at wu.ac.at (Kurt Hornik)
+Date: Thu, 17 Aug 2017 14:42:30 +0200
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.7.960.1.0
+In-Reply-To: <22932.29738.945187.889556@bud.eddelbuettel.com>
+References: <22932.17335.91011.280949@bud.eddelbuettel.com>
+ <22932.25476.988670.706632@hornik.net>
+ <22932.26697.83885.845574@bud.eddelbuettel.com>
+ <22932.28339.790472.264924@hornik.net>
+ <22932.29738.945187.889556@bud.eddelbuettel.com>
+Message-ID: <22933.36662.860807.525624@hornik.net>
+
+>>>>> Dirk Eddelbuettel writes:
+
+> On 16 August 2017 at 18:11, Kurt Hornik wrote:
+> | >>>>> Dirk Eddelbuettel writes:
+> | 
+> | Thanks.  So I guess we should publish the new RcppArmadillo and ask the
+> | quanteda maintainer to fix as necessary?
+
+> And I'll help. I have not interacted much with Ken, but we have mutual
+> acquaintances and I am sure we can sort this out "pronto".
+
+> And I looked some more, and it seems "weird" as it fails more with
+> RcppArmadillo than with Rcpp (see below).  But I am sure we will get this
+> squared away.
+
+Ok.  New RcppArmadillo on CRAN now.
+
+Should we write to Ken?
+
+-k
+
+> Much appreciate the feedback.
+
+> Cheers, Dirk
+
+> ~/git/rcpp-logs/results/rcpparmadillo(master)$ grep quanteda result-20170*txt
+> result-20170206-223442.txt:"228","quanteda",0
+> result-20170411-202011.txt:"250","quanteda","ok"
+> result-20170503-184823.txt:"251","quanteda","ok"
+> result-20170504-125802.txt:"251","quanteda","ok"
+> result-20170516-173035.txt:"253","quanteda","ok"
+> result-20170523-182911.txt:"253","quanteda","failed"
+> result-20170525-022447.txt:"253","quanteda","failed"
+> result-20170531-133609.txt:"253","quanteda","ok"
+> result-20170619-161821.txt:"258","quanteda","failed"
+> result-20170801-235421.txt:"271","quanteda","failed"
+> result-20170803-183132.txt:"272","quanteda","failed"
+> result-20170808-173708.txt:"272","quanteda","failed"
+> result-20170810-164134.txt:"272","quanteda","failed"
+> ~/git/rcpp-logs/results/rcpparmadillo(master)$ cd ../
+> ~/git/rcpp-logs/results(master)$ grep quanteda result-20170*txt
+> result-20170103-192706.txt:"592","quanteda",1
+> result-20170104-181933.txt:"590","quanteda",1
+> result-20170105-175736.txt:"590","quanteda",1
+> result-20170106-183041.txt:"590","quanteda",1
+> result-20170110-150305.txt:"590","quanteda",0
+> result-20170216-192443.txt:"623","quanteda",0
+> result-20170303-041605.txt:"634","quanteda",0
+> result-20170313-235138.txt:"643","quanteda",0
+> result-20170316-080319.txt:"645","quanteda",0
+> result-20170330-114205.txt:"651","quanteda","ok"
+> result-20170414-061229.txt:"661","quanteda","ok"
+> result-20170414-232420.txt:"663","quanteda","ok"
+> result-20170415-224120.txt:"664","quanteda","ok"
+> result-20170418-002743.txt:"660","quanteda","ok"
+> result-20170419-211655.txt:"664","quanteda","ok"
+> result-20170507-012101.txt:"677","quanteda","ok"
+> result-20170508-000918.txt:"677","quanteda","ok"
+> result-20170509-044332.txt:"677","quanteda","ok"
+> result-20170519-031106.txt:"686","quanteda","ok"
+> result-20170615-072413.txt:"703","quanteda","ok"
+> result-20170619-004031.txt:"710","quanteda","ok"
+> result-20170630-045018.txt:"720","quanteda","failed"
+> result-20170706-042937.txt:"724","quanteda","ok"
+> result-20170709-132757.txt:"727","quanteda","ok"
+> result-20170711-085311.txt:"729","quanteda","ok"
+> ~/git/rcpp-logs/results(master)$ 
+
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Aug 17 16:13:25 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 17 Aug 2017 09:13:25 -0500
+Subject: [Rcpp-devel] RInside Using JNI
+In-Reply-To: <19bd359efd1a44a5a8f3f0d4658e855a@he1sntppexc002.fhlmc.com>
+References: <d552b142b2f942b78d41216a64fd0218@he1sntppexc002.fhlmc.com>
+ <22930.57515.464732.29719@bud.eddelbuettel.com>
+ <3a14b70d1eae4fe48e6afacac3d0820a@he1sntppexc002.fhlmc.com>
+ <22930.60180.409985.148376@bud.eddelbuettel.com>
+ <19bd359efd1a44a5a8f3f0d4658e855a@he1sntppexc002.fhlmc.com>
+Message-ID: <22933.42117.62958.171747@bud.eddelbuettel.com>
+
+
+On 17 August 2017 at 11:14, Kota, Ravindra B wrote:
+| After compiling R with "--enable-java" , I am not getting any seg faults so far. Do we know what that option does to the JVM?
+
+AFAIK nothing, but it sets up the compilation options for R in order to allow
+for R to be extensive via Rjava etc -- ie the effect of R CMD javareconf.
+
+Again, here we deal chiefly with Rcpp (and sometimes with RInside) neither
+one of which aims at java, so if you have troubles on the Java side you
+probably have to address them there.
+
+Hope this helps, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Aug 17 16:14:09 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 17 Aug 2017 09:14:09 -0500
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.7.960.1.0
+In-Reply-To: <22933.36662.860807.525624@hornik.net>
+References: <22932.17335.91011.280949@bud.eddelbuettel.com>
+ <22932.25476.988670.706632@hornik.net>
+ <22932.26697.83885.845574@bud.eddelbuettel.com>
+ <22932.28339.790472.264924@hornik.net>
+ <22932.29738.945187.889556@bud.eddelbuettel.com>
+ <22933.36662.860807.525624@hornik.net>
+Message-ID: <22933.42161.253672.236055@bud.eddelbuettel.com>
+
+
+On 17 August 2017 at 14:42, Kurt Hornik wrote:
+| >>>>> Dirk Eddelbuettel writes:
+| 
+| > On 16 August 2017 at 18:11, Kurt Hornik wrote:
+| > | >>>>> Dirk Eddelbuettel writes:
+| > | 
+| > | Thanks.  So I guess we should publish the new RcppArmadillo and ask the
+| > | quanteda maintainer to fix as necessary?
+| 
+| > And I'll help. I have not interacted much with Ken, but we have mutual
+| > acquaintances and I am sure we can sort this out "pronto".
+| 
+| > And I looked some more, and it seems "weird" as it fails more with
+| > RcppArmadillo than with Rcpp (see below).  But I am sure we will get this
+| > squared away.
+| 
+| Ok.  New RcppArmadillo on CRAN now.
+
+Thank you.
+ 
+| Should we write to Ken?
+
+I will do that (and CC CRAN) once I get a chance to look more closely at the
+issue, and possibly remedies.
+
+Dirk
+
+ 
+| -k
+| 
+| > Much appreciate the feedback.
+| 
+| > Cheers, Dirk
+| 
+| > ~/git/rcpp-logs/results/rcpparmadillo(master)$ grep quanteda result-20170*txt
+| > result-20170206-223442.txt:"228","quanteda",0
+| > result-20170411-202011.txt:"250","quanteda","ok"
+| > result-20170503-184823.txt:"251","quanteda","ok"
+| > result-20170504-125802.txt:"251","quanteda","ok"
+| > result-20170516-173035.txt:"253","quanteda","ok"
+| > result-20170523-182911.txt:"253","quanteda","failed"
+| > result-20170525-022447.txt:"253","quanteda","failed"
+| > result-20170531-133609.txt:"253","quanteda","ok"
+| > result-20170619-161821.txt:"258","quanteda","failed"
+| > result-20170801-235421.txt:"271","quanteda","failed"
+| > result-20170803-183132.txt:"272","quanteda","failed"
+| > result-20170808-173708.txt:"272","quanteda","failed"
+| > result-20170810-164134.txt:"272","quanteda","failed"
+| > ~/git/rcpp-logs/results/rcpparmadillo(master)$ cd ../
+| > ~/git/rcpp-logs/results(master)$ grep quanteda result-20170*txt
+| > result-20170103-192706.txt:"592","quanteda",1
+| > result-20170104-181933.txt:"590","quanteda",1
+| > result-20170105-175736.txt:"590","quanteda",1
+| > result-20170106-183041.txt:"590","quanteda",1
+| > result-20170110-150305.txt:"590","quanteda",0
+| > result-20170216-192443.txt:"623","quanteda",0
+| > result-20170303-041605.txt:"634","quanteda",0
+| > result-20170313-235138.txt:"643","quanteda",0
+| > result-20170316-080319.txt:"645","quanteda",0
+| > result-20170330-114205.txt:"651","quanteda","ok"
+| > result-20170414-061229.txt:"661","quanteda","ok"
+| > result-20170414-232420.txt:"663","quanteda","ok"
+| > result-20170415-224120.txt:"664","quanteda","ok"
+| > result-20170418-002743.txt:"660","quanteda","ok"
+| > result-20170419-211655.txt:"664","quanteda","ok"
+| > result-20170507-012101.txt:"677","quanteda","ok"
+| > result-20170508-000918.txt:"677","quanteda","ok"
+| > result-20170509-044332.txt:"677","quanteda","ok"
+| > result-20170519-031106.txt:"686","quanteda","ok"
+| > result-20170615-072413.txt:"703","quanteda","ok"
+| > result-20170619-004031.txt:"710","quanteda","ok"
+| > result-20170630-045018.txt:"720","quanteda","failed"
+| > result-20170706-042937.txt:"724","quanteda","ok"
+| > result-20170709-132757.txt:"727","quanteda","ok"
+| > result-20170711-085311.txt:"729","quanteda","ok"
+| > ~/git/rcpp-logs/results(master)$ 
+| 
+| > -- 
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Aug 18 02:51:31 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 17 Aug 2017 19:51:31 -0500
+Subject: [Rcpp-devel] [ANN] RcppArmadillo 0.7.960.1.0
+Message-ID: <22934.14867.440427.927923@bud.eddelbuettel.com>
+
+
+A new RcppArmadillo release is now on CRAN after quite some testing on both
+our end, and at CRAN.  It contains an excellent Google Summer of Code
+contribution by Binxiang Ni which greatly expands sparse matrix support, as
+well as a few other additions.  See the included blog post below, the full
+version with hyperlinks is at
+
+   http://dirk.eddelbuettel.com/blog/2017/08/17#rcpparmadillo_0.7.960.1.0
+
+Thanks,  Dirk
+
+
+  Thu, 17 Aug 2017
+
+  RcppArmadillo 0.7.960.1.0
+
+   armadillo image
+
+   The bi-monthly RcppArmadillo release is out with a new version 0.7.960.1.0
+   which is now on CRAN, and will get to Debian in due course.
+
+   And it is a big one. Lots of nice upstream changes from Armadillo, and
+   lots of work on our end as the Google Summer of Code project by Binxiang
+   Ni, plus a few smaller enhancements -- see below for details.
+
+   Armadillo is a powerful and expressive C++ template library for linear
+   algebra aiming towards a good balance between speed and ease of use with a
+   syntax deliberately close to a Matlab. RcppArmadillo integrates this
+   library with the R environment and language--and is widely used by
+   (currently) 379 other packages on CRAN---an increase of 49 since the last
+   CRAN release in June!
+
+   Changes in this release relative to the previous CRAN release are as
+   follows:
+
+  Changes in RcppArmadillo version 0.7.960.1.0 (2017-08-11)
+
+       * Upgraded to Armadillo release 7.960.1 (Northern Banana Republic
+         Deluxe)
+
+            * faster randn() when using OpenMP (NB: usually omitted when used
+              fromR)
+
+            * faster gmm_diag class, for Gaussian mixture models with
+              diagonal covariance matrices
+
+            * added .sum_log_p() to the gmm_diag class
+
+            * added gmm_full class, for Gaussian mixture models with full
+              covariance matrices
+
+            * expanded .each_slice() to optionally use OpenMP for
+              multi-threaded execution
+
+       * Upgraded to Armadillo release 7.950.0 (Northern Banana Republic)
+
+            * expanded accu() and sum() to use OpenMP for processing
+              expressions with computationally expensive element-wise
+              functions
+
+            * expanded trimatu() and trimatl() to allow specification of the
+              diagonal which delineates the boundary of the triangular part
+
+       * Enhanced support for sparse matrices (Binxiang Ni as part of Google
+         Summer of Code 2017)
+
+            * Add support for dtCMatrix and dsCMatrix (#135)
+
+            * Add conversion and unit tests for dgT, dtT and dsTMatrix (#136)
+
+            * Add conversion and unit tests for dgR, dtR and dsRMatrix (#139)
+
+            * Add conversion and unit tests for pMatrix and ddiMatrix (#140)
+
+            * Rewrite conversion for dgT, dtT and dsTMatrix, and add
+              file-based tests (#142)
+
+            * Add conversion and unit tests for indMatrix (#144)
+
+            * Rewrite conversion for ddiMatrix (#145)
+
+            * Add a warning message for matrices that cannot be converted
+              (#147)
+
+            * Add new vignette for sparse matrix support (#152; Dirk in #153)
+
+            * Add support for sparse matrix conversion from Python SciPy
+              (#158 addressing #141)
+
+       * Optional return of row or column vectors in collapsed form if
+         appropriate #define is set (Serguei Sokol in #151 and #154)
+
+       * Correct speye() for non-symmetric cases (Qiang Kou in #150 closing
+         #149).
+
+       * Ensure tests using Scientific Python and reticulate are properly
+         conditioned on the packages being present.
+
+       * Added .aspell/ directory with small local directory now supported by
+         R-devel.
+
+   Courtesy of CRANberries, there is a diffstat report. More detailed
+   information is on the RcppArmadillo page. Questions, comments etc should
+   go to the rcpp-devel mailing list off the R-Forge page.
+
+   This post by Dirk Eddelbuettel originated on his Thinking inside the box
+   blog. Please report excessive re-aggregation in third-party for-profit
+   settings.
+
+                                                  /code/rcpp | permanent link
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From althu07 at gmail.com  Sat Aug 26 23:42:54 2017
+From: althu07 at gmail.com (althu07)
+Date: Sat, 26 Aug 2017 17:42:54 -0400
+Subject: [Rcpp-devel] installation of nlopt on windows from source
+Message-ID: <CAKcWPzL1cyWOBdO90-Bz01hZBA_VcVKFyj99QzA1b9hF=vfdoA@mail.gmail.com>
+
+Hi fellows,
+
+I try to link nlopt with Rcpp/RcppArmadillo packages in R. So I follow the
+instructions on nloptr website (
+https://github.com/jyypma/nloptr/blob/master/INSTALL.windows) to first
+install nlopt from source on windows. However, I encountered the following
+errors in make. Any help is very much appreciated! Thanks!
+
+make  all-recursive
+make[1]: Entering directory `/c/temp/nlopt-2.4.2'
+Making all in util
+make[2]: Entering directory `/c/temp/nlopt-2.4.2/util'
+/bin/sh ../libtool  --tag=CC   --mode=compile c:/Rtools/mingw_64/bin/g++
+-DHAVE_
+CONFIG_H -I. -I..  -I../api   -g -O2 -MT mt19937ar.lo -MD -MP -MF
+.deps/mt19937a
+r.Tpo -c -o mt19937ar.lo mt19937ar.c
+libtool: compile:  c:/Rtools/mingw_64/bin/g++ -DHAVE_CONFIG_H -I. -I..
+-I../api
+-g -O2 -MT mt19937ar.lo -MD -MP -MF .deps/mt19937ar.Tpo -c mt19937ar.c -o
+mt1993
+7ar.o
+mt19937ar.c:62:6: error: #error No 32-bit unsigned integer type
+ #    error No 32-bit unsigned integer type
+      ^
+mt19937ar.c:76:8: error: 'THREADLOCAL' does not name a type
+ static THREADLOCAL uint32_t mt[N]; /* the array for the state vector  */
+        ^
+mt19937ar.c:77:8: error: 'THREADLOCAL' does not name a type
+ static THREADLOCAL int mti=N+1; /* mti==N+1 means mt[N] is not initialized
+*/
+        ^
+mt19937ar.c: In function 'void nlopt_init_genrand(long unsigned int)':
+mt19937ar.c:82:5: error: 'mt' was not declared in this scope
+     mt[0]= s & 0xffffffffUL;
+     ^
+mt19937ar.c:83:10: error: 'mti' was not declared in this scope
+     for (mti=1; mti<N; mti++) {
+          ^
+mt19937ar.c: At global scope:
+mt19937ar.c:96:8: error: 'uint32_t' does not name a type
+ static uint32_t nlopt_genrand_int32(void)
+        ^
+mt19937ar.c: In function 'double nlopt_genrand_res53()':
+mt19937ar.c:196:5: error: 'uint32_t' was not declared in this scope
+     uint32_t a=nlopt_genrand_int32()>>5, b=nlopt_genrand_int32()>>6;
+     ^
+mt19937ar.c:197:12: error: 'a' was not declared in this scope
+     return(a*67108864.0+b)*(1.0/9007199254740992.0);
+            ^
+mt19937ar.c:197:25: error: 'b' was not declared in this scope
+     return(a*67108864.0+b)*(1.0/9007199254740992.0);
+                         ^
+mt19937ar.c: In function 'int nlopt_iurand(int)':
+mt19937ar.c:211:33: error: 'nlopt_genrand_int32' was not declared in this
+scope
+      return(nlopt_genrand_int32() % n);
+                                 ^
+make[2]: *** [mt19937ar.lo] Error 1
+make[2]: Leaving directory `/c/temp/nlopt-2.4.2/util'
+make[1]: *** [all-recursive] Error 1
+make[1]: Leaving directory `/c/temp/nlopt-2.4.2'
+make: *** [all] Error 2
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170826/96d71c30/attachment.html>
+
+From edd at debian.org  Sun Aug 27 00:02:27 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 26 Aug 2017 17:02:27 -0500
+Subject: [Rcpp-devel] installation of nlopt on windows from source
+In-Reply-To: <CAKcWPzL1cyWOBdO90-Bz01hZBA_VcVKFyj99QzA1b9hF=vfdoA@mail.gmail.com>
+References: <CAKcWPzL1cyWOBdO90-Bz01hZBA_VcVKFyj99QzA1b9hF=vfdoA@mail.gmail.com>
+Message-ID: <22945.61427.509803.394829@bud.eddelbuettel.com>
+
+
+Maybe try one of two things
+
+a) Use this advice to build as 64bit:
+
+   https://github.com/jyypma/nloptr/blob/master/INSTALL.windows#L65
+
+b) Use this advice to avoid all this trouble and a use a prebuilt version
+
+   https://github.com/jyypma/nloptr/blob/master/INSTALL.windows#L72
+
+But I don't really know as I work mostly on another platform...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From althu07 at gmail.com  Sun Aug 27 04:04:24 2017
+From: althu07 at gmail.com (althu07)
+Date: Sat, 26 Aug 2017 22:04:24 -0400
+Subject: [Rcpp-devel] installation of nlopt on windows from source
+In-Reply-To: <22945.61427.509803.394829@bud.eddelbuettel.com>
+References: <CAKcWPzL1cyWOBdO90-Bz01hZBA_VcVKFyj99QzA1b9hF=vfdoA@mail.gmail.com>
+ <22945.61427.509803.394829@bud.eddelbuettel.com>
+Message-ID: <CAKcWPzKA-RUoA7zAg52NQtHewHL_QYS9CT9TN3JDqe1RgpM+Mg@mail.gmail.com>
+
+Hi Dirk,
+
+Thank you so much for your reply. The error message that I had is from a
+bash script where the 64 bit option is used. I also tried the prebuilt
+version. That didn't work out either when I attempted to link nlopt with
+Rcpp in my own package. I was able to build nlopt from source on Mac OS and
+have linked it with Rcpp successfully there. So I think it is more likely
+that the prebuilt nlopt is not working correctly.
+
+On Sat, Aug 26, 2017 at 6:02 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Maybe try one of two things
+>
+> a) Use this advice to build as 64bit:
+>
+>    https://github.com/jyypma/nloptr/blob/master/INSTALL.windows#L65
+>
+> b) Use this advice to avoid all this trouble and a use a prebuilt version
+>
+>    https://github.com/jyypma/nloptr/blob/master/INSTALL.windows#L72
+>
+> But I don't really know as I work mostly on another platform...
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170826/25373d8f/attachment.html>
+

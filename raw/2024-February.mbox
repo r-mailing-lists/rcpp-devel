@@ -1,0 +1,1491 @@
+From nikhilgarg.gju at gmail.com  Wed Feb 21 07:33:40 2024
+From: nikhilgarg.gju at gmail.com (Nikhil Garg)
+Date: Wed, 21 Feb 2024 17:33:40 +1100
+Subject: [Rcpp-devel] Wrapping a c++ class with singleton using RCPP Module
+Message-ID: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+
+Hi,
+
+I am looking for some advice or hoping someone can point me in the right
+direction for wrapping a C++ class with singleton using Rcpp. I have been
+using RCPP modules for some of this work but got stuck with a C++ object
+which returns a singleton.
+
+Here is the general structure of the object
+
+class Foo {
+    public:
+        Foo();
+        ~Foo();
+
+        static Foo &getFoo();
+        Foo(Foo const&) = delete;
+        void operator=(Foo const&) = delete;
+}
+
+Regards,
+Nikhil
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240221/b2b17a01/attachment.htm>
+
+From inaki.ucar at uc3m.es  Wed Feb 21 09:21:34 2024
+From: inaki.ucar at uc3m.es (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Wed, 21 Feb 2024 09:21:34 +0100
+Subject: [Rcpp-devel] Wrapping a c++ class with singleton using RCPP
+ Module
+In-Reply-To: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+References: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+Message-ID: <CALEXWq0_zxF0nDUKqhuOD+_H+5Afp2_NuV0qWxfXzE+TTNWVNQ@mail.gmail.com>
+
+Could you please provide more details about what you tried so far and what
+are the issues you found? A link to a public repo with a test case would be
+even better.
+
+I?aki
+
+El mi?., 21 feb. 2024 7:34, Nikhil Garg <nikhilgarg.gju at gmail.com> escribi?:
+
+> Hi,
+>
+> I am looking for some advice or hoping someone can point me in the right
+> direction for wrapping a C++ class with singleton using Rcpp. I have been
+> using RCPP modules for some of this work but got stuck with a C++ object
+> which returns a singleton.
+>
+> Here is the general structure of the object
+>
+> class Foo {
+>     public:
+>         Foo();
+>         ~Foo();
+>
+>         static Foo &getFoo();
+>         Foo(Foo const&) = delete;
+>         void operator=(Foo const&) = delete;
+> }
+>
+> Regards,
+> Nikhil
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240221/b70ed522/attachment.htm>
+
+From edd at debian.org  Wed Feb 21 13:49:17 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 21 Feb 2024 06:49:17 -0600
+Subject: [Rcpp-devel] Wrapping a c++ class with singleton using RCPP
+ Module
+In-Reply-To: <CALEXWq0_zxF0nDUKqhuOD+_H+5Afp2_NuV0qWxfXzE+TTNWVNQ@mail.gmail.com>
+References: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+ <CALEXWq0_zxF0nDUKqhuOD+_H+5Afp2_NuV0qWxfXzE+TTNWVNQ@mail.gmail.com>
+Message-ID: <26069.61773.98946.453423@rob.eddelbuettel.com>
+
+
+On 21 February 2024 at 09:21, I?aki Ucar wrote:
+| Could you please provide more details about what you tried so far and what are
+| the issues you found? A link to a public repo with a test case would be even
+| better.
+
+Seconded!
+
+I think I also did something like that 'way early' and 'way simply'. In just
+one file you can just have.
+
+   class Foo { ... };   // forward declaration, or actual declaration
+
+   static Foo* myfooptr = nullptr;
+
+followed by a few simple Rcpp function to init (ie allocated), set a value,
+get a value and maybe destroy at end (even callable via on.exit() from R).
+
+The key really is to differentiate between types Rcpp knows, and those types
+or classes you have that it doesn't -- so you have to write accessors in
+terms of the types R knows. We must have examples for that somewhere...
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From matthew.supernaw at noaa.gov  Wed Feb 21 16:47:51 2024
+From: matthew.supernaw at noaa.gov (Matthew Supernaw - NOAA Federal)
+Date: Wed, 21 Feb 2024 10:47:51 -0500
+Subject: [Rcpp-devel] Wrapping a c++ class with singleton using RCPP
+ Module
+In-Reply-To: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+References: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+Message-ID: <CAFfs6wQtf-SfKKKWJtrVR4cpcyK8UvtZgroX4NV_4=B1=2uJ_Q@mail.gmail.com>
+
+Hi Nikhil,
+I'm not exactly sure what you are trying to do, but I hope this simple
+example is helpful.
+Thanks.
+Matthew
+
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+
+class Foo{
+public:
+  static Foo* singleton;
+
+  Foo(){
+  }
+
+  void SayHello(){
+    Rcpp::Rcout << "From \"void SayHello()\" -> "<<this<<" -> ";
+    Rcpp::Rcout << "hello from Foo.\n";
+  }
+
+  static Foo* GetSingleton(){
+
+    if(singleton == NULL){
+      Foo::singleton = new Foo();
+    }
+    Rcpp::Rcout<<"From \"static Foo* GetSingleton()\" -> memory address for
+singleton is " <<Foo::singleton<<"\n";
+    return Foo::singleton;
+  }
+};
+
+Foo* Foo::singleton = NULL;
+
+RCPP_EXPOSED_CLASS(Foo)
+
+  Foo& GetSingleton(){
+    Foo* foo_singleton = Foo::GetSingleton();
+    Rcpp::Rcout<<"From \"Foo& GetSingleton()\" -> memory address for
+singleton is " <<foo_singleton<<"\n";
+    return *foo_singleton;
+  }
+
+RCPP_MODULE(foo) {
+  Rcpp::class_<Foo>("Foo")
+  .constructor()
+  .method("SayHello", &Foo::SayHello);
+  Rcpp::function("GetSingleton", &GetSingleton);
+
+}
+//From R
+// library(singleton)
+// library(Rcpp)
+//
+// foo <- Rcpp::Module("foo", PACKAGE = "singleton")
+//
+// foo_singleton<-foo$GetSingleton()
+// foo_singleton$SayHello()
+
+// Output:
+// From "static Foo* GetSingleton()" -> memory address for singleton is
+0x7fcdf9387590
+// From "Foo& GetSingleton()" -> memory address for singleton is
+0x7fcdf9387590
+// From "void SayHello()" -> 0x7fcdf9392b60 -> hello from Foo.
+
+On Wed, Feb 21, 2024 at 1:34?AM Nikhil Garg <nikhilgarg.gju at gmail.com>
+wrote:
+
+> Hi,
+>
+> I am looking for some advice or hoping someone can point me in the right
+> direction for wrapping a C++ class with singleton using Rcpp. I have been
+> using RCPP modules for some of this work but got stuck with a C++ object
+> which returns a singleton.
+>
+> Here is the general structure of the object
+>
+> class Foo {
+>     public:
+>         Foo();
+>         ~Foo();
+>
+>         static Foo &getFoo();
+>         Foo(Foo const&) = delete;
+>         void operator=(Foo const&) = delete;
+> }
+>
+> Regards,
+> Nikhil
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+-- 
+Matthew Supernaw
+*Scientific Software Developer*
+*National Oceanic and Atmospheric Administration*
+*Office Of Science and Technology*
+*NOAA Fisheries | *U.S. Department of Commerce
+Phone 248 - 396 - 7797
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240221/c9c8b2d5/attachment.htm>
+
+From matthew.supernaw at noaa.gov  Wed Feb 21 16:51:49 2024
+From: matthew.supernaw at noaa.gov (Matthew Supernaw - NOAA Federal)
+Date: Wed, 21 Feb 2024 10:51:49 -0500
+Subject: [Rcpp-devel] Wrapping a c++ class with singleton using RCPP
+ Module
+In-Reply-To: <CAFfs6wQtf-SfKKKWJtrVR4cpcyK8UvtZgroX4NV_4=B1=2uJ_Q@mail.gmail.com>
+References: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+ <CAFfs6wQtf-SfKKKWJtrVR4cpcyK8UvtZgroX4NV_4=B1=2uJ_Q@mail.gmail.com>
+Message-ID: <CAFfs6wS_+J3Pf6OMsbtAWDrw=A992qo+AUnhkT1JGyYcBMMwTQ@mail.gmail.com>
+
+Looks like I posted too soon. I just noticed the memory address from the
+"SayHello" function doesn't match.
+
+On Wed, Feb 21, 2024 at 10:47?AM Matthew Supernaw - NOAA Federal <
+matthew.supernaw at noaa.gov> wrote:
+
+> Hi Nikhil,
+> I'm not exactly sure what you are trying to do, but I hope this simple
+> example is helpful.
+> Thanks.
+> Matthew
+>
+>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+>
+> class Foo{
+> public:
+>   static Foo* singleton;
+>
+>   Foo(){
+>   }
+>
+>   void SayHello(){
+>     Rcpp::Rcout << "From \"void SayHello()\" -> "<<this<<" -> ";
+>     Rcpp::Rcout << "hello from Foo.\n";
+>   }
+>
+>   static Foo* GetSingleton(){
+>
+>     if(singleton == NULL){
+>       Foo::singleton = new Foo();
+>     }
+>     Rcpp::Rcout<<"From \"static Foo* GetSingleton()\" -> memory address
+> for singleton is " <<Foo::singleton<<"\n";
+>     return Foo::singleton;
+>   }
+> };
+>
+> Foo* Foo::singleton = NULL;
+>
+> RCPP_EXPOSED_CLASS(Foo)
+>
+>   Foo& GetSingleton(){
+>     Foo* foo_singleton = Foo::GetSingleton();
+>     Rcpp::Rcout<<"From \"Foo& GetSingleton()\" -> memory address for
+> singleton is " <<foo_singleton<<"\n";
+>     return *foo_singleton;
+>   }
+>
+> RCPP_MODULE(foo) {
+>   Rcpp::class_<Foo>("Foo")
+>   .constructor()
+>   .method("SayHello", &Foo::SayHello);
+>   Rcpp::function("GetSingleton", &GetSingleton);
+>
+> }
+> //From R
+> // library(singleton)
+> // library(Rcpp)
+> //
+> // foo <- Rcpp::Module("foo", PACKAGE = "singleton")
+> //
+> // foo_singleton<-foo$GetSingleton()
+> // foo_singleton$SayHello()
+>
+> // Output:
+> // From "static Foo* GetSingleton()" -> memory address for singleton is
+> 0x7fcdf9387590
+> // From "Foo& GetSingleton()" -> memory address for singleton is
+> 0x7fcdf9387590
+> // From "void SayHello()" -> 0x7fcdf9392b60 -> hello from Foo.
+>
+> On Wed, Feb 21, 2024 at 1:34?AM Nikhil Garg <nikhilgarg.gju at gmail.com>
+> wrote:
+>
+>> Hi,
+>>
+>> I am looking for some advice or hoping someone can point me in the right
+>> direction for wrapping a C++ class with singleton using Rcpp. I have been
+>> using RCPP modules for some of this work but got stuck with a C++ object
+>> which returns a singleton.
+>>
+>> Here is the general structure of the object
+>>
+>> class Foo {
+>>     public:
+>>         Foo();
+>>         ~Foo();
+>>
+>>         static Foo &getFoo();
+>>         Foo(Foo const&) = delete;
+>>         void operator=(Foo const&) = delete;
+>> }
+>>
+>> Regards,
+>> Nikhil
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+> --
+> Matthew Supernaw
+> *Scientific Software Developer*
+> *National Oceanic and Atmospheric Administration*
+> *Office Of Science and Technology*
+> *NOAA Fisheries | *U.S. Department of Commerce
+> Phone 248 - 396 - 7797
+>
+>
+>
+
+-- 
+Matthew Supernaw
+*Scientific Software Developer*
+*National Oceanic and Atmospheric Administration*
+*Office Of Science and Technology*
+*NOAA Fisheries | *U.S. Department of Commerce
+Phone 248 - 396 - 7797
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240221/acfd1c28/attachment.htm>
+
+From matthew.supernaw at noaa.gov  Wed Feb 21 20:18:24 2024
+From: matthew.supernaw at noaa.gov (Matthew Supernaw - NOAA Federal)
+Date: Wed, 21 Feb 2024 14:18:24 -0500
+Subject: [Rcpp-devel] Wrapping a c++ class with singleton using RCPP
+ Module
+In-Reply-To: <CAFfs6wS_+J3Pf6OMsbtAWDrw=A992qo+AUnhkT1JGyYcBMMwTQ@mail.gmail.com>
+References: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+ <CAFfs6wQtf-SfKKKWJtrVR4cpcyK8UvtZgroX4NV_4=B1=2uJ_Q@mail.gmail.com>
+ <CAFfs6wS_+J3Pf6OMsbtAWDrw=A992qo+AUnhkT1JGyYcBMMwTQ@mail.gmail.com>
+Message-ID: <CAFfs6wRaOA8wYyZp2wa_miQ_8+ro41FLMCvkAxOdmyLpkmH_jg@mail.gmail.com>
+
+Hi Nikhil,
+
+Here's an updated version that exposes a FooWrapper class in the module to
+the previous posted code. Hopefully this helps!
+
+class FooWrapper{
+public:
+  Foo* foo_m;
+  FooWrapper(){}
+
+
+  FooWrapper(const FooWrapper& other):foo_m(other.foo_m){
+
+  }
+
+  FooWrapper(Foo* foo):foo_m(foo){
+
+  }
+
+  void SayHello(){
+    Rcpp::Rcout << "From \"void SayHello()\" -> "<<(this->foo_m)<<" -> ";
+    Rcpp::Rcout << "hello from Foo.\n";
+  }
+
+};
+
+
+
+RCPP_EXPOSED_CLASS(FooWrapper)
+
+  FooWrapper GetSingleton(){
+    FooWrapper ret(Foo::GetSingleton());
+    Rcpp::Rcout<<"From \"Foo& GetSingleton()\" -> memory address for
+singleton is " <<ret.foo_m<<"\n";
+    return ret;
+  }
+
+
+
+
+
+RCPP_MODULE(foo) {
+  Rcpp::class_<FooWrapper>("Foo")
+  .constructor()
+  .method("SayHello", &FooWrapper::SayHello);
+  Rcpp::function("GetSingleton", &GetSingleton);
+
+}
+
+On Wed, Feb 21, 2024 at 10:51?AM Matthew Supernaw - NOAA Federal <
+matthew.supernaw at noaa.gov> wrote:
+
+> Looks like I posted too soon. I just noticed the memory address from the
+> "SayHello" function doesn't match.
+>
+> On Wed, Feb 21, 2024 at 10:47?AM Matthew Supernaw - NOAA Federal <
+> matthew.supernaw at noaa.gov> wrote:
+>
+>> Hi Nikhil,
+>> I'm not exactly sure what you are trying to do, but I hope this simple
+>> example is helpful.
+>> Thanks.
+>> Matthew
+>>
+>>
+>> #include <Rcpp.h>
+>> using namespace Rcpp;
+>>
+>>
+>> class Foo{
+>> public:
+>>   static Foo* singleton;
+>>
+>>   Foo(){
+>>   }
+>>
+>>   void SayHello(){
+>>     Rcpp::Rcout << "From \"void SayHello()\" -> "<<this<<" -> ";
+>>     Rcpp::Rcout << "hello from Foo.\n";
+>>   }
+>>
+>>   static Foo* GetSingleton(){
+>>
+>>     if(singleton == NULL){
+>>       Foo::singleton = new Foo();
+>>     }
+>>     Rcpp::Rcout<<"From \"static Foo* GetSingleton()\" -> memory address
+>> for singleton is " <<Foo::singleton<<"\n";
+>>     return Foo::singleton;
+>>   }
+>> };
+>>
+>> Foo* Foo::singleton = NULL;
+>>
+>> RCPP_EXPOSED_CLASS(Foo)
+>>
+>>   Foo& GetSingleton(){
+>>     Foo* foo_singleton = Foo::GetSingleton();
+>>     Rcpp::Rcout<<"From \"Foo& GetSingleton()\" -> memory address for
+>> singleton is " <<foo_singleton<<"\n";
+>>     return *foo_singleton;
+>>   }
+>>
+>> RCPP_MODULE(foo) {
+>>   Rcpp::class_<Foo>("Foo")
+>>   .constructor()
+>>   .method("SayHello", &Foo::SayHello);
+>>   Rcpp::function("GetSingleton", &GetSingleton);
+>>
+>> }
+>> //From R
+>> // library(singleton)
+>> // library(Rcpp)
+>> //
+>> // foo <- Rcpp::Module("foo", PACKAGE = "singleton")
+>> //
+>> // foo_singleton<-foo$GetSingleton()
+>> // foo_singleton$SayHello()
+>>
+>> // Output:
+>> // From "static Foo* GetSingleton()" -> memory address for singleton is
+>> 0x7fcdf9387590
+>> // From "Foo& GetSingleton()" -> memory address for singleton is
+>> 0x7fcdf9387590
+>> // From "void SayHello()" -> 0x7fcdf9392b60 -> hello from Foo.
+>>
+>> On Wed, Feb 21, 2024 at 1:34?AM Nikhil Garg <nikhilgarg.gju at gmail.com>
+>> wrote:
+>>
+>>> Hi,
+>>>
+>>> I am looking for some advice or hoping someone can point me in the right
+>>> direction for wrapping a C++ class with singleton using Rcpp. I have been
+>>> using RCPP modules for some of this work but got stuck with a C++ object
+>>> which returns a singleton.
+>>>
+>>> Here is the general structure of the object
+>>>
+>>> class Foo {
+>>>     public:
+>>>         Foo();
+>>>         ~Foo();
+>>>
+>>>         static Foo &getFoo();
+>>>         Foo(Foo const&) = delete;
+>>>         void operator=(Foo const&) = delete;
+>>> }
+>>>
+>>> Regards,
+>>> Nikhil
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>>
+>> --
+>> Matthew Supernaw
+>> *Scientific Software Developer*
+>> *National Oceanic and Atmospheric Administration*
+>> *Office Of Science and Technology*
+>> *NOAA Fisheries | *U.S. Department of Commerce
+>> Phone 248 - 396 - 7797
+>>
+>>
+>>
+>
+> --
+> Matthew Supernaw
+> *Scientific Software Developer*
+> *National Oceanic and Atmospheric Administration*
+> *Office Of Science and Technology*
+> *NOAA Fisheries | *U.S. Department of Commerce
+> Phone 248 - 396 - 7797
+>
+>
+>
+
+-- 
+Matthew Supernaw
+*Scientific Software Developer*
+*National Oceanic and Atmospheric Administration*
+*Office Of Science and Technology*
+*NOAA Fisheries | *U.S. Department of Commerce
+Phone 248 - 396 - 7797
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240221/f2241e05/attachment-0001.htm>
+
+From nikhilgarg.gju at gmail.com  Thu Feb 22 07:36:51 2024
+From: nikhilgarg.gju at gmail.com (Nikhil Garg)
+Date: Thu, 22 Feb 2024 17:36:51 +1100
+Subject: [Rcpp-devel] Wrapping a c++ class with singleton using RCPP
+ Module
+In-Reply-To: <CAFfs6wRaOA8wYyZp2wa_miQ_8+ro41FLMCvkAxOdmyLpkmH_jg@mail.gmail.com>
+References: <CAL3fuhnkMSFY+MwUzeSiWN=xx0miuVpY8ZPjG5iH2LQ3SU7c=g@mail.gmail.com>
+ <CAFfs6wQtf-SfKKKWJtrVR4cpcyK8UvtZgroX4NV_4=B1=2uJ_Q@mail.gmail.com>
+ <CAFfs6wS_+J3Pf6OMsbtAWDrw=A992qo+AUnhkT1JGyYcBMMwTQ@mail.gmail.com>
+ <CAFfs6wRaOA8wYyZp2wa_miQ_8+ro41FLMCvkAxOdmyLpkmH_jg@mail.gmail.com>
+Message-ID: <CAL3fuhmUJ0+YHWqKgJkzja5NKGFFSW7pF==PHayBba4XNEv0ZQ@mail.gmail.com>
+
+Hi,
+
+Thanks, Inaki, Dirk, and Matthew for the replies to my query. Thank you
+Matthew for your code samples, they were very helpful in finding my way
+through the problem.
+
+I am trying to wrap some code from a library, though the code base is
+rather large so I didn't want to paste that into the rcpp-devel mailing
+list. I have uploaded a sample code to Git Hub. You can see it here (
+https://github.com/nikhil003/testSingleton).
+
+It is pretty much what Matthew had written down with slight modifications
+to reflect my particular case. Hope this gives some idea of how I imagine
+it should work. I am very new to Rcpp but I will be spending some time
+learning it so that I can have a working knowledge of it.
+
+Any suggestions or guidance is highly appreciated.
+
+Regards,
+Nikhil
+
+On Thu, 22 Feb 2024 at 06:18, Matthew Supernaw - NOAA Federal <
+matthew.supernaw at noaa.gov> wrote:
+
+> Hi Nikhil,
+>
+> Here's an updated version that exposes a FooWrapper class in the module to
+> the previous posted code. Hopefully this helps!
+>
+> class FooWrapper{
+> public:
+>   Foo* foo_m;
+>   FooWrapper(){}
+>
+>
+>   FooWrapper(const FooWrapper& other):foo_m(other.foo_m){
+>
+>   }
+>
+>   FooWrapper(Foo* foo):foo_m(foo){
+>
+>   }
+>
+>   void SayHello(){
+>     Rcpp::Rcout << "From \"void SayHello()\" -> "<<(this->foo_m)<<" -> ";
+>     Rcpp::Rcout << "hello from Foo.\n";
+>   }
+>
+> };
+>
+>
+>
+> RCPP_EXPOSED_CLASS(FooWrapper)
+>
+>   FooWrapper GetSingleton(){
+>     FooWrapper ret(Foo::GetSingleton());
+>     Rcpp::Rcout<<"From \"Foo& GetSingleton()\" -> memory address for
+> singleton is " <<ret.foo_m<<"\n";
+>     return ret;
+>   }
+>
+>
+>
+>
+>
+> RCPP_MODULE(foo) {
+>   Rcpp::class_<FooWrapper>("Foo")
+>   .constructor()
+>   .method("SayHello", &FooWrapper::SayHello);
+>   Rcpp::function("GetSingleton", &GetSingleton);
+>
+> }
+>
+> On Wed, Feb 21, 2024 at 10:51?AM Matthew Supernaw - NOAA Federal <
+> matthew.supernaw at noaa.gov> wrote:
+>
+>> Looks like I posted too soon. I just noticed the memory address from the
+>> "SayHello" function doesn't match.
+>>
+>> On Wed, Feb 21, 2024 at 10:47?AM Matthew Supernaw - NOAA Federal <
+>> matthew.supernaw at noaa.gov> wrote:
+>>
+>>> Hi Nikhil,
+>>> I'm not exactly sure what you are trying to do, but I hope this simple
+>>> example is helpful.
+>>> Thanks.
+>>> Matthew
+>>>
+>>>
+>>> #include <Rcpp.h>
+>>> using namespace Rcpp;
+>>>
+>>>
+>>> class Foo{
+>>> public:
+>>>   static Foo* singleton;
+>>>
+>>>   Foo(){
+>>>   }
+>>>
+>>>   void SayHello(){
+>>>     Rcpp::Rcout << "From \"void SayHello()\" -> "<<this<<" -> ";
+>>>     Rcpp::Rcout << "hello from Foo.\n";
+>>>   }
+>>>
+>>>   static Foo* GetSingleton(){
+>>>
+>>>     if(singleton == NULL){
+>>>       Foo::singleton = new Foo();
+>>>     }
+>>>     Rcpp::Rcout<<"From \"static Foo* GetSingleton()\" -> memory address
+>>> for singleton is " <<Foo::singleton<<"\n";
+>>>     return Foo::singleton;
+>>>   }
+>>> };
+>>>
+>>> Foo* Foo::singleton = NULL;
+>>>
+>>> RCPP_EXPOSED_CLASS(Foo)
+>>>
+>>>   Foo& GetSingleton(){
+>>>     Foo* foo_singleton = Foo::GetSingleton();
+>>>     Rcpp::Rcout<<"From \"Foo& GetSingleton()\" -> memory address for
+>>> singleton is " <<foo_singleton<<"\n";
+>>>     return *foo_singleton;
+>>>   }
+>>>
+>>> RCPP_MODULE(foo) {
+>>>   Rcpp::class_<Foo>("Foo")
+>>>   .constructor()
+>>>   .method("SayHello", &Foo::SayHello);
+>>>   Rcpp::function("GetSingleton", &GetSingleton);
+>>>
+>>> }
+>>> //From R
+>>> // library(singleton)
+>>> // library(Rcpp)
+>>> //
+>>> // foo <- Rcpp::Module("foo", PACKAGE = "singleton")
+>>> //
+>>> // foo_singleton<-foo$GetSingleton()
+>>> // foo_singleton$SayHello()
+>>>
+>>> // Output:
+>>> // From "static Foo* GetSingleton()" -> memory address for singleton is
+>>> 0x7fcdf9387590
+>>> // From "Foo& GetSingleton()" -> memory address for singleton is
+>>> 0x7fcdf9387590
+>>> // From "void SayHello()" -> 0x7fcdf9392b60 -> hello from Foo.
+>>>
+>>> On Wed, Feb 21, 2024 at 1:34?AM Nikhil Garg <nikhilgarg.gju at gmail.com>
+>>> wrote:
+>>>
+>>>> Hi,
+>>>>
+>>>> I am looking for some advice or hoping someone can point me in the
+>>>> right direction for wrapping a C++ class with singleton using Rcpp. I have
+>>>> been using RCPP modules for some of this work but got stuck with a C++
+>>>> object which returns a singleton.
+>>>>
+>>>> Here is the general structure of the object
+>>>>
+>>>> class Foo {
+>>>>     public:
+>>>>         Foo();
+>>>>         ~Foo();
+>>>>
+>>>>         static Foo &getFoo();
+>>>>         Foo(Foo const&) = delete;
+>>>>         void operator=(Foo const&) = delete;
+>>>> }
+>>>>
+>>>> Regards,
+>>>> Nikhil
+>>>> _______________________________________________
+>>>> Rcpp-devel mailing list
+>>>> Rcpp-devel at lists.r-forge.r-project.org
+>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>>
+>>>
+>>>
+>>> --
+>>> Matthew Supernaw
+>>> *Scientific Software Developer*
+>>> *National Oceanic and Atmospheric Administration*
+>>> *Office Of Science and Technology*
+>>> *NOAA Fisheries | *U.S. Department of Commerce
+>>> Phone 248 - 396 - 7797
+>>>
+>>>
+>>>
+>>
+>> --
+>> Matthew Supernaw
+>> *Scientific Software Developer*
+>> *National Oceanic and Atmospheric Administration*
+>> *Office Of Science and Technology*
+>> *NOAA Fisheries | *U.S. Department of Commerce
+>> Phone 248 - 396 - 7797
+>>
+>>
+>>
+>
+> --
+> Matthew Supernaw
+> *Scientific Software Developer*
+> *National Oceanic and Atmospheric Administration*
+> *Office Of Science and Technology*
+> *NOAA Fisheries | *U.S. Department of Commerce
+> Phone 248 - 396 - 7797
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240222/7562dbe3/attachment.htm>
+
+From robin28liu at gmail.com  Fri Feb 23 18:35:56 2024
+From: robin28liu at gmail.com (Robin Liu)
+Date: Fri, 23 Feb 2024 09:35:56 -0800
+Subject: [Rcpp-devel] RcppArmadillo with -fopenmp: Not using all available
+ cores
+Message-ID: <CADjxTxj_OHbE1pP34Uh8Qs_SDcpWJFqagBEDzGVm2Y25fvtLTg@mail.gmail.com>
+
+Hi all,
+
+Here is an R script that uses Armadillo to decompose a large matrix and
+print the first 10 eigenvalues.
+
+library(RcppArmadillo)
+library(Rcpp)
+
+src <-
+r"(#include <RcppArmadillo.h>
+
+// [[Rcpp::depends(RcppArmadillo)]]
+
+// [[Rcpp::export]]
+arma::vec getEigenValues(arma::mat M) {
+  return arma::eig_sym(M);
+})"
+
+size <- 10000
+m <- matrix(rnorm(size^2), size, size)
+m <- m * t(m)
+
+# This line compiles the above code with the -fopenmp flag.
+sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)
+result <- getEigenValues(m)
+print(result[1:10])
+
+When I run this code on server A, I see that arma can implicitly leverage
+all available cores by running top -H. However, on server B it can only use
+one core despite multiple being available: there is just one process entry
+in top -H. Both processes successfully exit and return an answer. The
+process on server B is of course much slower.
+
+Here is the compilation on server A:
+/usr/local/lib/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+'file197c21cbec564.cpp'
+g++ -std=gnu++11 -I"/usr/local/lib/R/include" -DNDEBUG -I../inst/include
+-fopenmp  -I"/usr/local/lib/R/site-library/Rcpp/include"
+-I"/usr/local/lib/R/site-library/RcppArmadillo/include"
+-I"/tmp/RtmpwhGRi3/sourceCpp-x86_64-pc-linux-gnu-1.0.9"
+-I/usr/local/include   -fpic  -g -O2 -fstack-protector-strong -Wformat
+-Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -g  -c
+file197c21cbec564.cpp -o file197c21cbec564.o
+g++ -std=gnu++11 -shared -L/usr/local/lib/R/lib -L/usr/local/lib -o
+sourceCpp_2.so file197c21cbec564.o -fopenmp -llapack -lblas -lgfortran -lm
+-lquadmath -L/usr/local/lib/R/lib -lR
+
+and here it is for server B:
+/sw/R/R-4.2.3/lib64/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+'file158165b9c4ae1.cpp'
+g++ -std=gnu++11 -I"/sw/R/R-4.2.3/lib64/R/include" -DNDEBUG
+-I../inst/include -fopenmp  -I"/home/my_username/.R/library/Rcpp/include"
+-I"/home/ my_username/.R/library/RcppArmadillo/include"
+-I"/tmp/RtmpvfPt4l/sourceCpp-x86_64-pc-linux-gnu-1.0.10"
+-I/usr/local/include   -fpic  -g -O2  -c file158165b9c4ae1.cpp -o
+file158165b9c4ae1.o
+g++ -std=gnu++11 -shared -L/sw/R/R-4.2.3/lib64/R/lib -L/usr/local/lib64 -o
+sourceCpp_2.so file158165b9c4ae1.o -fopenmp -llapack -lblas -lgfortran -lm
+-lquadmath -L/sw/R/R-4.2.3/lib64/R/lib -lR
+
+I thought that the -fopenmp flag should let arma implicitly parallelize
+matrix computations. Any hints as to why this may not work on server B?
+
+The actual code I'm running is an R package that includes RcppArmadillo and
+RcppEnsmallen. Server B is the login node to an hpc cluster, but the code
+does not use all cores on the compute nodes either.
+
+Best,
+Robin
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240223/71f2fc78/attachment.htm>
+
+From edd at debian.org  Fri Feb 23 18:53:48 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 23 Feb 2024 11:53:48 -0600
+Subject: [Rcpp-devel] RcppArmadillo with -fopenmp: Not using all
+ available cores
+In-Reply-To: <CADjxTxj_OHbE1pP34Uh8Qs_SDcpWJFqagBEDzGVm2Y25fvtLTg@mail.gmail.com>
+References: <CADjxTxj_OHbE1pP34Uh8Qs_SDcpWJFqagBEDzGVm2Y25fvtLTg@mail.gmail.com>
+Message-ID: <26072.56236.197904.821826@rob.eddelbuettel.com>
+
+
+On 23 February 2024 at 09:35, Robin Liu wrote:
+| Hi all,
+| 
+| Here is an R script that uses Armadillo to decompose a large matrix and print
+| the first 10 eigenvalues.
+| 
+| library(RcppArmadillo)
+| library(Rcpp)
+| 
+| src <-
+| r"(#include <RcppArmadillo.h>
+| 
+| // [[Rcpp::depends(RcppArmadillo)]]
+| 
+| // [[Rcpp::export]]
+| arma::vec getEigenValues(arma::mat M) {
+| ? return arma::eig_sym(M);
+| })"
+| 
+| size <- 10000
+| m <- matrix(rnorm(size^2), size, size)
+| m <- m * t(m)
+| 
+| # This line compiles the above code with the -fopenmp flag.
+| sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)
+| result <- getEigenValues(m)
+| print(result[1:10])
+| 
+| When I run this code on server A, I see that arma can implicitly leverage all
+| available cores by running top -H. However, on server B it can only use one
+| core despite multiple being available: there is just one process entry in top
+| -H. Both processes successfully exit and return an answer. The process on
+| server B is of course much slower.
+
+It is documented in the package how this is applied and the policy is to NOT
+blindly enforce one use case (say all cores, or half, or a magically chosen
+value of N for whatever value of N) but to follow the local admin setting and
+respecting standard environment variables.
+
+So I suspect that your machine 'B' differs from machine 'A' in this regards.
+
+Not that this is a _run-time_ and not _compile-time_ behavior. As it is for
+multicore-enabled LAPACK and BLAS libraries, the OpenMP library and basically
+most software of this type.
+
+You can override it, see
+  RcppArmadillo::armadillo_set_number_of_omp_threads
+  RcppArmadillo::armadillo_get_number_of_omp_threads
+
+Can you try and see if these help you?
+
+Dirk
+
+| Here is the compilation on server A:
+| /usr/local/lib/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+| 'file197c21cbec564.cpp'
+| g++ -std=gnu++11 -I"/usr/local/lib/R/include" -DNDEBUG -I../inst/include
+| -fopenmp ?-I"/usr/local/lib/R/site-library/Rcpp/include" -I"/usr/local/lib/R/
+| site-library/RcppArmadillo/include" -I"/tmp/RtmpwhGRi3/
+| sourceCpp-x86_64-pc-linux-gnu-1.0.9" -I/usr/local/include ? -fpic ?-g -O2
+| -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+| -D_FORTIFY_SOURCE=2 -g ?-c file197c21cbec564.cpp -o file197c21cbec564.o
+| g++ -std=gnu++11 -shared -L/usr/local/lib/R/lib -L/usr/local/lib -o
+| sourceCpp_2.so file197c21cbec564.o -fopenmp -llapack -lblas -lgfortran -lm
+| -lquadmath -L/usr/local/lib/R/lib -lR
+| 
+| and here it is for server B:
+| /sw/R/R-4.2.3/lib64/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+| 'file158165b9c4ae1.cpp'
+| g++ -std=gnu++11 -I"/sw/R/R-4.2.3/lib64/R/include" -DNDEBUG -I../inst/include
+| -fopenmp ?-I"/home/my_username/.R/library/Rcpp/include" -I"/home/?my_username
+| /.R/library/RcppArmadillo/include" -I"/tmp/RtmpvfPt4l/
+| sourceCpp-x86_64-pc-linux-gnu-1.0.10" -I/usr/local/include ? -fpic ?-g -O2 ?-c
+| file158165b9c4ae1.cpp -o file158165b9c4ae1.o
+| g++ -std=gnu++11 -shared -L/sw/R/R-4.2.3/lib64/R/lib -L/usr/local/lib64 -o
+| sourceCpp_2.so file158165b9c4ae1.o -fopenmp -llapack -lblas -lgfortran -lm
+| -lquadmath -L/sw/R/R-4.2.3/lib64/R/lib -lR
+| 
+| I thought that the -fopenmp flag should let arma implicitly parallelize matrix
+| computations. Any hints as to why this may not work on server B?
+| 
+| The actual code I'm running is an R package that includes RcppArmadillo and
+| RcppEnsmallen. Server B is the login node to an hpc cluster, but the code does
+| not use all cores on the compute nodes either.
+| 
+| Best,
+| Robin
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From robin28liu at gmail.com  Sat Feb 24 17:44:59 2024
+From: robin28liu at gmail.com (Robin Liu)
+Date: Sat, 24 Feb 2024 11:44:59 -0500
+Subject: [Rcpp-devel] RcppArmadillo with -fopenmp: Not using all
+ available cores
+In-Reply-To: <26072.56236.197904.821826@rob.eddelbuettel.com>
+References: <CADjxTxj_OHbE1pP34Uh8Qs_SDcpWJFqagBEDzGVm2Y25fvtLTg@mail.gmail.com>
+ <26072.56236.197904.821826@rob.eddelbuettel.com>
+Message-ID: <CADjxTxivEv9dg18vAzhxb8TSzxZXmVhvr5Yjuk5bSXcr7cKgog@mail.gmail.com>
+
+Thank you Dirk for the response.
+
+I called RcppArmadillo::armadillo_get_number_of_omp_threads() on both
+machines and correctly see that machine A and B have 20 and 40 cores,
+respectively. I also see that calling the setter changes this value.
+
+However, calling the setter does not seem to change the number of cores
+used on either machine A or B. I have updated my code example as below: the
+execution uses 20 cores on machine A and 1 core on machine B as before,
+despite my setting the number of omp threads to 5. Do you have any further
+hints?
+
+library(RcppArmadillo)
+library(Rcpp)
+
+RcppArmadillo::armadillo_set_number_of_omp_threads(5)
+print(sprintf("There are %d threads",
+      RcppArmadillo::armadillo_get_number_of_omp_threads()))
+
+src <-
+r"(#include <RcppArmadillo.h>
+
+// [[Rcpp::depends(RcppArmadillo)]]
+
+// [[Rcpp::export]]
+arma::vec getEigenValues(arma::mat M) {
+  return arma::eig_sym(M);
+})"
+
+size <- 10000
+m <- matrix(rnorm(size^2), size, size)
+m <- m * t(m)
+
+# This line compiles the above code with the -fopenmp flag.
+sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)
+result <- getEigenValues(m)
+print(result[1:10])
+
+On Fri, Feb 23, 2024 at 12:53?PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 23 February 2024 at 09:35, Robin Liu wrote:
+> | Hi all,
+> |
+> | Here is an R script that uses Armadillo to decompose a large matrix and
+> print
+> | the first 10 eigenvalues.
+> |
+> | library(RcppArmadillo)
+> | library(Rcpp)
+> |
+> | src <-
+> | r"(#include <RcppArmadillo.h>
+> |
+> | // [[Rcpp::depends(RcppArmadillo)]]
+> |
+> | // [[Rcpp::export]]
+> | arma::vec getEigenValues(arma::mat M) {
+> |   return arma::eig_sym(M);
+> | })"
+> |
+> | size <- 10000
+> | m <- matrix(rnorm(size^2), size, size)
+> | m <- m * t(m)
+> |
+> | # This line compiles the above code with the -fopenmp flag.
+> | sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)
+> | result <- getEigenValues(m)
+> | print(result[1:10])
+> |
+> | When I run this code on server A, I see that arma can implicitly
+> leverage all
+> | available cores by running top -H. However, on server B it can only use
+> one
+> | core despite multiple being available: there is just one process entry
+> in top
+> | -H. Both processes successfully exit and return an answer. The process on
+> | server B is of course much slower.
+>
+> It is documented in the package how this is applied and the policy is to
+> NOT
+> blindly enforce one use case (say all cores, or half, or a magically chosen
+> value of N for whatever value of N) but to follow the local admin setting
+> and
+> respecting standard environment variables.
+>
+> So I suspect that your machine 'B' differs from machine 'A' in this
+> regards.
+>
+> Not that this is a _run-time_ and not _compile-time_ behavior. As it is for
+> multicore-enabled LAPACK and BLAS libraries, the OpenMP library and
+> basically
+> most software of this type.
+>
+> You can override it, see
+>   RcppArmadillo::armadillo_set_number_of_omp_threads
+>   RcppArmadillo::armadillo_get_number_of_omp_threads
+>
+> Can you try and see if these help you?
+>
+> Dirk
+>
+> | Here is the compilation on server A:
+> | /usr/local/lib/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+> | 'file197c21cbec564.cpp'
+> | g++ -std=gnu++11 -I"/usr/local/lib/R/include" -DNDEBUG -I../inst/include
+> | -fopenmp  -I"/usr/local/lib/R/site-library/Rcpp/include"
+> -I"/usr/local/lib/R/
+> | site-library/RcppArmadillo/include" -I"/tmp/RtmpwhGRi3/
+> | sourceCpp-x86_64-pc-linux-gnu-1.0.9" -I/usr/local/include   -fpic  -g -O2
+> | -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+> | -D_FORTIFY_SOURCE=2 -g  -c file197c21cbec564.cpp -o file197c21cbec564.o
+> | g++ -std=gnu++11 -shared -L/usr/local/lib/R/lib -L/usr/local/lib -o
+> | sourceCpp_2.so file197c21cbec564.o -fopenmp -llapack -lblas -lgfortran
+> -lm
+> | -lquadmath -L/usr/local/lib/R/lib -lR
+> |
+> | and here it is for server B:
+> | /sw/R/R-4.2.3/lib64/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+> | 'file158165b9c4ae1.cpp'
+> | g++ -std=gnu++11 -I"/sw/R/R-4.2.3/lib64/R/include" -DNDEBUG
+> -I../inst/include
+> | -fopenmp  -I"/home/my_username/.R/library/Rcpp/include"
+> -I"/home/ my_username
+> | /.R/library/RcppArmadillo/include" -I"/tmp/RtmpvfPt4l/
+> | sourceCpp-x86_64-pc-linux-gnu-1.0.10" -I/usr/local/include   -fpic  -g
+> -O2  -c
+> | file158165b9c4ae1.cpp -o file158165b9c4ae1.o
+> | g++ -std=gnu++11 -shared -L/sw/R/R-4.2.3/lib64/R/lib -L/usr/local/lib64
+> -o
+> | sourceCpp_2.so file158165b9c4ae1.o -fopenmp -llapack -lblas -lgfortran
+> -lm
+> | -lquadmath -L/sw/R/R-4.2.3/lib64/R/lib -lR
+> |
+> | I thought that the -fopenmp flag should let arma implicitly parallelize
+> matrix
+> | computations. Any hints as to why this may not work on server B?
+> |
+> | The actual code I'm running is an R package that includes RcppArmadillo
+> and
+> | RcppEnsmallen. Server B is the login node to an hpc cluster, but the
+> code does
+> | not use all cores on the compute nodes either.
+> |
+> | Best,
+> | Robin
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240224/ee78331d/attachment.htm>
+
+From edd at debian.org  Sat Feb 24 18:17:37 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 24 Feb 2024 11:17:37 -0600
+Subject: [Rcpp-devel] RcppArmadillo with -fopenmp: Not using all
+ available cores
+In-Reply-To: <CADjxTxivEv9dg18vAzhxb8TSzxZXmVhvr5Yjuk5bSXcr7cKgog@mail.gmail.com>
+References: <CADjxTxj_OHbE1pP34Uh8Qs_SDcpWJFqagBEDzGVm2Y25fvtLTg@mail.gmail.com>
+ <26072.56236.197904.821826@rob.eddelbuettel.com>
+ <CADjxTxivEv9dg18vAzhxb8TSzxZXmVhvr5Yjuk5bSXcr7cKgog@mail.gmail.com>
+Message-ID: <26074.9393.286011.638526@rob.eddelbuettel.com>
+
+
+On 24 February 2024 at 11:44, Robin Liu wrote:
+| Thank you Dirk for the response.
+| 
+| I called RcppArmadillo::armadillo_get_number_of_omp_threads() on both machines
+| and correctly see that machine A and B have 20 and 40 cores, respectively. I
+| also see that calling the setter changes this value.
+| 
+| However, calling the setter does not seem to change the number of cores used on
+| either machine A or B. I have updated my code example as below: the execution
+| uses 20 cores on machine A and 1 core on machine B as before, despite my
+| setting the number of omp threads to 5. Do you have any further hints?
+
+I fear you need to debug that on the machine 'B' in question. It's all open
+source.  I do not think either Conrad or myself put code in to constrain you
+to one core on 'B' (and then doesn't as you see on 'A').
+
+You can grep around both the RcppArmadillo wrapper code and the include
+Armadillo code, I suggest making a local copy and peppering in some print
+statements.
+
+Also keep in mind that (Rcpp)Armadillo hands off to computation to the actual
+LAPACK / BLAS implementation on that machine. Lots of things can go wrong
+there: maybe R was compiled with its own embedded BLAS/LAPACK sources
+(preventing a call out to OpenBLAS even when the machine has it). Or maybe R
+was compiled correctly but a single-threaded set of libraries is on the
+machine.
+
+You have not supplied any of that information. Many bug report suggestions
+hint that showing `sessionInfo()` helps -- and it does show the BLAS/LAPACK
+libraries. You are not forced to show us this, but by not showing us you
+prevent us from being more focussed on suggestions.  So maybe start at your
+end by glancing at sessionInfo() on A and B?
+
+Dirk
+
+ 
+| library(RcppArmadillo)
+| library(Rcpp)
+| 
+| RcppArmadillo::armadillo_set_number_of_omp_threads(5)
+| print(sprintf("There are %d threads",
+| ? ? ? RcppArmadillo::armadillo_get_number_of_omp_threads()))
+| 
+| src <-
+| r"(#include <RcppArmadillo.h>
+| 
+| // [[Rcpp::depends(RcppArmadillo)]]
+| 
+| // [[Rcpp::export]]
+| arma::vec getEigenValues(arma::mat M) {
+| ? return arma::eig_sym(M);
+| })"
+| 
+| size <- 10000
+| m <- matrix(rnorm(size^2), size, size)
+| m <- m * t(m)
+| 
+| # This line compiles the above code with the -fopenmp flag.
+| sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)
+| result <- getEigenValues(m)
+| print(result[1:10])
+| 
+| On Fri, Feb 23, 2024 at 12:53?PM Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| 
+|     On 23 February 2024 at 09:35, Robin Liu wrote:
+|     | Hi all,
+|     |
+|     | Here is an R script that uses Armadillo to decompose a large matrix and
+|     print
+|     | the first 10 eigenvalues.
+|     |
+|     | library(RcppArmadillo)
+|     | library(Rcpp)
+|     |
+|     | src <-
+|     | r"(#include <RcppArmadillo.h>
+|     |
+|     | // [[Rcpp::depends(RcppArmadillo)]]
+|     |
+|     | // [[Rcpp::export]]
+|     | arma::vec getEigenValues(arma::mat M) {
+|     | ? return arma::eig_sym(M);
+|     | })"
+|     |
+|     | size <- 10000
+|     | m <- matrix(rnorm(size^2), size, size)
+|     | m <- m * t(m)
+|     |
+|     | # This line compiles the above code with the -fopenmp flag.
+|     | sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)
+|     | result <- getEigenValues(m)
+|     | print(result[1:10])
+|     |
+|     | When I run this code on server A, I see that arma can implicitly leverage
+|     all
+|     | available cores by running top -H. However, on server B it can only use
+|     one
+|     | core despite multiple being available: there is just one process entry in
+|     top
+|     | -H. Both processes successfully exit and return an answer. The process on
+|     | server B is of course much slower.
+| 
+|     It is documented in the package how this is applied and the policy is to
+|     NOT
+|     blindly enforce one use case (say all cores, or half, or a magically chosen
+|     value of N for whatever value of N) but to follow the local admin setting
+|     and
+|     respecting standard environment variables.
+| 
+|     So I suspect that your machine 'B' differs from machine 'A' in this
+|     regards.
+| 
+|     Not that this is a _run-time_ and not _compile-time_ behavior. As it is for
+|     multicore-enabled LAPACK and BLAS libraries, the OpenMP library and
+|     basically
+|     most software of this type.
+| 
+|     You can override it, see
+|     ? RcppArmadillo::armadillo_set_number_of_omp_threads
+|     ? RcppArmadillo::armadillo_get_number_of_omp_threads
+| 
+|     Can you try and see if these help you?
+| 
+|     Dirk
+| 
+|     | Here is the compilation on server A:
+|     | /usr/local/lib/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+|     | 'file197c21cbec564.cpp'
+|     | g++ -std=gnu++11 -I"/usr/local/lib/R/include" -DNDEBUG -I../inst/include
+|     | -fopenmp ?-I"/usr/local/lib/R/site-library/Rcpp/include" -I"/usr/local/
+|     lib/R/
+|     | site-library/RcppArmadillo/include" -I"/tmp/RtmpwhGRi3/
+|     | sourceCpp-x86_64-pc-linux-gnu-1.0.9" -I/usr/local/include ? -fpic ?-g -O2
+|     | -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+|     | -D_FORTIFY_SOURCE=2 -g ?-c file197c21cbec564.cpp -o file197c21cbec564.o
+|     | g++ -std=gnu++11 -shared -L/usr/local/lib/R/lib -L/usr/local/lib -o
+|     | sourceCpp_2.so file197c21cbec564.o -fopenmp -llapack -lblas -lgfortran
+|     -lm
+|     | -lquadmath -L/usr/local/lib/R/lib -lR
+|     |
+|     | and here it is for server B:
+|     | /sw/R/R-4.2.3/lib64/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'
+|     | 'file158165b9c4ae1.cpp'
+|     | g++ -std=gnu++11 -I"/sw/R/R-4.2.3/lib64/R/include" -DNDEBUG -I../inst/
+|     include
+|     | -fopenmp ?-I"/home/my_username/.R/library/Rcpp/include" -I"/home/
+|     ?my_username
+|     | /.R/library/RcppArmadillo/include" -I"/tmp/RtmpvfPt4l/
+|     | sourceCpp-x86_64-pc-linux-gnu-1.0.10" -I/usr/local/include ? -fpic ?-g
+|     -O2 ?-c
+|     | file158165b9c4ae1.cpp -o file158165b9c4ae1.o
+|     | g++ -std=gnu++11 -shared -L/sw/R/R-4.2.3/lib64/R/lib -L/usr/local/lib64
+|     -o
+|     | sourceCpp_2.so file158165b9c4ae1.o -fopenmp -llapack -lblas -lgfortran
+|     -lm
+|     | -lquadmath -L/sw/R/R-4.2.3/lib64/R/lib -lR
+|     |
+|     | I thought that the -fopenmp flag should let arma implicitly parallelize
+|     matrix
+|     | computations. Any hints as to why this may not work on server B?
+|     |
+|     | The actual code I'm running is an R package that includes RcppArmadillo
+|     and
+|     | RcppEnsmallen. Server B is the login node to an hpc cluster, but the code
+|     does
+|     | not use all cores on the compute nodes either.
+|     |
+|     | Best,
+|     | Robin
+|     | _______________________________________________
+|     | Rcpp-devel mailing list
+|     | Rcpp-devel at lists.r-forge.r-project.org
+|     | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+|     --
+|     dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From naras at stanford.edu  Thu Feb 29 22:29:56 2024
+From: naras at stanford.edu (Balasubramanian Narasimhan)
+Date: Thu, 29 Feb 2024 21:29:56 +0000
+Subject: [Rcpp-devel] Limit of 20
+In-Reply-To: <85ABC896-04C4-4531-A7E2-20E0BA6AAC0F@illinois.edu>
+References: <a70f513f-82d6-44fa-669b-1c73cd1aa651@IEEE.org>
+ <25018.7452.534413.133350@rob.eddelbuettel.com>
+ <CAJXgQP2R2=vj8raNx28k+VQ4K-rQGAapNTua-_gW985N-LXewQ@mail.gmail.com>
+ <25018.15051.330508.315352@rob.eddelbuettel.com>
+ <85ABC896-04C4-4531-A7E2-20E0BA6AAC0F@illinois.edu>
+Message-ID: <BYAPR02MB472837487F5DF951949DA654D85F2@BYAPR02MB4728.namprd02.prod.outlook.com>
+
+James
+Thanks. I updated the page.
+Meanwhile your bio leads me to ask you a question about a potential project. Smallish. Is there a number we could chat at?  My mobile is 4088964084. I am free any time after 4
+-N
+
+Balasubramanian Narasimhan
+________________________________
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Balamuta, James Joseph <balamut2 at illinois.edu>
+Sent: Wednesday, December 15, 2021 12:10:12 PM
+To: rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Limit of 20
+
+For those interested, the few other instances can be found by looking under the inst/include/Rcpp/generated/ folder:
+
+https://github.com/RcppCore/Rcpp/tree/master/inst/include/Rcpp/generated
+
+In the case of Vector__create.h, one would need to do some varidic templating to abstract away from the current generated approach:
+
+https://github.com/RcppCore/Rcpp/blob/940fb23868bf442e587994451e85263baa302d9c/inst/include/Rcpp/generated/Vector__create.h
+
+This approach has been used previously In the exception/error message update:
+https://github.com/RcppCore/Rcpp/tree/master/inst/include/Rcpp/exceptions
+
+Best,
+
+JJB
+
+?On 12/15/21, 12:58 PM, "Rcpp-devel on behalf of Dirk Eddelbuettel" <rcpp-devel-bounces at lists.r-forge.r-project.org on behalf of edd at debian.org> wrote:
+
+
+    On 15 December 2021 at 10:19, Kevin Ushey wrote:
+    | I assume we're talking about Vector::create()? Anyone curious poking at it
+    | can start by looking here:
+    |
+    | https://urldefense.com/v3/__https://github.com/RcppCore/Rcpp/blob/940fb23868bf442e587994451e85263baa302d9c/inst/include/Rcpp/vector/Vector.h*L1122-L1126__;Iw!!DZ3fjg!oGvX2F486Z60labb9l5eUYuxc9fVL9qyvh3QKn-5lljUxCgfQF7Gr8HRN4t8skETuQA$
+
+    There is more than one as we have a few auto/macro-generated interfaces in
+    the generated/ directory this points to. But the logic is probably similar.
+
+    Dirk
+
+    --
+    https://urldefense.com/v3/__https://dirk.eddelbuettel.com__;!!DZ3fjg!oGvX2F486Z60labb9l5eUYuxc9fVL9qyvh3QKn-5lljUxCgfQF7Gr8HRN4t8w1-713Q$  | @eddelbuettel | edd at debian.org
+    _______________________________________________
+    Rcpp-devel mailing list
+    Rcpp-devel at lists.r-forge.r-project.org
+    https://urldefense.com/v3/__https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel__;!!DZ3fjg!oGvX2F486Z60labb9l5eUYuxc9fVL9qyvh3QKn-5lljUxCgfQF7Gr8HRN4t8XQ4U4Io$
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240229/17967052/attachment.htm>
+
+From naras at stanford.edu  Thu Feb 29 22:41:27 2024
+From: naras at stanford.edu (Balasubramanian Narasimhan)
+Date: Thu, 29 Feb 2024 21:41:27 +0000
+Subject: [Rcpp-devel] Limit of 20
+In-Reply-To: <BYAPR02MB472837487F5DF951949DA654D85F2@BYAPR02MB4728.namprd02.prod.outlook.com>
+References: <BYAPR02MB472837487F5DF951949DA654D85F2@BYAPR02MB4728.namprd02.prod.outlook.com>
+Message-ID: <DC672938-B24C-4CEC-AFA4-3B01B782FFE3@stanford.edu>
+
+My profuse apologies for this mistake. I?ll never again use ms outlook on a phone
+
+
+-Naras
+
+On Feb 29, 2024, at 1:30?PM, Balasubramanian Narasimhan <naras at stanford.edu> wrote:
+
+?
+James
+Thanks. I updated the page.
+Meanwhile your bio leads me to ask you a question about a potential project. Smallish. Is there a number we could chat at?  My mobile is 4088964084. I am free any time after 4
+-N
+
+Balasubramanian Narasimhan
+________________________________
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Balamuta, James Joseph <balamut2 at illinois.edu>
+Sent: Wednesday, December 15, 2021 12:10:12 PM
+To: rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Limit of 20
+
+For those interested, the few other instances can be found by looking under the inst/include/Rcpp/generated/ folder:
+
+https://github.com/RcppCore/Rcpp/tree/master/inst/include/Rcpp/generated
+
+In the case of Vector__create.h, one would need to do some varidic templating to abstract away from the current generated approach:
+
+https://github.com/RcppCore/Rcpp/blob/940fb23868bf442e587994451e85263baa302d9c/inst/include/Rcpp/generated/Vector__create.h
+
+This approach has been used previously In the exception/error message update:
+https://github.com/RcppCore/Rcpp/tree/master/inst/include/Rcpp/exceptions
+
+Best,
+
+JJB
+
+?On 12/15/21, 12:58 PM, "Rcpp-devel on behalf of Dirk Eddelbuettel" <rcpp-devel-bounces at lists.r-forge.r-project.org on behalf of edd at debian.org> wrote:
+
+
+    On 15 December 2021 at 10:19, Kevin Ushey wrote:
+    | I assume we're talking about Vector::create()? Anyone curious poking at it
+    | can start by looking here:
+    |
+    | https://urldefense.com/v3/__https://github.com/RcppCore/Rcpp/blob/940fb23868bf442e587994451e85263baa302d9c/inst/include/Rcpp/vector/Vector.h*L1122-L1126__;Iw!!DZ3fjg!oGvX2F486Z60labb9l5eUYuxc9fVL9qyvh3QKn-5lljUxCgfQF7Gr8HRN4t8skETuQA$
+
+    There is more than one as we have a few auto/macro-generated interfaces in
+    the generated/ directory this points to. But the logic is probably similar.
+
+    Dirk
+
+    --
+    https://urldefense.com/v3/__https://dirk.eddelbuettel.com__;!!DZ3fjg!oGvX2F486Z60labb9l5eUYuxc9fVL9qyvh3QKn-5lljUxCgfQF7Gr8HRN4t8w1-713Q$  | @eddelbuettel | edd at debian.org
+    _______________________________________________
+    Rcpp-devel mailing list
+    Rcpp-devel at lists.r-forge.r-project.org
+    https://urldefense.com/v3/__https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel__;!!DZ3fjg!oGvX2F486Z60labb9l5eUYuxc9fVL9qyvh3QKn-5lljUxCgfQF7Gr8HRN4t8XQ4U4Io$
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240229/8ed1cb99/attachment-0001.htm>
+

@@ -1,0 +1,1174 @@
+From heavy.watal at gmail.com  Wed Jul  6 07:56:29 2016
+From: heavy.watal at gmail.com (Watal M. Iwasaki)
+Date: Wed, 6 Jul 2016 14:56:29 +0900
+Subject: [Rcpp-devel] Strange behavior with boost::program_options
+Message-ID: <CAH9rQpaK75uq0y5j-e5qvEteYF_B328otTrx_y24MHkZmLxrSw@mail.gmail.com>
+
+Hi all,
+
+I have been trying to make an R function to call my C++ simulation program
+in this way:
+```c++
+// [[Rcpp::plugins(cpp14)]]
+#include <Rcpp.h>
+#include <mylib.hpp>
+// [[Rcpp::export]]
+std::string run_simulation(Rcpp::CharacterVector
+args=Rcpp::CharacterVector::create()) {
+    auto vs_args = Rcpp::as<std::vector<std::string>>(args);
+    mylib::Simulation sim(vs_args);
+    sim.run();
+    return sim.results();
+}
+```
+
+The class `Simulation` parses arguments with `boost::program_options` and
+is implemented in `libmylib.dylib`, which can be linked with `PKG_LIBS =
+-lmylib`. Both `devtools::check()` and independent `Rcpp::sourceCpp()` can
+successfully build the function `run_simulation()`. It runs perfectly as I
+intended **only if it is the first call**. The second time I call
+`run_simulation('-v')`, I get the following error:
+```
+Error: option '-v' is ambiguous and matches different versions of
+'--verbose'
+```
+
+Other options like `-h` or `--mutation=0` raise the same error. It
+indicates that every option is re-defined after the first call (maybe?).
+Calling without any argument is always OK, and an executable `a.out` built
+with `main.cpp -lmylib` has no problem. I guess the key is how C++ objects
+are cached in R environments. Is this a bug in Rcpp? Or am I missing
+something?
+
+Thanks,
+
+--
+Watal M. Iwasaki / ?? ?
+SOKENDAI, Graduate University for Advanced Studies,
+Hayama, Kanagawa 240-0193, Japan
++81-46-858-1576
+https://heavywatal.github.io/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160706/4a2b4bf7/attachment.html>
+
+From kevinushey at gmail.com  Wed Jul  6 08:13:51 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Tue, 5 Jul 2016 23:13:51 -0700
+Subject: [Rcpp-devel] Strange behavior with boost::program_options
+In-Reply-To: <CAH9rQpaK75uq0y5j-e5qvEteYF_B328otTrx_y24MHkZmLxrSw@mail.gmail.com>
+References: <CAH9rQpaK75uq0y5j-e5qvEteYF_B328otTrx_y24MHkZmLxrSw@mail.gmail.com>
+Message-ID: <CAJXgQP0-aqzVpVrygrFe2Db0aNHA=r3fMNx1jZsCiotRuQGbsQ@mail.gmail.com>
+
+If I had to guess, maybe there is some initialization that occurs when
+your mylib::Simulation object is constructed, and you need to ensure
+that code is only run once? (Perhaps the code that defines the program
+options needs to be hidden behind an initialization flag, or something
+like that)
+
+Nonetheless, this isn't really an Rcpp question, and it's hard to know
+for sure without seeing how your Simulation object is defined.
+
+On Tue, Jul 5, 2016 at 10:56 PM, Watal M. Iwasaki <heavy.watal at gmail.com> wrote:
+> Hi all,
+>
+> I have been trying to make an R function to call my C++ simulation program
+> in this way:
+> ```c++
+> // [[Rcpp::plugins(cpp14)]]
+> #include <Rcpp.h>
+> #include <mylib.hpp>
+> // [[Rcpp::export]]
+> std::string run_simulation(Rcpp::CharacterVector
+> args=Rcpp::CharacterVector::create()) {
+>     auto vs_args = Rcpp::as<std::vector<std::string>>(args);
+>     mylib::Simulation sim(vs_args);
+>     sim.run();
+>     return sim.results();
+> }
+> ```
+>
+> The class `Simulation` parses arguments with `boost::program_options` and is
+> implemented in `libmylib.dylib`, which can be linked with `PKG_LIBS =
+> -lmylib`. Both `devtools::check()` and independent `Rcpp::sourceCpp()` can
+> successfully build the function `run_simulation()`. It runs perfectly as I
+> intended **only if it is the first call**. The second time I call
+> `run_simulation('-v')`, I get the following error:
+> ```
+> Error: option '-v' is ambiguous and matches different versions of
+> '--verbose'
+> ```
+>
+> Other options like `-h` or `--mutation=0` raise the same error. It indicates
+> that every option is re-defined after the first call (maybe?). Calling
+> without any argument is always OK, and an executable `a.out` built with
+> `main.cpp -lmylib` has no problem. I guess the key is how C++ objects are
+> cached in R environments. Is this a bug in Rcpp? Or am I missing something?
+>
+> Thanks,
+>
+> --
+> Watal M. Iwasaki / ?? ?
+> SOKENDAI, Graduate University for Advanced Studies,
+> Hayama, Kanagawa 240-0193, Japan
+> +81-46-858-1576
+> https://heavywatal.github.io/
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From heavy.watal at gmail.com  Wed Jul  6 09:46:47 2016
+From: heavy.watal at gmail.com (Watal M. Iwasaki)
+Date: Wed, 6 Jul 2016 16:46:47 +0900
+Subject: [Rcpp-devel] Strange behavior with boost::program_options
+In-Reply-To: <CAJXgQP0-aqzVpVrygrFe2Db0aNHA=r3fMNx1jZsCiotRuQGbsQ@mail.gmail.com>
+References: <CAH9rQpaK75uq0y5j-e5qvEteYF_B328otTrx_y24MHkZmLxrSw@mail.gmail.com>
+ <CAJXgQP0-aqzVpVrygrFe2Db0aNHA=r3fMNx1jZsCiotRuQGbsQ@mail.gmail.com>
+Message-ID: <CAH9rQpZ4OYy9w3p2M45aZv9X6dkHqiFK-3CQ21j5qiv21DRvEA@mail.gmail.com>
+
+Thank you for the quick and kind reply, Kevin! You are right.
+
+I confirmed that the program option object is defined as a local variable
+in mylib::Simulation constructor, and is destructed correctly. But I found
+that the object is initialized with other objects from several source
+files, and they were defined as static variables. Changing them into local
+variables has solved the problem. What I didn't know was, therefore, that
+static variables do survive after Rcpp function calling. Now I will have to
+take a careful look at other variables too.
+
+Thanks a lot!!
+Watal
+
+
+
+On Wed, Jul 6, 2016 at 3:13 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> If I had to guess, maybe there is some initialization that occurs when
+> your mylib::Simulation object is constructed, and you need to ensure
+> that code is only run once? (Perhaps the code that defines the program
+> options needs to be hidden behind an initialization flag, or something
+> like that)
+>
+> Nonetheless, this isn't really an Rcpp question, and it's hard to know
+> for sure without seeing how your Simulation object is defined.
+>
+> On Tue, Jul 5, 2016 at 10:56 PM, Watal M. Iwasaki <heavy.watal at gmail.com>
+> wrote:
+> > Hi all,
+> >
+> > I have been trying to make an R function to call my C++ simulation
+> program
+> > in this way:
+> > ```c++
+> > // [[Rcpp::plugins(cpp14)]]
+> > #include <Rcpp.h>
+> > #include <mylib.hpp>
+> > // [[Rcpp::export]]
+> > std::string run_simulation(Rcpp::CharacterVector
+> > args=Rcpp::CharacterVector::create()) {
+> >     auto vs_args = Rcpp::as<std::vector<std::string>>(args);
+> >     mylib::Simulation sim(vs_args);
+> >     sim.run();
+> >     return sim.results();
+> > }
+> > ```
+> >
+> > The class `Simulation` parses arguments with `boost::program_options`
+> and is
+> > implemented in `libmylib.dylib`, which can be linked with `PKG_LIBS =
+> > -lmylib`. Both `devtools::check()` and independent `Rcpp::sourceCpp()`
+> can
+> > successfully build the function `run_simulation()`. It runs perfectly as
+> I
+> > intended **only if it is the first call**. The second time I call
+> > `run_simulation('-v')`, I get the following error:
+> > ```
+> > Error: option '-v' is ambiguous and matches different versions of
+> > '--verbose'
+> > ```
+> >
+> > Other options like `-h` or `--mutation=0` raise the same error. It
+> indicates
+> > that every option is re-defined after the first call (maybe?). Calling
+> > without any argument is always OK, and an executable `a.out` built with
+> > `main.cpp -lmylib` has no problem. I guess the key is how C++ objects are
+> > cached in R environments. Is this a bug in Rcpp? Or am I missing
+> something?
+> >
+> > Thanks,
+> >
+> > --
+> > Watal M. Iwasaki / ?? ?
+> > SOKENDAI, Graduate University for Advanced Studies,
+> > Hayama, Kanagawa 240-0193, Japan
+> > +81-46-858-1576
+> > https://heavywatal.github.io/
+> >
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Watal M. Iwasaki / ?? ?
+SOKENDAI, Graduate University for Advanced Studies,
+Hayama, Kanagawa 240-0193, Japan
++81-46-858-1576
+https://heavywatal.github.io/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160706/424bcc63/attachment.html>
+
+From cdetermanjr at gmail.com  Thu Jul  7 14:30:55 2016
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Thu, 7 Jul 2016 07:30:55 -0500
+Subject: [Rcpp-devel] Rtools not finding *.o files during compilation
+Message-ID: <CAKxd1KNffgjMMoi7utrefZTdxGu+P=EOn9Ex74bzwRJ+=xpBRg@mail.gmail.com>
+
+I am trying to help a user debug the installation of one of my packages and
+have come across an error I don't understand.
+
+The current process has been as follows:
+
+1. User using Windows OS
+2. User trying to install development version from my github
+3. User has current Rtools installed
+4. User behind firewall so downloaded local copy
+5. User extracted tar version and re-archived as zip file.
+6. User runs install.packages('package.zip", repos=NULL, type="source")
+
+Compilation appears to run normally and all environmental variables are
+recognized but when reaching the linking stage it returns multiple
+statements such as:
+
+C:\Rtools\mingw_64\bin\nm.exe: 'RcppExports.o': No such file
+
+For every *.o file.  You could see the full user output here (
+http://pastebin.com/itNbaMJg).  What could have resulted in this problem?
+
+Regards,
+Charles
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160707/a522c81c/attachment.html>
+
+From serguei.sokol at gmail.com  Thu Jul  7 15:18:24 2016
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Thu, 7 Jul 2016 15:18:24 +0200
+Subject: [Rcpp-devel] Rtools not finding *.o files during compilation
+In-Reply-To: <CAKxd1KNffgjMMoi7utrefZTdxGu+P=EOn9Ex74bzwRJ+=xpBRg@mail.gmail.com>
+References: <CAKxd1KNffgjMMoi7utrefZTdxGu+P=EOn9Ex74bzwRJ+=xpBRg@mail.gmail.com>
+Message-ID: <577E56A0.6080108@gmail.com>
+
+Le 07/07/2016 14:30, Charles Determan a ?crit :
+> I am trying to help a user debug the installation of one of my packages and have come across an error I don't understand.
+>
+> The current process has been as follows:
+>
+> 1. User using Windows OS
+> 2. User trying to install development version from my github
+> 3. User has current Rtools installed
+You mean Rtools34? While R v3.2 is used?
+According to the correspondence table in https://cran.r-project.org/bin/windows/Rtools/
+Rtools33 or Rtools32 must be used with this version of R.
+
+My 0.02 ?.
+Serguei.
+
+> 4. User behind firewall so downloaded local copy
+> 5. User extracted tar version and re-archived as zip file.
+> 6. User runs install.packages('package.zip", repos=NULL, type="source")
+>
+> Compilation appears to run normally and all environmental variables are recognized but when reaching the linking stage it returns multiple statements such as:
+>
+> C:\Rtools\mingw_64\bin\nm.exe: 'RcppExports.o': No such file
+>
+> For every *.o file.  You could see the full user output here (http://pastebin.com/itNbaMJg).  What could have resulted in this problem?
+>
+> Regards,
+> Charles
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+From edd at debian.org  Thu Jul  7 15:57:10 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 7 Jul 2016 08:57:10 -0500
+Subject: [Rcpp-devel] Rtools not finding *.o files during compilation
+In-Reply-To: <CAKxd1KNffgjMMoi7utrefZTdxGu+P=EOn9Ex74bzwRJ+=xpBRg@mail.gmail.com>
+References: <CAKxd1KNffgjMMoi7utrefZTdxGu+P=EOn9Ex74bzwRJ+=xpBRg@mail.gmail.com>
+Message-ID: <22398.24502.643116.454726@max.nulle.part>
+
+
+On 7 July 2016 at 07:30, Charles Determan wrote:
+| I am trying to help a user debug the installation of one of my packages and
+| have come across an error I don't understand.
+| 
+| The current process has been as follows:
+| 
+| 1. User using Windows OS
+| 2. User trying to install development version from my github
+| 3. User has current Rtools installed
+| 4. User behind firewall so downloaded local copy
+| 5. User extracted tar version and re-archived as zip file.
+| 6. User runs install.packages('package.zip", repos=NULL, type="source")
+
+I don't understand 5 and 6. Why would you do that?
+
+*Either* create a binary zip the way one does Windows (it's a documented
+option to R CMD INSTALL, if memory serves -- I no longer manually touch
+Windows) *or* work from .tar.gz source like everybody else, especially given
+1. to 3.
+
+Dirk
+ 
+| Compilation appears to run normally and all environmental variables are
+| recognized but when reaching the linking stage it returns multiple statements
+| such as:
+| 
+| C:\Rtools\mingw_64\bin\nm.exe: 'RcppExports.o': No such file
+| 
+| For every *.o file.? You could see the full user output here (http://
+| pastebin.com/itNbaMJg).? What could have resulted in this problem?
+| 
+| Regards,
+| Charles
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From behelfsadresse at googlemail.com  Tue Jul 12 19:33:58 2016
+From: behelfsadresse at googlemail.com (Leo Leo)
+Date: Tue, 12 Jul 2016 19:33:58 +0200
+Subject: [Rcpp-devel] Integrating C-library libmseed to R
+Message-ID: <CAOSEYu921KLY_cYLdLsa48qz-7yS353pXd+PJmBKCtAUbToyYA@mail.gmail.com>
+
+Dear Rcpp_devel enthusiats,
+
+May I ask you for exploiting your potential? I am working on a package to
+handle seismic data (https://github.com/coffeemuggler/eseis).
+
+A key task is to be able to read and write the so called miniseed format.
+There is a C-library for this job (
+https://seiscode.iris.washington.edu/projects/libmseed/files).
+
+What would be needed to implement this library to my package? The goal
+would be to have functions like read_mseed(file, ...) and write_mseed(data,
+file, ...). According to the library documentation the functions that do
+this are ms_readmsr(3) and ms_readtraces(3) as well as mst_pack(3) and
+mst_writemseed(3).
+
+As usual, the question is rather simple but I have no idea if the answer
+can also be that simple. I would greatly appreciate your help and be
+delighted if you could help me with this major step.
+
+Kind regards,
+
+Micha
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160712/a759cdbe/attachment.html>
+
+From edd at debian.org  Wed Jul 13 05:52:54 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 12 Jul 2016 22:52:54 -0500
+Subject: [Rcpp-devel] Integrating C-library libmseed to R
+In-Reply-To: <CAOSEYu921KLY_cYLdLsa48qz-7yS353pXd+PJmBKCtAUbToyYA@mail.gmail.com>
+References: <CAOSEYu921KLY_cYLdLsa48qz-7yS353pXd+PJmBKCtAUbToyYA@mail.gmail.com>
+Message-ID: <22405.47894.715912.766603@max.nulle.part>
+
+
+On 12 July 2016 at 19:33, Leo Leo wrote:
+| Dear Rcpp_devel enthusiats,
+| 
+| May I ask you for exploiting your potential? I am working on a package to
+| handle seismic data (https://github.com/coffeemuggler/eseis).
+| 
+| A key task is to be able to read and write the so called miniseed format. There
+| is a C-library for this job (https://seiscode.iris.washington.edu/projects/
+| libmseed/files).
+| 
+| What would be needed to implement this library to my package? The goal would be
+| to have functions like read_mseed(file, ...) and write_mseed(data, file, ...).
+| According to the library documentation the functions that do this are
+| ms_readmsr(3) and ms_readtraces(3) as well as mst_pack(3) and mst_writemseed
+| (3).
+
+The very simplest option is probably to just copy the content of the library
+itself -- ie the *.c (or *.cpp) and *h files -- to your package's src/
+directory.  That way the content is present and can be used by your add-on
+functions.
+
+A slightly better and more involved option is to keep it in a subdirectory
+and have it built, say during configure.  You package then points to that
+(static) library from its src/Makevars.
+
+There are other options. But all this somehow requires you to know a little
+bit about library building, which then becomes OS-dependent as this is
+different between Linux and OS X, not to mention Windows.
+
+| As usual, the question is rather simple but I have no idea if the answer can
+| also be that simple. I would greatly appreciate your help and be delighted if
+| you could help me with this major step.
+
+I fear there is no super-simple answer.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From xian at unm.edu  Wed Jul 13 12:33:00 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Wed, 13 Jul 2016 04:33:00 -0600
+Subject: [Rcpp-devel] Integrating C-library libmseed to R
+Message-ID: <CADNH-Pu005FoQEadvMa6TJ0rVzW_PyB+00N7sDJ6dw+UrjNw2Q@mail.gmail.com>
+
+On 12 July 2016 at 19:33, Leo Leo wrote:
+
+> | Dear Rcpp_devel enthusiats,
+> |
+> | May I ask you for exploiting your potential? I am working on a package to
+> | handle seismic data (https://github.com/coLeo Leo <
+> <https://github.com/coffeemuggler/eseis>behelfsadresse at googlemail.com>
+> Cffeemuggler/eseis <https://github.com/coffeemuggler/eseis>).
+> |
+> | A key task is to be able to read and write the so called miniseed
+> format. There
+> | is a C-library for this job (
+> https://seiscode.iris.washington.edu/projects/
+> | libmseed/files).
+> |
+> | What would be needed to implement this library to my package? The goal
+> would be
+> | to have functions like read_mseed(file, ...) and write_mseed(data, file,
+> ...).
+> | According to the library documentation the functions that do this are
+> | ms_readmsr(3) and ms_readtraces(3) as well as mst_pack(3) and
+> mst_writemseed
+> | (3).
+>
+> The very simplest option is probably to just copy the content of the
+> library
+> itself -- ie the *.c (or *.cpp) and *h files -- to your package's src/
+> directory.  That way the content is present and can be used by your add-on
+> functions.
+>
+> A slightly better and more involved option is to keep it in a subdirectory
+> and have it built, say during configure.  You package then points to that
+> (static) library from its src/Makevars.
+>
+> There are other options. But all this somehow requires you to know a little
+> bit about library building, which then becomes OS-dependent as this is
+> different between Linux and OS X, not to mention Windows.
+>
+> --
+> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+>
+
+To add to Dirk's comments, a few questions to ask yourself:
+
+* What is the license of libmseed?  Do you have permission to incorporate
+it directly into your package?
+* What is the license of your package?  Is it compatible with the license
+of libmseed for incorporation?
+
+* What are your platform requirements?  Do you want as broad an audience as
+possible, or is this a project for a specific group that needs support on a
+particular platform?  (As Dirk suggests, POSIX is the low-hanging fruit
+here.  Also, have physical access to the platforms you plan to support is
+very helpful).
+
+* Minor language clarification: your original question asks "what would be
+needed to implement" .  In software, the term "implement" commonly implies
+"write anew".  My reading of your question is that you want to write as
+little new code as possible, and re-use pre-existing code - is this
+correct?  Again, the ability to directly incorporate other library code
+into your package depends in some part on the licenses of both projects.
+
+-hth
+Christian
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160713/c3ae656f/attachment.html>
+
+From t.jendoubi14 at imperial.ac.uk  Thu Jul 21 12:46:14 2016
+From: t.jendoubi14 at imperial.ac.uk (Jendoubi, Takoua)
+Date: Thu, 21 Jul 2016 10:46:14 +0000
+Subject: [Rcpp-devel] symmatu does not give symmetric matrix
+Message-ID: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+
+Dear all,
+
+I am using RcppArmadillo to deal with some matrix computations. Specifically I need to cholesky factorization of some symmetric matrices.
+I am generating random vectors using Rcpp and using them to construct symmetric matrices.
+I have an error stating that my matrix is not symmetric although it definitely should be. Here is the example I am working with (in R):
+
+>x
+[1] -1.6683320 -0.8597148
+>x%*%t(x)
+
+         [,1]      [,2]
+
+[1,] 2.783332 1.4342896
+
+[2,] 1.434290 0.7391095
+
+Apparently, it is a rounding-off error. Is there any way to ensure that x%*%t(x) gives an exactly symmetric matrix to use for cholesky factorization?
+I tried symmatu and symmatl but the error is still there.
+
+Thanks,
+Best,
+
+Takoua Jendoubi
+PhD student
+School of Public Health & Department of Surgery and Cancer
+Main address :
+Imperial College London | Room 171 | St Mary's Campus | Norfolk Place | London | W2 1PG |
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160721/2ed247c4/attachment.html>
+
+From edd at debian.org  Tue Jul 26 16:33:26 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 26 Jul 2016 09:33:26 -0500
+Subject: [Rcpp-devel] [ANN] Rcpp 0.12.6
+In-Reply-To: <22328.45093.959632.309311@max.nulle.part>
+References: <22328.45093.959632.309311@max.nulle.part>
+Message-ID: <22423.29878.284322.391613@max.nulle.part>
+
+
+Rcpp 0.12.6 arrived on CRAN a couple of days ago.  The announcement is at
+
+   http://dirk.eddelbuettel.com/blog/2016/07/19#rcpp_0.12.6
+
+and below.
+
+One thing to note: If, and only if, you use it with outdated versions R as
+old as R 3.1.* or older, you will hit compilation snag now reported three
+times in GitHub issue tickets #512, #516 and #519 as well as StackOverflow
+question yesterday.  We missed that using NORET required R 3.2.* or later (as
+we and CRAN use) and failed to add fallbacl #define -- which is now in master
+on GitHub as well as in the 0.12.6.1 interim release in the RcppCore drat repo.
+
+We are sorry for overlooking this, but then again, friends don't let friends
+run R 3.1.* or older.
+
+Dirk
+
+
+  Tue, 19 Jul 2016
+
+  Rcpp 0.12.6: Rolling on
+
+   The sixth update in the 0.12.* series of Rcpp has arrived on the CRAN network for
+   GNU R a few hours ago, and was just pushed to Debian. This 0.12.6 release follows
+   the 0.12.0 release from late July, the 0.12.1 release in September, the 0.12.2
+   release in November, the 0.12.3 release in January, the 0.12.4 release in March, and
+   the 0.12.5 release in May --- making it the tenth release at the steady bi-montly
+   release frequency. Just like the previous release, this one is once again more of a
+   refining maintenance release which addresses small bugs, nuisances or documentation
+   issues without adding any major new features. That said, some nice features (such as
+   caching support for sourceCpp() and friends) were added.
+
+   Rcpp has become the most popular way of enhancing GNU R with C or C++ code. As of
+   today, 703 packages on CRAN depend on Rcpp for making analytical code go faster and
+   further. That is up by about fourty packages from the last release in May!
+
+   Similar to the previous releases, we have contributions from first-time committers.
+   Artem Klevtsov made na_omit run faster on vectors without NA values. Otherwise, we
+   had many contributions from "regulars" like Kirill Mueller, James "coatless"
+   Balamuta and Dan Dillon as well as from fellow Rcpp Core contributors. Some
+   noteworthy highlights are encoding and string fixes, generally more robust builds, a
+   new iterator-based approach for vectorized programming, the aforementioned caching
+   for sourceCpp(), and several documentation enhancements. More details are below.
+
+  Changes in Rcpp version 0.12.6 (2016-07-18)
+
+       * Changes in Rcpp API:
+
+            * The long long data type is used only if it is available, to avoid
+              compiler warnings (Kirill M?ller in #488).
+
+            * The compiler is made aware that stop() never returns, to improve code
+              path analysis (Kirill M?ller in #487 addressing issue #486).
+
+            * String replacement was corrected (Qiang in #479 following mailing list
+              bug report by Masaki Tsuda)
+
+            * Allow for UTF-8 encoding in error messages via
+              RCPP_USING_UTF8_ERROR_STRING macro (Qin Wenfeng in #493)
+
+            * The R function Rf_warningcall is now provided as well (as usual without
+              leading Rf_) (#497 fixing #495)
+
+       * Changes in Rcpp Sugar:
+
+            * Const-ness of min and max functions has been corrected. (Dan Dillon in PR
+              #478 fixing issue #477).
+
+            * Ambiguities for matrix/vector and scalar operations have been fixed (Dan
+              Dillon in PR #476 fixing issue #475).
+
+            * New algorithm header using iterator-based approach for vectorized
+              functions (Dan in PR #481 revisiting PR #428 and addressing issue #426,
+              with futher work by Kirill in PR #488 and Nathan in #503 fixing issue
+              #502).
+
+            * The na_omit() function is now faster for vectors without NA values (Artem
+              Klevtsov in PR #492)
+
+       * Changes in Rcpp Attributes:
+
+            * Add cacheDir argument to sourceCpp() to enable caching of shared
+              libraries across R sessions (JJ in #504).
+
+            * Code generation now deals correctly which packages containing a dot in
+              their name (Qiang in #501 fixing #500).
+
+       * Changes in Rcpp Documentation:
+
+            * A section on default parameters was added to the Rcpp FAQ vignette (James
+              Balamuta in #505 fixing #418).
+
+            * The Rcpp-attributes vignette is now mentioned more prominently in
+              question one of the Rcpp FAQ vignette.
+
+            * The Rcpp Quick Reference vignette received a facelift with new sections
+              on Rcpp attributes and plugins begin added. (James Balamuta in #509
+              fixing #484).
+
+            * The bib file was updated with respect to the recent JSS publication for
+              RProtoBuf.
+
+   Thanks to CRANberries, you can also look at a diff to the previous release. As
+   always, even fuller details are on the Rcpp Changelog page and the Rcpp page which
+   also leads to the downloads page, the browseable doxygen docs and zip files of
+   doxygen output for the standard formats. A local directory has source and
+   documentation too. Questions, comments etc should go to the rcpp-devel mailing list
+   off the R-Forge page.
+
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Jul 27 14:40:14 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 27 Jul 2016 07:40:14 -0500
+Subject: [Rcpp-devel] symmatu does not give symmetric matrix
+In-Reply-To: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+References: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+Message-ID: <22424.43950.921017.847961@max.nulle.part>
+
+
+Sorry for the delay in responding.  Mail delivery was stuck at R-Forge for a
+few days it seems.
+
+On 21 July 2016 at 10:46, Jendoubi, Takoua wrote:
+| Dear all,
+| 
+| I am using RcppArmadillo to deal with some matrix computations. Specifically I
+| need to cholesky factorization of some symmetric matrices.
+| 
+| I am generating random vectors using Rcpp and using them to construct symmetric
+| matrices.
+| 
+| I have an error stating that my matrix is not symmetric although it definitely
+| should be. Here is the example I am working with (in R):
+| 
+| >x
+| [1] -1.6683320 -0.8597148
+| >x%*%t(x)
+|          [,1]      [,2]
+| [1,] 2.783332 1.4342896
+| [2,] 1.434290 0.7391095
+| 
+| Apparently, it is a rounding-off error. Is there any way to ensure that x%*%t
+| (x) gives an exactly symmetric matrix to use for cholesky factorization?
+
+I don't know of an automatic way.  R surely has no native type for symmetric
+matrices (at least not at the SEXP level as it really only has vectors with
+dim attributes).  I would probably start with some helper functions at the R
+or C++ level.  Some may have better tricks...
+
+Dirk
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From yixuan.qiu at cos.name  Wed Jul 27 15:33:57 2016
+From: yixuan.qiu at cos.name (Yixuan Qiu)
+Date: Wed, 27 Jul 2016 09:33:57 -0400
+Subject: [Rcpp-devel] symmatu does not give symmetric matrix
+In-Reply-To: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+References: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+Message-ID: <CAFr_7yEpPtmxXZNJud0CLv8a3sftygve=9G7m0UkfVZJzjKTkw@mail.gmail.com>
+
+Hi Takoua,
+
+Are you sure the Cholesky decomposition was complaining about symmetry and
+not something else?
+In fact in your R example, the result *IS* a symmetric matrix. The two
+numbers are just displayed differently (the first column displays 6 digits,
+and the second column displays 7 digits), but the values in memory are the
+same. You can try
+
+## A better way is m = tcrossprod(x)
+m = x %*% t(x)
+format(m, digits = 10)
+m[1, 2] == m[2, 1]
+
+to verify this.
+
+
+Best,
+Yixuan
+
+
+2016-07-21 6:46 GMT-04:00 Jendoubi, Takoua <t.jendoubi14 at imperial.ac.uk>:
+
+> Dear all,
+>
+>
+>
+> I am using RcppArmadillo to deal with some matrix computations.
+> Specifically I need to cholesky factorization of some symmetric matrices.
+>
+> I am generating random vectors using Rcpp and using them to construct
+> symmetric matrices.
+>
+> I have an error stating that my matrix is not symmetric although it
+> definitely should be. Here is the example I am working with (in R):
+>
+>
+>
+> >x
+>
+> [1] -1.6683320 -0.8597148
+>
+> >x%*%t(x)
+>
+>          [,1]      [,2]
+>
+> [1,] 2.783332 1.4342896
+>
+> [2,] 1.434290 0.7391095
+>
+>
+>
+> Apparently, it is a rounding-off error. Is there any way to ensure that
+> x%*%t(x) gives an exactly symmetric matrix to use for cholesky
+> factorization?
+>
+> I tried symmatu and symmatl but the error is still there.
+>
+>
+>
+> Thanks,
+>
+> Best,
+>
+>
+>
+> Takoua Jendoubi
+>
+> PhD student
+>
+> School of Public Health & Department of Surgery and Cancer
+>
+> Main address :
+>
+> Imperial College London | Room 171 | St Mary?s Campus | Norfolk Place | London
+> | W2 1PG |
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Yixuan Qiu <yixuan.qiu at cos.name>
+Department of Statistics,
+Purdue University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160727/2132e503/attachment.html>
+
+From bates at stat.wisc.edu  Wed Jul 27 15:44:40 2016
+From: bates at stat.wisc.edu (Douglas Bates)
+Date: Wed, 27 Jul 2016 13:44:40 +0000
+Subject: [Rcpp-devel] symmatu does not give symmetric matrix
+In-Reply-To: <22424.43950.921017.847961@max.nulle.part>
+References: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+ <22424.43950.921017.847961@max.nulle.part>
+Message-ID: <CAO7JsnQjDy+FKBareMwpqD9cs3iCuk9JEXp+0ztVayfRxZLtuA@mail.gmail.com>
+
+First, this is not a good way of constructing a matrix to test the Cholesky
+decomposition because the result is rank-deficient. It is a 2 by 2 matrix
+of rank 1.  In fact it is the very definition of a rank-1 matrix - a column
+vector multiplied by its transpose.
+
+I am surprised at the result because I can't think of a way in computer
+arithmetic that the off-diagonals would be different.  They should both be
+
+prod(x)
+
+The dput function will print the values out to full precision so try
+
+dput(prod(x))
+dput(x %*% t(x))
+
+to see the full precision results.
+
+Thirdly, R has two functions, crossprod and tcrossprod, to compute X'X and
+XX', respectively.  They compute one triangle of the result and copy it
+into the other, so the result is guaranteed to be symmetric. Try
+
+dput(tcrossprod(x))
+
+Finally, what are you going to do with the Cholesky decomposition?  If you
+are doing this simply to get the decomposition, compiling C++ code, even
+with all the help provided by Rcpp, is doing things the hard way. Just use
+the chol function in R or the cholesky decomposition in the Matrix package
+if you want more control.
+
+On Wed, Jul 27, 2016 at 7:40 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Sorry for the delay in responding.  Mail delivery was stuck at R-Forge for
+> a
+> few days it seems.
+>
+> On 21 July 2016 at 10:46, Jendoubi, Takoua wrote:
+> | Dear all,
+> |
+> | I am using RcppArmadillo to deal with some matrix computations.
+> Specifically I
+> | need to cholesky factorization of some symmetric matrices.
+> |
+> | I am generating random vectors using Rcpp and using them to construct
+> symmetric
+> | matrices.
+> |
+> | I have an error stating that my matrix is not symmetric although it
+> definitely
+> | should be. Here is the example I am working with (in R):
+> |
+> | >x
+> | [1] -1.6683320 -0.8597148
+> | >x%*%t(x)
+> |          [,1]      [,2]
+> | [1,] 2.783332 1.4342896
+> | [2,] 1.434290 0.7391095
+> |
+> | Apparently, it is a rounding-off error. Is there any way to ensure that
+> x%*%t
+> | (x) gives an exactly symmetric matrix to use for cholesky factorization?
+>
+> I don't know of an automatic way.  R surely has no native type for
+> symmetric
+> matrices (at least not at the SEXP level as it really only has vectors with
+> dim attributes).  I would probably start with some helper functions at the
+> R
+> or C++ level.  Some may have better tricks...
+>
+> Dirk
+>
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160727/443e97cc/attachment.html>
+
+From edd at debian.org  Wed Jul 27 15:59:36 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 27 Jul 2016 08:59:36 -0500
+Subject: [Rcpp-devel] symmatu does not give symmetric matrix
+In-Reply-To: <CAO7JsnQjDy+FKBareMwpqD9cs3iCuk9JEXp+0ztVayfRxZLtuA@mail.gmail.com>
+References: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+ <22424.43950.921017.847961@max.nulle.part>
+ <CAO7JsnQjDy+FKBareMwpqD9cs3iCuk9JEXp+0ztVayfRxZLtuA@mail.gmail.com>
+Message-ID: <22424.48712.773365.866238@max.nulle.part>
+
+
+Thanks to both Yixuan and Doug for coming in with actual clues.
+
+We have had 'add access to crossprod' as a TODO for Rcpp for ages.  Might be
+nice to add helper functions for this as these are indeed commonly used
+interfaces to frequentluy needed LAPACK/BLAS functionality.  Then again,
+leaving it to (Rcpp)Armadillo and (Rcpp)Eigen also makes some sense as Rcpp
+itself does little actual matrix math.
+
+But clean pull requests are always welcome :)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From t.jendoubi14 at imperial.ac.uk  Fri Jul 29 14:42:04 2016
+From: t.jendoubi14 at imperial.ac.uk (Jendoubi, Takoua)
+Date: Fri, 29 Jul 2016 12:42:04 +0000
+Subject: [Rcpp-devel] symmatu does not give symmetric matrix
+In-Reply-To: <CAO7JsnQjDy+FKBareMwpqD9cs3iCuk9JEXp+0ztVayfRxZLtuA@mail.gmail.com>
+References: <AMSPR06MB310BFDE9D1E90BF20C0812AAA090@AMSPR06MB310.eurprd06.prod.outlook.com>
+ <22424.43950.921017.847961@max.nulle.part>
+ <CAO7JsnQjDy+FKBareMwpqD9cs3iCuk9JEXp+0ztVayfRxZLtuA@mail.gmail.com>
+Message-ID: <AMSPR06MB310E6E0EFAB01717AECE9B6AA010@AMSPR06MB310.eurprd06.prod.outlook.com>
+
+Dear all,
+
+
+
+Thank you for your help.
+
+I am actually dealing with high dimensional data and using cholesky decomposition to compute the determinant of the matrix.
+
+The example I gave was only intended to be illustrative and it brought some confusion.
+
+
+
+It turned out that the error (?matrix is not symmetric positive definite? ) is raised because the matrix became ill-conditioned during sampling and was containing very small values. The problem is solved by regularizing the matrix.
+
+
+
+Thank you again,
+
+Takoua.
+
+
+From: Douglas Bates [mailto:bates at stat.wisc.edu]
+Sent: 27 July 2016 14:45
+To: Dirk Eddelbuettel; Jendoubi, Takoua
+Cc: rcpp-devel at lists.r-forge.r-project.org; Martin Maechler
+Subject: Re: [Rcpp-devel] symmatu does not give symmetric matrix
+
+First, this is not a good way of constructing a matrix to test the Cholesky decomposition because the result is rank-deficient. It is a 2 by 2 matrix of rank 1.  In fact it is the very definition of a rank-1 matrix - a column vector multiplied by its transpose.
+
+I am surprised at the result because I can't think of a way in computer arithmetic that the off-diagonals would be different.  They should both be
+
+prod(x)
+
+The dput function will print the values out to full precision so try
+
+dput(prod(x))
+dput(x %*% t(x))
+
+to see the full precision results.
+
+Thirdly, R has two functions, crossprod and tcrossprod, to compute X'X and XX', respectively.  They compute one triangle of the result and copy it into the other, so the result is guaranteed to be symmetric. Try
+
+dput(tcrossprod(x))
+
+Finally, what are you going to do with the Cholesky decomposition?  If you are doing this simply to get the decomposition, compiling C++ code, even with all the help provided by Rcpp, is doing things the hard way. Just use the chol function in R or the cholesky decomposition in the Matrix package if you want more control.
+
+On Wed, Jul 27, 2016 at 7:40 AM Dirk Eddelbuettel <edd at debian.org<mailto:edd at debian.org>> wrote:
+
+Sorry for the delay in responding.  Mail delivery was stuck at R-Forge for a
+few days it seems.
+
+On 21 July 2016 at 10:46, Jendoubi, Takoua wrote:
+| Dear all,
+|
+| I am using RcppArmadillo to deal with some matrix computations. Specifically I
+| need to cholesky factorization of some symmetric matrices.
+|
+| I am generating random vectors using Rcpp and using them to construct symmetric
+| matrices.
+|
+| I have an error stating that my matrix is not symmetric although it definitely
+| should be. Here is the example I am working with (in R):
+|
+| >x
+| [1] -1.6683320 -0.8597148
+| >x%*%t(x)
+|          [,1]      [,2]
+| [1,] 2.783332 1.4342896
+| [2,] 1.434290 0.7391095
+|
+| Apparently, it is a rounding-off error. Is there any way to ensure that x%*%t
+| (x) gives an exactly symmetric matrix to use for cholesky factorization?
+
+I don't know of an automatic way.  R surely has no native type for symmetric
+matrices (at least not at the SEXP level as it really only has vectors with
+dim attributes).  I would probably start with some helper functions at the R
+or C++ level.  Some may have better tricks...
+
+Dirk
+
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org<mailto:edd at debian.org>
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org<mailto:Rcpp-devel at lists.r-forge.r-project.org>
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160729/6c1eb6bb/attachment.html>
+
+From edd at debian.org  Sat Jul 30 15:36:53 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 30 Jul 2016 08:36:53 -0500
+Subject: [Rcpp-devel] [ANN] RcppArmadillo 0.7.200.2.0 (and 0.7.300.1.0)
+Message-ID: <22428.44405.525447.940731@max.nulle.part>
+
+
+Conrad continues to tirelessly advance Armadillo, and I am trying to keep up
+with RcppArmadillo in a way that paces releases more in line with what we now
+do with Rcpp (ie bi-monthly).  So as his 7.200.* series was finalized, I at
+last release RcppArmadillo 0.7.200.2.0 to CRAN.  The announcement from my
+blog is included below.
+
+While preparing that release, I must have tested with the 7.1.* series as I
+missed one gotcha revealed by the seqHMM and since addressed by both Jouni in
+its sources, and Conrad in his current 7.300.1. Sorry for missing that, and
+thanks to both for very prompt responses.  Now, having had this incident, I
+prepared RcppArmadillo 0.7.300.1.0 as GitHub-based 'drat relased'.  Do either
+
+   install.packages("RcppArmadillo", repo="http://RcppCore.github.io/drat")
+
+to one-time install, or add the repo to your sessions via eg this in .Rprofile
+
+   drat::addRepo("RcppCore")
+
+after which install.packages() and update.packages() will consider it.  Wider
+pre-release testing helps so please do your part :)  At least on a dev box
+here or there.
+
+I intend to do releases roughly once a month or just not under (as CRAN keeps
+to keep count of 'N in N months').
+
+Thanks,  Dirk
+
+
+  RcppArmadillo 0.7.200.2.0
+
+   armadillo image
+
+   The second Armadillo release of the 7.* series came out a few weeks ago: version
+   7.200.2. And RcppArmadillo version 0.7.200.2.0 is now on CRAN and uploaded to
+   Debian. This followed the usual thorough reverse-dependecy checking of by now over
+   240 packages using it.
+
+   For once, I let it simmer a little preparing only a package update via the GitHub
+   repo without preparing a CRAN upload to lower the update frequency a little. Seeing
+   that Conrad has started to release 7.300.0 tarballs, the time for a (final) 7.200.2
+   upload was now right.
+
+   Just like the previous, it now requires a recent enough compiler. As g++ is so
+   common, we explicitly test for version 4.6 or newer. So if you happen to be on an
+   older RHEL or CentOS release, you may need to get yourself a more modern compiler. R
+   on Windows is now at 4.9.3 which is decent (yet stable) choice; the 4.8 series of
+   g++ will also do. For reference, the current LTS of Ubuntu is at 5.4.0, and we have
+   g++ 6.1 available in Debian testing.
+
+   This new upstream release adds new indexing helpers, additional return codes on some
+   matrix transformations, increased speed for compound expressions via vectorise,
+   corrects some LAPACK feature detections (affecting principally complex number use
+   under OS X), and a rewritten sample() function thanks to James Balamuta.
+
+   Armadillo is a powerful and expressive C++ template library for linear algebra
+   aiming towards a good balance between speed and ease of use with a syntax
+   deliberately close to a Matlab.
+
+   Changes in this release (and the preceding GitHub-only release 0.7.200.1.0 are as
+   follows:
+
+    Changes in RcppArmadillo version 0.7.200.2.0 (2016-07-22)
+
+       * Upgraded to Armadillo release 7.200.2
+
+       * The sampling extension was rewritten to use Armadillo vector types instead of
+         Rcpp types (PR #101 by James Balamuta)
+
+    Changes in RcppArmadillo version 0.7.200.1.0 (2016-06-06)
+
+       * Upgraded to Armadillo release 7.200.1
+
+            * added .index_min() and .index_max()
+
+            * expanded ind2sub() to handle vectors of indices
+
+            * expanded sub2ind() to handle matrix of subscripts
+
+            * expanded expmat(), logmat() and sqrtmat() to optionally return a bool
+              indicating success
+
+            * faster handling of compound expressions by vectorise()
+
+       * The configure code now (once again) sets the values for the LAPACK feature
+         #define correctly.
+
+   Courtesy of CRANberries, there is a diffstat report. More detailed information is on
+   the RcppArmadillo page. Questions, comments etc should go to the rcpp-devel mailing
+   list off the R-Forge page.
+
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From dcdillon at gmail.com  Sun Jul 31 17:42:00 2016
+From: dcdillon at gmail.com (Dan Dillon)
+Date: Sun, 31 Jul 2016 10:42:00 -0500
+Subject: [Rcpp-devel] Templates and Debugging Symbols
+Message-ID: <CAEWw9xXx3Wsk=y0tqESR4Gw+D42R=WGYkGcL6eFV9vaZgOUtQw@mail.gmail.com>
+
+I am writing a package that makes heavy use of templates.  Since all R
+packages are compiled with the -g flag (for g++ and clang++ anyhow), this
+ends up putting debugging symbols in the resulting library (.so).  The
+problem is, that the size of these symbols bloats the shared library to a
+ridiculous extent (13.0MB with, 54K without).
+
+I am looking for a portable way to suppress the creation of debugging
+symbols within the libraries.  For gcc/clang it is simple: add -Wl,-S to
+your PKG_LIBS variable, but this is not portable.  Furthermore, since my
+package is really just a set of headers to be used within Rcpp, any user of
+my package would need to be able to easily specify to strip debugging
+symbols in any file that includes my headers.
+
+My thoughts are these:
+
+1) if a portable way of making sure debugging symbols are stripped from the
+shared libraries is available, turn it into an Rcpp plugin (e.g. //
+[[Rcpp::plugins(strip)]]
+2) conceive of a way to do it portably and expose it.
+
+I'm looking for any advice or help with this issue.
+
+Thanks,
+
+Dan
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160731/6ea6d092/attachment.html>
+

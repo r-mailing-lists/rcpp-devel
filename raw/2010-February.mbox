@@ -1,0 +1,4568 @@
+From romain.francois at dbmail.com  Mon Feb  1 12:07:28 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Mon, 01 Feb 2010 12:07:28 +0100
+Subject: [Rcpp-devel] wrap
+Message-ID: <4B66B5F0.6030703@dbmail.com>
+
+
+Hi,
+
+I've finally discovered the is_convertible type trait (from tr1 or 
+C++0x) which helps closing the implementation of wrap.
+
+Here are the types that can currently be wrapped
+
+int
+size_t
+double
+bool
+std::string
+const char* const
+Rbyte
+Rcomplex
+
+Additionally, if the type T can be wrapped, then the following types can 
+also be wrapped:
+
+std::vector<T>
+std::deque<T>
+std::list<T>
+std::set<T>
+std::multiset<T>
+std::map<std::string,T>
+std::multimap<std::string,T>
+
+std::tr1::unordered_set<T>
+std::tr1::unordered_map<std::string,T>
+std::tr1::unordered_multimap<std::string,T>
+
+Additionally, type Foo can be wrapped if it can be implicitely converted 
+to SEXP, which we can identify at compile time with is_convertible.
+
+Note that you can compose in any way you want, so for example:
+
+std::vector< std::map<std::string,std::vector<int> > >
+
+will happily be wrapped into a list of named lists of integer vectors. 
+There are examples of this in the unit test runit.wrap.R. The 
+implementation of this is contained in the Rcpp/internal/wrap.h file.
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/KfKn : Rcpp 0.7.2
+|- http://tr.im/JOlc : External pointers with Rcpp
+`- http://tr.im/JFqa : R Journal, Volume 1/2, December 2009
+
+
+
+From romain.francois at dbmail.com  Sat Feb  6 14:28:47 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Sat, 06 Feb 2010 14:28:47 +0100
+Subject: [Rcpp-devel] RObject.asFoo
+Message-ID: <4B6D6E8F.7090601@dbmail.com>
+
+Hello,
+
+Now with as<Foo>, we don't need anymore the Rcpp::asFoo() methods. I'd 
+like to remove them from the api.
+
+Any objections ?
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+|- http://tr.im/KfKn : Rcpp 0.7.2
+`- http://tr.im/JOlc : External pointers with Rcpp
+
+
+
+From edd at debian.org  Sat Feb  6 15:22:01 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 6 Feb 2010 08:22:01 -0600
+Subject: [Rcpp-devel] RObject.asFoo
+In-Reply-To: <4B6D77D0.2080904@free.fr>
+References: <4B6D6E8F.7090601@dbmail.com>
+	<19309.30056.352671.513022@ron.nulle.part>
+	<4B6D77D0.2080904@free.fr>
+Message-ID: <19309.31497.116706.924316@ron.nulle.part>
+
+
+On 6 February 2010 at 15:08, Romain Francois wrote:
+| On 02/06/2010 02:58 PM, Dirk Eddelbuettel wrote:
+| >
+| >
+| > On 6 February 2010 at 14:28, Romain Francois wrote:
+| > | Hello,
+| > |
+| > | Now with as<Foo>, we don't need anymore the Rcpp::asFoo() methods. I'd
+| > | like to remove them from the api.
+| > |
+| > | Any objections ?
+| >
+| > Could we keep them as one-liners a la
+| >
+| >        inline bool asBool() const { return as<bool>(object); }
+| >
+| > and mark it in RcppSexp.h with a comment that the asFoo are deprecated?
+| >
+| > Dirk
+| >
+| 
+| Sure. I do not mind keeping them in RcppSexp, but I'd prefer top 
+| eventually remove them from RObject, but we can do it slowly, deprecate 
+| them first, etc ...
+
+Ahh, yes.
+ 
+| I'm changing RcppSexp so that it uses as<> directly.
+
+That's good. 
+
+In a sense even RcppSexp is deprecated and replace by Rcpp::RObject.
+
+Dirk
+
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From romain.francois at dbmail.com  Sat Feb  6 15:26:33 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Sat, 06 Feb 2010 15:26:33 +0100
+Subject: [Rcpp-devel] RObject.asFoo
+In-Reply-To: <19309.31497.116706.924316@ron.nulle.part>
+References: <4B6D6E8F.7090601@dbmail.com>	<19309.30056.352671.513022@ron.nulle.part>	<4B6D77D0.2080904@free.fr>
+	<19309.31497.116706.924316@ron.nulle.part>
+Message-ID: <4B6D7C19.5090804@dbmail.com>
+
+On 02/06/2010 03:22 PM, Dirk Eddelbuettel wrote:
+>
+> On 6 February 2010 at 15:08, Romain Francois wrote:
+> | On 02/06/2010 02:58 PM, Dirk Eddelbuettel wrote:
+> |>
+> |>
+> |>  On 6 February 2010 at 14:28, Romain Francois wrote:
+> |>  | Hello,
+> |>  |
+> |>  | Now with as<Foo>, we don't need anymore the Rcpp::asFoo() methods. I'd
+> |>  | like to remove them from the api.
+> |>  |
+> |>  | Any objections ?
+> |>
+> |>  Could we keep them as one-liners a la
+> |>
+> |>         inline bool asBool() const { return as<bool>(object); }
+> |>
+> |>  and mark it in RcppSexp.h with a comment that the asFoo are deprecated?
+> |>
+> |>  Dirk
+> |>
+> |
+> | Sure. I do not mind keeping them in RcppSexp, but I'd prefer top
+> | eventually remove them from RObject, but we can do it slowly, deprecate
+> | them first, etc ...
+>
+> Ahh, yes.
+>
+> | I'm changing RcppSexp so that it uses as<>  directly.
+>
+> That's good.
+>
+> In a sense even RcppSexp is deprecated and replace by Rcpp::RObject.
+
+Yes. I has been advertised as such for some time now.
+
+/**
+  * This class is DEPRECATED, will be DEFUNCT in a next version and
+  * eventually removed from Rcpp.
+  *
+  * The alternative is to use the Rcpp::RObject class and the set of 
+functions
+  * Rcpp::wrap.
+  */
+class RcppSexp {
+public:
+
+I don't mind leaving this one on, but I believe that methods asFoo of 
+RObject --- which is becoming quite stable now --- should disappear, to 
+reduce complexity, number of interfaces ...
+
+> Dirk
+>
+>
+
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+|- http://tr.im/KfKn : Rcpp 0.7.2
+`- http://tr.im/JOlc : External pointers with Rcpp
+
+
+
+From edd at debian.org  Sat Feb  6 16:16:06 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 6 Feb 2010 09:16:06 -0600
+Subject: [Rcpp-devel] RObject.asFoo
+In-Reply-To: <4B6D7C19.5090804@dbmail.com>
+References: <4B6D6E8F.7090601@dbmail.com>
+	<19309.30056.352671.513022@ron.nulle.part>
+	<4B6D77D0.2080904@free.fr>
+	<19309.31497.116706.924316@ron.nulle.part>
+	<4B6D7C19.5090804@dbmail.com>
+Message-ID: <19309.34742.809650.33395@ron.nulle.part>
+
+
+On 6 February 2010 at 15:26, Romain Francois wrote:
+| On 02/06/2010 03:22 PM, Dirk Eddelbuettel wrote:
+| >
+| > On 6 February 2010 at 15:08, Romain Francois wrote:
+| > | On 02/06/2010 02:58 PM, Dirk Eddelbuettel wrote:
+| > |>
+| > |>
+| > |>  On 6 February 2010 at 14:28, Romain Francois wrote:
+| > |>  | Hello,
+| > |>  |
+| > |>  | Now with as<Foo>, we don't need anymore the Rcpp::asFoo() methods. I'd
+| > |>  | like to remove them from the api.
+| > |>  |
+| > |>  | Any objections ?
+| > |>
+| > |>  Could we keep them as one-liners a la
+| > |>
+| > |>         inline bool asBool() const { return as<bool>(object); }
+| > |>
+| > |>  and mark it in RcppSexp.h with a comment that the asFoo are deprecated?
+| > |>
+| > |>  Dirk
+| > |>
+| > |
+| > | Sure. I do not mind keeping them in RcppSexp, but I'd prefer top
+| > | eventually remove them from RObject, but we can do it slowly, deprecate
+| > | them first, etc ...
+| >
+| > Ahh, yes.
+| >
+| > | I'm changing RcppSexp so that it uses as<>  directly.
+| >
+| > That's good.
+| >
+| > In a sense even RcppSexp is deprecated and replace by Rcpp::RObject.
+| 
+| Yes. I has been advertised as such for some time now.
+| 
+| /**
+|   * This class is DEPRECATED, will be DEFUNCT in a next version and
+|   * eventually removed from Rcpp.
+|   *
+|   * The alternative is to use the Rcpp::RObject class and the set of 
+| functions
+|   * Rcpp::wrap.
+|   */
+| class RcppSexp {
+| public:
+| 
+| I don't mind leaving this one on, but I believe that methods asFoo of 
+| RObject --- which is becoming quite stable now --- should disappear, to 
+| reduce complexity, number of interfaces ...
+
+Ok, go for it and nuke it.
+
+Dirk
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From dnquark at gmail.com  Sat Feb  6 23:56:23 2010
+From: dnquark at gmail.com (Leo Alekseyev)
+Date: Sat, 6 Feb 2010 17:56:23 -0500
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+Message-ID: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+
+Howdy folks,
+I started playing around with Rcpp recently, and so far haven't been
+able to figure out how to detect NAs in a matrix that I pass to the
+C++ code.
+My test code looks something like this:
+RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+.......
+    RcppMatrix<double> m1(M1);// double mtx based on M1
+    RcppVector<double> v1(V1);// double vector based on V1
+    RcppParams rparam(parms);       // parameter from R based on parms
+    RcppResultSet rs;
+    Rcpp::RObject n1sexp(N1);
+
+    double n1 = n1sexp.asDouble();
+    Rprintf("The value of isna is %d\n",R_IsNA(n1));
+
+    double element1 = v1(0);
+    if(R_IsNA(element1))
+      Rprintf("Found NA in vector!\n");
+
+    double m00 = m1(0,0);
+    if(R_IsNA(m00))
+      Rprintf("Found NA in matrix!\n");
+................
+
+The R_IsNA() appears to work fine on scalars and vectors, but fails to
+detect NA present in a matrix.  Is this a bug?.. feature?..  Is the
+handling of missing values documented anywhere other than the R
+Extensions manual?..
+
+
+On a (probably) unrelated note, I get the following error when
+compiling my C++ code:
+Error in RcppCxx0xFlags() : could not find function "capture.output"
+Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+
+However, the code seems to compile fine.  The compilation script is simply
+#!/bin/bash
+export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+R CMD SHLIB "$@"
+
+Complete output from compilation is pasted below -- is this an error I
+should be concerned about?..
+ ./buildAndRun.sh rcpp_test.cpp --clean
+Error in RcppCxx0xFlags() : could not find function "capture.output"
+Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+Execution halted
+g++ -I/usr/share/R/include -I/usr/local/lib/R/site-library/Rcpp/lib
+ -fpic  -g -O2 -c rcpp_test.cpp -o rcpp_test.o
+Error in RcppCxx0xFlags() : could not find function "capture.output"
+Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+Execution halted
+Error in RcppCxx0xFlags() : could not find function "capture.output"
+Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+Execution halted
+g++ -shared -o rcpp_test.so rcpp_test.o
+-L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+-Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib -L/usr/lib/R/lib -lR
+Error in RcppCxx0xFlags() : could not find function "capture.output"
+Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+Execution halted
+
+
+Thanks in advance for any help (and please let me know if this is not
+the correct mailing list for these sorts of questions!)
+
+--Leo Alekseyev
+
+From edd at debian.org  Sun Feb  7 02:01:33 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 6 Feb 2010 19:01:33 -0600
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+Message-ID: <19310.4333.357760.255405@ron.nulle.part>
+
+
+Hi Leo,
+
+On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+| Howdy folks,
+| I started playing around with Rcpp recently, and so far haven't been
+| able to figure out how to detect NAs in a matrix that I pass to the
+| C++ code.
+| My test code looks something like this:
+| RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+| .......
+|     RcppMatrix<double> m1(M1);// double mtx based on M1
+|     RcppVector<double> v1(V1);// double vector based on V1
+|     RcppParams rparam(parms);       // parameter from R based on parms
+|     RcppResultSet rs;
+|     Rcpp::RObject n1sexp(N1);
+| 
+|     double n1 = n1sexp.asDouble();
+|     Rprintf("The value of isna is %d\n",R_IsNA(n1));
+| 
+|     double element1 = v1(0);
+|     if(R_IsNA(element1))
+|       Rprintf("Found NA in vector!\n");
+| 
+|     double m00 = m1(0,0);
+|     if(R_IsNA(m00))
+|       Rprintf("Found NA in matrix!\n");
+| ................
+
+That looks like the right approach.
+
+So to give this some meat on the bone and some comparability, I added a new
+unit test:
+
+test.RcppMatrix.double.na.nan <- function() {
+    src <- 'RcppMatrix<double> m(x);
+            RcppResultSet rs;
+            rs.add("na_21",  R_IsNA(m(1,0)));
+            rs.add("na_22",  R_IsNA(m(1,1)));
+            rs.add("nan_31", R_IsNaN(m(2,0)));
+            rs.add("nan_32", R_IsNaN(m(2,1)));
+	    return rs.getReturnList();';
+    funx <- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+    M <- matrix(1:6,3,2,byrow=TRUE)
+    M[2,1] <- NA
+    M[3,1] <- NaN
+    checkEquals(funx(x=M),
+                list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+                msg = "RcppMatrix.double.na.nan")
+}
+
+This defines a function 'test.RcppMatrix.double.na.nan'. In it, we create a
+function funx that evaluates the C++ code in src -- it tests positions (2,1),
+(2,2), (3,1) and (3,2).  We then create this matrix
+
+  R> M <- matrix(1:6,3,2,byrow=TRUE)
+  R> M[2,1] <- NA
+  R> M[3,1] <- NaN
+  R> M
+       [,1] [,2]
+  [1,]    1    2
+  [2,]   NA    4
+  [3,]  NaN    6
+  R> 
+
+and the compare with the result specified in the checkEquals call.  And that
+pans out:
+
+  R>     checkEquals(funx(x=M),
+  +                 list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+  +                 msg = "RcppMatrix.double.na.nan")
+  [1] TRUE
+  R> 
+
+What version were you running?  I am at current SVN so somewhere past 0.7.4
+and not quite release 0.7.5.
+ 
+| The R_IsNA() appears to work fine on scalars and vectors, but fails to
+| detect NA present in a matrix.  Is this a bug?.. feature?..  Is the
+| handling of missing values documented anywhere other than the R
+| Extensions manual?..
+
+We do not transform anything.  R tests for NA and NaN with (IIRC) a
+combination of IEEE754 (for NA) and a special value for NaN.  That works here
+as we use the R tests for ot.
+ 
+| On a (probably) unrelated note, I get the following error when
+| compiling my C++ code:
+| Error in RcppCxx0xFlags() : could not find function "capture.output"
+| Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+
+Not here either:
+
+  R> Rcpp:::RcppCxx0xFlags()
+  [1] "-std=c++0x"
+  R> 
+
+| However, the code seems to compile fine.  The compilation script is simply
+| #!/bin/bash
+| export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+| export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+| export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+| R CMD SHLIB "$@"
+
+You may not need the third for CLINK_CPPFLAGS. We experimented with C++0x but
+there are side effects on other OSs so we parked this for now.
+ 
+| Complete output from compilation is pasted below -- is this an error I
+| should be concerned about?..
+|  ./buildAndRun.sh rcpp_test.cpp --clean
+| Error in RcppCxx0xFlags() : could not find function "capture.output"
+| Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| Execution halted
+| g++ -I/usr/share/R/include -I/usr/local/lib/R/site-library/Rcpp/lib
+|  -fpic  -g -O2 -c rcpp_test.cpp -o rcpp_test.o
+| Error in RcppCxx0xFlags() : could not find function "capture.output"
+| Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| Execution halted
+| Error in RcppCxx0xFlags() : could not find function "capture.output"
+| Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| Execution halted
+| g++ -shared -o rcpp_test.so rcpp_test.o
+| -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+| -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib -L/usr/lib/R/lib -lR
+| Error in RcppCxx0xFlags() : could not find function "capture.output"
+| Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| Execution halted
+| 
+| 
+| Thanks in advance for any help (and please let me know if this is not
+| the correct mailing list for these sorts of questions!)
+
+Very much the right list! Thanks for asking here.
+
+If you post your full shell script / test code I can have a go at testing it.
+
+Dirk
+ 
+| --Leo Alekseyev
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From dnquark at gmail.com  Sun Feb  7 04:08:34 2010
+From: dnquark at gmail.com (Leo Alekseyev)
+Date: Sat, 6 Feb 2010 22:08:34 -0500
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <19310.4333.357760.255405@ron.nulle.part>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+	<19310.4333.357760.255405@ron.nulle.part>
+Message-ID: <4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>
+
+Thanks for the response.  Your new unit test runs, but I still see the
+problem (running 0.7.4 installed from CRAN).  Consider this version of
+the test -- the only difference is that it uses a 2x2 matrix and
+checks for NAs:
+
+test.RcppMatrix.double.na <- function() {
+  src <- 'RcppMatrix<double> m(x);
+           RcppResultSet rs;
+           rs.add("na_11",  R_IsNA(m(0,0)));
+           rs.add("na_12",  R_IsNA(m(0,1)));
+           rs.add("na_21",  R_IsNA(m(1,0)));
+           rs.add("na_22",  R_IsNA(m(1,1)));
+           return rs.getReturnList();';
+  funx <- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+  M <- matrix(1:4,2,2,byrow=TRUE)
+  M[2,1] <- NA
+  checkEquals(funx(x=M),
+              list(na_11=0, na_12=0, na_21=1, na_22=0),
+              msg = "RcppMatrix.double.na")
+}
+
+This fails for me:
+
+Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 = 1,  :
+  Component 3: Mean absolute difference: 1RcppMatrix.double.na
+test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+
+As far as the compilation error messages -- looks like they were
+indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+
+Thanks,
+--Leo
+
+
+On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> Hi Leo,
+>
+> On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+> | Howdy folks,
+> | I started playing around with Rcpp recently, and so far haven't been
+> | able to figure out how to detect NAs in a matrix that I pass to the
+> | C++ code.
+> | My test code looks something like this:
+> | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+> | .......
+> | ? ? RcppMatrix<double> m1(M1);// double mtx based on M1
+> | ? ? RcppVector<double> v1(V1);// double vector based on V1
+> | ? ? RcppParams rparam(parms); ? ? ? // parameter from R based on parms
+> | ? ? RcppResultSet rs;
+> | ? ? Rcpp::RObject n1sexp(N1);
+> |
+> | ? ? double n1 = n1sexp.asDouble();
+> | ? ? Rprintf("The value of isna is %d\n",R_IsNA(n1));
+> |
+> | ? ? double element1 = v1(0);
+> | ? ? if(R_IsNA(element1))
+> | ? ? ? Rprintf("Found NA in vector!\n");
+> |
+> | ? ? double m00 = m1(0,0);
+> | ? ? if(R_IsNA(m00))
+> | ? ? ? Rprintf("Found NA in matrix!\n");
+> | ................
+>
+> That looks like the right approach.
+>
+> So to give this some meat on the bone and some comparability, I added a new
+> unit test:
+>
+> test.RcppMatrix.double.na.nan <- function() {
+> ? ?src <- 'RcppMatrix<double> m(x);
+> ? ? ? ? ? ?RcppResultSet rs;
+> ? ? ? ? ? ?rs.add("na_21", ?R_IsNA(m(1,0)));
+> ? ? ? ? ? ?rs.add("na_22", ?R_IsNA(m(1,1)));
+> ? ? ? ? ? ?rs.add("nan_31", R_IsNaN(m(2,0)));
+> ? ? ? ? ? ?rs.add("nan_32", R_IsNaN(m(2,1)));
+> ? ? ? ? ? ?return rs.getReturnList();';
+> ? ?funx <- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+> ? ?M <- matrix(1:6,3,2,byrow=TRUE)
+> ? ?M[2,1] <- NA
+> ? ?M[3,1] <- NaN
+> ? ?checkEquals(funx(x=M),
+> ? ? ? ? ? ? ? ?list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+> ? ? ? ? ? ? ? ?msg = "RcppMatrix.double.na.nan")
+> }
+>
+> This defines a function 'test.RcppMatrix.double.na.nan'. In it, we create a
+> function funx that evaluates the C++ code in src -- it tests positions (2,1),
+> (2,2), (3,1) and (3,2). ?We then create this matrix
+>
+> ?R> M <- matrix(1:6,3,2,byrow=TRUE)
+> ?R> M[2,1] <- NA
+> ?R> M[3,1] <- NaN
+> ?R> M
+> ? ? ? [,1] [,2]
+> ?[1,] ? ?1 ? ?2
+> ?[2,] ? NA ? ?4
+> ?[3,] ?NaN ? ?6
+> ?R>
+>
+> and the compare with the result specified in the checkEquals call. ?And that
+> pans out:
+>
+> ?R> ? ? checkEquals(funx(x=M),
+> ?+ ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+> ?+ ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+> ?[1] TRUE
+> ?R>
+>
+> What version were you running? ?I am at current SVN so somewhere past 0.7.4
+> and not quite release 0.7.5.
+>
+> | The R_IsNA() appears to work fine on scalars and vectors, but fails to
+> | detect NA present in a matrix. ?Is this a bug?.. feature?.. ?Is the
+> | handling of missing values documented anywhere other than the R
+> | Extensions manual?..
+>
+> We do not transform anything. ?R tests for NA and NaN with (IIRC) a
+> combination of IEEE754 (for NA) and a special value for NaN. ?That works here
+> as we use the R tests for ot.
+>
+> | On a (probably) unrelated note, I get the following error when
+> | compiling my C++ code:
+> | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+>
+> Not here either:
+>
+> ?R> Rcpp:::RcppCxx0xFlags()
+> ?[1] "-std=c++0x"
+> ?R>
+>
+> | However, the code seems to compile fine. ?The compilation script is simply
+> | #!/bin/bash
+> | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+> | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+> | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+> | R CMD SHLIB "$@"
+>
+> You may not need the third for CLINK_CPPFLAGS. We experimented with C++0x but
+> there are side effects on other OSs so we parked this for now.
+>
+> | Complete output from compilation is pasted below -- is this an error I
+> | should be concerned about?..
+> | ?./buildAndRun.sh rcpp_test.cpp --clean
+> | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | Execution halted
+> | g++ -I/usr/share/R/include -I/usr/local/lib/R/site-library/Rcpp/lib
+> | ?-fpic ?-g -O2 -c rcpp_test.cpp -o rcpp_test.o
+> | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | Execution halted
+> | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | Execution halted
+> | g++ -shared -o rcpp_test.so rcpp_test.o
+> | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+> | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib -L/usr/lib/R/lib -lR
+> | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | Execution halted
+> |
+> |
+> | Thanks in advance for any help (and please let me know if this is not
+> | the correct mailing list for these sorts of questions!)
+>
+> Very much the right list! Thanks for asking here.
+>
+> If you post your full shell script / test code I can have a go at testing it.
+>
+> Dirk
+>
+> | --Leo Alekseyev
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> ?Registration is open for the 2nd International conference R / Finance 2010
+> ?See http://www.RinFinance.com for details, and see you in Chicago in April!
+>
+
+From edd at debian.org  Sun Feb  7 05:19:28 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 6 Feb 2010 22:19:28 -0600
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+	<19310.4333.357760.255405@ron.nulle.part>
+	<4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>
+Message-ID: <19310.16208.55786.208361@ron.nulle.part>
+
+
+On 6 February 2010 at 22:08, Leo Alekseyev wrote:
+| Thanks for the response.  Your new unit test runs, but I still see the
+| problem (running 0.7.4 installed from CRAN).  Consider this version of
+| the test -- the only difference is that it uses a 2x2 matrix and
+| checks for NAs:
+| 
+| test.RcppMatrix.double.na <- function() {
+|   src <- 'RcppMatrix<double> m(x);
+|            RcppResultSet rs;
+|            rs.add("na_11",  R_IsNA(m(0,0)));
+|            rs.add("na_12",  R_IsNA(m(0,1)));
+|            rs.add("na_21",  R_IsNA(m(1,0)));
+|            rs.add("na_22",  R_IsNA(m(1,1)));
+|            return rs.getReturnList();';
+|   funx <- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+|   M <- matrix(1:4,2,2,byrow=TRUE)
+|   M[2,1] <- NA
+|   checkEquals(funx(x=M),
+|               list(na_11=0, na_12=0, na_21=1, na_22=0),
+|               msg = "RcppMatrix.double.na")
+| }
+| 
+| This fails for me:
+| 
+| Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 = 1,  :
+|   Component 3: Mean absolute difference: 1RcppMatrix.double.na
+| test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+
+Yes, I see that too. Not sure yet why. 
+
+Did you try any of the other types like Rcpp::NumericVector?  Is there
+anything specific to RcppMatrix from what you cam see?
+ 
+| As far as the compilation error messages -- looks like they were
+| indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+
+Ok.
+
+Dirk
+ 
+| Thanks,
+| --Leo
+| 
+| 
+| On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| >
+| > Hi Leo,
+| >
+| > On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+| > | Howdy folks,
+| > | I started playing around with Rcpp recently, and so far haven't been
+| > | able to figure out how to detect NAs in a matrix that I pass to the
+| > | C++ code.
+| > | My test code looks something like this:
+| > | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+| > | .......
+| > | ? ? RcppMatrix<double> m1(M1);// double mtx based on M1
+| > | ? ? RcppVector<double> v1(V1);// double vector based on V1
+| > | ? ? RcppParams rparam(parms); ? ? ? // parameter from R based on parms
+| > | ? ? RcppResultSet rs;
+| > | ? ? Rcpp::RObject n1sexp(N1);
+| > |
+| > | ? ? double n1 = n1sexp.asDouble();
+| > | ? ? Rprintf("The value of isna is %d\n",R_IsNA(n1));
+| > |
+| > | ? ? double element1 = v1(0);
+| > | ? ? if(R_IsNA(element1))
+| > | ? ? ? Rprintf("Found NA in vector!\n");
+| > |
+| > | ? ? double m00 = m1(0,0);
+| > | ? ? if(R_IsNA(m00))
+| > | ? ? ? Rprintf("Found NA in matrix!\n");
+| > | ................
+| >
+| > That looks like the right approach.
+| >
+| > So to give this some meat on the bone and some comparability, I added a new
+| > unit test:
+| >
+| > test.RcppMatrix.double.na.nan <- function() {
+| > ? ?src <- 'RcppMatrix<double> m(x);
+| > ? ? ? ? ? ?RcppResultSet rs;
+| > ? ? ? ? ? ?rs.add("na_21", ?R_IsNA(m(1,0)));
+| > ? ? ? ? ? ?rs.add("na_22", ?R_IsNA(m(1,1)));
+| > ? ? ? ? ? ?rs.add("nan_31", R_IsNaN(m(2,0)));
+| > ? ? ? ? ? ?rs.add("nan_32", R_IsNaN(m(2,1)));
+| > ? ? ? ? ? ?return rs.getReturnList();';
+| > ? ?funx <- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+| > ? ?M <- matrix(1:6,3,2,byrow=TRUE)
+| > ? ?M[2,1] <- NA
+| > ? ?M[3,1] <- NaN
+| > ? ?checkEquals(funx(x=M),
+| > ? ? ? ? ? ? ? ?list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+| > ? ? ? ? ? ? ? ?msg = "RcppMatrix.double.na.nan")
+| > }
+| >
+| > This defines a function 'test.RcppMatrix.double.na.nan'. In it, we create a
+| > function funx that evaluates the C++ code in src -- it tests positions (2,1),
+| > (2,2), (3,1) and (3,2). ?We then create this matrix
+| >
+| > ?R> M <- matrix(1:6,3,2,byrow=TRUE)
+| > ?R> M[2,1] <- NA
+| > ?R> M[3,1] <- NaN
+| > ?R> M
+| > ? ? ? [,1] [,2]
+| > ?[1,] ? ?1 ? ?2
+| > ?[2,] ? NA ? ?4
+| > ?[3,] ?NaN ? ?6
+| > ?R>
+| >
+| > and the compare with the result specified in the checkEquals call. ?And that
+| > pans out:
+| >
+| > ?R> ? ? checkEquals(funx(x=M),
+| > ?+ ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+| > ?+ ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+| > ?[1] TRUE
+| > ?R>
+| >
+| > What version were you running? ?I am at current SVN so somewhere past 0.7.4
+| > and not quite release 0.7.5.
+| >
+| > | The R_IsNA() appears to work fine on scalars and vectors, but fails to
+| > | detect NA present in a matrix. ?Is this a bug?.. feature?.. ?Is the
+| > | handling of missing values documented anywhere other than the R
+| > | Extensions manual?..
+| >
+| > We do not transform anything. ?R tests for NA and NaN with (IIRC) a
+| > combination of IEEE754 (for NA) and a special value for NaN. ?That works here
+| > as we use the R tests for ot.
+| >
+| > | On a (probably) unrelated note, I get the following error when
+| > | compiling my C++ code:
+| > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+| > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| >
+| > Not here either:
+| >
+| > ?R> Rcpp:::RcppCxx0xFlags()
+| > ?[1] "-std=c++0x"
+| > ?R>
+| >
+| > | However, the code seems to compile fine. ?The compilation script is simply
+| > | #!/bin/bash
+| > | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+| > | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+| > | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+| > | R CMD SHLIB "$@"
+| >
+| > You may not need the third for CLINK_CPPFLAGS. We experimented with C++0x but
+| > there are side effects on other OSs so we parked this for now.
+| >
+| > | Complete output from compilation is pasted below -- is this an error I
+| > | should be concerned about?..
+| > | ?./buildAndRun.sh rcpp_test.cpp --clean
+| > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+| > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| > | Execution halted
+| > | g++ -I/usr/share/R/include -I/usr/local/lib/R/site-library/Rcpp/lib
+| > | ?-fpic ?-g -O2 -c rcpp_test.cpp -o rcpp_test.o
+| > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+| > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| > | Execution halted
+| > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+| > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| > | Execution halted
+| > | g++ -shared -o rcpp_test.so rcpp_test.o
+| > | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+| > | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib -L/usr/lib/R/lib -lR
+| > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+| > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+| > | Execution halted
+| > |
+| > |
+| > | Thanks in advance for any help (and please let me know if this is not
+| > | the correct mailing list for these sorts of questions!)
+| >
+| > Very much the right list! Thanks for asking here.
+| >
+| > If you post your full shell script / test code I can have a go at testing it.
+| >
+| > Dirk
+| >
+| > | --Leo Alekseyev
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| >
+| > --
+| > ?Registration is open for the 2nd International conference R / Finance 2010
+| > ?See http://www.RinFinance.com for details, and see you in Chicago in April!
+| >
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From dnquark at gmail.com  Sun Feb  7 07:42:48 2010
+From: dnquark at gmail.com (Leo Alekseyev)
+Date: Sun, 7 Feb 2010 01:42:48 -0500
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <19310.16208.55786.208361@ron.nulle.part>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+	<19310.4333.357760.255405@ron.nulle.part>
+	<4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>
+	<19310.16208.55786.208361@ron.nulle.part>
+Message-ID: <4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com>
+
+The behavior I'm seeing is a bit bizarre.  The NaN conversion seems to
+fail for RcppMatrix and RcppVector, but not for NumericVector.  The
+most interesting bit is this: if I run the test code on e.g.
+c(NA,1,2), RcppVector works (NA is printed as nan), whereas if I use
+c(NA,1:2), instead of nan it prints a garbage value.
+
+Here's the code I was using (just a bunch of Rprintfs, really):
+
+RcppExport SEXP rcpp_test3(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+
+  SEXP rl=R_NilValue;
+  char* exceptionMesg=NULL;
+
+  try {
+
+    RcppMatrix<double> m1(M1);// double mtx
+    RcppVector<double> v1(V1);// double vector
+    RcppParams rparam(parms);
+    RcppResultSet rs;
+    Rcpp::RObject n1sexp(N1);
+    double n1 = n1sexp.asDouble();
+    Rcpp::NumericVector nv1(V1);
+
+    Rprintf("Printing number:\n%f\n",n1);
+    Rprintf("Printing matrix:\n");
+    for(int i=0; i < m1.rows(); i++){
+      for(int j=0; j < m1.cols(); j++)
+        Rprintf("(%d,%d):%f ",i,j,m1(i,j));
+      Rprintf("\n");
+    }
+    Rprintf("Printing vector:\n");
+    for(int i=0; i < v1.size(); i++)
+      Rprintf("%f, ",v1(i));
+    Rprintf("\n");
+    Rprintf("Printing Numeric vector:\n");
+    for(int i=0; i < nv1.size(); i++)
+      Rprintf("%f, ",nv1(i));
+    Rprintf("\n");
+
+    rl = rs.getReturnList();
+
+  } catch(std::exception& ex) {
+    exceptionMesg = copyMessageToR(ex.what());
+  } catch(...) {
+    exceptionMesg = copyMessageToR("unknown reason");
+  }
+
+  if (exceptionMesg != NULL)
+    Rf_error(exceptionMesg);
+
+  return rl;
+}
+
+
+
+On Sat, Feb 6, 2010 at 11:19 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> On 6 February 2010 at 22:08, Leo Alekseyev wrote:
+> | Thanks for the response. ?Your new unit test runs, but I still see the
+> | problem (running 0.7.4 installed from CRAN). ?Consider this version of
+> | the test -- the only difference is that it uses a 2x2 matrix and
+> | checks for NAs:
+> |
+> | test.RcppMatrix.double.na <- function() {
+> | ? src <- 'RcppMatrix<double> m(x);
+> | ? ? ? ? ? ?RcppResultSet rs;
+> | ? ? ? ? ? ?rs.add("na_11", ?R_IsNA(m(0,0)));
+> | ? ? ? ? ? ?rs.add("na_12", ?R_IsNA(m(0,1)));
+> | ? ? ? ? ? ?rs.add("na_21", ?R_IsNA(m(1,0)));
+> | ? ? ? ? ? ?rs.add("na_22", ?R_IsNA(m(1,1)));
+> | ? ? ? ? ? ?return rs.getReturnList();';
+> | ? funx <- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+> | ? M <- matrix(1:4,2,2,byrow=TRUE)
+> | ? M[2,1] <- NA
+> | ? checkEquals(funx(x=M),
+> | ? ? ? ? ? ? ? list(na_11=0, na_12=0, na_21=1, na_22=0),
+> | ? ? ? ? ? ? ? msg = "RcppMatrix.double.na")
+> | }
+> |
+> | This fails for me:
+> |
+> | Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 = 1, ?:
+> | ? Component 3: Mean absolute difference: 1RcppMatrix.double.na
+> | test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+>
+> Yes, I see that too. Not sure yet why.
+>
+> Did you try any of the other types like Rcpp::NumericVector? ?Is there
+> anything specific to RcppMatrix from what you cam see?
+>
+> | As far as the compilation error messages -- looks like they were
+> | indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+>
+> Ok.
+>
+> Dirk
+>
+> | Thanks,
+> | --Leo
+> |
+> |
+> | On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> | >
+> | > Hi Leo,
+> | >
+> | > On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+> | > | Howdy folks,
+> | > | I started playing around with Rcpp recently, and so far haven't been
+> | > | able to figure out how to detect NAs in a matrix that I pass to the
+> | > | C++ code.
+> | > | My test code looks something like this:
+> | > | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+> | > | .......
+> | > | ? ? RcppMatrix<double> m1(M1);// double mtx based on M1
+> | > | ? ? RcppVector<double> v1(V1);// double vector based on V1
+> | > | ? ? RcppParams rparam(parms); ? ? ? // parameter from R based on parms
+> | > | ? ? RcppResultSet rs;
+> | > | ? ? Rcpp::RObject n1sexp(N1);
+> | > |
+> | > | ? ? double n1 = n1sexp.asDouble();
+> | > | ? ? Rprintf("The value of isna is %d\n",R_IsNA(n1));
+> | > |
+> | > | ? ? double element1 = v1(0);
+> | > | ? ? if(R_IsNA(element1))
+> | > | ? ? ? Rprintf("Found NA in vector!\n");
+> | > |
+> | > | ? ? double m00 = m1(0,0);
+> | > | ? ? if(R_IsNA(m00))
+> | > | ? ? ? Rprintf("Found NA in matrix!\n");
+> | > | ................
+> | >
+> | > That looks like the right approach.
+> | >
+> | > So to give this some meat on the bone and some comparability, I added a new
+> | > unit test:
+> | >
+> | > test.RcppMatrix.double.na.nan <- function() {
+> | > ? ?src <- 'RcppMatrix<double> m(x);
+> | > ? ? ? ? ? ?RcppResultSet rs;
+> | > ? ? ? ? ? ?rs.add("na_21", ?R_IsNA(m(1,0)));
+> | > ? ? ? ? ? ?rs.add("na_22", ?R_IsNA(m(1,1)));
+> | > ? ? ? ? ? ?rs.add("nan_31", R_IsNaN(m(2,0)));
+> | > ? ? ? ? ? ?rs.add("nan_32", R_IsNaN(m(2,1)));
+> | > ? ? ? ? ? ?return rs.getReturnList();';
+> | > ? ?funx <- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+> | > ? ?M <- matrix(1:6,3,2,byrow=TRUE)
+> | > ? ?M[2,1] <- NA
+> | > ? ?M[3,1] <- NaN
+> | > ? ?checkEquals(funx(x=M),
+> | > ? ? ? ? ? ? ? ?list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+> | > ? ? ? ? ? ? ? ?msg = "RcppMatrix.double.na.nan")
+> | > }
+> | >
+> | > This defines a function 'test.RcppMatrix.double.na.nan'. In it, we create a
+> | > function funx that evaluates the C++ code in src -- it tests positions (2,1),
+> | > (2,2), (3,1) and (3,2). ?We then create this matrix
+> | >
+> | > ?R> M <- matrix(1:6,3,2,byrow=TRUE)
+> | > ?R> M[2,1] <- NA
+> | > ?R> M[3,1] <- NaN
+> | > ?R> M
+> | > ? ? ? [,1] [,2]
+> | > ?[1,] ? ?1 ? ?2
+> | > ?[2,] ? NA ? ?4
+> | > ?[3,] ?NaN ? ?6
+> | > ?R>
+> | >
+> | > and the compare with the result specified in the checkEquals call. ?And that
+> | > pans out:
+> | >
+> | > ?R> ? ? checkEquals(funx(x=M),
+> | > ?+ ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+> | > ?+ ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+> | > ?[1] TRUE
+> | > ?R>
+> | >
+> | > What version were you running? ?I am at current SVN so somewhere past 0.7.4
+> | > and not quite release 0.7.5.
+> | >
+> | > | The R_IsNA() appears to work fine on scalars and vectors, but fails to
+> | > | detect NA present in a matrix. ?Is this a bug?.. feature?.. ?Is the
+> | > | handling of missing values documented anywhere other than the R
+> | > | Extensions manual?..
+> | >
+> | > We do not transform anything. ?R tests for NA and NaN with (IIRC) a
+> | > combination of IEEE754 (for NA) and a special value for NaN. ?That works here
+> | > as we use the R tests for ot.
+> | >
+> | > | On a (probably) unrelated note, I get the following error when
+> | > | compiling my C++ code:
+> | > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | >
+> | > Not here either:
+> | >
+> | > ?R> Rcpp:::RcppCxx0xFlags()
+> | > ?[1] "-std=c++0x"
+> | > ?R>
+> | >
+> | > | However, the code seems to compile fine. ?The compilation script is simply
+> | > | #!/bin/bash
+> | > | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+> | > | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+> | > | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+> | > | R CMD SHLIB "$@"
+> | >
+> | > You may not need the third for CLINK_CPPFLAGS. We experimented with C++0x but
+> | > there are side effects on other OSs so we parked this for now.
+> | >
+> | > | Complete output from compilation is pasted below -- is this an error I
+> | > | should be concerned about?..
+> | > | ?./buildAndRun.sh rcpp_test.cpp --clean
+> | > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | > | Execution halted
+> | > | g++ -I/usr/share/R/include -I/usr/local/lib/R/site-library/Rcpp/lib
+> | > | ?-fpic ?-g -O2 -c rcpp_test.cpp -o rcpp_test.o
+> | > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | > | Execution halted
+> | > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | > | Execution halted
+> | > | g++ -shared -o rcpp_test.so rcpp_test.o
+> | > | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+> | > | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib -L/usr/lib/R/lib -lR
+> | > | Error in RcppCxx0xFlags() : could not find function "capture.output"
+> | > | Calls: <Anonymous> -> cat -> RcppCxx0xFlags
+> | > | Execution halted
+> | > |
+> | > |
+> | > | Thanks in advance for any help (and please let me know if this is not
+> | > | the correct mailing list for these sorts of questions!)
+> | >
+> | > Very much the right list! Thanks for asking here.
+> | >
+> | > If you post your full shell script / test code I can have a go at testing it.
+> | >
+> | > Dirk
+> | >
+> | > | --Leo Alekseyev
+> | > | _______________________________________________
+> | > | Rcpp-devel mailing list
+> | > | Rcpp-devel at lists.r-forge.r-project.org
+> | > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> | >
+> | > --
+> | > ?Registration is open for the 2nd International conference R / Finance 2010
+> | > ?See http://www.RinFinance.com for details, and see you in Chicago in April!
+> | >
+>
+> --
+> ?Registration is open for the 2nd International conference R / Finance 2010
+> ?See http://www.RinFinance.com for details, and see you in Chicago in April!
+>
+
+From romain.francois at dbmail.com  Sun Feb  7 10:15:22 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Sun, 07 Feb 2010 10:15:22 +0100
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>	<19310.4333.357760.255405@ron.nulle.part>	<4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>	<19310.16208.55786.208361@ron.nulle.part>
+	<4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com>
+Message-ID: <4B6E84AA.1040407@dbmail.com>
+
+Hello,
+
+I think the problem is that c(1:2, NA) produces an __integer__ vector, 
+and RcppVector<double> does not take care of coercion properly.
+
+ > typeof( c(1:2,NA) )
+[1] "integer"
+ > typeof( c(1,2,NA) )
+[1] "double"
+
+The "garbage value" you get I suppose is -2^31, which is how R 
+represents NA for integer vectors. Because RcppVector<> of RcppMatrix<> 
+does not deal with coercion, you just get essentially a cast to -2^31 as 
+a double.
+
+The good news is that the new API does take care of coercion, so when 
+you create a Rcpp::NumericVector and feed it with an integer vector, the 
+integer NA is coerced to a double NA.
+
+Also note that despite the name NumericVector, the class also offers 
+matrix-like indexing. So if you pass a matrix to NumericVector, you can 
+use matri indexing down in C++. See for example the 
+'test.NumericVector.matrix.indexing' unit test in :
+
+ > system.file( "unitTests", "runit.NumericVector.R", package = "Rcpp" )
+[1] "/usr/local/lib/R/library/Rcpp/unitTests/runit.NumericVector.R"
+
+Also, as from Rcpp 0.7.1 you don't need the 
+try/catch/copyMessageToR/Rf_error idom anymore because if you don't 
+catch an exception in C++, it is recycled as an R exception, so you can 
+catch it in R instead.
+
+Romain
+
+On 02/07/2010 07:42 AM, Leo Alekseyev wrote:
+> The behavior I'm seeing is a bit bizarre.  The NaN conversion seems to
+> fail for RcppMatrix and RcppVector, but not for NumericVector.  The
+> most interesting bit is this: if I run the test code on e.g.
+> c(NA,1,2), RcppVector works (NA is printed as nan), whereas if I use
+> c(NA,1:2), instead of nan it prints a garbage value.
+>
+> Here's the code I was using (just a bunch of Rprintfs, really):
+>
+> RcppExport SEXP rcpp_test3(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+>
+>    SEXP rl=R_NilValue;
+>    char* exceptionMesg=NULL;
+>
+>    try {
+>
+>      RcppMatrix<double>  m1(M1);// double mtx
+>      RcppVector<double>  v1(V1);// double vector
+>      RcppParams rparam(parms);
+>      RcppResultSet rs;
+>      Rcpp::RObject n1sexp(N1);
+>      double n1 = n1sexp.asDouble();
+>      Rcpp::NumericVector nv1(V1);
+>
+>      Rprintf("Printing number:\n%f\n",n1);
+>      Rprintf("Printing matrix:\n");
+>      for(int i=0; i<  m1.rows(); i++){
+>        for(int j=0; j<  m1.cols(); j++)
+>          Rprintf("(%d,%d):%f ",i,j,m1(i,j));
+>        Rprintf("\n");
+>      }
+>      Rprintf("Printing vector:\n");
+>      for(int i=0; i<  v1.size(); i++)
+>        Rprintf("%f, ",v1(i));
+>      Rprintf("\n");
+>      Rprintf("Printing Numeric vector:\n");
+>      for(int i=0; i<  nv1.size(); i++)
+>        Rprintf("%f, ",nv1(i));
+>      Rprintf("\n");
+>
+>      rl = rs.getReturnList();
+>
+>    } catch(std::exception&  ex) {
+>      exceptionMesg = copyMessageToR(ex.what());
+>    } catch(...) {
+>      exceptionMesg = copyMessageToR("unknown reason");
+>    }
+>
+>    if (exceptionMesg != NULL)
+>      Rf_error(exceptionMesg);
+>
+>    return rl;
+> }
+>
+>
+>
+> On Sat, Feb 6, 2010 at 11:19 PM, Dirk Eddelbuettel<edd at debian.org>  wrote:
+>>
+>> On 6 February 2010 at 22:08, Leo Alekseyev wrote:
+>> | Thanks for the response.  Your new unit test runs, but I still see the
+>> | problem (running 0.7.4 installed from CRAN).  Consider this version of
+>> | the test -- the only difference is that it uses a 2x2 matrix and
+>> | checks for NAs:
+>> |
+>> | test.RcppMatrix.double.na<- function() {
+>> |   src<- 'RcppMatrix<double>  m(x);
+>> |            RcppResultSet rs;
+>> |            rs.add("na_11",  R_IsNA(m(0,0)));
+>> |            rs.add("na_12",  R_IsNA(m(0,1)));
+>> |            rs.add("na_21",  R_IsNA(m(1,0)));
+>> |            rs.add("na_22",  R_IsNA(m(1,1)));
+>> |            return rs.getReturnList();';
+>> |   funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>> |   M<- matrix(1:4,2,2,byrow=TRUE)
+>> |   M[2,1]<- NA
+>> |   checkEquals(funx(x=M),
+>> |               list(na_11=0, na_12=0, na_21=1, na_22=0),
+>> |               msg = "RcppMatrix.double.na")
+>> | }
+>> |
+>> | This fails for me:
+>> |
+>> | Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 = 1,  :
+>> |   Component 3: Mean absolute difference: 1RcppMatrix.double.na
+>> | test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+>>
+>> Yes, I see that too. Not sure yet why.
+>>
+>> Did you try any of the other types like Rcpp::NumericVector?  Is there
+>> anything specific to RcppMatrix from what you cam see?
+>>
+>> | As far as the compilation error messages -- looks like they were
+>> | indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+>>
+>> Ok.
+>>
+>> Dirk
+>>
+>> | Thanks,
+>> | --Leo
+>> |
+>> |
+>> | On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel<edd at debian.org>  wrote:
+>> |>
+>> |>  Hi Leo,
+>> |>
+>> |>  On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+>> |>  | Howdy folks,
+>> |>  | I started playing around with Rcpp recently, and so far haven't been
+>> |>  | able to figure out how to detect NAs in a matrix that I pass to the
+>> |>  | C++ code.
+>> |>  | My test code looks something like this:
+>> |>  | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+>> |>  | .......
+>> |>  |     RcppMatrix<double>  m1(M1);// double mtx based on M1
+>> |>  |     RcppVector<double>  v1(V1);// double vector based on V1
+>> |>  |     RcppParams rparam(parms);       // parameter from R based on parms
+>> |>  |     RcppResultSet rs;
+>> |>  |     Rcpp::RObject n1sexp(N1);
+>> |>  |
+>> |>  |     double n1 = n1sexp.asDouble();
+>> |>  |     Rprintf("The value of isna is %d\n",R_IsNA(n1));
+>> |>  |
+>> |>  |     double element1 = v1(0);
+>> |>  |     if(R_IsNA(element1))
+>> |>  |       Rprintf("Found NA in vector!\n");
+>> |>  |
+>> |>  |     double m00 = m1(0,0);
+>> |>  |     if(R_IsNA(m00))
+>> |>  |       Rprintf("Found NA in matrix!\n");
+>> |>  | ................
+>> |>
+>> |>  That looks like the right approach.
+>> |>
+>> |>  So to give this some meat on the bone and some comparability, I added a new
+>> |>  unit test:
+>> |>
+>> |>  test.RcppMatrix.double.na.nan<- function() {
+>> |>      src<- 'RcppMatrix<double>  m(x);
+>> |>              RcppResultSet rs;
+>> |>              rs.add("na_21",  R_IsNA(m(1,0)));
+>> |>              rs.add("na_22",  R_IsNA(m(1,1)));
+>> |>              rs.add("nan_31", R_IsNaN(m(2,0)));
+>> |>              rs.add("nan_32", R_IsNaN(m(2,1)));
+>> |>              return rs.getReturnList();';
+>> |>      funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>> |>      M<- matrix(1:6,3,2,byrow=TRUE)
+>> |>      M[2,1]<- NA
+>> |>      M[3,1]<- NaN
+>> |>      checkEquals(funx(x=M),
+>> |>                  list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>> |>                  msg = "RcppMatrix.double.na.nan")
+>> |>  }
+>> |>
+>> |>  This defines a function 'test.RcppMatrix.double.na.nan'. In it, we create a
+>> |>  function funx that evaluates the C++ code in src -- it tests positions (2,1),
+>> |>  (2,2), (3,1) and (3,2).  We then create this matrix
+>> |>
+>> |>    R>  M<- matrix(1:6,3,2,byrow=TRUE)
+>> |>    R>  M[2,1]<- NA
+>> |>    R>  M[3,1]<- NaN
+>> |>    R>  M
+>> |>         [,1] [,2]
+>> |>    [1,]    1    2
+>> |>    [2,]   NA    4
+>> |>    [3,]  NaN    6
+>> |>    R>
+>> |>
+>> |>  and the compare with the result specified in the checkEquals call.  And that
+>> |>  pans out:
+>> |>
+>> |>    R>       checkEquals(funx(x=M),
+>> |>    +                 list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>> |>    +                 msg = "RcppMatrix.double.na.nan")
+>> |>    [1] TRUE
+>> |>    R>
+>> |>
+>> |>  What version were you running?  I am at current SVN so somewhere past 0.7.4
+>> |>  and not quite release 0.7.5.
+>> |>
+>> |>  | The R_IsNA() appears to work fine on scalars and vectors, but fails to
+>> |>  | detect NA present in a matrix.  Is this a bug?.. feature?..  Is the
+>> |>  | handling of missing values documented anywhere other than the R
+>> |>  | Extensions manual?..
+>> |>
+>> |>  We do not transform anything.  R tests for NA and NaN with (IIRC) a
+>> |>  combination of IEEE754 (for NA) and a special value for NaN.  That works here
+>> |>  as we use the R tests for ot.
+>> |>
+>> |>  | On a (probably) unrelated note, I get the following error when
+>> |>  | compiling my C++ code:
+>> |>  | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>> |>  | Calls:<Anonymous>  ->  cat ->  RcppCxx0xFlags
+>> |>
+>> |>  Not here either:
+>> |>
+>> |>    R>  Rcpp:::RcppCxx0xFlags()
+>> |>    [1] "-std=c++0x"
+>> |>    R>
+>> |>
+>> |>  | However, the code seems to compile fine.  The compilation script is simply
+>> |>  | #!/bin/bash
+>> |>  | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+>> |>  | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+>> |>  | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+>> |>  | R CMD SHLIB "$@"
+>> |>
+>> |>  You may not need the third for CLINK_CPPFLAGS. We experimented with C++0x but
+>> |>  there are side effects on other OSs so we parked this for now.
+>> |>
+>> |>  | Complete output from compilation is pasted below -- is this an error I
+>> |>  | should be concerned about?..
+>> |>  |  ./buildAndRun.sh rcpp_test.cpp --clean
+>> |>  | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>> |>  | Calls:<Anonymous>  ->  cat ->  RcppCxx0xFlags
+>> |>  | Execution halted
+>> |>  | g++ -I/usr/share/R/include -I/usr/local/lib/R/site-library/Rcpp/lib
+>> |>  |  -fpic  -g -O2 -c rcpp_test.cpp -o rcpp_test.o
+>> |>  | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>> |>  | Calls:<Anonymous>  ->  cat ->  RcppCxx0xFlags
+>> |>  | Execution halted
+>> |>  | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>> |>  | Calls:<Anonymous>  ->  cat ->  RcppCxx0xFlags
+>> |>  | Execution halted
+>> |>  | g++ -shared -o rcpp_test.so rcpp_test.o
+>> |>  | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+>> |>  | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib -L/usr/lib/R/lib -lR
+>> |>  | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>> |>  | Calls:<Anonymous>  ->  cat ->  RcppCxx0xFlags
+>> |>  | Execution halted
+>> |>  |
+>> |>  |
+>> |>  | Thanks in advance for any help (and please let me know if this is not
+>> |>  | the correct mailing list for these sorts of questions!)
+>> |>
+>> |>  Very much the right list! Thanks for asking here.
+>> |>
+>> |>  If you post your full shell script / test code I can have a go at testing it.
+>> |>
+>> |>  Dirk
+>> |>
+>> |>  | --Leo Alekseyev
+>> |>  | _______________________________________________
+>> |>  | Rcpp-devel mailing list
+>> |>  | Rcpp-devel at lists.r-forge.r-project.org
+>> |>  | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> |>
+>> |>  --
+>> |>    Registration is open for the 2nd International conference R / Finance 2010
+>> |>    See http://www.RinFinance.com for details, and see you in Chicago in April!
+>> |>
+>>
+>> --
+>>   Registration is open for the 2nd International conference R / Finance 2010
+>>   See http://www.RinFinance.com for details, and see you in Chicago in April!
+>>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+|- http://tr.im/KfKn : Rcpp 0.7.2
+`- http://tr.im/JOlc : External pointers with Rcpp
+
+
+
+From romain.francois at dbmail.com  Sun Feb  7 10:23:31 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Sun, 07 Feb 2010 10:23:31 +0100
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+Message-ID: <4B6E8693.5090908@dbmail.com>
+
+On 02/06/2010 11:56 PM, Leo Alekseyev wrote:
+> Howdy folks,
+[...]
+>
+> On a (probably) unrelated note, I get the following error when
+> compiling my C++ code:
+> Error in RcppCxx0xFlags() : could not find function "capture.output"
+> Calls:<Anonymous>  ->  cat ->  RcppCxx0xFlags
+
+I think I've fixed this in svn by importing utils::capture.output into 
+the Rcpp R namespace.
+
+Although, as Dirk said, you might not need c++0x at all.
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+|- http://tr.im/KfKn : Rcpp 0.7.2
+`- http://tr.im/JOlc : External pointers with Rcpp
+
+
+
+From romain.francois at dbmail.com  Sun Feb  7 10:33:29 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Sun, 07 Feb 2010 10:33:29 +0100
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <4B6E84AA.1040407@dbmail.com>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>	<19310.4333.357760.255405@ron.nulle.part>	<4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>	<19310.16208.55786.208361@ron.nulle.part>	<4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com>
+	<4B6E84AA.1040407@dbmail.com>
+Message-ID: <4B6E88E9.6050602@dbmail.com>
+
+I've logged this as a bug in Rcpp's bug tracker :
+https://r-forge.r-project.org/tracker/?atid=637&group_id=155&func=browse
+
+Romain
+
+On 02/07/2010 10:15 AM, Romain Francois wrote:
+> Hello,
+>
+> I think the problem is that c(1:2, NA) produces an __integer__ vector,
+> and RcppVector<double>  does not take care of coercion properly.
+>
+>   >  typeof( c(1:2,NA) )
+> [1] "integer"
+>   >  typeof( c(1,2,NA) )
+> [1] "double"
+>
+> The "garbage value" you get I suppose is -2^31, which is how R
+> represents NA for integer vectors. Because RcppVector<>  of RcppMatrix<>
+> does not deal with coercion, you just get essentially a cast to -2^31 as
+> a double.
+>
+> The good news is that the new API does take care of coercion, so when
+> you create a Rcpp::NumericVector and feed it with an integer vector, the
+> integer NA is coerced to a double NA.
+>
+> Also note that despite the name NumericVector, the class also offers
+> matrix-like indexing. So if you pass a matrix to NumericVector, you can
+> use matri indexing down in C++. See for example the
+> 'test.NumericVector.matrix.indexing' unit test in :
+>
+>   >  system.file( "unitTests", "runit.NumericVector.R", package = "Rcpp" )
+> [1] "/usr/local/lib/R/library/Rcpp/unitTests/runit.NumericVector.R"
+>
+> Also, as from Rcpp 0.7.1 you don't need the
+> try/catch/copyMessageToR/Rf_error idom anymore because if you don't
+> catch an exception in C++, it is recycled as an R exception, so you can
+> catch it in R instead.
+>
+> Romain
+>
+> On 02/07/2010 07:42 AM, Leo Alekseyev wrote:
+>> The behavior I'm seeing is a bit bizarre.  The NaN conversion seems to
+>> fail for RcppMatrix and RcppVector, but not for NumericVector.  The
+>> most interesting bit is this: if I run the test code on e.g.
+>> c(NA,1,2), RcppVector works (NA is printed as nan), whereas if I use
+>> c(NA,1:2), instead of nan it prints a garbage value.
+>>
+>> Here's the code I was using (just a bunch of Rprintfs, really):
+>>
+>> RcppExport SEXP rcpp_test3(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+>>
+>>     SEXP rl=R_NilValue;
+>>     char* exceptionMesg=NULL;
+>>
+>>     try {
+>>
+>>       RcppMatrix<double>   m1(M1);// double mtx
+>>       RcppVector<double>   v1(V1);// double vector
+>>       RcppParams rparam(parms);
+>>       RcppResultSet rs;
+>>       Rcpp::RObject n1sexp(N1);
+>>       double n1 = n1sexp.asDouble();
+>>       Rcpp::NumericVector nv1(V1);
+>>
+>>       Rprintf("Printing number:\n%f\n",n1);
+>>       Rprintf("Printing matrix:\n");
+>>       for(int i=0; i<   m1.rows(); i++){
+>>         for(int j=0; j<   m1.cols(); j++)
+>>           Rprintf("(%d,%d):%f ",i,j,m1(i,j));
+>>         Rprintf("\n");
+>>       }
+>>       Rprintf("Printing vector:\n");
+>>       for(int i=0; i<   v1.size(); i++)
+>>         Rprintf("%f, ",v1(i));
+>>       Rprintf("\n");
+>>       Rprintf("Printing Numeric vector:\n");
+>>       for(int i=0; i<   nv1.size(); i++)
+>>         Rprintf("%f, ",nv1(i));
+>>       Rprintf("\n");
+>>
+>>       rl = rs.getReturnList();
+>>
+>>     } catch(std::exception&   ex) {
+>>       exceptionMesg = copyMessageToR(ex.what());
+>>     } catch(...) {
+>>       exceptionMesg = copyMessageToR("unknown reason");
+>>     }
+>>
+>>     if (exceptionMesg != NULL)
+>>       Rf_error(exceptionMesg);
+>>
+>>     return rl;
+>> }
+>>
+>>
+>>
+>> On Sat, Feb 6, 2010 at 11:19 PM, Dirk Eddelbuettel<edd at debian.org>   wrote:
+>>>
+>>> On 6 February 2010 at 22:08, Leo Alekseyev wrote:
+>>> | Thanks for the response.  Your new unit test runs, but I still see the
+>>> | problem (running 0.7.4 installed from CRAN).  Consider this version of
+>>> | the test -- the only difference is that it uses a 2x2 matrix and
+>>> | checks for NAs:
+>>> |
+>>> | test.RcppMatrix.double.na<- function() {
+>>> |   src<- 'RcppMatrix<double>   m(x);
+>>> |            RcppResultSet rs;
+>>> |            rs.add("na_11",  R_IsNA(m(0,0)));
+>>> |            rs.add("na_12",  R_IsNA(m(0,1)));
+>>> |            rs.add("na_21",  R_IsNA(m(1,0)));
+>>> |            rs.add("na_22",  R_IsNA(m(1,1)));
+>>> |            return rs.getReturnList();';
+>>> |   funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>>> |   M<- matrix(1:4,2,2,byrow=TRUE)
+>>> |   M[2,1]<- NA
+>>> |   checkEquals(funx(x=M),
+>>> |               list(na_11=0, na_12=0, na_21=1, na_22=0),
+>>> |               msg = "RcppMatrix.double.na")
+>>> | }
+>>> |
+>>> | This fails for me:
+>>> |
+>>> | Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 = 1,  :
+>>> |   Component 3: Mean absolute difference: 1RcppMatrix.double.na
+>>> | test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+>>>
+>>> Yes, I see that too. Not sure yet why.
+>>>
+>>> Did you try any of the other types like Rcpp::NumericVector?  Is there
+>>> anything specific to RcppMatrix from what you cam see?
+>>>
+>>> | As far as the compilation error messages -- looks like they were
+>>> | indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+>>>
+>>> Ok.
+>>>
+>>> Dirk
+>>>
+>>> | Thanks,
+>>> | --Leo
+>>> |
+>>> |
+>>> | On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel<edd at debian.org>   wrote:
+>>> |>
+>>> |>   Hi Leo,
+>>> |>
+>>> |>   On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+>>> |>   | Howdy folks,
+>>> |>   | I started playing around with Rcpp recently, and so far haven't been
+>>> |>   | able to figure out how to detect NAs in a matrix that I pass to the
+>>> |>   | C++ code.
+>>> |>   | My test code looks something like this:
+>>> |>   | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+>>> |>   | .......
+>>> |>   |     RcppMatrix<double>   m1(M1);// double mtx based on M1
+>>> |>   |     RcppVector<double>   v1(V1);// double vector based on V1
+>>> |>   |     RcppParams rparam(parms);       // parameter from R based on parms
+>>> |>   |     RcppResultSet rs;
+>>> |>   |     Rcpp::RObject n1sexp(N1);
+>>> |>   |
+>>> |>   |     double n1 = n1sexp.asDouble();
+>>> |>   |     Rprintf("The value of isna is %d\n",R_IsNA(n1));
+>>> |>   |
+>>> |>   |     double element1 = v1(0);
+>>> |>   |     if(R_IsNA(element1))
+>>> |>   |       Rprintf("Found NA in vector!\n");
+>>> |>   |
+>>> |>   |     double m00 = m1(0,0);
+>>> |>   |     if(R_IsNA(m00))
+>>> |>   |       Rprintf("Found NA in matrix!\n");
+>>> |>   | ................
+>>> |>
+>>> |>   That looks like the right approach.
+>>> |>
+>>> |>   So to give this some meat on the bone and some comparability, I added a new
+>>> |>   unit test:
+>>> |>
+>>> |>   test.RcppMatrix.double.na.nan<- function() {
+>>> |>       src<- 'RcppMatrix<double>   m(x);
+>>> |>               RcppResultSet rs;
+>>> |>               rs.add("na_21",  R_IsNA(m(1,0)));
+>>> |>               rs.add("na_22",  R_IsNA(m(1,1)));
+>>> |>               rs.add("nan_31", R_IsNaN(m(2,0)));
+>>> |>               rs.add("nan_32", R_IsNaN(m(2,1)));
+>>> |>               return rs.getReturnList();';
+>>> |>       funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>>> |>       M<- matrix(1:6,3,2,byrow=TRUE)
+>>> |>       M[2,1]<- NA
+>>> |>       M[3,1]<- NaN
+>>> |>       checkEquals(funx(x=M),
+>>> |>                   list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>>> |>                   msg = "RcppMatrix.double.na.nan")
+>>> |>   }
+>>> |>
+>>> |>   This defines a function 'test.RcppMatrix.double.na.nan'. In it, we create a
+>>> |>   function funx that evaluates the C++ code in src -- it tests positions (2,1),
+>>> |>   (2,2), (3,1) and (3,2).  We then create this matrix
+>>> |>
+>>> |>     R>   M<- matrix(1:6,3,2,byrow=TRUE)
+>>> |>     R>   M[2,1]<- NA
+>>> |>     R>   M[3,1]<- NaN
+>>> |>     R>   M
+>>> |>          [,1] [,2]
+>>> |>     [1,]    1    2
+>>> |>     [2,]   NA    4
+>>> |>     [3,]  NaN    6
+>>> |>     R>
+>>> |>
+>>> |>   and the compare with the result specified in the checkEquals call.  And that
+>>> |>   pans out:
+>>> |>
+>>> |>     R>        checkEquals(funx(x=M),
+>>> |>     +                 list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>>> |>     +                 msg = "RcppMatrix.double.na.nan")
+>>> |>     [1] TRUE
+>>> |>     R>
+>>> |>
+>>> |>   What version were you running?  I am at current SVN so somewhere past 0.7.4
+>>> |>   and not quite release 0.7.5.
+>>> |>
+>>> |>   | The R_IsNA() appears to work fine on scalars and vectors, but fails to
+>>> |>   | detect NA present in a matrix.  Is this a bug?.. feature?..  Is the
+>>> |>   | handling of missing values documented anywhere other than the R
+>>> |>   | Extensions manual?..
+>>> |>
+>>> |>   We do not transform anything.  R tests for NA and NaN with (IIRC) a
+>>> |>   combination of IEEE754 (for NA) and a special value for NaN.  That works here
+>>> |>   as we use the R tests for ot.
+>>> |>
+>>> |>   | On a (probably) unrelated note, I get the following error when
+>>> |>   | compiling my C++ code:
+>>> |>   | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>>> |>   | Calls:<Anonymous>   ->   cat ->   RcppCxx0xFlags
+>>> |>
+>>> |>   Not here either:
+>>> |>
+>>> |>     R>   Rcpp:::RcppCxx0xFlags()
+>>> |>     [1] "-std=c++0x"
+>>> |>     R>
+>>> |>
+>>> |>   | However, the code seems to compile fine.  The compilation script is simply
+>>> |>   | #!/bin/bash
+>>> |>   | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+>>> |>   | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+>>> |>   | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+>>> |>   | R CMD SHLIB "$@"
+>>> |>
+>>> |>   You may not need the third for CLINK_CPPFLAGS. We experimented with C++0x but
+>>> |>   there are side effects on other OSs so we parked this for now.
+>>> |>
+>>> |>   | Complete output from compilation is pasted below -- is this an error I
+>>> |>   | should be concerned about?..
+>>> |>   |  ./buildAndRun.sh rcpp_test.cpp --clean
+>>> |>   | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>>> |>   | Calls:<Anonymous>   ->   cat ->   RcppCxx0xFlags
+>>> |>   | Execution halted
+>>> |>   | g++ -I/usr/share/R/include -I/usr/local/lib/R/site-library/Rcpp/lib
+>>> |>   |  -fpic  -g -O2 -c rcpp_test.cpp -o rcpp_test.o
+>>> |>   | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>>> |>   | Calls:<Anonymous>   ->   cat ->   RcppCxx0xFlags
+>>> |>   | Execution halted
+>>> |>   | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>>> |>   | Calls:<Anonymous>   ->   cat ->   RcppCxx0xFlags
+>>> |>   | Execution halted
+>>> |>   | g++ -shared -o rcpp_test.so rcpp_test.o
+>>> |>   | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+>>> |>   | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib -L/usr/lib/R/lib -lR
+>>> |>   | Error in RcppCxx0xFlags() : could not find function "capture.output"
+>>> |>   | Calls:<Anonymous>   ->   cat ->   RcppCxx0xFlags
+>>> |>   | Execution halted
+>>> |>   |
+>>> |>   |
+>>> |>   | Thanks in advance for any help (and please let me know if this is not
+>>> |>   | the correct mailing list for these sorts of questions!)
+>>> |>
+>>> |>   Very much the right list! Thanks for asking here.
+>>> |>
+>>> |>   If you post your full shell script / test code I can have a go at testing it.
+>>> |>
+>>> |>   Dirk
+
+
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+|- http://tr.im/KfKn : Rcpp 0.7.2
+`- http://tr.im/JOlc : External pointers with Rcpp
+
+
+
+From dnquark at gmail.com  Sun Feb  7 14:11:48 2010
+From: dnquark at gmail.com (Leo Alekseyev)
+Date: Sun, 7 Feb 2010 08:11:48 -0500
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <4B6E88E9.6050602@dbmail.com>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+	<19310.4333.357760.255405@ron.nulle.part>
+	<4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>
+	<19310.16208.55786.208361@ron.nulle.part>
+	<4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com>
+	<4B6E84AA.1040407@dbmail.com> <4B6E88E9.6050602@dbmail.com>
+Message-ID: <4e3ad401002070511k37f703c9xa32c45668f9e7a6f@mail.gmail.com>
+
+D'oh, I should have guessed it was an integer/double issue -- I
+actually tried to check by testing something like c(1.0:2.2,NA), but
+this of course still produced an integer.
+
+So as a general question -- would you recommend using the new API
+(Rcpp::CharacterVector, Rcpp::NumericVector) over RcppMatrix et al?..
+Are there any particularly useful docs / code samples illustrating the
+use of it?..
+
+
+On Sun, Feb 7, 2010 at 4:33 AM, Romain Francois
+<romain.francois at dbmail.com> wrote:
+> I've logged this as a bug in Rcpp's bug tracker :
+> https://r-forge.r-project.org/tracker/?atid=637&group_id=155&func=browse
+>
+> Romain
+>
+> On 02/07/2010 10:15 AM, Romain Francois wrote:
+>>
+>> Hello,
+>>
+>> I think the problem is that c(1:2, NA) produces an __integer__ vector,
+>> and RcppVector<double> ?does not take care of coercion properly.
+>>
+>> ?> ?typeof( c(1:2,NA) )
+>> [1] "integer"
+>> ?> ?typeof( c(1,2,NA) )
+>> [1] "double"
+>>
+>> The "garbage value" you get I suppose is -2^31, which is how R
+>> represents NA for integer vectors. Because RcppVector<> ?of RcppMatrix<>
+>> does not deal with coercion, you just get essentially a cast to -2^31 as
+>> a double.
+>>
+>> The good news is that the new API does take care of coercion, so when
+>> you create a Rcpp::NumericVector and feed it with an integer vector, the
+>> integer NA is coerced to a double NA.
+>>
+>> Also note that despite the name NumericVector, the class also offers
+>> matrix-like indexing. So if you pass a matrix to NumericVector, you can
+>> use matri indexing down in C++. See for example the
+>> 'test.NumericVector.matrix.indexing' unit test in :
+>>
+>> ?> ?system.file( "unitTests", "runit.NumericVector.R", package = "Rcpp" )
+>> [1] "/usr/local/lib/R/library/Rcpp/unitTests/runit.NumericVector.R"
+>>
+>> Also, as from Rcpp 0.7.1 you don't need the
+>> try/catch/copyMessageToR/Rf_error idom anymore because if you don't
+>> catch an exception in C++, it is recycled as an R exception, so you can
+>> catch it in R instead.
+>>
+>> Romain
+>>
+>> On 02/07/2010 07:42 AM, Leo Alekseyev wrote:
+>>>
+>>> The behavior I'm seeing is a bit bizarre. ?The NaN conversion seems to
+>>> fail for RcppMatrix and RcppVector, but not for NumericVector. ?The
+>>> most interesting bit is this: if I run the test code on e.g.
+>>> c(NA,1,2), RcppVector works (NA is printed as nan), whereas if I use
+>>> c(NA,1:2), instead of nan it prints a garbage value.
+>>>
+>>> Here's the code I was using (just a bunch of Rprintfs, really):
+>>>
+>>> RcppExport SEXP rcpp_test3(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+>>>
+>>> ? ?SEXP rl=R_NilValue;
+>>> ? ?char* exceptionMesg=NULL;
+>>>
+>>> ? ?try {
+>>>
+>>> ? ? ?RcppMatrix<double> ? m1(M1);// double mtx
+>>> ? ? ?RcppVector<double> ? v1(V1);// double vector
+>>> ? ? ?RcppParams rparam(parms);
+>>> ? ? ?RcppResultSet rs;
+>>> ? ? ?Rcpp::RObject n1sexp(N1);
+>>> ? ? ?double n1 = n1sexp.asDouble();
+>>> ? ? ?Rcpp::NumericVector nv1(V1);
+>>>
+>>> ? ? ?Rprintf("Printing number:\n%f\n",n1);
+>>> ? ? ?Rprintf("Printing matrix:\n");
+>>> ? ? ?for(int i=0; i< ? m1.rows(); i++){
+>>> ? ? ? ?for(int j=0; j< ? m1.cols(); j++)
+>>> ? ? ? ? ?Rprintf("(%d,%d):%f ",i,j,m1(i,j));
+>>> ? ? ? ?Rprintf("\n");
+>>> ? ? ?}
+>>> ? ? ?Rprintf("Printing vector:\n");
+>>> ? ? ?for(int i=0; i< ? v1.size(); i++)
+>>> ? ? ? ?Rprintf("%f, ",v1(i));
+>>> ? ? ?Rprintf("\n");
+>>> ? ? ?Rprintf("Printing Numeric vector:\n");
+>>> ? ? ?for(int i=0; i< ? nv1.size(); i++)
+>>> ? ? ? ?Rprintf("%f, ",nv1(i));
+>>> ? ? ?Rprintf("\n");
+>>>
+>>> ? ? ?rl = rs.getReturnList();
+>>>
+>>> ? ?} catch(std::exception& ? ex) {
+>>> ? ? ?exceptionMesg = copyMessageToR(ex.what());
+>>> ? ?} catch(...) {
+>>> ? ? ?exceptionMesg = copyMessageToR("unknown reason");
+>>> ? ?}
+>>>
+>>> ? ?if (exceptionMesg != NULL)
+>>> ? ? ?Rf_error(exceptionMesg);
+>>>
+>>> ? ?return rl;
+>>> }
+>>>
+>>>
+>>>
+>>> On Sat, Feb 6, 2010 at 11:19 PM, Dirk Eddelbuettel<edd at debian.org>
+>>> wrote:
+>>>>
+>>>> On 6 February 2010 at 22:08, Leo Alekseyev wrote:
+>>>> | Thanks for the response. ?Your new unit test runs, but I still see the
+>>>> | problem (running 0.7.4 installed from CRAN). ?Consider this version of
+>>>> | the test -- the only difference is that it uses a 2x2 matrix and
+>>>> | checks for NAs:
+>>>> |
+>>>> | test.RcppMatrix.double.na<- function() {
+>>>> | ? src<- 'RcppMatrix<double> ? m(x);
+>>>> | ? ? ? ? ? ?RcppResultSet rs;
+>>>> | ? ? ? ? ? ?rs.add("na_11", ?R_IsNA(m(0,0)));
+>>>> | ? ? ? ? ? ?rs.add("na_12", ?R_IsNA(m(0,1)));
+>>>> | ? ? ? ? ? ?rs.add("na_21", ?R_IsNA(m(1,0)));
+>>>> | ? ? ? ? ? ?rs.add("na_22", ?R_IsNA(m(1,1)));
+>>>> | ? ? ? ? ? ?return rs.getReturnList();';
+>>>> | ? funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>>>> | ? M<- matrix(1:4,2,2,byrow=TRUE)
+>>>> | ? M[2,1]<- NA
+>>>> | ? checkEquals(funx(x=M),
+>>>> | ? ? ? ? ? ? ? list(na_11=0, na_12=0, na_21=1, na_22=0),
+>>>> | ? ? ? ? ? ? ? msg = "RcppMatrix.double.na")
+>>>> | }
+>>>> |
+>>>> | This fails for me:
+>>>> |
+>>>> | Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 =
+>>>> 1, ?:
+>>>> | ? Component 3: Mean absolute difference: 1RcppMatrix.double.na
+>>>> | test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+>>>>
+>>>> Yes, I see that too. Not sure yet why.
+>>>>
+>>>> Did you try any of the other types like Rcpp::NumericVector? ?Is there
+>>>> anything specific to RcppMatrix from what you cam see?
+>>>>
+>>>> | As far as the compilation error messages -- looks like they were
+>>>> | indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+>>>>
+>>>> Ok.
+>>>>
+>>>> Dirk
+>>>>
+>>>> | Thanks,
+>>>> | --Leo
+>>>> |
+>>>> |
+>>>> | On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel<edd at debian.org>
+>>>> wrote:
+>>>> |>
+>>>> |> ? Hi Leo,
+>>>> |>
+>>>> |> ? On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+>>>> |> ? | Howdy folks,
+>>>> |> ? | I started playing around with Rcpp recently, and so far haven't
+>>>> been
+>>>> |> ? | able to figure out how to detect NAs in a matrix that I pass to
+>>>> the
+>>>> |> ? | C++ code.
+>>>> |> ? | My test code looks something like this:
+>>>> |> ? | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms)
+>>>> {
+>>>> |> ? | .......
+>>>> |> ? | ? ? RcppMatrix<double> ? m1(M1);// double mtx based on M1
+>>>> |> ? | ? ? RcppVector<double> ? v1(V1);// double vector based on V1
+>>>> |> ? | ? ? RcppParams rparam(parms); ? ? ? // parameter from R based on
+>>>> parms
+>>>> |> ? | ? ? RcppResultSet rs;
+>>>> |> ? | ? ? Rcpp::RObject n1sexp(N1);
+>>>> |> ? |
+>>>> |> ? | ? ? double n1 = n1sexp.asDouble();
+>>>> |> ? | ? ? Rprintf("The value of isna is %d\n",R_IsNA(n1));
+>>>> |> ? |
+>>>> |> ? | ? ? double element1 = v1(0);
+>>>> |> ? | ? ? if(R_IsNA(element1))
+>>>> |> ? | ? ? ? Rprintf("Found NA in vector!\n");
+>>>> |> ? |
+>>>> |> ? | ? ? double m00 = m1(0,0);
+>>>> |> ? | ? ? if(R_IsNA(m00))
+>>>> |> ? | ? ? ? Rprintf("Found NA in matrix!\n");
+>>>> |> ? | ................
+>>>> |>
+>>>> |> ? That looks like the right approach.
+>>>> |>
+>>>> |> ? So to give this some meat on the bone and some comparability, I
+>>>> added a new
+>>>> |> ? unit test:
+>>>> |>
+>>>> |> ? test.RcppMatrix.double.na.nan<- function() {
+>>>> |> ? ? ? src<- 'RcppMatrix<double> ? m(x);
+>>>> |> ? ? ? ? ? ? ? RcppResultSet rs;
+>>>> |> ? ? ? ? ? ? ? rs.add("na_21", ?R_IsNA(m(1,0)));
+>>>> |> ? ? ? ? ? ? ? rs.add("na_22", ?R_IsNA(m(1,1)));
+>>>> |> ? ? ? ? ? ? ? rs.add("nan_31", R_IsNaN(m(2,0)));
+>>>> |> ? ? ? ? ? ? ? rs.add("nan_32", R_IsNaN(m(2,1)));
+>>>> |> ? ? ? ? ? ? ? return rs.getReturnList();';
+>>>> |> ? ? ? funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>>>> |> ? ? ? M<- matrix(1:6,3,2,byrow=TRUE)
+>>>> |> ? ? ? M[2,1]<- NA
+>>>> |> ? ? ? M[3,1]<- NaN
+>>>> |> ? ? ? checkEquals(funx(x=M),
+>>>> |> ? ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>>>> |> ? ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+>>>> |> ? }
+>>>> |>
+>>>> |> ? This defines a function 'test.RcppMatrix.double.na.nan'. In it, we
+>>>> create a
+>>>> |> ? function funx that evaluates the C++ code in src -- it tests
+>>>> positions (2,1),
+>>>> |> ? (2,2), (3,1) and (3,2). ?We then create this matrix
+>>>> |>
+>>>> |> ? ? R> ? M<- matrix(1:6,3,2,byrow=TRUE)
+>>>> |> ? ? R> ? M[2,1]<- NA
+>>>> |> ? ? R> ? M[3,1]<- NaN
+>>>> |> ? ? R> ? M
+>>>> |> ? ? ? ? ?[,1] [,2]
+>>>> |> ? ? [1,] ? ?1 ? ?2
+>>>> |> ? ? [2,] ? NA ? ?4
+>>>> |> ? ? [3,] ?NaN ? ?6
+>>>> |> ? ? R>
+>>>> |>
+>>>> |> ? and the compare with the result specified in the checkEquals call.
+>>>> ?And that
+>>>> |> ? pans out:
+>>>> |>
+>>>> |> ? ? R> ? ? ? ?checkEquals(funx(x=M),
+>>>> |> ? ? + ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>>>> |> ? ? + ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+>>>> |> ? ? [1] TRUE
+>>>> |> ? ? R>
+>>>> |>
+>>>> |> ? What version were you running? ?I am at current SVN so somewhere
+>>>> past 0.7.4
+>>>> |> ? and not quite release 0.7.5.
+>>>> |>
+>>>> |> ? | The R_IsNA() appears to work fine on scalars and vectors, but
+>>>> fails to
+>>>> |> ? | detect NA present in a matrix. ?Is this a bug?.. feature?.. ?Is
+>>>> the
+>>>> |> ? | handling of missing values documented anywhere other than the R
+>>>> |> ? | Extensions manual?..
+>>>> |>
+>>>> |> ? We do not transform anything. ?R tests for NA and NaN with (IIRC) a
+>>>> |> ? combination of IEEE754 (for NA) and a special value for NaN. ?That
+>>>> works here
+>>>> |> ? as we use the R tests for ot.
+>>>> |>
+>>>> |> ? | On a (probably) unrelated note, I get the following error when
+>>>> |> ? | compiling my C++ code:
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |>
+>>>> |> ? Not here either:
+>>>> |>
+>>>> |> ? ? R> ? Rcpp:::RcppCxx0xFlags()
+>>>> |> ? ? [1] "-std=c++0x"
+>>>> |> ? ? R>
+>>>> |>
+>>>> |> ? | However, the code seems to compile fine. ?The compilation script
+>>>> is simply
+>>>> |> ? | #!/bin/bash
+>>>> |> ? | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+>>>> |> ? | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+>>>> |> ? | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+>>>> |> ? | R CMD SHLIB "$@"
+>>>> |>
+>>>> |> ? You may not need the third for CLINK_CPPFLAGS. We experimented with
+>>>> C++0x but
+>>>> |> ? there are side effects on other OSs so we parked this for now.
+>>>> |>
+>>>> |> ? | Complete output from compilation is pasted below -- is this an
+>>>> error I
+>>>> |> ? | should be concerned about?..
+>>>> |> ? | ?./buildAndRun.sh rcpp_test.cpp --clean
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? | g++ -I/usr/share/R/include
+>>>> -I/usr/local/lib/R/site-library/Rcpp/lib
+>>>> |> ? | ?-fpic ?-g -O2 -c rcpp_test.cpp -o rcpp_test.o
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? | g++ -shared -o rcpp_test.so rcpp_test.o
+>>>> |> ? | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+>>>> |> ? | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib
+>>>> -L/usr/lib/R/lib -lR
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? |
+>>>> |> ? |
+>>>> |> ? | Thanks in advance for any help (and please let me know if this is
+>>>> not
+>>>> |> ? | the correct mailing list for these sorts of questions!)
+>>>> |>
+>>>> |> ? Very much the right list! Thanks for asking here.
+>>>> |>
+>>>> |> ? If you post your full shell script / test code I can have a go at
+>>>> testing it.
+>>>> |>
+>>>> |> ? Dirk
+>
+>
+>
+> --
+> Romain Francois
+> Professional R Enthusiast
+> +33(0) 6 28 91 30 30
+> http://romainfrancois.blog.free.fr
+> |- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+> |- http://tr.im/KfKn : Rcpp 0.7.2
+> `- http://tr.im/JOlc : External pointers with Rcpp
+>
+>
+>
+
+From francoisromain at free.fr  Sun Feb  7 15:58:26 2010
+From: francoisromain at free.fr (francoisromain at free.fr)
+Date: Sun, 7 Feb 2010 14:58:26 +0000
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <4e3ad401002070511k37f703c9xa32c45668f9e7a6f@mail.gmail.com>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com><19310.4333.357760.255405@ron.nulle.part><4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com><19310.16208.55786.208361@ron.nulle.part><4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com><4B6E84AA.1040407@dbmail.com>
+	<4B6E88E9.6050602@dbmail.com><4e3ad401002070511k37f703c9xa32c45668f9e7a6f@mail.gmail.com>
+Message-ID: <681593257-1265554655-cardhu_decombobulator_blackberry.rim.net-676397482-@bda110.bisx.produk.on.blackberry>
+
+
+Yes. The new api is our current focus. 
+
+You can find many real examples as part of our unit tests (in the "unitTests" installed directory of the package). 
+
+Some other examples in our blogs
+
+A draft article in the "papers" sub directory of the rforge project of rcpp. 
+
+
+-----Original Message-----
+From: Leo Alekseyev <dnquark at gmail.com>
+Date: Sun, 7 Feb 2010 08:11:48 
+To: Romain Francois<romain.francois at dbmail.com>
+Cc: <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Handling NAs in RcppMatrix
+
+D'oh, I should have guessed it was an integer/double issue -- I
+actually tried to check by testing something like c(1.0:2.2,NA), but
+this of course still produced an integer.
+
+So as a general question -- would you recommend using the new API
+(Rcpp::CharacterVector, Rcpp::NumericVector) over RcppMatrix et al?..
+Are there any particularly useful docs / code samples illustrating the
+use of it?..
+
+
+On Sun, Feb 7, 2010 at 4:33 AM, Romain Francois
+<romain.francois at dbmail.com> wrote:
+> I've logged this as a bug in Rcpp's bug tracker :
+> https://r-forge.r-project.org/tracker/?atid=637&group_id=155&func=browse
+>
+> Romain
+>
+> On 02/07/2010 10:15 AM, Romain Francois wrote:
+>>
+>> Hello,
+>>
+>> I think the problem is that c(1:2, NA) produces an__integer__ vector,
+>> and RcppVector<double> ?does not take care of coercion properly.
+>>
+>> ?> ?typeof( c(1:2,NA) )
+>> [1] "integer"
+>> ?> ?typeof( c(1,2,NA) )
+>> [1] "double"
+>>
+>> The "garbage value" you get I suppose is -2^31, which is how R
+>> represents NA for integer vectors. Because RcppVector<> ?of RcppMatrix<>
+>> does not deal with coercion, you just get essentially a cast to -2^31 as
+>> a double.
+>>
+>> The good news is that the new API does take care of coercion, so when
+>> you create a Rcpp::NumericVector and feed it with an integer vector, the
+>> integer NA is coerced to a double NA.
+>>
+>> Also note that despite the name NumericVector, the class also offers
+>> matrix-like indexing. So if you pass a matrix to NumericVector, you can
+>> use matri indexing down in C++. See for example the
+>> 'test.NumericVector.matrix.indexing' unit test in :
+>>
+>> ?> ?system.file( "unitTests", "runit.NumericVector.R", package = "Rcpp" )
+>> [1] "/usr/local/lib/R/library/Rcpp/unitTests/runit.NumericVector.R"
+>>
+>> Also, as from Rcpp 0.7.1 you don't need the
+>> try/catch/copyMessageToR/Rf_error idom anymore because if you don't
+>> catch an exception in C++, it is recycled as an R exception, so you can
+>> catch it in R instead.
+>>
+>> Romain
+>>
+>> On 02/07/2010 07:42 AM, Leo Alekseyev wrote:
+>>>
+>>> The behavior I'm seeing is a bit bizarre. ?The NaN conversion seems to
+>>> fail for RcppMatrix and RcppVector, but not for NumericVector. ?The
+>>> most interesting bit is this: if I run the test code on e.g.
+>>> c(NA,1,2), RcppVector works (NA is printed as nan), whereas if I use
+>>> c(NA,1:2), instead of nan it prints a garbage value.
+>>>
+>>> Here's the code I was using (just a bunch of Rprintfs, really):
+>>>
+>>> RcppExport SEXP rcpp_test3(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+>>>
+>>> ? ?SEXP rl=R_NilValue;
+>>> ? ?char* exceptionMesg=NULL;
+>>>
+>>> ? ?try {
+>>>
+>>> ? ? ?RcppMatrix<double> ? m1(M1);// double mtx
+>>> ? ? ?RcppVector<double> ? v1(V1);// double vector
+>>> ? ? ?RcppParams rparam(parms);
+>>> ? ? ?RcppResultSet rs;
+>>> ? ? ?Rcpp::RObject n1sexp(N1);
+>>> ? ? ?double n1 = n1sexp.asDouble();
+>>> ? ? ?Rcpp::NumericVector nv1(V1);
+>>>
+>>> ? ? ?Rprintf("Printing number:\n%f\n",n1);
+>>> ? ? ?Rprintf("Printing matrix:\n");
+>>> ? ? ?for(int i=0; i< ? m1.rows(); i++){
+>>> ? ? ? ?for(int j=0; j< ? m1.cols(); j++)
+>>> ? ? ? ? ?Rprintf("(%d,%d):%f ",i,j,m1(i,j));
+>>> ? ? ? ?Rprintf("\n");
+>>> ? ? ?}
+>>> ? ? ?Rprintf("Printing vector:\n");
+>>> ? ? ?for(int i=0; i< ? v1.size(); i++)
+>>> ? ? ? ?Rprintf("%f, ",v1(i));
+>>> ? ? ?Rprintf("\n");
+>>> ? ? ?Rprintf("Printing Numeric vector:\n");
+>>> ? ? ?for(int i=0; i< ? nv1.size(); i++)
+>>> ? ? ? ?Rprintf("%f, ",nv1(i));
+>>> ? ? ?Rprintf("\n");
+>>>
+>>> ? ? ?rl = rs.getReturnList();
+>>>
+>>> ? ?} catch(std::exception& ? ex) {
+>>> ? ? ?exceptionMesg = copyMessageToR(ex.what());
+>>> ? ?} catch(...) {
+>>> ? ? ?exceptionMesg = copyMessageToR("unknown reason");
+>>> ? ?}
+>>>
+>>> ? ?if (exceptionMesg != NULL)
+>>> ? ? ?Rf_error(exceptionMesg);
+>>>
+>>> ? ?return rl;
+>>> }
+>>>
+>>>
+>>>
+>>> On Sat, Feb 6, 2010 at 11:19 PM, Dirk Eddelbuettel<edd at debian.org>
+>>> wrote:
+>>>>
+>>>> On 6 February 2010 at 22:08, Leo Alekseyev wrote:
+>>>> | Thanks for the response. ?Your new unit test runs, but I still see the
+>>>> | problem (running 0.7.4 installed from CRAN). ?Consider this version of
+>>>> | the test -- the only difference is that it uses a 2x2 matrix and
+>>>> | checks for NAs:
+>>>> |
+>>>> | test.RcppMatrix.double.na<- function() {
+>>>> | ? src<- 'RcppMatrix<double> ? m(x);
+>>>> | ? ? ? ? ? ?RcppResultSet rs;
+>>>> | ? ? ? ? ? ?rs.add("na_11", ?R_IsNA(m(0,0)));
+>>>> | ? ? ? ? ? ?rs.add("na_12", ?R_IsNA(m(0,1)));
+>>>> | ? ? ? ? ? ?rs.add("na_21", ?R_IsNA(m(1,0)));
+>>>> | ? ? ? ? ? ?rs.add("na_22", ?R_IsNA(m(1,1)));
+>>>> | ? ? ? ? ? ?return rs.getReturnList();';
+>>>> | ? funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>>>> | ? M<- matrix(1:4,2,2,byrow=TRUE)
+>>>> | ? M[2,1]<- NA
+>>>> | ? checkEquals(funx(x=M),
+>>>> | ? ? ? ? ? ? ? list(na_11=0, na_12=0, na_21=1, na_22=0),
+>>>> | ? ? ? ? ? ? ? msg = "RcppMatrix.double.na")
+>>>> | }
+>>>> |
+>>>> | This fails for me:
+>>>> |
+>>>> | Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 =
+>>>> 1, ?:
+>>>> | ? Component 3: Mean absolute difference: 1RcppMatrix.double.na
+>>>> | test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+>>>>
+>>>> Yes, I see that too. Not sure yet why.
+>>>>
+>>>> Did you try any of the other types like Rcpp::NumericVector? ?Is there
+>>>> anything specific to RcppMatrix from what you cam see?
+>>>>
+>>>> | As far as the compilation error messages -- looks like they were
+>>>> | indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+>>>>
+>>>> Ok.
+>>>>
+>>>> Dirk
+>>>>
+>>>> | Thanks,
+>>>> | --Leo
+>>>> |
+>>>> |
+>>>> | On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel<edd at debian.org>
+>>>> wrote:
+>>>> |>
+>>>> |> ? Hi Leo,
+>>>> |>
+>>>> |> ? On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+>>>> |> ? | Howdy folks,
+>>>> |> ? | I started playing around with Rcpp recently, and so far haven't
+>>>> been
+>>>> |> ? | able to figure out how to detect NAs in a matrix that I pass to
+>>>> the
+>>>> |> ? | C++ code.
+>>>> |> ? | My test code looks something like this:
+>>>> |> ? | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms)
+>>>> {
+>>>> |> ? | .......
+>>>> |> ? | ? ? RcppMatrix<double> ? m1(M1);// double mtx based on M1
+>>>> |> ? | ? ? RcppVector<double> ? v1(V1);// double vector based on V1
+>>>> |> ? | ? ? RcppParams rparam(parms); ? ? ? // parameter from R based on
+>>>> parms
+>>>> |> ? | ? ? RcppResultSet rs;
+>>>> |> ? | ? ? Rcpp::RObject n1sexp(N1);
+>>>> |> ? |
+>>>> |> ? | ? ? double n1 = n1sexp.asDouble();
+>>>> |> ? | ? ? Rprintf("The value of isna is %d\n",R_IsNA(n1));
+>>>> |> ? |
+>>>> |> ? | ? ? double element1 = v1(0);
+>>>> |> ? | ? ? if(R_IsNA(element1))
+>>>> |> ? | ? ? ? Rprintf("Found NA in vector!\n");
+>>>> |> ? |
+>>>> |> ? | ? ? double m00 = m1(0,0);
+>>>> |> ? | ? ? if(R_IsNA(m00))
+>>>> |> ? | ? ? ? Rprintf("Found NA in matrix!\n");
+>>>> |> ? | ................
+>>>> |>
+>>>> |> ? That looks like the right approach.
+>>>> |>
+>>>> |> ? So to give this some meat on the bone and some comparability, I
+>>>> added a new
+>>>> |> ? unit test:
+>>>> |>
+>>>> |> ? test.RcppMatrix.double.na.nan<- function() {
+>>>> |> ? ? ? src<- 'RcppMatrix<double> ? m(x);
+>>>> |> ? ? ? ? ? ? ? RcppResultSet rs;
+>>>> |> ? ? ? ? ? ? ? rs.add("na_21", ?R_IsNA(m(1,0)));
+>>>> |> ? ? ? ? ? ? ? rs.add("na_22", ?R_IsNA(m(1,1)));
+>>>> |> ? ? ? ? ? ? ? rs.add("nan_31", R_IsNaN(m(2,0)));
+>>>> |> ? ? ? ? ? ? ? rs.add("nan_32", R_IsNaN(m(2,1)));
+>>>> |> ? ? ? ? ? ? ? return rs.getReturnList();';
+>>>> |> ? ? ? funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+>>>> |> ? ? ? M<- matrix(1:6,3,2,byrow=TRUE)
+>>>> |> ? ? ? M[2,1]<- NA
+>>>> |> ? ? ? M[3,1]<- NaN
+>>>> |> ? ? ? checkEquals(funx(x=M),
+>>>> |> ? ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>>>> |> ? ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+>>>> |> ? }
+>>>> |>
+>>>> |> ? This defines a function 'test.RcppMatrix.double.na.nan'. In it, we
+>>>> create a
+>>>> |> ? function funx that evaluates the C++ code in src -- it tests
+>>>> positions (2,1),
+>>>> |> ? (2,2), (3,1) and (3,2). ?We then create this matrix
+>>>> |>
+>>>> |> ? ? R> ? M<- matrix(1:6,3,2,byrow=TRUE)
+>>>> |> ? ? R> ? M[2,1]<- NA
+>>>> |> ? ? R> ? M[3,1]<- NaN
+>>>> |> ? ? R> ? M
+>>>> |> ? ? ? ? ?[,1] [,2]
+>>>> |> ? ? [1,] ? ?1 ? ?2
+>>>> |> ? ? [2,] ? NA ? ?4
+>>>> |> ? ? [3,] ?NaN ? ?6
+>>>> |> ? ? R>
+>>>> |>
+>>>> |> ? and the compare with the result specified in the checkEquals call.
+>>>> ?And that
+>>>> |> ? pans out:
+>>>> |>
+>>>> |> ? ? R> ? ? ? ?checkEquals(funx(x=M),
+>>>> |> ? ? + ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+>>>> |> ? ? + ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+>>>> |> ? ? [1] TRUE
+>>>> |> ? ? R>
+>>>> |>
+>>>> |> ? What version were you running? ?I am at current SVN so somewhere
+>>>> past 0.7.4
+>>>> |> ? and not quite release 0.7.5.
+>>>> |>
+>>>> |> ? | The R_IsNA() appears to work fine on scalars and vectors, but
+>>>> fails to
+>>>> |> ? | detect NA present in a matrix. ?Is this a bug?.. feature?.. ?Is
+>>>> the
+>>>> |> ? | handling of missing values documented anywhere other than the R
+>>>> |> ? | Extensions manual?..
+>>>> |>
+>>>> |> ? We do not transform anything. ?R tests for NA and NaN with (IIRC) a
+>>>> |> ? combination of IEEE754 (for NA) and a special value for NaN. ?That
+>>>> works here
+>>>> |> ? as we use the R tests for ot.
+>>>> |>
+>>>> |> ? | On a (probably) unrelated note, I get the following error when
+>>>> |> ? | compiling my C++ code:
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |>
+>>>> |> ? Not here either:
+>>>> |>
+>>>> |> ? ? R> ? Rcpp:::RcppCxx0xFlags()
+>>>> |> ? ? [1] "-std=c++0x"
+>>>> |> ? ? R>
+>>>> |>
+>>>> |> ? | However, the code seems to compile fine. ?The compilation script
+>>>> is simply
+>>>> |> ? | #!/bin/bash
+>>>> |> ? | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+>>>> |> ? | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+>>>> |> ? | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+>>>> |> ? | R CMD SHLIB "$@"
+>>>> |>
+>>>> |> ? You may not need the third for CLINK_CPPFLAGS. We experimented with
+>>>> C++0x but
+>>>> |> ? there are side effects on other OSs so we parked this for now.
+>>>> |>
+>>>> |> ? | Complete output from compilation is pasted below -- is this an
+>>>> error I
+>>>> |> ? | should be concerned about?..
+>>>> |> ? | ?./buildAndRun.sh rcpp_test.cpp --clean
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? | g++ -I/usr/share/R/include
+>>>> -I/usr/local/lib/R/site-library/Rcpp/lib
+>>>> |> ? | ?-fpic ?-g -O2 -c rcpp_test.cpp -o rcpp_test.o
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? | g++ -shared -o rcpp_test.so rcpp_test.o
+>>>> |> ? | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+>>>> |> ? | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib
+>>>> -L/usr/lib/R/lib -lR
+>>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+>>>> "capture.output"
+>>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+>>>> |> ? | Execution halted
+>>>> |> ? |
+>>>> |> ? |
+>>>> |> ? | Thanks in advance for any help (and please let me know if this is
+>>>> not
+>>>> |> ? | the correct mailing list for these sorts of questions!)
+>>>> |>
+>>>> |> ? Very much the right list! Thanks for asking here.
+>>>> |>
+>>>> |> ? If you post your full shell script / test code I can have a go at
+>>>> testing it.
+>>>> |>
+>>>> |> ? Dirk
+>
+>
+>
+> --
+> Romain Francois
+> Professional R Enthusiast
+> +33(0) 6 28 91 30 30
+> http://romainfrancois.blog.free.fr
+> |- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+> |- http://tr.im/KfKn : Rcpp 0.7.2
+> `- http://tr.im/JOlc : External pointers with Rcpp
+>
+>
+>
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Sun Feb  7 18:54:03 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 7 Feb 2010 11:54:03 -0600
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <681593257-1265554655-cardhu_decombobulator_blackberry.rim.net-676397482-@bda110.bisx.produk.on.blackberry>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com>
+	<19310.4333.357760.255405@ron.nulle.part>
+	<4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com>
+	<19310.16208.55786.208361@ron.nulle.part>
+	<4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com>
+	<4B6E84AA.1040407@dbmail.com> <4B6E88E9.6050602@dbmail.com>
+	<4e3ad401002070511k37f703c9xa32c45668f9e7a6f@mail.gmail.com>
+	<681593257-1265554655-cardhu_decombobulator_blackberry.rim.net-676397482-@bda110.bisx.produk.on.blackberry>
+Message-ID: <19310.65083.272079.797934@ron.nulle.part>
+
+
+On 7 February 2010 at 14:58, francoisromain at free.fr wrote:
+| Yes. The new api is our current focus. 
+
+Right. It is simply 'much newer' so there are more examples for the old
+API. Which we will not withdraw, and which is less likely to undergo changes,
+but yes -- the new one is better.
+ 
+| You can find many real examples as part of our unit tests (in the "unitTests" installed directory of the package). 
+| 
+| Some other examples in our blogs
+| 
+| A draft article in the "papers" sub directory of the rforge project of rcpp. 
+
+Yup.
+
+Cheers, Dirk
+
+| -----Original Message-----
+| From: Leo Alekseyev <dnquark at gmail.com>
+| Date: Sun, 7 Feb 2010 08:11:48 
+| To: Romain Francois<romain.francois at dbmail.com>
+| Cc: <rcpp-devel at lists.r-forge.r-project.org>
+| Subject: Re: [Rcpp-devel] Handling NAs in RcppMatrix
+| 
+| D'oh, I should have guessed it was an integer/double issue -- I
+| actually tried to check by testing something like c(1.0:2.2,NA), but
+| this of course still produced an integer.
+| 
+| So as a general question -- would you recommend using the new API
+| (Rcpp::CharacterVector, Rcpp::NumericVector) over RcppMatrix et al?..
+| Are there any particularly useful docs / code samples illustrating the
+| use of it?..
+| 
+| 
+| On Sun, Feb 7, 2010 at 4:33 AM, Romain Francois
+| <romain.francois at dbmail.com> wrote:
+| > I've logged this as a bug in Rcpp's bug tracker :
+| > https://r-forge.r-project.org/tracker/?atid=637&group_id=155&func=browse
+| >
+| > Romain
+| >
+| > On 02/07/2010 10:15 AM, Romain Francois wrote:
+| >>
+| >> Hello,
+| >>
+| >> I think the problem is that c(1:2, NA) produces an__integer__ vector,
+| >> and RcppVector<double> ?does not take care of coercion properly.
+| >>
+| >> ?> ?typeof( c(1:2,NA) )
+| >> [1] "integer"
+| >> ?> ?typeof( c(1,2,NA) )
+| >> [1] "double"
+| >>
+| >> The "garbage value" you get I suppose is -2^31, which is how R
+| >> represents NA for integer vectors. Because RcppVector<> ?of RcppMatrix<>
+| >> does not deal with coercion, you just get essentially a cast to -2^31 as
+| >> a double.
+| >>
+| >> The good news is that the new API does take care of coercion, so when
+| >> you create a Rcpp::NumericVector and feed it with an integer vector, the
+| >> integer NA is coerced to a double NA.
+| >>
+| >> Also note that despite the name NumericVector, the class also offers
+| >> matrix-like indexing. So if you pass a matrix to NumericVector, you can
+| >> use matri indexing down in C++. See for example the
+| >> 'test.NumericVector.matrix.indexing' unit test in :
+| >>
+| >> ?> ?system.file( "unitTests", "runit.NumericVector.R", package = "Rcpp" )
+| >> [1] "/usr/local/lib/R/library/Rcpp/unitTests/runit.NumericVector.R"
+| >>
+| >> Also, as from Rcpp 0.7.1 you don't need the
+| >> try/catch/copyMessageToR/Rf_error idom anymore because if you don't
+| >> catch an exception in C++, it is recycled as an R exception, so you can
+| >> catch it in R instead.
+| >>
+| >> Romain
+| >>
+| >> On 02/07/2010 07:42 AM, Leo Alekseyev wrote:
+| >>>
+| >>> The behavior I'm seeing is a bit bizarre. ?The NaN conversion seems to
+| >>> fail for RcppMatrix and RcppVector, but not for NumericVector. ?The
+| >>> most interesting bit is this: if I run the test code on e.g.
+| >>> c(NA,1,2), RcppVector works (NA is printed as nan), whereas if I use
+| >>> c(NA,1:2), instead of nan it prints a garbage value.
+| >>>
+| >>> Here's the code I was using (just a bunch of Rprintfs, really):
+| >>>
+| >>> RcppExport SEXP rcpp_test3(SEXP N1, SEXP V1, SEXP M1, SEXP parms) {
+| >>>
+| >>> ? ?SEXP rl=R_NilValue;
+| >>> ? ?char* exceptionMesg=NULL;
+| >>>
+| >>> ? ?try {
+| >>>
+| >>> ? ? ?RcppMatrix<double> ? m1(M1);// double mtx
+| >>> ? ? ?RcppVector<double> ? v1(V1);// double vector
+| >>> ? ? ?RcppParams rparam(parms);
+| >>> ? ? ?RcppResultSet rs;
+| >>> ? ? ?Rcpp::RObject n1sexp(N1);
+| >>> ? ? ?double n1 = n1sexp.asDouble();
+| >>> ? ? ?Rcpp::NumericVector nv1(V1);
+| >>>
+| >>> ? ? ?Rprintf("Printing number:\n%f\n",n1);
+| >>> ? ? ?Rprintf("Printing matrix:\n");
+| >>> ? ? ?for(int i=0; i< ? m1.rows(); i++){
+| >>> ? ? ? ?for(int j=0; j< ? m1.cols(); j++)
+| >>> ? ? ? ? ?Rprintf("(%d,%d):%f ",i,j,m1(i,j));
+| >>> ? ? ? ?Rprintf("\n");
+| >>> ? ? ?}
+| >>> ? ? ?Rprintf("Printing vector:\n");
+| >>> ? ? ?for(int i=0; i< ? v1.size(); i++)
+| >>> ? ? ? ?Rprintf("%f, ",v1(i));
+| >>> ? ? ?Rprintf("\n");
+| >>> ? ? ?Rprintf("Printing Numeric vector:\n");
+| >>> ? ? ?for(int i=0; i< ? nv1.size(); i++)
+| >>> ? ? ? ?Rprintf("%f, ",nv1(i));
+| >>> ? ? ?Rprintf("\n");
+| >>>
+| >>> ? ? ?rl = rs.getReturnList();
+| >>>
+| >>> ? ?} catch(std::exception& ? ex) {
+| >>> ? ? ?exceptionMesg = copyMessageToR(ex.what());
+| >>> ? ?} catch(...) {
+| >>> ? ? ?exceptionMesg = copyMessageToR("unknown reason");
+| >>> ? ?}
+| >>>
+| >>> ? ?if (exceptionMesg != NULL)
+| >>> ? ? ?Rf_error(exceptionMesg);
+| >>>
+| >>> ? ?return rl;
+| >>> }
+| >>>
+| >>>
+| >>>
+| >>> On Sat, Feb 6, 2010 at 11:19 PM, Dirk Eddelbuettel<edd at debian.org>
+| >>> wrote:
+| >>>>
+| >>>> On 6 February 2010 at 22:08, Leo Alekseyev wrote:
+| >>>> | Thanks for the response. ?Your new unit test runs, but I still see the
+| >>>> | problem (running 0.7.4 installed from CRAN). ?Consider this version of
+| >>>> | the test -- the only difference is that it uses a 2x2 matrix and
+| >>>> | checks for NAs:
+| >>>> |
+| >>>> | test.RcppMatrix.double.na<- function() {
+| >>>> | ? src<- 'RcppMatrix<double> ? m(x);
+| >>>> | ? ? ? ? ? ?RcppResultSet rs;
+| >>>> | ? ? ? ? ? ?rs.add("na_11", ?R_IsNA(m(0,0)));
+| >>>> | ? ? ? ? ? ?rs.add("na_12", ?R_IsNA(m(0,1)));
+| >>>> | ? ? ? ? ? ?rs.add("na_21", ?R_IsNA(m(1,0)));
+| >>>> | ? ? ? ? ? ?rs.add("na_22", ?R_IsNA(m(1,1)));
+| >>>> | ? ? ? ? ? ?return rs.getReturnList();';
+| >>>> | ? funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+| >>>> | ? M<- matrix(1:4,2,2,byrow=TRUE)
+| >>>> | ? M[2,1]<- NA
+| >>>> | ? checkEquals(funx(x=M),
+| >>>> | ? ? ? ? ? ? ? list(na_11=0, na_12=0, na_21=1, na_22=0),
+| >>>> | ? ? ? ? ? ? ? msg = "RcppMatrix.double.na")
+| >>>> | }
+| >>>> |
+| >>>> | This fails for me:
+| >>>> |
+| >>>> | Error in checkEquals(funx(x = M), list(na_11 = 0, na_12 = 0, na_21 =
+| >>>> 1, ?:
+| >>>> | ? Component 3: Mean absolute difference: 1RcppMatrix.double.na
+| >>>> | test.RcppMatrix.double.na.nan: (1 checks) ... OK (0.92 seconds)
+| >>>>
+| >>>> Yes, I see that too. Not sure yet why.
+| >>>>
+| >>>> Did you try any of the other types like Rcpp::NumericVector? ?Is there
+| >>>> anything specific to RcppMatrix from what you cam see?
+| >>>>
+| >>>> | As far as the compilation error messages -- looks like they were
+| >>>> | indeed byproducts of the CLINK_CPPFLAGS and didn't affect anything.
+| >>>>
+| >>>> Ok.
+| >>>>
+| >>>> Dirk
+| >>>>
+| >>>> | Thanks,
+| >>>> | --Leo
+| >>>> |
+| >>>> |
+| >>>> | On Sat, Feb 6, 2010 at 8:01 PM, Dirk Eddelbuettel<edd at debian.org>
+| >>>> wrote:
+| >>>> |>
+| >>>> |> ? Hi Leo,
+| >>>> |>
+| >>>> |> ? On 6 February 2010 at 17:56, Leo Alekseyev wrote:
+| >>>> |> ? | Howdy folks,
+| >>>> |> ? | I started playing around with Rcpp recently, and so far haven't
+| >>>> been
+| >>>> |> ? | able to figure out how to detect NAs in a matrix that I pass to
+| >>>> the
+| >>>> |> ? | C++ code.
+| >>>> |> ? | My test code looks something like this:
+| >>>> |> ? | RcppExport SEXP rcpp_test(SEXP N1, SEXP V1, SEXP M1, SEXP parms)
+| >>>> {
+| >>>> |> ? | .......
+| >>>> |> ? | ? ? RcppMatrix<double> ? m1(M1);// double mtx based on M1
+| >>>> |> ? | ? ? RcppVector<double> ? v1(V1);// double vector based on V1
+| >>>> |> ? | ? ? RcppParams rparam(parms); ? ? ? // parameter from R based on
+| >>>> parms
+| >>>> |> ? | ? ? RcppResultSet rs;
+| >>>> |> ? | ? ? Rcpp::RObject n1sexp(N1);
+| >>>> |> ? |
+| >>>> |> ? | ? ? double n1 = n1sexp.asDouble();
+| >>>> |> ? | ? ? Rprintf("The value of isna is %d\n",R_IsNA(n1));
+| >>>> |> ? |
+| >>>> |> ? | ? ? double element1 = v1(0);
+| >>>> |> ? | ? ? if(R_IsNA(element1))
+| >>>> |> ? | ? ? ? Rprintf("Found NA in vector!\n");
+| >>>> |> ? |
+| >>>> |> ? | ? ? double m00 = m1(0,0);
+| >>>> |> ? | ? ? if(R_IsNA(m00))
+| >>>> |> ? | ? ? ? Rprintf("Found NA in matrix!\n");
+| >>>> |> ? | ................
+| >>>> |>
+| >>>> |> ? That looks like the right approach.
+| >>>> |>
+| >>>> |> ? So to give this some meat on the bone and some comparability, I
+| >>>> added a new
+| >>>> |> ? unit test:
+| >>>> |>
+| >>>> |> ? test.RcppMatrix.double.na.nan<- function() {
+| >>>> |> ? ? ? src<- 'RcppMatrix<double> ? m(x);
+| >>>> |> ? ? ? ? ? ? ? RcppResultSet rs;
+| >>>> |> ? ? ? ? ? ? ? rs.add("na_21", ?R_IsNA(m(1,0)));
+| >>>> |> ? ? ? ? ? ? ? rs.add("na_22", ?R_IsNA(m(1,1)));
+| >>>> |> ? ? ? ? ? ? ? rs.add("nan_31", R_IsNaN(m(2,0)));
+| >>>> |> ? ? ? ? ? ? ? rs.add("nan_32", R_IsNaN(m(2,1)));
+| >>>> |> ? ? ? ? ? ? ? return rs.getReturnList();';
+| >>>> |> ? ? ? funx<- cfunction(signature(x="numeric"), src, Rcpp=TRUE)
+| >>>> |> ? ? ? M<- matrix(1:6,3,2,byrow=TRUE)
+| >>>> |> ? ? ? M[2,1]<- NA
+| >>>> |> ? ? ? M[3,1]<- NaN
+| >>>> |> ? ? ? checkEquals(funx(x=M),
+| >>>> |> ? ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+| >>>> |> ? ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+| >>>> |> ? }
+| >>>> |>
+| >>>> |> ? This defines a function 'test.RcppMatrix.double.na.nan'. In it, we
+| >>>> create a
+| >>>> |> ? function funx that evaluates the C++ code in src -- it tests
+| >>>> positions (2,1),
+| >>>> |> ? (2,2), (3,1) and (3,2). ?We then create this matrix
+| >>>> |>
+| >>>> |> ? ? R> ? M<- matrix(1:6,3,2,byrow=TRUE)
+| >>>> |> ? ? R> ? M[2,1]<- NA
+| >>>> |> ? ? R> ? M[3,1]<- NaN
+| >>>> |> ? ? R> ? M
+| >>>> |> ? ? ? ? ?[,1] [,2]
+| >>>> |> ? ? [1,] ? ?1 ? ?2
+| >>>> |> ? ? [2,] ? NA ? ?4
+| >>>> |> ? ? [3,] ?NaN ? ?6
+| >>>> |> ? ? R>
+| >>>> |>
+| >>>> |> ? and the compare with the result specified in the checkEquals call.
+| >>>> ?And that
+| >>>> |> ? pans out:
+| >>>> |>
+| >>>> |> ? ? R> ? ? ? ?checkEquals(funx(x=M),
+| >>>> |> ? ? + ? ? ? ? ? ? ? ? list(na_21=1, na_22=0, nan_31=1, nan_32=0),
+| >>>> |> ? ? + ? ? ? ? ? ? ? ? msg = "RcppMatrix.double.na.nan")
+| >>>> |> ? ? [1] TRUE
+| >>>> |> ? ? R>
+| >>>> |>
+| >>>> |> ? What version were you running? ?I am at current SVN so somewhere
+| >>>> past 0.7.4
+| >>>> |> ? and not quite release 0.7.5.
+| >>>> |>
+| >>>> |> ? | The R_IsNA() appears to work fine on scalars and vectors, but
+| >>>> fails to
+| >>>> |> ? | detect NA present in a matrix. ?Is this a bug?.. feature?.. ?Is
+| >>>> the
+| >>>> |> ? | handling of missing values documented anywhere other than the R
+| >>>> |> ? | Extensions manual?..
+| >>>> |>
+| >>>> |> ? We do not transform anything. ?R tests for NA and NaN with (IIRC) a
+| >>>> |> ? combination of IEEE754 (for NA) and a special value for NaN. ?That
+| >>>> works here
+| >>>> |> ? as we use the R tests for ot.
+| >>>> |>
+| >>>> |> ? | On a (probably) unrelated note, I get the following error when
+| >>>> |> ? | compiling my C++ code:
+| >>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+| >>>> "capture.output"
+| >>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+| >>>> |>
+| >>>> |> ? Not here either:
+| >>>> |>
+| >>>> |> ? ? R> ? Rcpp:::RcppCxx0xFlags()
+| >>>> |> ? ? [1] "-std=c++0x"
+| >>>> |> ? ? R>
+| >>>> |>
+| >>>> |> ? | However, the code seems to compile fine. ?The compilation script
+| >>>> is simply
+| >>>> |> ? | #!/bin/bash
+| >>>> |> ? | export PKG_CPPFLAGS="-I. "$(r -e "Rcpp:::CxxFlags()" )
+| >>>> |> ? | export PKG_LIBS=$(r -e "Rcpp:::LdFlags()" )
+| >>>> |> ? | export CLINK_CPPFLAGS=$(r -e "Rcpp:::Cxx0xFlags()" )
+| >>>> |> ? | R CMD SHLIB "$@"
+| >>>> |>
+| >>>> |> ? You may not need the third for CLINK_CPPFLAGS. We experimented with
+| >>>> C++0x but
+| >>>> |> ? there are side effects on other OSs so we parked this for now.
+| >>>> |>
+| >>>> |> ? | Complete output from compilation is pasted below -- is this an
+| >>>> error I
+| >>>> |> ? | should be concerned about?..
+| >>>> |> ? | ?./buildAndRun.sh rcpp_test.cpp --clean
+| >>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+| >>>> "capture.output"
+| >>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+| >>>> |> ? | Execution halted
+| >>>> |> ? | g++ -I/usr/share/R/include
+| >>>> -I/usr/local/lib/R/site-library/Rcpp/lib
+| >>>> |> ? | ?-fpic ?-g -O2 -c rcpp_test.cpp -o rcpp_test.o
+| >>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+| >>>> "capture.output"
+| >>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+| >>>> |> ? | Execution halted
+| >>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+| >>>> "capture.output"
+| >>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+| >>>> |> ? | Execution halted
+| >>>> |> ? | g++ -shared -o rcpp_test.so rcpp_test.o
+| >>>> |> ? | -L/usr/local/lib/R/site-library/Rcpp/lib -lRcpp
+| >>>> |> ? | -Wl,-rpath,/usr/local/lib/R/site-library/Rcpp/lib
+| >>>> -L/usr/lib/R/lib -lR
+| >>>> |> ? | Error in RcppCxx0xFlags() : could not find function
+| >>>> "capture.output"
+| >>>> |> ? | Calls:<Anonymous> ? -> ? cat -> ? RcppCxx0xFlags
+| >>>> |> ? | Execution halted
+| >>>> |> ? |
+| >>>> |> ? |
+| >>>> |> ? | Thanks in advance for any help (and please let me know if this is
+| >>>> not
+| >>>> |> ? | the correct mailing list for these sorts of questions!)
+| >>>> |>
+| >>>> |> ? Very much the right list! Thanks for asking here.
+| >>>> |>
+| >>>> |> ? If you post your full shell script / test code I can have a go at
+| >>>> testing it.
+| >>>> |>
+| >>>> |> ? Dirk
+| >
+| >
+| >
+| > --
+| > Romain Francois
+| > Professional R Enthusiast
+| > +33(0) 6 28 91 30 30
+| > http://romainfrancois.blog.free.fr
+| > |- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+| > |- http://tr.im/KfKn : Rcpp 0.7.2
+| > `- http://tr.im/JOlc : External pointers with Rcpp
+| >
+| >
+| >
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From romain.francois at dbmail.com  Mon Feb  8 12:51:33 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Mon, 08 Feb 2010 12:51:33 +0100
+Subject: [Rcpp-devel] Handling NAs in RcppMatrix
+In-Reply-To: <681593257-1265554655-cardhu_decombobulator_blackberry.rim.net-676397482-@bda110.bisx.produk.on.blackberry>
+References: <4e3ad401002061456n400e0caaj6ab079f8002071fd@mail.gmail.com><19310.4333.357760.255405@ron.nulle.part><4e3ad401002061908k6cb0ddebyf6e4309a0acdbf5a@mail.gmail.com><19310.16208.55786.208361@ron.nulle.part><4e3ad401002062242w46e964f3oa88ff1516d302463@mail.gmail.com><4B6E84AA.1040407@dbmail.com>	<4B6E88E9.6050602@dbmail.com><4e3ad401002070511k37f703c9xa32c45668f9e7a6f@mail.gmail.com>
+	<681593257-1265554655-cardhu_decombobulator_blackberry.rim.net-676397482-@bda110.bisx.produk.on.blackberry>
+Message-ID: <4B6FFAC5.4050607@dbmail.com>
+
+On 02/07/2010 03:58 PM, francoisromain at free.fr wrote:
+>
+> Yes. The new api is our current focus.
+>
+> You can find many real examples as part of our unit tests (in the "unitTests" installed directory of the package).
+>
+> Some other examples in our blogs
+>
+> A draft article in the "papers" sub directory of the rforge project of rcpp.
+
+Also, the doxygen generated documentation can help:
+http://dirk.eddelbuettel.com/code/rcpp/html/index.html
+
+And you can always come back to this list with questions.
+
+As Dirk said the new api is much newer (we really started working on it 
+about two months ago).
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+|- http://tr.im/KfKn : Rcpp 0.7.2
+`- http://tr.im/JOlc : External pointers with Rcpp
+
+
+
+From talich at gmail.com  Tue Feb  9 01:13:28 2010
+From: talich at gmail.com (Jianping Hua)
+Date: Mon, 8 Feb 2010 17:13:28 -0700
+Subject: [Rcpp-devel] mpi and RInside
+Message-ID: <8f5cc5c01002081613h51cf247ena35236714e0f3b77@mail.gmail.com>
+
+Hello:
+
+I'm quite new to R and I'd like to run some R program inside my C++
+code. So I installed Rcpp and RInside recently. Since many of my work
+involves mpi, so I'm wondering if RInside works with mpi. It looks mpi
+works, although with some glitch. So I think I might post my
+experiences here, for anyone who is interested, and possibly, further
+discussions and suggestions.
+
+First, some background. I have a MacbookPro running Leopard. To make
+Rcpp and RInside work, I have installed it from source (Thanks Dirk
+for tipping me out!!!) The mpic++ is Mac's own g++-4.0.1. Here is an
+very simple example code which I modified from the example code 0 of
+RInside package:
+
+////////////Start of Example///////////////
+// Simple example showing in R console information about current node
+
+#include "mpi.h"     // mpi header
+#include "RInside.h" // for the embedded R via RInside
+#include "Rcpp.h"    // for the R / Cpp interface used for transfer
+
+int main(int argc, char *argv[]) {
+
+    // mpi related
+    int myrank, nodesize;                       // node information
+    MPI_Init(&argc,&argv);                      // mpi initialization
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);     // obtain current node rank
+    MPI_Comm_size(MPI_COMM_WORLD, &nodesize);   // obtain total nodes running.
+
+    RInside R(argc, argv);              // create an embedded R instance
+
+    std::stringstream txt;
+    txt << "Hello from node " << myrank       // node information
+        << " of " << nodesize << " nodes!" << std::endl;
+    R.assign( txt.str(), "txt");              // assign string var to
+R variable 'txt'
+
+    std::string evalstr = "cat(txt)"; // show node information
+    R.parseEvalQ(evalstr);            // eval the init string,
+ignoring any returns
+
+
+    MPI_Finalize();                   // mpi finalization
+
+    exit(0);
+}
+
+/////////////End of Example///////////////
+
+The tricky part is I found I have to put mpi.h before Rinside.h and
+Rcpp.h, otherwise the compiler will report syntax error in mpi.h.
+
+For the makefile, I just changed two lines related to CXX in the
+example makefile
+CXX      := mpic++
+CXXFLAGS := $(RCPPFLAGS) $(RCPPINCL) $(RINSIDEINCL) -g -O2
+
+In the first line, I switch compiler from gcc-4.2 to mpic++. In the
+second line, I removed mtune=core2 parameter.
+
+I submitted it to 6 slots through mpirun:
+mpirun -np 6 rinside_sample0
+
+And the outcome should be something like:
+Hello from node 4 of 6 nodes!
+Hello from node 3 of 6 nodes!
+Hello from node 1 of 6 nodes!
+Hello from node 0 of 6 nodes!
+Hello from node 2 of 6 nodes!
+Hello from node 5 of 6 nodes!
+
+Note that in the above example there is no data passing at all. In the
+following example I add data gathering and it also works:
+
+///////Start of example/////////////////
+// Simple mpi example: simulate sampling/averaging on multiple nodes
+and gathering the results.
+
+#include "mpi.h"     // mpi header file
+#include "RInside.h" // for the embedded R via RInside
+#include "Rcpp.h"    // for the R / Cpp interface used for transfer
+
+int main(int argc, char *argv[]) {
+
+    // mpi related
+    int myrank, nodesize;                       // node information
+    int sndcnt = 1, rcvcnt = 1;                 // # of elements in
+send/recv buffer
+    MPI_Init(&argc,&argv);                      // mpi initialization
+    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);     // obtain current node rank
+    MPI_Comm_size(MPI_COMM_WORLD, &nodesize);   // obtain total nodes running.
+    double sendValue;                           // value to be
+collected in current node
+    double *allvalues = new double( nodesize ); // to save all results
+
+    //simulation info
+    // to sample from a uniform distribution
+    int rangeMin = 0, rangeMax = 10; // range of uniform distribution
+    int sampleSize = 2;              // points in each sample
+
+    try
+    {
+        RInside R(argc, argv);              // create an embedded R instance
+        SEXP ans;                           // return value
+
+        std::stringstream txt;
+        txt << "x <- " << rangeMin << std::endl;
+        R.parseEvalQ( txt.str() );      // assign x with lower range
+of uniform distribution
+
+        txt << "y <- " << rangeMax << std::endl;
+        R.parseEvalQ( txt.str() );      // assign y with upper range
+of uniform distribution
+
+        txt << "n <- " << sampleSize << std::endl;
+        R.parseEvalQ( txt.str() );      // assign n with the size of sample
+
+        std::string evalstr = " mean(runif(n,x,y))";  // sampling,
+compute the mean
+        if ( R.parseEval(evalstr, ans) )              // eval the
+evalstr string, return results
+            throw std::runtime_error( "R cannot evalueate '" + evalstr + "'" );
+
+        RcppVector<double> m(ans);      // convert SEXP variable to an
+RcppVector
+
+        sendValue = m( 0 );             // assign the return value to
+the variable to be gathered
+
+        //gather together values from all processes to allvalues
+        MPI_Gather(&sendValue,sndcnt,MPI_DOUBLE,&allvalues[0],rcvcnt,MPI_DOUBLE,0,MPI_COMM_WORLD);
+
+        // show what inidividual node's contribution
+        std::cout << "node " << myrank << " has mean " << m(0) << std::endl;
+
+        // show gathered results in node 0
+        if ( myrank == 0 )
+        {
+            std::cout << "values of all " << nodesize << " trials: "
+<< std::endl;
+            for ( int i = 0; i < nodesize; i++ )
+                std::cout << allvalues[ i ] << ", ";
+            std::cout << std::endl;
+        }
+
+    } catch(std::exception& ex) {
+        std::cerr << "Exception caught: " << ex.what() << std::endl;
+    } catch(...) {
+        std::cerr << "Unknown exception caught" << std::endl;
+    }
+
+    // clean up
+    delete[] allvalues;
+
+    MPI_Finalize();             // mpi finalization
+
+    exit(0);
+}
+
+//////////End of Example////////////////
+
+The running results, again if running on 6 slots, should be something like this:
+node 5 has mean 6.13918
+node 2 has mean 5.21227
+node 1 has mean 0.563234
+node 4 has mean 5.41173
+node 3 has mean 2.41499
+node 0 has mean 0.515025
+values of all 6 trials:
+0.515025, 0.563234, 5.21227, 2.41499, 5.41173, 6.13918,
+
+I hope this information is useful.
+
+Best wishes,
+Jianping
+
+From romain at r-enthusiasts.com  Tue Feb  9 11:35:36 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Tue, 09 Feb 2010 11:35:36 +0100
+Subject: [Rcpp-devel] CharacterVector::iterator
+Message-ID: <4B713A78.2040909@r-enthusiasts.com>
+
+Hello,
+
+This did not make the cut for Rcpp 0.7.5 which was released yesterday, 
+but I've started to play around with CharacterVector::iterator.
+
+Here is another way to say paste( letters, collapse = "" ) using 
+std::accumulate :
+
+funx <- cfunction(signature(x = "character"), '
+		CharacterVector letters(x) ;
+		std::string res(
+			std::accumulate(
+				letters.begin(), letters.end(), std::string() ) ) ;
+		return wrap(res) ;
+	;
+		', Rcpp = TRUE, includes = "using namespace Rcpp;" )
+
+
+ > funx( letters )
+[1] "abcdefghijklmnopqrstuvwxyz"
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+|- http://tr.im/KfKn : Rcpp 0.7.2
+`- http://tr.im/JOlc : External pointers with Rcpp
+
+
+From romain at r-enthusiasts.com  Tue Feb  9 20:00:21 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Tue, 09 Feb 2010 20:00:21 +0100
+Subject: [Rcpp-devel] C++ version of lapply using std::transform
+Message-ID: <4B71B0C5.8060208@r-enthusiasts.com>
+
+Hello,
+
+I've just commited some code that allows iterating over generic and 
+expression vectors (Rcpp::GenericVector and Rcpp::ExpressionVector).
+
+This allows to write for example a c++ version of lapply (without the 
+handling of the ellipsis (...) ) using the std::transform algorithm from 
+the STL :
+
+cpp_lapply <- cfunction(signature(x = "list", g = "function" ), '
+		Function fun(g) ;
+		List input(x) ;
+		List output( input.size() ) ;
+		std::transform( input.begin(), input.end(), output.begin(), fun ) ;
+		output.names() = input.names() ;
+		return output ;
+	
+	', Rcpp = TRUE, includes = "using namespace Rcpp;"  )
+	
+
+ > data <- list( x = letters, y = LETTERS, z = 1:4 )
+ > cpp_lapply( data, length )
+$x
+[1] 26
+
+$y
+[1] 26
+
+$z
+[1] 4
+
+Have fun !
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/NrTG : Rcpp 0.7.5
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+`- http://tr.im/KfKn : Rcpp 0.7.2
+
+
+From romain at r-enthusiasts.com  Wed Feb 10 13:10:42 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Wed, 10 Feb 2010 13:10:42 +0100
+Subject: [Rcpp-devel] GenericVector looks more like std::vector
+Message-ID: <4B72A242.8080102@r-enthusiasts.com>
+
+Hi,
+
+I've added the following methods to SEXP_Vector (which is the template 
+that generates GenericVector (aka List) and ExpressionVector so that 
+they look more like std::vector  :
+
+push_back
+push_front
+insert
+erase
+
+Methods that add new things use the implicit wrap idiom : they take a 
+templated parameter as input, wrap it up into a SEXP using wrap. They 
+also take care of names using the Named class as in e.g Language.
+
+erase has a single element form to remove a single element and a range 
+based form erase( iterator first, iterator last ) to remove all elements 
+from first to last.
+
+All these functions actually copy the internal SEXP, as R offers no way 
+to do otherwise.
+
+As usual, examples included in the unit tests. Here is one:
+
+funx <- cfunction( signature(x = "list"),
+	'
+	List list(x) ;
+	list.push_back( 10 ) ;
+	list.push_back( Named( "foo", "bar" ) ) ;
+	return list ;
+	', Rcpp = TRUE, includes = "using namespace Rcpp;" )
+	d <- list( x = 1:10, y = letters[1:10] )
+	res <- funx( d )
+	checkEquals( res,
+		list( x = 1:10, y = letters[1:10], 10L, foo = "bar" ),
+		msg = "List.push_back" )
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/NrTG : Rcpp 0.7.5
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+`- http://tr.im/KfKn : Rcpp 0.7.2
+
+
+From romain at r-enthusiasts.com  Thu Feb 11 14:23:50 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Thu, 11 Feb 2010 14:23:50 +0100
+Subject: [Rcpp-devel] number of arguments
+Message-ID: <4B7404E6.1020906@r-enthusiasts.com>
+
+Hello,
+
+Some time ago, I commited some code bloat so that we are less dependent 
+on variadic templates for :
+- creating Pairlist objects
+- creating Language objects
+- calling Function
+
+So for example instead of the catch all so cool variadic template ;
+
+template<typename... Args>
+	SEXP operator()( const Args&... args) /* throw(Evaluator::eval_error) */ {
+		return internal::try_catch( Rf_lcons( m_sexp, pairlist(args...) ) ) ;
+	}
+
+I've added a bunch of methods like this :
+
+template <typename T1>
+SEXP operator()( const T1& t1){
+	return internal::try_catch( Rf_lcons( m_sexp, pairlist(t1) ) ) ;
+}
+template <typename T1, typename T2>
+SEXP operator()( const T1& t1, const T2& t2){
+	return internal::try_catch( Rf_lcons( m_sexp, pairlist(t1,t2) ) ) ;
+}
+...
+template <typename T1, typename T2, typename T3, typename T4, typename T5>
+SEXP operator()( const T1& t1, const T2& t2, const T3& t3, const T4& t4, 
+const T5& t5){
+		return internal::try_catch( Rf_lcons( m_sexp, pairlist(t1,t2,t3,t4,t5) 
+) ) ;
+}
+/* </code-bloat> */
+
+
+The question is : is 5 enough ? should it be 10 ? 20 ?
+Those are templates so they are only instanciated when requested, so I 
+don't have an issue about having an higher number.
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/NrTG : Rcpp 0.7.5
+|- http://tr.im/MPYc : RProtoBuf: protocol buffers for R
+`- http://tr.im/KfKn : Rcpp 0.7.2
+
+
+From romain at r-enthusiasts.com  Sat Feb 13 11:57:02 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Sat, 13 Feb 2010 11:57:02 +0100
+Subject: [Rcpp-devel] non trivial example of Rcpp new api classes
+Message-ID: <4B76857E.1060209@r-enthusiasts.com>
+
+Hello,
+
+I've updated my highlight package [1] so that it uses some of the 
+classes of the new Rcpp api. See 
+http://r-forge.r-project.org/plugins/scmsvn/viewcvs.php/pkg/highlight/src/render.cpp?rev=244&root=highlight&view=markup
+
+Romain
+
+[1] 
+http://romainfrancois.blog.free.fr/index.php?category/R-package/highlight
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/O1wO : inline 0.1-5
+|- http://tr.im/O1qJ : Rcpp 0.7.6
+`- http://tr.im/NrTG : Rcpp 0.7.5
+
+
+From romain at r-enthusiasts.com  Sat Feb 13 18:08:51 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Sat, 13 Feb 2010 18:08:51 +0100
+Subject: [Rcpp-devel] boost::asio
+Message-ID: <4B76DCA3.9030109@r-enthusiasts.com>
+
+Hi,
+
+Anyone familiar with boost asio here ?
+http://www.boost.org/doc/libs/1_42_0/doc/html/boost_asio.html
+
+Now that new Rcpp is getting stable, I'd like to use it. One potential 
+use is making some sort of web server with R callbacks, and I was 
+thinking maybe boost asio was the way to go about it.
+
+The latest version of R already has a webserver included, which powers 
+the new R help system (see latest R Journal issue), but it is not 
+flexible enough (yet) ...
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/O1wO : inline 0.1-5
+|- http://tr.im/O1qJ : Rcpp 0.7.6
+`- http://tr.im/NrTG : Rcpp 0.7.5
+
+
+From edd at debian.org  Sat Feb 13 19:21:43 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 13 Feb 2010 12:21:43 -0600
+Subject: [Rcpp-devel] boost::asio
+In-Reply-To: <4B76DCA3.9030109@r-enthusiasts.com>
+References: <4B76DCA3.9030109@r-enthusiasts.com>
+Message-ID: <19318.60855.586150.118587@ron.nulle.part>
+
+
+On 13 February 2010 at 18:08, Romain Francois wrote:
+| Anyone familiar with boost asio here ?
+| http://www.boost.org/doc/libs/1_42_0/doc/html/boost_asio.html
+
+I have not used asio but using more of boost is always a good idea. Would add
+another (weak) build dependency though.
+
+| Now that new Rcpp is getting stable, I'd like to use it. One potential 
+| use is making some sort of web server with R callbacks, and I was 
+| thinking maybe boost asio was the way to go about it.
+| 
+| The latest version of R already has a webserver included, which powers 
+| the new R help system (see latest R Journal issue), but it is not 
+| flexible enough (yet) ...
+
+Let's be patient and resist to urge to add a server in a package :)
+
+Dirk
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From romain.francois at dbmail.com  Sat Feb 13 19:28:14 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Sat, 13 Feb 2010 19:28:14 +0100
+Subject: [Rcpp-devel] boost::asio
+In-Reply-To: <19318.60855.586150.118587@ron.nulle.part>
+References: <4B76DCA3.9030109@r-enthusiasts.com>
+	<19318.60855.586150.118587@ron.nulle.part>
+Message-ID: <4B76EF3E.5070309@dbmail.com>
+
+On 02/13/2010 07:21 PM, Dirk Eddelbuettel wrote:
+> On 13 February 2010 at 18:08, Romain Francois wrote:
+> | Anyone familiar with boost asio here ?
+> | http://www.boost.org/doc/libs/1_42_0/doc/html/boost_asio.html
+>
+> I have not used asio but using more of boost is always a good idea. Would add
+> another (weak) build dependency though.
+
+What do mean by "weak" ?
+
+> | Now that new Rcpp is getting stable, I'd like to use it. One potential
+> | use is making some sort of web server with R callbacks, and I was
+> | thinking maybe boost asio was the way to go about it.
+> |
+> | The latest version of R already has a webserver included, which powers
+> | the new R help system (see latest R Journal issue), but it is not
+> | flexible enough (yet) ...
+>
+> Let's be patient and resist to urge to add a server in a package :)
+>
+> Dirk
+
+But it sounds like fun ...
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/O1wO : highlight 0.1-5
+|- http://tr.im/O1qJ : Rcpp 0.7.6
+`- http://tr.im/NrTG : Rcpp 0.7.5
+
+
+
+From edd at debian.org  Sat Feb 13 19:50:21 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 13 Feb 2010 12:50:21 -0600
+Subject: [Rcpp-devel] boost::asio
+In-Reply-To: <4B76EF3E.5070309@dbmail.com>
+References: <4B76DCA3.9030109@r-enthusiasts.com>
+	<19318.60855.586150.118587@ron.nulle.part>
+	<4B76EF3E.5070309@dbmail.com>
+Message-ID: <19318.62573.993999.736502@ron.nulle.part>
+
+
+On 13 February 2010 at 19:28, Romain Francois wrote:
+| On 02/13/2010 07:21 PM, Dirk Eddelbuettel wrote:
+| > On 13 February 2010 at 18:08, Romain Francois wrote:
+| > | Anyone familiar with boost asio here ?
+| > | http://www.boost.org/doc/libs/1_42_0/doc/html/boost_asio.html
+| >
+| > I have not used asio but using more of boost is always a good idea. Would add
+| > another (weak) build dependency though.
+| 
+| What do mean by "weak" ?
+
+Oh, sorry: 'headers only, no libs' for most of Boost and the headers are not
+uncommon.  But it will be a hurdle for some people. Worth taking though...
+| 
+| > | Now that new Rcpp is getting stable, I'd like to use it. One potential
+| > | use is making some sort of web server with R callbacks, and I was
+| > | thinking maybe boost asio was the way to go about it.
+| > |
+| > | The latest version of R already has a webserver included, which powers
+| > | the new R help system (see latest R Journal issue), but it is not
+| > | flexible enough (yet) ...
+| >
+| > Let's be patient and resist to urge to add a server in a package :)
+| >
+| > Dirk
+| 
+| But it sounds like fun ...
+
+Let's not get tempted :)
+
+Dirk
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From romain.francois at dbmail.com  Sat Feb 13 19:54:14 2010
+From: romain.francois at dbmail.com (Romain Francois)
+Date: Sat, 13 Feb 2010 19:54:14 +0100
+Subject: [Rcpp-devel] boost::asio
+In-Reply-To: <19318.62573.993999.736502@ron.nulle.part>
+References: <4B76DCA3.9030109@r-enthusiasts.com>	<19318.60855.586150.118587@ron.nulle.part>	<4B76EF3E.5070309@dbmail.com>
+	<19318.62573.993999.736502@ron.nulle.part>
+Message-ID: <4B76F556.2030008@dbmail.com>
+
+On 02/13/2010 07:50 PM, Dirk Eddelbuettel wrote:
+> On 13 February 2010 at 19:28, Romain Francois wrote:
+> | On 02/13/2010 07:21 PM, Dirk Eddelbuettel wrote:
+> |>  On 13 February 2010 at 18:08, Romain Francois wrote:
+> |>  | Anyone familiar with boost asio here ?
+> |>  | http://www.boost.org/doc/libs/1_42_0/doc/html/boost_asio.html
+> |>
+> |>  I have not used asio but using more of boost is always a good idea. Would add
+> |>  another (weak) build dependency though.
+> |
+> | What do mean by "weak" ?
+>
+> Oh, sorry: 'headers only, no libs' for most of Boost and the headers are not
+> uncommon.  But it will be a hurdle for some people. Worth taking though...
+
+
+Ah. But not this one. This is one that is not header only.
+
+
+> |>  | Now that new Rcpp is getting stable, I'd like to use it. One potential
+> |>  | use is making some sort of web server with R callbacks, and I was
+> |>  | thinking maybe boost asio was the way to go about it.
+> |>  |
+> |>  | The latest version of R already has a webserver included, which powers
+> |>  | the new R help system (see latest R Journal issue), but it is not
+> |>  | flexible enough (yet) ...
+> |>
+> |>  Let's be patient and resist to urge to add a server in a package :)
+> |>
+> |>  Dirk
+> |
+> | But it sounds like fun ...
+>
+> Let's not get tempted :)
+
+I guess you're right ...
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/O1wO : highlight 0.1-5
+|- http://tr.im/O1qJ : Rcpp 0.7.6
+`- http://tr.im/NrTG : Rcpp 0.7.5
+
+
+
+From dnquark at gmail.com  Mon Feb 15 06:42:43 2010
+From: dnquark at gmail.com (Leo Alekseyev)
+Date: Mon, 15 Feb 2010 00:42:43 -0500
+Subject: [Rcpp-devel] Dealing with 2-dimensional vectors
+Message-ID: <4e3ad401002142142r21504391p90964eaf01f73db6@mail.gmail.com>
+
+Hi all,
+
+I got a chance to play with Rcpp some more this weekend.  I like it!
+The one thing that I found a little awkward, however, is dealing with
+matrices -- while the new API's SimpleVector indexes them just fine, I
+wish it had provided accessors similar to the old API's
+RcppMatrix<T>.rows()/cols().
+
+I can get the dimensions attribute via Rcpp::RObject's attr() method,
+but that took some digging to figure out -- mostly because I can't
+seem to get the cast operator to work properly.  Here is how I get the
+dimensions currently:
+
+Rcpp::RObject::AttributeProxy sa_dims_ap(sig_actions.attr("dim"));
+vector<int> sa_dims2(Rcpp::as< vector<int> >(sa_dims_ap));
+Rprintf("sig_actions has dims %d,%d\n",sa_dims2[0],sa_dims2[1]);
+
+This seems to involve a cast to SEXP via AttributeProxy's operator
+SEXP().  The following, however, doesn't compile:
+vector<int> sa_dims3((vector<int>)sa_dims_ap);
+Rprintf("sig_actions has dims %d,%d\n",sa_dims3[0],sa_dims3[1]);
+
+TradingLoopPCA.cpp:257: error: call of overloaded
+?vector(Rcpp::RObject::AttributeProxy&)? is ambiguous
+
+Any pointers on what I'm doing wrong here?
+
+Thanks,
+--Leo
+
+From romain at r-enthusiasts.com  Mon Feb 15 09:15:18 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Mon, 15 Feb 2010 09:15:18 +0100
+Subject: [Rcpp-devel] Dealing with 2-dimensional vectors
+In-Reply-To: <4e3ad401002142142r21504391p90964eaf01f73db6@mail.gmail.com>
+References: <4e3ad401002142142r21504391p90964eaf01f73db6@mail.gmail.com>
+Message-ID: <4B790296.5010701@r-enthusiasts.com>
+
+On 02/15/2010 06:42 AM, Leo Alekseyev wrote:
+> Hi all,
+>
+> I got a chance to play with Rcpp some more this weekend.  I like it!
+
+Cool
+
+> The one thing that I found a little awkward, however, is dealing with
+> matrices -- while the new API's SimpleVector indexes them just fine, I
+> wish it had provided accessors similar to the old API's
+> RcppMatrix<T>.rows()/cols().
+
+That's a good idea. I'll probably make them lhs usable, so that one can do
+
+x.cols() = 5 ;
+
+And I think I prefer ncols and nrows (with the initial n), as this is 
+closest to R functions ncols and nrows.
+
+I've put it up as a feature request on r-forge:
+https://r-forge.r-project.org/tracker/index.php?func=detail&aid=822&group_id=155&atid=640
+
+> I can get the dimensions attribute via Rcpp::RObject's attr() method,
+> but that took some digging to figure out -- mostly because I can't
+> seem to get the cast operator to work properly.  Here is how I get the
+> dimensions currently:
+>
+> Rcpp::RObject::AttributeProxy sa_dims_ap(sig_actions.attr("dim"));
+> vector<int>  sa_dims2(Rcpp::as<  vector<int>  >(sa_dims_ap));
+> Rprintf("sig_actions has dims %d,%d\n",sa_dims2[0],sa_dims2[1]);
+
+This needs better documentation, but what you can do is :
+
+vector<int> dims = sig_actions.attr("dim") ;
+
+This works for me ;
+
+require( inline )
+require( Rcpp )
+
+funx <- cfunction(signature(x="matrix"), '
+         IntegerVector mat(x);
+         std::vector<int> dims = mat.attr("dim") ;
+         std::cout << "nrows = " << dims[0] << " , ncols = " << dims[1] 
+<< std::endl ;
+         return R_NilValue ;
+', Rcpp = TRUE, includes = "using namespace Rcpp;" )
+
+ > funx( diag(4) )
+nrows = 4 , ncols = 4
+NULL
+
+
+> This seems to involve a cast to SEXP via AttributeProxy's operator
+> SEXP().  The following, however, doesn't compile:
+> vector<int>  sa_dims3((vector<int>)sa_dims_ap);
+> Rprintf("sig_actions has dims %d,%d\n",sa_dims3[0],sa_dims3[1]);
+>
+> TradingLoopPCA.cpp:257: error: call of overloaded
+> ?vector(Rcpp::RObject::AttributeProxy&)? is ambiguous
+
+The proxy classes are designed to be invisible, you should not really 
+access them directly.
+
+> Any pointers on what I'm doing wrong here?
+>
+> Thanks,
+> --Leo
+
+
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/OcQe : Rcpp 0.7.7
+|- http://tr.im/O1wO : highlight 0.1-5
+`- http://tr.im/O1qJ : Rcpp 0.7.6
+
+
+From dnquark at gmail.com  Mon Feb 15 10:23:36 2010
+From: dnquark at gmail.com (Leo Alekseyev)
+Date: Mon, 15 Feb 2010 04:23:36 -0500
+Subject: [Rcpp-devel] Dealing with 2-dimensional vectors
+In-Reply-To: <4B790296.5010701@r-enthusiasts.com>
+References: <4e3ad401002142142r21504391p90964eaf01f73db6@mail.gmail.com>
+	<4B790296.5010701@r-enthusiasts.com>
+Message-ID: <4e3ad401002150123k7a91972awb8a587a5ddc27fd@mail.gmail.com>
+
+>> I can get the dimensions attribute via Rcpp::RObject's attr() method,
+>> but that took some digging to figure out -- mostly because I can't
+>> seem to get the cast operator to work properly. ?Here is how I get the
+>> dimensions currently:
+>>
+>> Rcpp::RObject::AttributeProxy sa_dims_ap(sig_actions.attr("dim"));
+>> vector<int> ?sa_dims2(Rcpp::as< ?vector<int> ?>(sa_dims_ap));
+>> Rprintf("sig_actions has dims %d,%d\n",sa_dims2[0],sa_dims2[1]);
+>
+> This needs better documentation, but what you can do is :
+>
+> vector<int> dims = sig_actions.attr("dim") ;
+
+Ah, thank you.  I forgot about automatic type conversions and somehow
+thought that an explicit cast was necessary (i.e.
+(vector<int>)s_a.attr("dim")), which led to an ambiguity error.
+That's it, I'm dusting off my _Thinking in C++_ book :)
+
+> The proxy classes are designed to be invisible, you should not really access
+> them directly.
+
+Good point; I was only using it to better understand what was going on.
+
+
+On a somewhat different note, do you have any plans to support
+multidimensional arrays (or is it something that I missed in the API?)
+ (Or is there a particular reason to avoid heavy use of
+multidimensional arrays in R?)
+
+--Leo
+
+From romain at r-enthusiasts.com  Mon Feb 15 10:28:26 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Mon, 15 Feb 2010 10:28:26 +0100
+Subject: [Rcpp-devel] Dealing with 2-dimensional vectors
+In-Reply-To: <4e3ad401002150123k7a91972awb8a587a5ddc27fd@mail.gmail.com>
+References: <4e3ad401002142142r21504391p90964eaf01f73db6@mail.gmail.com>	
+	<4B790296.5010701@r-enthusiasts.com>
+	<4e3ad401002150123k7a91972awb8a587a5ddc27fd@mail.gmail.com>
+Message-ID: <4B7913BA.3020508@r-enthusiasts.com>
+
+On 02/15/2010 10:23 AM, Leo Alekseyev wrote:
+>>> I can get the dimensions attribute via Rcpp::RObject's attr() method,
+>>> but that took some digging to figure out -- mostly because I can't
+>>> seem to get the cast operator to work properly.  Here is how I get the
+>>> dimensions currently:
+>>>
+>>> Rcpp::RObject::AttributeProxy sa_dims_ap(sig_actions.attr("dim"));
+>>> vector<int>    sa_dims2(Rcpp::as<    vector<int>    >(sa_dims_ap));
+>>> Rprintf("sig_actions has dims %d,%d\n",sa_dims2[0],sa_dims2[1]);
+>>
+>> This needs better documentation, but what you can do is :
+>>
+>> vector<int>  dims = sig_actions.attr("dim") ;
+>
+> Ah, thank you.  I forgot about automatic type conversions and somehow
+> thought that an explicit cast was necessary (i.e.
+> (vector<int>)s_a.attr("dim")), which led to an ambiguity error.
+> That's it, I'm dusting off my _Thinking in C++_ book :)
+>
+>> The proxy classes are designed to be invisible, you should not really access
+>> them directly.
+>
+> Good point; I was only using it to better understand what was going on.
+
+Sure.
+
+> On a somewhat different note, do you have any plans to support
+> multidimensional arrays (or is it something that I missed in the API?)
+>   (Or is there a particular reason to avoid heavy use of
+> multidimensional arrays in R?)
+
+There are plans. I'd like to support indexing with arbitrary number of 
+indices. Other things are more urgent, but if you submit some patch, 
+I'll have a look.
+
+> --Leo
+>
+
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/OcQe : Rcpp 0.7.7
+|- http://tr.im/O1wO : highlight 0.1-5
+`- http://tr.im/O1qJ : Rcpp 0.7.6
+
+
+From edd at debian.org  Mon Feb 15 22:40:26 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 15 Feb 2010 15:40:26 -0600
+Subject: [Rcpp-devel] mpi and RInside
+In-Reply-To: <8f5cc5c01002081613h51cf247ena35236714e0f3b77@mail.gmail.com>
+References: <8f5cc5c01002081613h51cf247ena35236714e0f3b77@mail.gmail.com>
+Message-ID: <19321.48970.559109.580495@ron.nulle.part>
+
+
+Jianping,
+
+Very cool. Thanks for posting this!
+
+On 8 February 2010 at 17:13, Jianping Hua wrote:
+| I'm quite new to R and I'd like to run some R program inside my C++
+| code. So I installed Rcpp and RInside recently. Since many of my work
+| involves mpi, so I'm wondering if RInside works with mpi. It looks mpi
+| works, although with some glitch. So I think I might post my
+| experiences here, for anyone who is interested, and possibly, further
+| discussions and suggestions.
+| 
+| First, some background. I have a MacbookPro running Leopard. To make
+| Rcpp and RInside work, I have installed it from source (Thanks Dirk
+| for tipping me out!!!) The mpic++ is Mac's own g++-4.0.1. Here is an
+
+[ For the record, and as Romain and I understand it now after more hints from
+  Simon, dynamic loading from OS X requires building from source. Static
+  linking is possible with the pre-built binaries. ]
+
+| very simple example code which I modified from the example code 0 of
+| RInside package:
+| 
+| ////////////Start of Example///////////////
+
+[ snip ]
+
+That worked.
+ 
+| /////////////End of Example///////////////
+| 
+| The tricky part is I found I have to put mpi.h before Rinside.h and
+| Rcpp.h, otherwise the compiler will report syntax error in mpi.h.
+| 
+| For the makefile, I just changed two lines related to CXX in the
+| example makefile
+| CXX      := mpic++
+| CXXFLAGS := $(RCPPFLAGS) $(RCPPINCL) $(RINSIDEINCL) -g -O2
+
+That works. I did the following (using Open MPI on Linux)
+
+a) define new variables
+
+   # OpenMPI header and libraries
+   MPICPPFLAGS :=	$(shell mpic++ -showme:compile)
+   MPILIBS :=		$(shell mpic++ -showme:link)
+
+b) use these variables
+
+   CXXFLAGS := 		$(MPICPPFLAGS) $(RCPPFLAGS) $(RCPPINCL) $(RINSIDEINCL) $(shell $(R_HOME)/bin/R CMD config CXXFLAGS)
+   LDLIBS := 		$(MPILIBS) $(RLDFLAGS) $(RBLAS) $(RLAPACK) $(RCPPLIBS) $(RINSIDELIBS)
+
+[ snip ]
+ 
+| Note that in the above example there is no data passing at all. In the
+| following example I add data gathering and it also works:
+| 
+| ///////Start of example/////////////////
+
+[ snip ]
+
+This example seg faults for me on the 
+   
+     delete[] allvalues;
+
+step. 
+
+Maybe w have to make sure that node 0 is the one allocating and doing the
+gathering?
+ 
+| I hope this information is useful.
+
+Very much so!  This brings RInside right back to the MPI part of my HPC
+exercises :)
+
+Would you permit us to include your example, with the altered Makefile, as
+additional examples in the RInside tarball?
+
+Thanks again for posting this!
+
+Regards, Dirk
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From talich at gmail.com  Wed Feb 17 19:51:15 2010
+From: talich at gmail.com (Jianping Hua)
+Date: Wed, 17 Feb 2010 11:51:15 -0700
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 4, Issue 14
+In-Reply-To: <mailman.7.1266318005.23831.rcpp-devel@lists.r-forge.r-project.org>
+References: <mailman.7.1266318005.23831.rcpp-devel@lists.r-forge.r-project.org>
+Message-ID: <8f5cc5c01002171051g1ae53befj46a465edc8fac2fe@mail.gmail.com>
+
+Hi, Dirk:
+
+Segmentation error is my stupid typo. The memory assignment in line 19
+surely should be
+    double *allvalues = new double [ nodesize ]; // to save all results
+rather than
+    double *allvalues = new double ( nodesize ); // to save all results
+
+The new makefile did not work on my MBP still because of the mtune
+parameter. Basically I have to use
+CXXFLAGS := $(MPILIBS) $(RCPPFLAGS) $(RCPPINCL) $(RINSIDEINCL) -g -O2
+
+Surely you can add these examples to next RInside tarball.
+
+Jianping
+
+
+On Tue, Feb 16, 2010 at 4:00 AM,
+<rcpp-devel-request at lists.r-forge.r-project.org> wrote:
+
+> Message: 1
+> Date: Mon, 15 Feb 2010 15:40:26 -0600
+> From: Dirk Eddelbuettel <edd at debian.org>
+> Subject: Re: [Rcpp-devel] mpi and RInside
+> To: Jianping Hua <talich at gmail.com>
+> Cc: rcpp-devel at lists.r-forge.r-project.org
+> Message-ID: <19321.48970.559109.580495 at ron.nulle.part>
+> Content-Type: text/plain; charset=us-ascii
+>
+>
+> Jianping,
+>
+> Very cool. Thanks for posting this!
+>
+> [ snip ]
+>
+> That works. I did the following (using Open MPI on Linux)
+>
+> a) define new variables
+>
+> ? # OpenMPI header and libraries
+> ? MPICPPFLAGS := ? ? ? $(shell mpic++ -showme:compile)
+> ? MPILIBS := ? ? ? ? ? $(shell mpic++ -showme:link)
+>
+> b) use these variables
+>
+> ? CXXFLAGS := ? ? ? ? ?$(MPICPPFLAGS) $(RCPPFLAGS) $(RCPPINCL) $(RINSIDEINCL) $(shell $(R_HOME)/bin/R CMD config CXXFLAGS)
+> ? LDLIBS := ? ? ? ? ? ?$(MPILIBS) $(RLDFLAGS) $(RBLAS) $(RLAPACK) $(RCPPLIBS) $(RINSIDELIBS)
+>
+> [ snip ]
+>
+> This example seg faults for me on the
+>
+> ? ? delete[] allvalues;
+>
+> step.
+>
+> Maybe w have to make sure that node 0 is the one allocating and doing the
+> gathering?
+>
+> | I hope this information is useful.
+>
+> Very much so! ?This brings RInside right back to the MPI part of my HPC
+> exercises :)
+>
+> Would you permit us to include your example, with the altered Makefile, as
+> additional examples in the RInside tarball?
+>
+> Thanks again for posting this!
+>
+> Regards, Dirk
+>
+> --
+> ?Registration is open for the 2nd International conference R / Finance 2010
+> ?See http://www.RinFinance.com for details, and see you in Chicago in April!
+>
+>
+> ------------------------------
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+> End of Rcpp-devel Digest, Vol 4, Issue 14
+> *****************************************
+>
+
+From edd at debian.org  Wed Feb 17 20:49:35 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 17 Feb 2010 13:49:35 -0600
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 4, Issue 14
+In-Reply-To: <8f5cc5c01002171051g1ae53befj46a465edc8fac2fe@mail.gmail.com>
+References: <mailman.7.1266318005.23831.rcpp-devel@lists.r-forge.r-project.org>
+	<8f5cc5c01002171051g1ae53befj46a465edc8fac2fe@mail.gmail.com>
+Message-ID: <19324.18511.770743.918807@ron.nulle.part>
+
+
+Hi Jianping,
+
+On 17 February 2010 at 11:51, Jianping Hua wrote:
+| Hi, Dirk:
+| 
+| Segmentation error is my stupid typo. The memory assignment in line 19
+| surely should be
+|     double *allvalues = new double [ nodesize ]; // to save all results
+| rather than
+|     double *allvalues = new double ( nodesize ); // to save all results
+
+Oh boy, now we both look silly :)  I glanced at this for a while and thought
+it looked funny. But I use std::vector so much and not new / delete[] that it
+didn't click.  
+
+That does indeed fix things.
+ 
+| The new makefile did not work on my MBP still because of the mtune
+| parameter. Basically I have to use
+| CXXFLAGS := $(MPILIBS) $(RCPPFLAGS) $(RCPPINCL) $(RINSIDEINCL) -g -O2
+
+What I currently have has your two contributed examples in a new subdirectory
+(as not everybody will have MPI around) and that use the Makefile below. Can
+you try that?  It uses mpic++ -showme:.... to extract the proper values for
+the header files and libraries. That works for me with Open MPI.  Can you try it?
+ 
+| Surely you can add these examples to next RInside tarball.
+
+Awesome, thanks.  We will of course give you proper credits for the contribution.
+
+Dirk
+
+
+## -*- mode: make; tab-width: 8; -*-
+##
+## Simple Makefile
+##
+## TODO: 
+##  proper configure for non-Debian file locations,   [ Done ]
+##  allow RHOME to be set for non-default R etc
+
+## comment this out if you need a different version of R, 
+## and set set R_HOME accordingly as an environment variable
+R_HOME := 		$(shell R RHOME)
+
+sources := 		$(wildcard *.cpp)
+programs := 		$(sources:.cpp=)
+
+
+# OpenMPI header and libraries
+MPICPPFLAGS :=		$(shell mpic++ -showme:compile)
+MPILIBS :=		$(shell mpic++ -showme:link)
+
+## include headers and libraries for R 
+RCPPFLAGS := 		$(shell $(R_HOME)/bin/R CMD config --cppflags)
+RLDFLAGS := 		$(shell $(R_HOME)/bin/R CMD config --ldflags)
+RBLAS := 		$(shell $(R_HOME)/bin/R CMD config BLAS_LIBS)
+RLAPACK := 		$(shell $(R_HOME)/bin/R CMD config LAPACK_LIBS)
+
+
+## include headers and libraries for Rcpp interface classes
+RCPPINCL := 		$(shell echo 'Rcpp:::CxxFlags()' | $(R_HOME)/bin/R --vanilla --slave)
+RCPPLIBS := 		$(shell echo 'Rcpp:::LdFlags()'  | $(R_HOME)/bin/R --vanilla --slave)
+
+
+## include headers and libraries for RInside embedding classes
+RINSIDEINCL := 		$(shell echo 'RInside:::CxxFlags()' | $(R_HOME)/bin/R --vanilla --slave)
+RINSIDELIBS := 		$(shell echo 'RInside:::LdFlags()'  | $(R_HOME)/bin/R --vanilla --slave)
+
+
+## compiler etc settings used in default make rules
+CXX := 			$(shell $(R_HOME)/bin/R CMD config CXX)
+CPPFLAGS := 		-Wall $(shell $(R_HOME)/bin/R CMD config CPPFLAGS)
+CXXFLAGS := 		$(MPICPPFLAGS) $(RCPPFLAGS) $(RCPPINCL) $(RINSIDEINCL) $(shell $(R_HOME)/bin/R CMD config CXXFLAGS)
+LDFLAGS	= 		-s
+LDLIBS := 		$(MPILIBS) $(RLDFLAGS) $(RBLAS) $(RLAPACK) $(RCPPLIBS) $(RINSIDELIBS)
+
+all : 			$(programs)
+
+clean:
+			rm -vf $(programs)
+
+
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From edd at debian.org  Wed Feb 17 21:14:19 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 17 Feb 2010 14:14:19 -0600
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 4, Issue 14
+In-Reply-To: <8f5cc5c01002171201i3834ecc6q4b6c51e73b4728d5@mail.gmail.com>
+References: <mailman.7.1266318005.23831.rcpp-devel@lists.r-forge.r-project.org>
+	<8f5cc5c01002171051g1ae53befj46a465edc8fac2fe@mail.gmail.com>
+	<19324.18511.770743.918807@ron.nulle.part>
+	<8f5cc5c01002171201i3834ecc6q4b6c51e73b4728d5@mail.gmail.com>
+Message-ID: <19324.19995.670135.351677@ron.nulle.part>
+
+
+On 17 February 2010 at 13:01, Jianping Hua wrote:
+| HI, Dirk:
+| 
+| The Makfile works on my Mac too!
+
+Awesome. Just CC'ing back to the list for good measure. 
+
+Do you have Open MPI or LAM or MPICH2 ?
+
+Dirk
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From romain at r-enthusiasts.com  Thu Feb 18 15:11:45 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Thu, 18 Feb 2010 15:11:45 +0100
+Subject: [Rcpp-devel] More support of STL algorithms
+Message-ID: <4B7D4AA1.2050901@r-enthusiasts.com>
+
+Hi,
+
+I just commited Rcpp::fixed_call to support uses of STL algorithms such 
+as std::generate.
+
+Here is an example that mimics :
+
+ > lapply( 1:10, function(n) rnorm(10) )
+
+using Rcpp API :
+
+funx <- cfunction(signature(), '
+	
+	Language call( Function("rnorm"), 10 ) ;
+	std::vector< std::vector<double> > result(10) ;
+	std::generate(
+		result.begin(), result.end(),
+		fixed_call< std::vector<double> >(call)
+		) ;
+	return wrap( result );
+	', Rcpp = TRUE, verbose = FALSE, includes = "using namespace Rcpp;" )
+
+Note that fixed_call embeds the return type, in that case 
+std::vector<double> which internally triggers an explicit as.
+
+
+Here is the actual code of fixed_call:
+
+template <typename OUT=SEXP>
+class fixed_call {
+public:
+	typedef OUT result_type ;
+	
+	fixed_call( Language call_ ) : call(call_){}
+	fixed_call( Function fun ) : call(fun){}
+	
+	OUT operator()(){
+		return as<OUT>( call.eval() ) ;
+	}
+	
+private:
+	Language call ;
+} ;
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/OIXN : raster images and RImageJ
+|- http://tr.im/OcQe : Rcpp 0.7.7
+`- http://tr.im/O1wO : highlight 0.1-5
+
+
+From romain at r-enthusiasts.com  Sun Feb 28 15:02:27 2010
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Sun, 28 Feb 2010 15:02:27 +0100
+Subject: [Rcpp-devel] more generic vector code
+Message-ID: <4B8A7773.2000109@r-enthusiasts.com>
+
+Hello,
+
+I've commited some reorganization of Rcpp so that the code to deal with 
+vectors is fully generic.
+
+Before, where we had the template SimpleVector<int RTYPE>, the class 
+CharacterVector and the template SEXP_Vector<int RTYPE>, we now have a 
+single template Rcpp::Vector<int RTYPE> to generate all vector types.
+
+This still passes all unit tests, but there might be some instabilities, 
+so if someone finds that something (e.g. involving another package) is 
+broken, I'd like to know about it.
+
+In addition, the Vector template uses the curiously recurring template 
+pattern, :
+
+template <int RTYPE>
+class Vector : public VectorBase< Vector<RTYPE> >
+
+This is to accomodate future plans about expression templates.
+
+As part of this commit, we have now more methods for all vectors, for 
+example simple vectors, e.g IntegerVector now have push_back, 
+push_front, etc ... (see the runit.IntegerVector.R file for examples)
+
+Romain
+
+-- 
+Romain Francois
+Professional R Enthusiast
++33(0) 6 28 91 30 30
+http://romainfrancois.blog.free.fr
+|- http://tr.im/OIXN : raster images and RImageJ
+|- http://tr.im/OcQe : Rcpp 0.7.7
+`- http://tr.im/O1wO : highlight 0.1-5
+
+
+
+
+From edd at debian.org  Sun Feb 28 18:46:06 2010
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 28 Feb 2010 11:46:06 -0600
+Subject: [Rcpp-devel] more generic vector code
+In-Reply-To: <4B8A7773.2000109@r-enthusiasts.com>
+References: <4B8A7773.2000109@r-enthusiasts.com>
+Message-ID: <19338.43998.930321.280587@ron.nulle.part>
+
+
+On 28 February 2010 at 15:02, Romain Francois wrote:
+| I've commited some reorganization of Rcpp so that the code to deal with 
+| vectors is fully generic.
+| 
+| Before, where we had the template SimpleVector<int RTYPE>, the class 
+| CharacterVector and the template SEXP_Vector<int RTYPE>, we now have a 
+| single template Rcpp::Vector<int RTYPE> to generate all vector types.
+
+Awesome!
+ 
+| This still passes all unit tests, but there might be some instabilities, 
+| so if someone finds that something (e.g. involving another package) is 
+| broken, I'd like to know about it.
+| 
+| In addition, the Vector template uses the curiously recurring template 
+| pattern, :
+| 
+| template <int RTYPE>
+| class Vector : public VectorBase< Vector<RTYPE> >
+| 
+| This is to accomodate future plans about expression templates.
+| 
+| As part of this commit, we have now more methods for all vectors, for 
+| example simple vectors, e.g IntegerVector now have push_back, 
+| push_front, etc ... (see the runit.IntegerVector.R file for examples)
+
+Really nice work.
+
+Dirk
+
+-- 
+  Registration is open for the 2nd International conference R / Finance 2010
+  See http://www.RinFinance.com for details, and see you in Chicago in April!
+
+From bogus@does.not.exist.com  Sun Feb 21 22:45:25 2010
+From: bogus@does.not.exist.com ()
+Date: Sun, 21 Feb 2010 21:45:25 -0000
+Subject: No subject
+Message-ID: <mailman.2.1270574936.25230.rcpp-devel@lists.r-forge.r-project.org>
+
+like RSvgDevice, where I would be calling it from R.  In this case I was
+expecting to install some header/source files that I could build and link
+against.
+
+
+From bogus@does.not.exist.com  Sun Feb 21 22:45:25 2010
+From: bogus@does.not.exist.com ()
+Date: Sun, 21 Feb 2010 21:45:25 -0000
+Subject: No subject
+Message-ID: <mailman.3.1270574936.25230.rcpp-devel@lists.r-forge.r-project.org>
+
+d
+R CMD INSTALL a source package and it would compile+install for you.
+
+
+Also, in all the tar files you have, very few have README or INSTALL files,
+which could have been helpful with the above information.
+
+
+Thanks again for your quick response and help get me going.   I already hav=
+e
+RInside working in my code to generate specific plots of my datasets.
+~Dan
+
+On Tue, Apr 6, 2010 at 10:45 AM, Romain Francois
+<romain at r-enthusiasts.com>wrote:
+
+> Le 06/04/10 18:02, Dirk Eddelbuettel a =E9crit :
+>
+>
+>> On 6 April 2010 at 09:47, Dan Kulp wrote:
+>> | Success!   The snag was installing both packages from their source
+>> packages,
+>> | not the binary OSX ones.
+>>
+>> Fiddlesticks! I once knew that, but forgot, and it doesn't hit Romain on
+>> OS X
+>> as he builds from source anyway.
+>>
+>
+> I'd guess that the RInside binary was built against Rcpp 0.7.10 which has
+> some binary incompatibilities with Rcpp 0.7.11, or the other way around
+> ..?.?
+>
+> (Rcpp::Named as been promoted from a class to a function so that might be
+> it. The interface has been retained, so I think this is why compiling bot=
+h
+> from source works. )
+>
+> We try out best not to introduce binary incompatibilities like this one,
+> but it is not an easy task to track them. thanks for reporting this.
+>
+> I know that on windows, if package B that depends on package A and A is
+> resubmitted, Uwe rebuilds both A and B for the windows binaries, not sure
+> this also is the case for OSX binaries. (Beyond C incompatibilities other
+> things can break such as S4 classes, etc ...)
+>
+>
+>  | I appreciate your guys time, too bad installation from CRAN didn't "ju=
+st
+>> | work".  For me there is a lot of potential for this library.  I use R
+>> for
+>>
+>> Maybe "using source from CRAN" -- how/where do I document that better?
+>> Where
+>> would you have looked?
+>>
+>
+> Maybe we can couple more tightly, e.g have RInside depend on Rcpp (>=3D
+> 0.7.11). Dunno.
+>
+> Not sure this would have happened with dynamic linking, but this might be
+> completely unrelated.
+>
+>
+>  | all my data analysis, but I have a set of c++ libraries used for
+>> generating
+>> | the data (my application is protein design), it would be great to fuse
+>> the
+>> | two.
+>>
+>> Yup. And given how feature-complete Rcpp has gotten it is quite a joy to
+>> use too.
+>>
+>> | One question, does RInside allow you to load installed packages (
+>> | library("RSvgDevice") ) ?
+>>
+>> "Should". See the other examples which load libraries.  Devices have the=
+ir
+>> own pecularities so I don't know off-hand about this for SVG generation.
+>> In
+>> principle it should and if it doesn't in practice we can now count on yo=
+u
+>> to
+>> debug it ;-)
+>>
+>> Good it works now.
+>>
+>> Dirk
+>>
+>
+> Same analysis, it should work.
+>
+> --
+> Romain Francois
+> Professional R Enthusiast
+> +33(0) 6 28 91 30 30
+> http://romainfrancois.blog.free.fr
+> |- http://bit.ly/9aKDM9 : embed images in Rd documents
+> |- http://tr.im/OIXN : raster images and RImageJ
+> |- http://tr.im/OcQe : Rcpp 0.7.7
+>
+>
+
+
+--=20
+Dan Kulp, PhD
+Postdoctoral Fellow
+Biosciences Division, B-9
+Los Alamos National Laboratory
+Los Alamos,NM 87545
+
+--0003255554f68deeb1048394c7d3
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<meta charset=3D"utf-8"><blockquote class=3D"webkit-indent-blockquote" styl=
+e=3D"margin: 0 0 0 40px; border: none; padding: 0px;"><span class=3D"Apple-=
+style-span" style=3D"font-family: arial, sans-serif; font-size: 13px; borde=
+r-collapse: collapse; "><div class=3D"im" style=3D"color: rgb(80, 0, 80); "=
+>
+<span class=3D"Apple-style-span" style=3D"color: rgb(0, 0, 0); ">Maybe &quo=
+t;using source from CRAN&quot; -- how/where do I document that better? Wher=
+e</span></div></span><span class=3D"Apple-style-span" style=3D"font-family:=
+ arial, sans-serif; font-size: 13px; border-collapse: collapse; ">would you=
+ have looked?</span></blockquote>
+<br><div>=A0IMHO =A0<a href=3D"http://dirk.eddelbuettel.com/code/rcpp.html"=
+>http://dirk.eddelbuettel.com/code/rcpp.html</a>=A0should have an installat=
+ion section, where you explicitly state the multiple ways in which you can =
+install:</div>
+<div>1. install.packages(&quot;Rcpp&quot;)</div><div><br></div><div>2. &quo=
+t;R CMD INSTALL ....&quot;=A0</div><div><br></div><div>3. To install from b=
+inary tgz you should bla,bla..</div><div><br></div><div>My confusion:</div>
+<div>From 1, usually =A0install.package(PKG) I&#39;ve used for installing a=
+ package like RSvgDevice, where I would be calling it from R. =A0In this ca=
+se I was expecting to install some header/source files that I could build a=
+nd link against.</div>
+<div><br></div><div>From 2, I don&#39;t use a lot of R command-line so I wa=
+sn&#39;t aware that you could R CMD INSTALL a source package and it would c=
+ompile+install for you.</div><div><br></div><div><br></div><div>Also, in al=
+l the tar files you have, very few have README or INSTALL files, which coul=
+d have been helpful with the above information.</div>
+<div><br></div><div><br></div><div>Thanks again for your quick response and=
+ help get me going. =A0 I already have RInside working in my code to genera=
+te specific plots of my datasets.</div><div>~Dan =A0</div><meta charset=3D"=
+utf-8"><div>
+<br><div class=3D"gmail_quote">On Tue, Apr 6, 2010 at 10:45 AM, Romain Fran=
+cois <span dir=3D"ltr">&lt;<a href=3D"mailto:romain at r-enthusiasts.com">roma=
+in at r-enthusiasts.com</a>&gt;</span> wrote:<br><blockquote class=3D"gmail_qu=
+ote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex=
+;">
+Le 06/04/10 18:02, Dirk Eddelbuettel a =E9crit :<div class=3D"im"><br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+<br>
+On 6 April 2010 at 09:47, Dan Kulp wrote:<br>
+| Success! =A0 The snag was installing both packages from their source pack=
+ages,<br>
+| not the binary OSX ones.<br>
+<br>
+Fiddlesticks! I once knew that, but forgot, and it doesn&#39;t hit Romain o=
+n OS X<br>
+as he builds from source anyway.<br>
+</blockquote>
+<br></div>
+I&#39;d guess that the RInside binary was built against Rcpp 0.7.10 which h=
+as some binary incompatibilities with Rcpp 0.7.11, or the other way around =
+..?.?<br>
+<br>
+(Rcpp::Named as been promoted from a class to a function so that might be i=
+t. The interface has been retained, so I think this is why compiling both f=
+rom source works. )<br>
+<br>
+We try out best not to introduce binary incompatibilities like this one, bu=
+t it is not an easy task to track them. thanks for reporting this.<br>
+<br>
+I know that on windows, if package B that depends on package A and A is res=
+ubmitted, Uwe rebuilds both A and B for the windows binaries, not sure this=
+ also is the case for OSX binaries. (Beyond C incompatibilities other thing=
+s can break such as S4 classes, etc ...)<div class=3D"im">
+<br>
+<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+| I appreciate your guys time, too bad installation from CRAN didn&#39;t &q=
+uot;just<br>
+| work&quot;. =A0For me there is a lot of potential for this library. =A0I =
+use R for<br>
+<br>
+Maybe &quot;using source from CRAN&quot; -- how/where do I document that be=
+tter? Where<br>
+would you have looked?<br>
+</blockquote>
+<br></div>
+Maybe we can couple more tightly, e.g have RInside depend on Rcpp (&gt;=3D =
+0.7.11). Dunno.<br>
+<br>
+Not sure this would have happened with dynamic linking, but this might be c=
+ompletely unrelated.<div class=3D"im"><br>
+<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex">
+| all my data analysis, but I have a set of c++ libraries used for generati=
+ng<br>
+| the data (my application is protein design), it would be great to fuse th=
+e<br>
+| two.<br>
+<br>
+Yup. And given how feature-complete Rcpp has gotten it is quite a joy to us=
+e too.<br>
+<br>
+| One question, does RInside allow you to load installed packages (<br>
+| library(&quot;RSvgDevice&quot;) ) ?<br>
+<br>
+&quot;Should&quot;. See the other examples which load libraries. =A0Devices=
+ have their<br>
+own pecularities so I don&#39;t know off-hand about this for SVG generation=
+. In<br>
+principle it should and if it doesn&#39;t in practice we can now count on y=
+ou to<br>
+debug it ;-)<br>
+<br>
+Good it works now.<br>
+<br>
+Dirk<br>
+</blockquote>
+<br></div>
+Same analysis, it should work.<br><font color=3D"#888888">
+<br>
+-- <br></font><div><div></div><div class=3D"h5">
+Romain Francois<br>
+Professional R Enthusiast<br>
++33(0) 6 28 91 30 30<br>
+<a href=3D"http://romainfrancois.blog.free.fr" target=3D"_blank">http://rom=
+ainfrancois.blog.free.fr</a><br>
+|- <a href=3D"http://bit.ly/9aKDM9" target=3D"_blank">http://bit.ly/9aKDM9<=
+/a> : embed images in Rd documents<br>
+|- <a href=3D"http://tr.im/OIXN" target=3D"_blank">http://tr.im/OIXN</a> : =
+raster images and RImageJ<br>
+|- <a href=3D"http://tr.im/OcQe" target=3D"_blank">http://tr.im/OcQe</a> : =
+Rcpp 0.7.7<br>
+<br>
+</div></div></blockquote></div><br><br clear=3D"all"><br>-- <br>Dan Kulp, P=
+hD<br>Postdoctoral Fellow<br>Biosciences Division, B-9<br>Los Alamos Nation=
+al Laboratory<br>Los Alamos,NM 87545<br>
+</div>
+
+--0003255554f68deeb1048394c7d3--
+

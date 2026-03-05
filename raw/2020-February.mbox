@@ -1,0 +1,1221 @@
+From jpritikin at pobox.com  Fri Feb  7 02:47:57 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Thu, 6 Feb 2020 20:47:57 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+Message-ID: <20200207014757.ou7iunezgaqedyot@cocoa>
+
+The Rcpp::exception constructor does,
+
+  rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+
+This can corrupt R if called within an OpenMP block.
+
+It would be nice if there were some warnings about this (mis)usage OR, 
+better, if Rcpp::exception was thread-safe.
+
+Here's the usage that should be A-OK:
+
+std::string err;
+bool more = true;
+#pragma omp parallel num_threads(numThreads)
+while (more) {
+  int tid = omp_get_thread_num();
+  // ... do stuff ...
+  try {
+    // ... do stuff ...
+    if (bad) stop("oops, this is bad");
+  } catch (const std::exception& e) {
+#pragma omp atomic
+    err = e.what();
+    more = false;
+  } catch (...) {
+    more = false;
+  }
+}
+if (err.length()) stop("%s", err.c_str());
+
+-- 
+Joshua N. Pritikin, Ph.D.
+Virginia Institute for Psychiatric and Behavioral Genetics
+Virginia Commonwealth University
+PO Box 980126
+800 E Leigh St, Biotech One, Suite 1-133
+Richmond, VA 23219
+http://exuberant-island.surge.sh
+
+From edd at debian.org  Fri Feb  7 03:40:02 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Feb 2020 20:40:02 -0600
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <20200207014757.ou7iunezgaqedyot@cocoa>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+Message-ID: <24124.52738.321564.128296@rob.eddelbuettel.com>
+
+
+Joshua,
+
+Thanks for reposting here.  A better place than my inbox, and I was rushed
+earlier as I missed the line ...
+
+On 6 February 2020 at 20:47, Joshua N Pritikin wrote:
+| The Rcpp::exception constructor does,
+| 
+|   rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+| 
+| This can corrupt R if called within an OpenMP block.
+
+... here. In general, we can _never_ call back into R for anything,
+exceptions or other things.
+
+The RcppParallel package documentation is quite good and clear about this; it
+even has extra data types RMatrix and RVector to stay away from R's memory
+(which Rcpp is close to for performance and zero copy reasons). The Writing R
+Extensions manual also as a little, but maybe less clearly.  In short, there
+is simply "so much going with R" that it stands little chance of every being
+threadsafe.
+
+Which means that your OpenMP (or pthreads or TBB or ..) code has to stay away
+from R.
+ 
+| It would be nice if there were some warnings about this (mis)usage OR,
+| better, if Rcpp::exception was thread-safe.
+
+Maybe some clever folks will come up with a sanitizer variant; otherwise I
+just don't see how.
+
+Dirk
+
+
+| Here's the usage that should be A-OK:
+| 
+| std::string err;
+| bool more = true;
+| #pragma omp parallel num_threads(numThreads)
+| while (more) {
+|   int tid = omp_get_thread_num();
+|   // ... do stuff ...
+|   try {
+|     // ... do stuff ...
+|     if (bad) stop("oops, this is bad");
+|   } catch (const std::exception& e) {
+| #pragma omp atomic
+|     err = e.what();
+|     more = false;
+|   } catch (...) {
+|     more = false;
+|   }
+| }
+| if (err.length()) stop("%s", err.c_str());
+| 
+| -- 
+| Joshua N. Pritikin, Ph.D.
+| Virginia Institute for Psychiatric and Behavioral Genetics
+| Virginia Commonwealth University
+| PO Box 980126
+| 800 E Leigh St, Biotech One, Suite 1-133
+| Richmond, VA 23219
+| http://exuberant-island.surge.sh
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jpritikin at pobox.com  Fri Feb  7 14:23:36 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Fri, 7 Feb 2020 08:23:36 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <24124.52738.321564.128296@rob.eddelbuettel.com>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+Message-ID: <20200207132336.xw4p2sf36jgtljbr@cocoa>
+
+On Thu, Feb 06, 2020 at 08:40:02PM -0600, Dirk Eddelbuettel wrote:
+> On 6 February 2020 at 20:47, Joshua N Pritikin wrote:
+> | The Rcpp::exception constructor does,
+> | 
+> |   rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+> | 
+> | This can corrupt R if called within an OpenMP block.
+> 
+> ... here. In general, we can _never_ call back into R for anything,
+> exceptions or other things.
+> 
+> The RcppParallel package documentation is quite good and clear about 
+> this; it even has extra data types RMatrix and RVector to stay away 
+> from R's memory (which Rcpp is close to for performance and zero 
+> copy reasons). The Writing R Extensions manual also as a little, but 
+> maybe less clearly.  In short, there is simply "so much going with 
+> R" that it stands little chance of every being threadsafe.
+> 
+> Which means that your OpenMP (or pthreads or TBB or ..) code has to 
+> stay away from R.
+
+Yeah, so I replaced Rcpp::stop with,
+
+template <typename... Args>
+inline void NORET mxThrow(const char* fmt, Args&&... args) {
+    throw std::runtime_error( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+}
+
+And now things work great. But why does Rcpp::stop need to get the 
+stack_trace? R's stack trace isn't going to change until the control 
+flow returns back to R. So why can't you just set a flag to indicate 
+that "some C++ exception happened" and grab the stack_trace 
+immediately before returning control to R?
+
+> | It would be nice if there were some warnings about this (mis)usage OR,
+> | better, if Rcpp::exception was thread-safe.
+> 
+> Maybe some clever folks will come up with a sanitizer variant; otherwise I
+> just don't see how.
+
+From edd at debian.org  Fri Feb  7 14:56:40 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 7 Feb 2020 07:56:40 -0600
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <20200207132336.xw4p2sf36jgtljbr@cocoa>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+Message-ID: <24125.27800.807992.58209@rob.eddelbuettel.com>
+
+
+On 7 February 2020 at 08:23, Joshua N Pritikin wrote:
+| On Thu, Feb 06, 2020 at 08:40:02PM -0600, Dirk Eddelbuettel wrote:
+| > On 6 February 2020 at 20:47, Joshua N Pritikin wrote:
+| > | The Rcpp::exception constructor does,
+| > | 
+| > |   rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+| > | 
+| > | This can corrupt R if called within an OpenMP block.
+| > 
+| > ... here. In general, we can _never_ call back into R for anything,
+| > exceptions or other things.
+| > 
+| > The RcppParallel package documentation is quite good and clear about 
+| > this; it even has extra data types RMatrix and RVector to stay away 
+| > from R's memory (which Rcpp is close to for performance and zero 
+| > copy reasons). The Writing R Extensions manual also as a little, but 
+| > maybe less clearly.  In short, there is simply "so much going with 
+| > R" that it stands little chance of every being threadsafe.
+| > 
+| > Which means that your OpenMP (or pthreads or TBB or ..) code has to 
+| > stay away from R.
+| 
+| Yeah, so I replaced Rcpp::stop with,
+| 
+| template <typename... Args>
+| inline void NORET mxThrow(const char* fmt, Args&&... args) {
+|     throw std::runtime_error( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+| }
+| 
+| And now things work great. 
+
+Good to know!
+
+| But why does Rcpp::stop need to get the stack_trace? R's stack trace isn't
+| going to change until the control flow returns back to R. So why can't you
+| just set a flag to indicate that "some C++ exception happened" and grab the
+| stack_trace immediately before returning control to R?
+
+See several (extended) discussions at GitHub around the issues that changed
+and improved exception handling and stack traces. A fair amount of very nice
+work made Rcpp more robust here.
+
+In short, it not a trivial issue.
+
+Dirk
+
+| > | It would be nice if there were some warnings about this (mis)usage OR,
+| > | better, if Rcpp::exception was thread-safe.
+| > 
+| > Maybe some clever folks will come up with a sanitizer variant; otherwise I
+| > just don't see how.
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jpritikin at pobox.com  Fri Feb  7 15:10:37 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Fri, 7 Feb 2020 09:10:37 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <24125.27800.807992.58209@rob.eddelbuettel.com>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <24125.27800.807992.58209@rob.eddelbuettel.com>
+Message-ID: <20200207141037.tllgigyzy3nowh4i@cocoa>
+
+On Fri, Feb 07, 2020 at 07:56:40AM -0600, Dirk Eddelbuettel wrote:
+> On 7 February 2020 at 08:23, Joshua N Pritikin wrote:
+> | Yeah, so I replaced Rcpp::stop with,
+> | 
+> | template <typename... Args>
+> | inline void NORET mxThrow(const char* fmt, Args&&... args) {
+> |     throw std::runtime_error( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+> | }
+> | 
+> | And now things work great. 
+> 
+> Good to know!
+> 
+> | But why does Rcpp::stop need to get the stack_trace? R's stack trace isn't
+> | going to change until the control flow returns back to R. So why can't you
+> | just set a flag to indicate that "some C++ exception happened" and grab the
+> | stack_trace immediately before returning control to R?
+> 
+> See several (extended) discussions at GitHub around the issues that changed
+> and improved exception handling and stack traces. A fair amount of very nice
+> work made Rcpp more robust here.
+
+Where? I looked here,
+
+https://github.com/RcppCore/Rcpp/issues?utf8=%E2%9C%93&q=is%3Aissue+exception
+
+but I didn't see anything obviously related.
+
+From jpritikin at pobox.com  Sat Feb  8 15:28:34 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Sat, 8 Feb 2020 09:28:34 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <24125.27800.807992.58209@rob.eddelbuettel.com>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <24125.27800.807992.58209@rob.eddelbuettel.com>
+Message-ID: <20200208142834.pltipimsczunox3d@cocoa>
+
+On Fri, Feb 07, 2020 at 07:56:40AM -0600, Dirk Eddelbuettel wrote:
+> See several (extended) discussions at GitHub around the issues that 
+> changed and improved exception handling and stack traces. A fair 
+> amount of very nice work made Rcpp more robust here.
+> 
+> In short, it not a trivial issue.
+
+That's it? That's the end of discussion?
+
+I would like to know specifically why Rcpp::stop cannot be 
+thread-safe. Of all the APIs you provide, thread-safety is 
+particularly important for exceptions. When something goes wrong, 
+programmers shouldn't have to guess what is going on.
+
+-- 
+Joshua N. Pritikin, Ph.D.
+Virginia Institute for Psychiatric and Behavioral Genetics
+Virginia Commonwealth University
+PO Box 980126
+800 E Leigh St, Biotech One, Suite 1-133
+Richmond, VA 23219
+http://exuberant-island.surge.sh
+
+From iucar at fedoraproject.org  Sat Feb  8 19:55:50 2020
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sat, 8 Feb 2020 19:55:50 +0100
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <20200207132336.xw4p2sf36jgtljbr@cocoa>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+Message-ID: <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+
+On Fri, 7 Feb 2020 at 14:24, Joshua N Pritikin <jpritikin at pobox.com> wrote:
+>
+> On Thu, Feb 06, 2020 at 08:40:02PM -0600, Dirk Eddelbuettel wrote:
+> > On 6 February 2020 at 20:47, Joshua N Pritikin wrote:
+> > | The Rcpp::exception constructor does,
+> > |
+> > |   rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+> > |
+> > | This can corrupt R if called within an OpenMP block.
+> >
+> > ... here. In general, we can _never_ call back into R for anything,
+> > exceptions or other things.
+> >
+> > The RcppParallel package documentation is quite good and clear about
+> > this; it even has extra data types RMatrix and RVector to stay away
+> > from R's memory (which Rcpp is close to for performance and zero
+> > copy reasons). The Writing R Extensions manual also as a little, but
+> > maybe less clearly.  In short, there is simply "so much going with
+> > R" that it stands little chance of every being threadsafe.
+> >
+> > Which means that your OpenMP (or pthreads or TBB or ..) code has to
+> > stay away from R.
+>
+> Yeah, so I replaced Rcpp::stop with,
+>
+> template <typename... Args>
+> inline void NORET mxThrow(const char* fmt, Args&&... args) {
+>     throw std::runtime_error( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+> }
+>
+> And now things work great. But why does Rcpp::stop need to get the
+> stack_trace? R's stack trace isn't going to change until the control
+> flow returns back to R. So why can't you just set a flag to indicate
+> that "some C++ exception happened" and grab the stack_trace
+> immediately before returning control to R?
+
+Isn't Rcpp::stop's entire purpose to return control to R immediately?
+
+Iñaki
+
+From jj.allaire at gmail.com  Sat Feb  8 20:55:06 2020
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Sat, 8 Feb 2020 14:55:06 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+Message-ID: <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+
+Yes, the only reason to use Rcpp::stop is because you want a C++ exception
+translated safely into an Rf_error at the SEXP call level. If you are
+trying to signal an error from a background thread you would want to use a
+regular C++ exception rather than Rcpp::stop.
+
+On Sat, Feb 8, 2020 at 1:56 PM Iñaki Ucar <iucar at fedoraproject.org> wrote:
+
+> On Fri, 7 Feb 2020 at 14:24, Joshua N Pritikin <jpritikin at pobox.com>
+> wrote:
+> >
+> > On Thu, Feb 06, 2020 at 08:40:02PM -0600, Dirk Eddelbuettel wrote:
+> > > On 6 February 2020 at 20:47, Joshua N Pritikin wrote:
+> > > | The Rcpp::exception constructor does,
+> > > |
+> > > |   rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+> > > |
+> > > | This can corrupt R if called within an OpenMP block.
+> > >
+> > > ... here. In general, we can _never_ call back into R for anything,
+> > > exceptions or other things.
+> > >
+> > > The RcppParallel package documentation is quite good and clear about
+> > > this; it even has extra data types RMatrix and RVector to stay away
+> > > from R's memory (which Rcpp is close to for performance and zero
+> > > copy reasons). The Writing R Extensions manual also as a little, but
+> > > maybe less clearly.  In short, there is simply "so much going with
+> > > R" that it stands little chance of every being threadsafe.
+> > >
+> > > Which means that your OpenMP (or pthreads or TBB or ..) code has to
+> > > stay away from R.
+> >
+> > Yeah, so I replaced Rcpp::stop with,
+> >
+> > template <typename... Args>
+> > inline void NORET mxThrow(const char* fmt, Args&&... args) {
+> >     throw std::runtime_error( tfm::format(fmt,
+> std::forward<Args>(args)... ).c_str() );
+> > }
+> >
+> > And now things work great. But why does Rcpp::stop need to get the
+> > stack_trace? R's stack trace isn't going to change until the control
+> > flow returns back to R. So why can't you just set a flag to indicate
+> > that "some C++ exception happened" and grab the stack_trace
+> > immediately before returning control to R?
+>
+> Isn't Rcpp::stop's entire purpose to return control to R immediately?
+>
+> Iñaki
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200208/bac93bae/attachment.html>
+
+From jpritikin at pobox.com  Sat Feb  8 21:23:42 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Sat, 8 Feb 2020 15:23:42 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+ <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+Message-ID: <20200208202342.nj2yiy4prm33v3ws@cocoa>
+
+On Sat, Feb 08, 2020 at 02:55:06PM -0500, JJ Allaire wrote:
+>    Yes, the only reason to use Rcpp::stop is because you want a C++
+>    exception translated safely into an Rf_error at the SEXP call level. If
+>    you are trying to signal an error from a background thread you would
+>    want to use a regular C++ exception rather than Rcpp::stop.
+
+I'm disappointed that there is no interest in making Rcpp::stop work 
+in both contexts.
+
+At a minimum, the distinct uses of C++ exceptions and Rcpp::stop 
+should be documented better.
+
+-- 
+Joshua N. Pritikin, Ph.D.
+Virginia Institute for Psychiatric and Behavioral Genetics
+Virginia Commonwealth University
+PO Box 980126
+800 E Leigh St, Biotech One, Suite 1-133
+Richmond, VA 23219
+http://exuberant-island.surge.sh
+
+From jj.allaire at gmail.com  Sat Feb  8 21:28:22 2020
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Sat, 8 Feb 2020 15:28:22 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <20200208202342.nj2yiy4prm33v3ws@cocoa>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+ <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+ <20200208202342.nj2yiy4prm33v3ws@cocoa>
+Message-ID: <CAKw=oCw=zKLqeaJN6C2H8CHaWC8Hfy47Pv2iSAcwR5x8F9QdyQ@mail.gmail.com>
+
+I think the point is that the *only* reason Rcpp::stop exists is to do
+forwarding to Rf_error. If that isn't your intention it's strictly worse
+than a normal C++ exception.
+
+Agreed that it would be good to have more clear docs here. Note that as
+Dirk pointed out both Writing R Extensions and RcppParallel docs are pretty
+clear about the fact that you shouldn't call any R APIs when in a
+background thread.
+
+On Sat, Feb 8, 2020 at 3:23 PM Joshua N Pritikin <jpritikin at pobox.com>
+wrote:
+
+> On Sat, Feb 08, 2020 at 02:55:06PM -0500, JJ Allaire wrote:
+> >    Yes, the only reason to use Rcpp::stop is because you want a C++
+> >    exception translated safely into an Rf_error at the SEXP call level.
+> If
+> >    you are trying to signal an error from a background thread you would
+> >    want to use a regular C++ exception rather than Rcpp::stop.
+>
+> I'm disappointed that there is no interest in making Rcpp::stop work
+> in both contexts.
+>
+> At a minimum, the distinct uses of C++ exceptions and Rcpp::stop
+> should be documented better.
+>
+> --
+> Joshua N. Pritikin, Ph.D.
+> Virginia Institute for Psychiatric and Behavioral Genetics
+> Virginia Commonwealth University
+> PO Box 980126
+> 800 E Leigh St, Biotech One, Suite 1-133
+> Richmond, VA 23219
+> http://exuberant-island.surge.sh
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200208/90b2a62f/attachment.html>
+
+From jpritikin at pobox.com  Sat Feb  8 21:45:24 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Sat, 8 Feb 2020 15:45:24 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <CAKw=oCw=zKLqeaJN6C2H8CHaWC8Hfy47Pv2iSAcwR5x8F9QdyQ@mail.gmail.com>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+ <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+ <20200208202342.nj2yiy4prm33v3ws@cocoa>
+ <CAKw=oCw=zKLqeaJN6C2H8CHaWC8Hfy47Pv2iSAcwR5x8F9QdyQ@mail.gmail.com>
+Message-ID: <20200208204524.2u2cah3nz2t2qyer@cocoa>
+
+On Sat, Feb 08, 2020 at 03:28:22PM -0500, JJ Allaire wrote:
+>    Agreed that it would be good to have more clear docs here. Note 
+>    that as Dirk pointed out both Writing R Extensions and 
+>    RcppParallel docs are pretty clear about the fact that you 
+>    shouldn't call any R APIs when in a background thread.
+
+Rcpp::stop superficially looks like a nice way to throw C++ exceptions 
+that also does printf style message formatting. I didn't realize that 
+it calls R APIs until I looked at the implementation.
+
+>    I think the point is that the *only* reason Rcpp::stop exists is 
+>    to do forwarding to Rf_error. If that isn't your intention it's 
+>    strictly worse than a normal C++ exception.
+
+Sure, but does it *have* to be that way? It seems to me that
+exceptions.h line 40,
+
+  rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+
+could just as easily be done around macros/macros.h line 51.
+
+From jj.allaire at gmail.com  Sat Feb  8 21:47:49 2020
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Sat, 8 Feb 2020 15:47:49 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <20200208204524.2u2cah3nz2t2qyer@cocoa>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+ <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+ <20200208202342.nj2yiy4prm33v3ws@cocoa>
+ <CAKw=oCw=zKLqeaJN6C2H8CHaWC8Hfy47Pv2iSAcwR5x8F9QdyQ@mail.gmail.com>
+ <20200208204524.2u2cah3nz2t2qyer@cocoa>
+Message-ID: <CAKw=oCxyOE4-p7SuOVZ0YafgRm-Z1r9=LnaAcvwgXVeiE6g=GA@mail.gmail.com>
+
+On Sat, Feb 8, 2020 at 3:45 PM Joshua N Pritikin <jpritikin at pobox.com>
+wrote:
+
+> On Sat, Feb 08, 2020 at 03:28:22PM -0500, JJ Allaire wrote:
+> >    Agreed that it would be good to have more clear docs here. Note
+> >    that as Dirk pointed out both Writing R Extensions and
+> >    RcppParallel docs are pretty clear about the fact that you
+> >    shouldn't call any R APIs when in a background thread.
+>
+> Rcpp::stop superficially looks like a nice way to throw C++ exceptions
+> that also does printf style message formatting. I didn't realize that
+> it calls R APIs until I looked at the implementation.
+>
+
+That's a good point, I had forgotten about the printf stuff which is a good
+reason to prefer it to "regular" exceptions.
+
+
+> Sure, but does it *have* to be that way? It seems to me that
+> exceptions.h line 40,
+>
+>   rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+>
+
+Not sure about whether this is indeed a mandatory constraint (I didn't work
+on the stack trace bit).
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200208/d2093434/attachment.html>
+
+From jpritikin at pobox.com  Sat Feb  8 21:52:45 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Sat, 8 Feb 2020 15:52:45 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <CAKw=oCxyOE4-p7SuOVZ0YafgRm-Z1r9=LnaAcvwgXVeiE6g=GA@mail.gmail.com>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+ <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+ <20200208202342.nj2yiy4prm33v3ws@cocoa>
+ <CAKw=oCw=zKLqeaJN6C2H8CHaWC8Hfy47Pv2iSAcwR5x8F9QdyQ@mail.gmail.com>
+ <20200208204524.2u2cah3nz2t2qyer@cocoa>
+ <CAKw=oCxyOE4-p7SuOVZ0YafgRm-Z1r9=LnaAcvwgXVeiE6g=GA@mail.gmail.com>
+Message-ID: <20200208205245.3pxtw5bck2u5pm5j@cocoa>
+
+On Sat, Feb 08, 2020 at 03:47:49PM -0500, JJ Allaire wrote:
+>    On Sat, Feb 8, 2020 at 3:45 PM Joshua N Pritikin
+>    <[1]jpritikin at pobox.com> wrote:
+>      Sure, but does it *have* to be that way? It seems to me that
+>      exceptions.h line 40,
+>        rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+> 
+>    Not sure about whether this is indeed a mandatory constraint (I didn't
+>    work on the stack trace bit).
+
+If I'm reading it correctly, rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+will work equally well in either location. R can't introspect about
+the C++ stack; It must be saving the R call stack.
+
+From iucar at fedoraproject.org  Sat Feb  8 22:36:20 2020
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sat, 8 Feb 2020 22:36:20 +0100
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+Message-ID: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+
+Hi,
+
+lme4 fails to compile with this misterious message in Fedora Rawhide
+with gcc10 (see the build log and more details in [1]). There is no
+"fun" in lme4, but there are several local definitions of "fun" in
+RcppEigen, used by lme4, under inst/include/RcppEigenStubs.h. These
+are the relevant lines from the assembler output:
+
+fun:
+.zero 8
+.section .rodata
+.LC5:
+.string "cholmod_free_factor"
+
+...
+
+fun:
+.zero 8
+.section .rodata
+.LC8:
+.string "cholmod_start"
+
+So it seems that, unless lme4 is doing something improper in
+src/lme4CholmodDecomposition.h, this is a bug in RcppEigen due to the
+use of inline and static (or in gcc 10?). Thoughts? Should I open an
+issue in RcppEigen?
+
+[1] https://github.com/lme4/lme4/issues/558
+
+Iñaki
+
+From kevinushey at gmail.com  Sat Feb  8 22:44:51 2020
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sat, 8 Feb 2020 13:44:51 -0800
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <20200208205245.3pxtw5bck2u5pm5j@cocoa>
+References: <20200207014757.ou7iunezgaqedyot@cocoa>
+ <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+ <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+ <20200208202342.nj2yiy4prm33v3ws@cocoa>
+ <CAKw=oCw=zKLqeaJN6C2H8CHaWC8Hfy47Pv2iSAcwR5x8F9QdyQ@mail.gmail.com>
+ <20200208204524.2u2cah3nz2t2qyer@cocoa>
+ <CAKw=oCxyOE4-p7SuOVZ0YafgRm-Z1r9=LnaAcvwgXVeiE6g=GA@mail.gmail.com>
+ <20200208205245.3pxtw5bck2u5pm5j@cocoa>
+Message-ID: <CAJXgQP1MWnVpCaDe=-eWXWUniqDKnknA+W+=w1ka5MHun3nGVQ@mail.gmail.com>
+
+On Sat, Feb 8, 2020 at 12:52 PM Joshua N Pritikin <jpritikin at pobox.com> wrote:
+>
+> On Sat, Feb 08, 2020 at 03:47:49PM -0500, JJ Allaire wrote:
+> >    On Sat, Feb 8, 2020 at 3:45 PM Joshua N Pritikin
+> >    <[1]jpritikin at pobox.com> wrote:
+> >      Sure, but does it *have* to be that way? It seems to me that
+> >      exceptions.h line 40,
+> >        rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+> >
+> >    Not sure about whether this is indeed a mandatory constraint (I didn't
+> >    work on the stack trace bit).
+>
+> If I'm reading it correctly, rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+> will work equally well in either location. R can't introspect about
+> the C++ stack; It must be saving the R call stack.
+
+This is incorrect; Rcpp is trying to save the C++ call stack:
+
+https://github.com/RcppCore/Rcpp/blob/f9425eef20f483001105733bc379b76e9f323aff/src/api.cpp#L283-L319
+
+That call stack is saved as part of an R object that is later read and
+re-attached to an R condition object at the top level:
+
+https://github.com/RcppCore/Rcpp/blob/f9425eef20f483001105733bc379b76e9f323aff/inst/include/Rcpp/exceptions.h#L329-L335
+
+In theory, we might be able to avoid the creation of an intermediate R
+object when the exception is constructed -- patches are welcome. I'm
+not sure why this data is stored within the R session rather than e.g.
+as part of the exception object itself, but generally these sorts of
+decisions are made for good reasons (e.g. complications with
+cross-module exceptions).
+
+As an aside, you could just use tfm::format() (bundled by Rcpp and
+used by stop() and friends) to build your formatted strings and then
+throw a regular C++ exception.
+
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From jpritikin at pobox.com  Sat Feb  8 23:07:05 2020
+From: jpritikin at pobox.com (Joshua N Pritikin)
+Date: Sat, 8 Feb 2020 17:07:05 -0500
+Subject: [Rcpp-devel] Rcpp::exception + threads = disaster
+In-Reply-To: <CAJXgQP1MWnVpCaDe=-eWXWUniqDKnknA+W+=w1ka5MHun3nGVQ@mail.gmail.com>
+References: <24124.52738.321564.128296@rob.eddelbuettel.com>
+ <20200207132336.xw4p2sf36jgtljbr@cocoa>
+ <CALEXWq1hD-UVW7uxn4t4hMhziTsTKxFXTasO0DFWuMaY32u_TQ@mail.gmail.com>
+ <CAKw=oCwQWo1qU+OQrD6Mj42XVT+ZQ6CYb_o-sjLkc+QzQqGt0g@mail.gmail.com>
+ <20200208202342.nj2yiy4prm33v3ws@cocoa>
+ <CAKw=oCw=zKLqeaJN6C2H8CHaWC8Hfy47Pv2iSAcwR5x8F9QdyQ@mail.gmail.com>
+ <20200208204524.2u2cah3nz2t2qyer@cocoa>
+ <CAKw=oCxyOE4-p7SuOVZ0YafgRm-Z1r9=LnaAcvwgXVeiE6g=GA@mail.gmail.com>
+ <20200208205245.3pxtw5bck2u5pm5j@cocoa>
+ <CAJXgQP1MWnVpCaDe=-eWXWUniqDKnknA+W+=w1ka5MHun3nGVQ@mail.gmail.com>
+Message-ID: <20200208220705.zaxkbgqrer24iive@cocoa>
+
+On Sat, Feb 08, 2020 at 01:44:51PM -0800, Kevin Ushey wrote:
+> On Sat, Feb 8, 2020 at 12:52 PM Joshua N Pritikin <jpritikin at pobox.com> wrote:
+> > If I'm reading it correctly, rcpp_set_stack_trace(Shield<SEXP>(stack_trace()))
+> > will work equally well in either location. R can't introspect about
+> > the C++ stack; It must be saving the R call stack.
+> 
+> This is incorrect; Rcpp is trying to save the C++ call stack:
+> 
+> https://github.com/RcppCore/Rcpp/blob/f9425eef20f483001105733bc379b76e9f323aff/src/api.cpp#L283-L319
+
+Whoa, that's pretty cool :-)
+
+> In theory, we might be able to avoid the creation of an intermediate R
+> object when the exception is constructed -- patches are welcome.
+
+Yeah, you just need to delay the part where you copy it to R,
+
+ List trace = List::create(_["file" ] = file,
+                                      _["line" ] = line,
+                                      _["stack"] = res);
+ trace.attr("class") = "Rcpp_stack_trace";
+
+I'll code something up.
+
+> I'm not sure why this data is stored within the R session rather than e.g. 
+> as part of the exception object itself, but generally these sorts of 
+> decisions are made for good reasons (e.g. complications with cross-module 
+> exceptions).
+
+The details of the R side are irrelevant. You can store the stack trace in
+C++ STL containers and move it to R after the throw.
+
+> As an aside, you could just use tfm::format() (bundled by Rcpp and
+> used by stop() and friends) to build your formatted strings and then
+> throw a regular C++ exception.
+
+I know, but I'm trying to smooth the road for future developers.
+Maybe I invest too much time and effort into altruism?
+
+From edd at debian.org  Sat Feb  8 23:50:31 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 8 Feb 2020 16:50:31 -0600
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+Message-ID: <24127.15159.619495.532726@rob.eddelbuettel.com>
+
+
+On 8 February 2020 at 22:36, Iñaki Ucar wrote:
+| lme4 fails to compile with this misterious message in Fedora Rawhide
+| with gcc10 (see the build log and more details in [1]). There is no
+| "fun" in lme4, but there are several local definitions of "fun" in
+| RcppEigen, used by lme4, under inst/include/RcppEigenStubs.h. These
+
+Shouldn't what is in RcppEigen be protected by namespaces?
+
+Also, the ever-vigilant Prof Ripley emailed dozens of people last year about
+gcc10 changes (for C, though). If this were systemic I cam sure we'd hear
+from him.
+
+| are the relevant lines from the assembler output:
+| 
+| fun:
+| .zero 8
+| .section .rodata
+| .LC5:
+| .string "cholmod_free_factor"
+| 
+| ...
+| 
+| fun:
+| .zero 8
+| .section .rodata
+| .LC8:
+| .string "cholmod_start"
+| 
+| So it seems that, unless lme4 is doing something improper in
+| src/lme4CholmodDecomposition.h, this is a bug in RcppEigen due to the
+| use of inline and static (or in gcc 10?). Thoughts? Should I open an
+| issue in RcppEigen?
+
+Better yet, provide a fix?  You're the one with a reproducible system :)
+
+Dirk
+ 
+| [1] https://github.com/lme4/lme4/issues/558
+| 
+| Iñaki
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Sun Feb  9 00:17:44 2020
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sun, 9 Feb 2020 00:17:44 +0100
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <24127.15159.619495.532726@rob.eddelbuettel.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+ <24127.15159.619495.532726@rob.eddelbuettel.com>
+Message-ID: <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+
+On Sat, 8 Feb 2020 at 23:50, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 8 February 2020 at 22:36, Iñaki Ucar wrote:
+> | lme4 fails to compile with this misterious message in Fedora Rawhide
+> | with gcc10 (see the build log and more details in [1]). There is no
+> | "fun" in lme4, but there are several local definitions of "fun" in
+> | RcppEigen, used by lme4, under inst/include/RcppEigenStubs.h. These
+>
+> Shouldn't what is in RcppEigen be protected by namespaces?
+>
+> Also, the ever-vigilant Prof Ripley emailed dozens of people last year about
+> gcc10 changes (for C, though). If this were systemic I cam sure we'd hear
+> from him.
+
+Prof. Ripley was probably looking for issues listed in the gcc 10
+porting guide (omissions of "extern" in C, and argument mismatches in
+Fortran). This is about C linkage in a C++ package, and a quite
+strange error: lme4 is the only package on CRAN showing this issue
+with RcppEigen, so maybe it went unnoticed.
+
+> | are the relevant lines from the assembler output:
+> |
+> | fun:
+> | .zero 8
+> | .section .rodata
+> | .LC5:
+> | .string "cholmod_free_factor"
+> |
+> | ...
+> |
+> | fun:
+> | .zero 8
+> | .section .rodata
+> | .LC8:
+> | .string "cholmod_start"
+> |
+> | So it seems that, unless lme4 is doing something improper in
+> | src/lme4CholmodDecomposition.h, this is a bug in RcppEigen due to the
+> | use of inline and static (or in gcc 10?). Thoughts? Should I open an
+> | issue in RcppEigen?
+>
+> Better yet, provide a fix?
+
+I'd be more than happy to provide a fix, but I have no clue about
+what's happening here, why gcc 10 generates duplicated symbols for
+these functions (where previous versions did not), and where is the
+issue to fix (lme4, RcppEigen or even gcc 10). And that's why I'm
+posting here.
+
+> You're the one with a reproducible system :)
+
+How so, gcc 10 is all it's needed. And Fedora Rawhide can be used
+through docker to avoid the burden of installing a new toolchain:
+
+$ docker run -it --rm fedora:rawhide
+$ dnf install R
+$ Rscript -e 'install.packages("lme4", repos="https://cloud.r-project.org")'
+
+Iñaki
+
+From kevinushey at gmail.com  Sun Feb  9 01:59:53 2020
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sat, 8 Feb 2020 16:59:53 -0800
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+ <24127.15159.619495.532726@rob.eddelbuettel.com>
+ <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+Message-ID: <CAJXgQP2MefBLFyFjCAYN7cRbk2rQFOWm1UwrqrEHWR-k5z4sPg@mail.gmail.com>
+
+It seems like a bug in gcc 10 to me. IIUC, static local variables in
+inline functions should still have internal linkage, and so name
+collisions like this should not occur.
+
+I can work around this by making sure that 'fun' is given different
+names in the RcppEigen stubs; e.g. fun1 and fun2 and so on. The fact
+that this actually works makes me think it might be a gcc bug.
+
+On Sat, Feb 8, 2020 at 3:18 PM Iñaki Ucar <iucar at fedoraproject.org> wrote:
+>
+> On Sat, 8 Feb 2020 at 23:50, Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> >
+> > On 8 February 2020 at 22:36, Iñaki Ucar wrote:
+> > | lme4 fails to compile with this misterious message in Fedora Rawhide
+> > | with gcc10 (see the build log and more details in [1]). There is no
+> > | "fun" in lme4, but there are several local definitions of "fun" in
+> > | RcppEigen, used by lme4, under inst/include/RcppEigenStubs.h. These
+> >
+> > Shouldn't what is in RcppEigen be protected by namespaces?
+> >
+> > Also, the ever-vigilant Prof Ripley emailed dozens of people last year about
+> > gcc10 changes (for C, though). If this were systemic I cam sure we'd hear
+> > from him.
+>
+> Prof. Ripley was probably looking for issues listed in the gcc 10
+> porting guide (omissions of "extern" in C, and argument mismatches in
+> Fortran). This is about C linkage in a C++ package, and a quite
+> strange error: lme4 is the only package on CRAN showing this issue
+> with RcppEigen, so maybe it went unnoticed.
+>
+> > | are the relevant lines from the assembler output:
+> > |
+> > | fun:
+> > | .zero 8
+> > | .section .rodata
+> > | .LC5:
+> > | .string "cholmod_free_factor"
+> > |
+> > | ...
+> > |
+> > | fun:
+> > | .zero 8
+> > | .section .rodata
+> > | .LC8:
+> > | .string "cholmod_start"
+> > |
+> > | So it seems that, unless lme4 is doing something improper in
+> > | src/lme4CholmodDecomposition.h, this is a bug in RcppEigen due to the
+> > | use of inline and static (or in gcc 10?). Thoughts? Should I open an
+> > | issue in RcppEigen?
+> >
+> > Better yet, provide a fix?
+>
+> I'd be more than happy to provide a fix, but I have no clue about
+> what's happening here, why gcc 10 generates duplicated symbols for
+> these functions (where previous versions did not), and where is the
+> issue to fix (lme4, RcppEigen or even gcc 10). And that's why I'm
+> posting here.
+>
+> > You're the one with a reproducible system :)
+>
+> How so, gcc 10 is all it's needed. And Fedora Rawhide can be used
+> through docker to avoid the burden of installing a new toolchain:
+>
+> $ docker run -it --rm fedora:rawhide
+> $ dnf install R
+> $ Rscript -e 'install.packages("lme4", repos="https://cloud.r-project.org")'
+>
+> Iñaki
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Sun Feb  9 02:20:00 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 8 Feb 2020 19:20:00 -0600
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <CAJXgQP2MefBLFyFjCAYN7cRbk2rQFOWm1UwrqrEHWR-k5z4sPg@mail.gmail.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+ <24127.15159.619495.532726@rob.eddelbuettel.com>
+ <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+ <CAJXgQP2MefBLFyFjCAYN7cRbk2rQFOWm1UwrqrEHWR-k5z4sPg@mail.gmail.com>
+Message-ID: <24127.24128.188048.746847@rob.eddelbuettel.com>
+
+
+On 8 February 2020 at 16:59, Kevin Ushey wrote:
+| It seems like a bug in gcc 10 to me. IIUC, static local variables in
+| inline functions should still have internal linkage, and so name
+| collisions like this should not occur.
+| 
+| I can work around this by making sure that 'fun' is given different
+| names in the RcppEigen stubs; e.g. fun1 and fun2 and so on. The fact
+| that this actually works makes me think it might be a gcc bug.
+
+Thanks for looking, and checking. My (uneducated) guess and hunch went the
+same way.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Sun Feb  9 03:35:28 2020
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sat, 8 Feb 2020 18:35:28 -0800
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <24127.24128.188048.746847@rob.eddelbuettel.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+ <24127.15159.619495.532726@rob.eddelbuettel.com>
+ <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+ <CAJXgQP2MefBLFyFjCAYN7cRbk2rQFOWm1UwrqrEHWR-k5z4sPg@mail.gmail.com>
+ <24127.24128.188048.746847@rob.eddelbuettel.com>
+Message-ID: <CAJXgQP0-bgdBOweHwbf5eFix6Zn_XCmjo=e-+CRxunkQaQjA4g@mail.gmail.com>
+
+Here's an example program that fails to compile with gcc-10 for me:
+
+https://gist.github.com/kevinushey/cfa848be2d39ddd110f893d9b6c5ac9c
+
+So I think we can conclude this is a gcc-10 bug. It also fails with
+the contracts branch of gcc on godbolt (although with a different
+error):
+
+https://godbolt.org/z/dowsE5
+
+But gcc trunk seems okay.
+
+Best,
+Kevin
+
+
+On Sat, Feb 8, 2020 at 5:20 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 8 February 2020 at 16:59, Kevin Ushey wrote:
+> | It seems like a bug in gcc 10 to me. IIUC, static local variables in
+> | inline functions should still have internal linkage, and so name
+> | collisions like this should not occur.
+> |
+> | I can work around this by making sure that 'fun' is given different
+> | names in the RcppEigen stubs; e.g. fun1 and fun2 and so on. The fact
+> | that this actually works makes me think it might be a gcc bug.
+>
+> Thanks for looking, and checking. My (uneducated) guess and hunch went the
+> same way.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Sun Feb  9 11:47:30 2020
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sun, 9 Feb 2020 11:47:30 +0100
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <CAJXgQP0-bgdBOweHwbf5eFix6Zn_XCmjo=e-+CRxunkQaQjA4g@mail.gmail.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+ <24127.15159.619495.532726@rob.eddelbuettel.com>
+ <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+ <CAJXgQP2MefBLFyFjCAYN7cRbk2rQFOWm1UwrqrEHWR-k5z4sPg@mail.gmail.com>
+ <24127.24128.188048.746847@rob.eddelbuettel.com>
+ <CAJXgQP0-bgdBOweHwbf5eFix6Zn_XCmjo=e-+CRxunkQaQjA4g@mail.gmail.com>
+Message-ID: <CALEXWq2TAuPh9GKEeNjLZjAjgYmV--tYkiKW8Srp6CHJxjtqeQ@mail.gmail.com>
+
+On Sun, 9 Feb 2020 at 03:36, Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+> Here's an example program that fails to compile with gcc-10 for me:
+>
+> https://gist.github.com/kevinushey/cfa848be2d39ddd110f893d9b6c5ac9c
+>
+> So I think we can conclude this is a gcc-10 bug. It also fails with
+> the contracts branch of gcc on godbolt (although with a different
+> error):
+>
+> https://godbolt.org/z/dowsE5
+>
+> But gcc trunk seems okay.
+
+Thanks for looking into this. Now I'm more confident bringing this upstream.
+
+Iñaki
+
+From iucar at fedoraproject.org  Sun Feb  9 12:14:07 2020
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sun, 9 Feb 2020 12:14:07 +0100
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <CALEXWq2TAuPh9GKEeNjLZjAjgYmV--tYkiKW8Srp6CHJxjtqeQ@mail.gmail.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+ <24127.15159.619495.532726@rob.eddelbuettel.com>
+ <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+ <CAJXgQP2MefBLFyFjCAYN7cRbk2rQFOWm1UwrqrEHWR-k5z4sPg@mail.gmail.com>
+ <24127.24128.188048.746847@rob.eddelbuettel.com>
+ <CAJXgQP0-bgdBOweHwbf5eFix6Zn_XCmjo=e-+CRxunkQaQjA4g@mail.gmail.com>
+ <CALEXWq2TAuPh9GKEeNjLZjAjgYmV--tYkiKW8Srp6CHJxjtqeQ@mail.gmail.com>
+Message-ID: <CALEXWq1=BiMO5Fz5OHAkQF8Di_oQ+XfsgF87wU4WcENv0W5veg@mail.gmail.com>
+
+BTW, I've noticed that, if you remove the extern "C" declaration and
+compile your example as C code with gcc 9.2.1, there's a warning:
+
+broken.c:16:16: warning: ‘f’ is static but declared in inline function
+‘f2’ which is not static
+  16 |  static void (*f)();
+     |                ^
+broken.c:9:16: warning: ‘f’ is static but declared in inline function
+‘f1’ which is not static
+   9 |  static void (*f)();
+     |                ^
+
+and then the linker fails with undefined references to f1 and f2.
+Declaring f1 and f2 as static inline solves the issue in C and also in
+C++ for gcc 10.
+
+Maybe it would be better to declare those RcppEigen stubs as static inline?
+
+Iñaki
+
+On Sun, 9 Feb 2020 at 11:47, Iñaki Ucar <iucar at fedoraproject.org> wrote:
+>
+> On Sun, 9 Feb 2020 at 03:36, Kevin Ushey <kevinushey at gmail.com> wrote:
+> >
+> > Here's an example program that fails to compile with gcc-10 for me:
+> >
+> > https://gist.github.com/kevinushey/cfa848be2d39ddd110f893d9b6c5ac9c
+> >
+> > So I think we can conclude this is a gcc-10 bug. It also fails with
+> > the contracts branch of gcc on godbolt (although with a different
+> > error):
+> >
+> > https://godbolt.org/z/dowsE5
+> >
+> > But gcc trunk seems okay.
+>
+> Thanks for looking into this. Now I'm more confident bringing this upstream.
+>
+> Iñaki
+
+
+
+-- 
+Iñaki Úcar
+
+From iucar at fedoraproject.org  Sun Feb  9 19:52:28 2020
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sun, 9 Feb 2020 19:52:28 +0100
+Subject: [Rcpp-devel] gcc 10 error: symbol `fun' is already defined
+In-Reply-To: <CALEXWq1=BiMO5Fz5OHAkQF8Di_oQ+XfsgF87wU4WcENv0W5veg@mail.gmail.com>
+References: <CALEXWq2zGmOP0gvyyD_fs7OF9=YzbegM4fKfCB_-jJ2=vrFcLQ@mail.gmail.com>
+ <24127.15159.619495.532726@rob.eddelbuettel.com>
+ <CALEXWq2ZePVsuGaBdiCUWT3TWqZFrYjZy9Ae1MT6gnODc5kZ2Q@mail.gmail.com>
+ <CAJXgQP2MefBLFyFjCAYN7cRbk2rQFOWm1UwrqrEHWR-k5z4sPg@mail.gmail.com>
+ <24127.24128.188048.746847@rob.eddelbuettel.com>
+ <CAJXgQP0-bgdBOweHwbf5eFix6Zn_XCmjo=e-+CRxunkQaQjA4g@mail.gmail.com>
+ <CALEXWq2TAuPh9GKEeNjLZjAjgYmV--tYkiKW8Srp6CHJxjtqeQ@mail.gmail.com>
+ <CALEXWq1=BiMO5Fz5OHAkQF8Di_oQ+XfsgF87wU4WcENv0W5veg@mail.gmail.com>
+Message-ID: <CALEXWq3ROKqJvtXOmNo+ppT6xKfr8N-CSnLPRPdmBxZ=9CQyaw@mail.gmail.com>
+
+FYI, reported here: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=93643
+
+On Sun, 9 Feb 2020 at 12:14, Iñaki Ucar <iucar at fedoraproject.org> wrote:
+>
+> BTW, I've noticed that, if you remove the extern "C" declaration and
+> compile your example as C code with gcc 9.2.1, there's a warning:
+>
+> broken.c:16:16: warning: ‘f’ is static but declared in inline function
+> ‘f2’ which is not static
+>   16 |  static void (*f)();
+>      |                ^
+> broken.c:9:16: warning: ‘f’ is static but declared in inline function
+> ‘f1’ which is not static
+>    9 |  static void (*f)();
+>      |                ^
+>
+> and then the linker fails with undefined references to f1 and f2.
+> Declaring f1 and f2 as static inline solves the issue in C and also in
+> C++ for gcc 10.
+>
+> Maybe it would be better to declare those RcppEigen stubs as static inline?
+>
+> Iñaki
+>
+> On Sun, 9 Feb 2020 at 11:47, Iñaki Ucar <iucar at fedoraproject.org> wrote:
+> >
+> > On Sun, 9 Feb 2020 at 03:36, Kevin Ushey <kevinushey at gmail.com> wrote:
+> > >
+> > > Here's an example program that fails to compile with gcc-10 for me:
+> > >
+> > > https://gist.github.com/kevinushey/cfa848be2d39ddd110f893d9b6c5ac9c
+> > >
+> > > So I think we can conclude this is a gcc-10 bug. It also fails with
+> > > the contracts branch of gcc on godbolt (although with a different
+> > > error):
+> > >
+> > > https://godbolt.org/z/dowsE5
+> > >
+> > > But gcc trunk seems okay.
+> >
+> > Thanks for looking into this. Now I'm more confident bringing this upstream.
+> >
+> > Iñaki
+>
+>
+>
+> --
+> Iñaki Úcar
+
+
+
+-- 
+Iñaki Úcar
+

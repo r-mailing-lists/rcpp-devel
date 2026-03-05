@@ -1,0 +1,2415 @@
+From oshea54321 at gmail.com  Fri Dec  6 22:13:40 2019
+From: oshea54321 at gmail.com (John O'Shea)
+Date: Fri, 6 Dec 2019 16:13:40 -0500
+Subject: [Rcpp-devel] RCPP Issue with nonunicode User characters
+Message-ID: <CACcA6eJYKmiVgO3YH59d0Gdd753BxarMZAjw24CTBcJ6wwkm+A@mail.gmail.com>
+
+Hello, forgive me in advance as I am not familiar with R developing or the
+more technical side of R usage and programming in general. I have had a
+professor of mine request I use the Rcpp package to rewrite a function in
+R, but I have been running into issues with any usage of the Rcpp package.
+My reddit post and a response can be found here
+https://www.reddit.com/r/Rlanguage/comments/e51qn7/error_using_any_function_from_rcpp_package/
+
+
+The user that replied believes that calling on any function from Rcpp
+"chokes" on the temporary file path made using my Windows username, as it
+contains both a space and an apostrophe and may be a bug. How do I resolve
+this issue?
+
+Thanks so much!
+-John O'Shea
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191206/8379e914/attachment.html>
+
+From edd at debian.org  Fri Dec  6 22:33:32 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 6 Dec 2019 15:33:32 -0600
+Subject: [Rcpp-devel] RCPP Issue with nonunicode User characters
+In-Reply-To: <CACcA6eJYKmiVgO3YH59d0Gdd753BxarMZAjw24CTBcJ6wwkm+A@mail.gmail.com>
+References: <CACcA6eJYKmiVgO3YH59d0Gdd753BxarMZAjw24CTBcJ6wwkm+A@mail.gmail.com>
+Message-ID: <24042.51500.921634.10010@rob.eddelbuettel.com>
+
+
+On 6 December 2019 at 16:13, John O'Shea wrote:
+| Hello, forgive me in advance as I am not familiar with R developing or the
+| more technical side of R usage and programming in general. I have had a
+| professor of mine request I use the Rcpp package to rewrite a function in
+| R, but I have been running into issues with any usage of the Rcpp package.
+| My reddit post and a response can be found here
+| https://www.reddit.com/r/Rlanguage/comments/e51qn7/error_using_any_function_from_rcpp_package/
+| 
+| 
+| The user that replied believes that calling on any function from Rcpp
+| "chokes" on the temporary file path made using my Windows username, as it
+| contains both a space and an apostrophe and may be a bug. How do I resolve
+| this issue?
+
+>From the 'R on Windows FAQ', 'Section 2.2 How do I install R for Windows?':
+
+   If you want to be able to build packages from sources, we recommend that
+   you choose an installation path not containing spaces.
+
+When I worked on Windows I generally followed that advise. I may sound like a
+lot of work to re-install R just to write one function.  Maybe you can work
+on https://rstudio.cloud instead.
+
+Good luck,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From brook at nmsu.edu  Fri Dec  6 22:47:48 2019
+From: brook at nmsu.edu (Brook Milligan)
+Date: Fri, 6 Dec 2019 14:47:48 -0700
+Subject: [Rcpp-devel] Segmentation faults
+Message-ID: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+
+I am trying to build some simple test cases of Rcpp.  One of the simplest I can think of is below.
+
+#include <Rcpp.h>
+
+int main ()
+{
+  auto i = Rcpp::IntegerVector::create(1,2);
+}
+
+This compiles fine and links against libR, but segmentation faults when run.  My test system is a Mac with clang++.
+
+Is there an obvious reason this should not work?
+
+Cheers,
+Brook
+
+
+From balamut2 at illinois.edu  Fri Dec  6 23:00:46 2019
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Fri, 6 Dec 2019 22:00:46 +0000
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+Message-ID: <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+
+Greetings and Salutations Brook, 
+
+The segfault is related to `int main() {}`. There is no need to use `int main() {}` unless you want to make this standalone in which case you want to use RInside to embed R within a C++ application.
+
+Rcpp enables embedding C++ within R. So, R already is using its own `int main() {}`. Modifying code to the following should work:
+
+In C++
+
+test_fun.cpp
+
+    #include <Rcpp.h>
+
+    // [[Rcpp::plugins(cpp11)]]
+    
+    // [[Rcpp::export]]
+    void test_fun()
+    {
+      auto i = Rcpp::IntegerVector::create(1,2);
+      Rcpp::Rcout << "Hello World!" << std::endl;
+    }
+
+In R
+
+Rcpp::sourceCpp("path/to/test_fun.cpp")
+test_fun()
+# Hello World! 
+
+For other examples, consider looking at examples from the introduction paper: 
+https://cran.r-project.org/web/packages/Rcpp/vignettes/Rcpp-introduction.pdf 
+
+Sincerely,
+
+JJB
+
+﻿On 12/6/19, 3:48 PM, "Rcpp-devel on behalf of Brook Milligan" <rcpp-devel-bounces at lists.r-forge.r-project.org on behalf of brook at nmsu.edu> wrote:
+
+    I am trying to build some simple test cases of Rcpp.  One of the simplest I can think of is below.
+    
+    #include <Rcpp.h>
+    
+    int main ()
+    {
+      auto i = Rcpp::IntegerVector::create(1,2);
+    }
+    
+    This compiles fine and links against libR, but segmentation faults when run.  My test system is a Mac with clang++.
+    
+    Is there an obvious reason this should not work?
+    
+    Cheers,
+    Brook
+    
+    _______________________________________________
+    Rcpp-devel mailing list
+    Rcpp-devel at lists.r-forge.r-project.org
+    https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From brook at nmsu.edu  Fri Dec  6 23:48:16 2019
+From: brook at nmsu.edu (Brook Milligan)
+Date: Fri, 6 Dec 2019 15:48:16 -0700
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+ <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+Message-ID: <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+
+
+> On Dec 6, 2019, at 3:00 PM, Balamuta, James Joseph <balamut2 at illinois.edu> wrote:
+> 
+> The segfault is related to `int main() {}`. There is no need to use `int main() {}` unless you want to make this standalone in which case you want to use RInside to embed R within a C++ application.
+
+I am in fact trying to use this standalone, so I think the problem is that I need RInside.  FYI, that is not entirely obvious from the Rcpp docs.
+
+Anyway, I cannot find any useful documentation on the RInside API.  The example given on the main page illustrates a use of R[], which presumably is a way to call the embedded R.  Where is the real documentation, though?
+
+Thanks for your help.
+‘
+Cheers,
+Brook
+
+
+From qkou at qkou.info  Fri Dec  6 23:50:38 2019
+From: qkou at qkou.info (Qiang Kou)
+Date: Fri, 6 Dec 2019 14:50:38 -0800
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+ <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+ <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+Message-ID: <CALaeKeFZZs-pDxxbRzcCoNVCcw2x3owwyLijiSMgPA04XiYeQA@mail.gmail.com>
+
+RInside is to call the embedded R.
+
+What do you want to do with R/Rcpp?
+
+Best,
+
+KK
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191206/f88c80d5/attachment.html>
+
+From brook at nmsu.edu  Fri Dec  6 23:54:47 2019
+From: brook at nmsu.edu (Brook Milligan)
+Date: Fri, 6 Dec 2019 15:54:47 -0700
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <CALaeKeFZZs-pDxxbRzcCoNVCcw2x3owwyLijiSMgPA04XiYeQA@mail.gmail.com>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+ <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+ <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+ <CALaeKeFZZs-pDxxbRzcCoNVCcw2x3owwyLijiSMgPA04XiYeQA@mail.gmail.com>
+Message-ID: <293EC338-08C5-47B2-B51E-DE230107BDEC@nmsu.edu>
+
+
+
+> On Dec 6, 2019, at 3:50 PM, Qiang Kou <qkou at qkou.info> wrote:
+> 
+> RInside is to call the embedded R.
+> 
+> What do you want to do with R/Rcpp?
+
+I am trying to write a bridge between R and C++ and need some test cases.  I was hoping I could use Rcpp objects directly in C++, but apparently that is not possible outside of an R environment, which I presume is what RInside provides.
+
+Is there any way to test the correctness of Rcpp-using functions without running the C++ code within R?  I am thinking not, but would like to find otherwise, as this makes testing much harder.
+
+Cheers,
+Brook
+
+
+From qkou at qkou.info  Fri Dec  6 23:58:31 2019
+From: qkou at qkou.info (Qiang Kou)
+Date: Fri, 6 Dec 2019 14:58:31 -0800
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <293EC338-08C5-47B2-B51E-DE230107BDEC@nmsu.edu>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+ <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+ <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+ <CALaeKeFZZs-pDxxbRzcCoNVCcw2x3owwyLijiSMgPA04XiYeQA@mail.gmail.com>
+ <293EC338-08C5-47B2-B51E-DE230107BDEC@nmsu.edu>
+Message-ID: <CALaeKeF8=FdQ+LywfVyJyZMG5nxKD6VAVmijX0HQc+yGY7yZTg@mail.gmail.com>
+
+I suggest you check all the examples of RInside. For example,
+
+https://github.com/eddelbuettel/rinside/blob/master/inst/examples/standard/rinside_sample16.cpp
+
+This might meet your requirements.
+
+Best,
+
+Qiang Kou
+
+On Fri, Dec 6, 2019 at 2:54 PM Brook Milligan <brook at nmsu.edu> wrote:
+
+>
+>
+> > On Dec 6, 2019, at 3:50 PM, Qiang Kou <qkou at qkou.info> wrote:
+> >
+> > RInside is to call the embedded R.
+> >
+> > What do you want to do with R/Rcpp?
+>
+> I am trying to write a bridge between R and C++ and need some test cases.
+> I was hoping I could use Rcpp objects directly in C++, but apparently that
+> is not possible outside of an R environment, which I presume is what
+> RInside provides.
+>
+> Is there any way to test the correctness of Rcpp-using functions without
+> running the C++ code within R?  I am thinking not, but would like to find
+> otherwise, as this makes testing much harder.
+>
+> Cheers,
+> Brook
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191206/11007636/attachment.html>
+
+From brook at nmsu.edu  Fri Dec  6 23:59:00 2019
+From: brook at nmsu.edu (Brook Milligan)
+Date: Fri, 6 Dec 2019 15:59:00 -0700
+Subject: [Rcpp-devel] Value type of DataFrame::operator[]
+Message-ID: <C511A2D2-9B14-4874-8110-033AAF8EE5CA@nmsu.edu>
+
+Is there a way to discover the value type for the result of calling DataFrame::operator[]?  For example, is there a metafiction that will deduce the type?
+
+A similar question could be asked about the result of calling Vector::operator[].
+
+I understand that these functions actually return a proxy, but it would be very helpful to find out the underlying value type.
+
+Thanks for your help.
+
+Cheers,
+Brook
+
+
+From brook at nmsu.edu  Sat Dec  7 00:08:50 2019
+From: brook at nmsu.edu (Brook Milligan)
+Date: Fri, 6 Dec 2019 16:08:50 -0700
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <CALaeKeF8=FdQ+LywfVyJyZMG5nxKD6VAVmijX0HQc+yGY7yZTg@mail.gmail.com>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+ <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+ <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+ <CALaeKeFZZs-pDxxbRzcCoNVCcw2x3owwyLijiSMgPA04XiYeQA@mail.gmail.com>
+ <293EC338-08C5-47B2-B51E-DE230107BDEC@nmsu.edu>
+ <CALaeKeF8=FdQ+LywfVyJyZMG5nxKD6VAVmijX0HQc+yGY7yZTg@mail.gmail.com>
+Message-ID: <520C93E7-3039-4675-82E3-1E4F03783C89@nmsu.edu>
+
+
+
+> On Dec 6, 2019, at 3:58 PM, Qiang Kou <qkou at qkou.info> wrote:
+> 
+> I suggest you check all the examples of RInside. For example,
+> 
+> https://github.com/eddelbuettel/rinside/blob/master/inst/examples/standard/rinside_sample16.cpp
+> 
+> This might meet your requirements.
+
+Thanks.
+
+From the examples I glean the following:
+
+- RInside::RInside(int,char*[])
+- RInside::operator[](...)
+- Several RInside::parseEval*(...) member functions
+
+Is this the entire public API?
+
+Is there any documentation on these more specific than guessing from the examples?
+
+Thanks for your help.
+
+Cheers,
+Brook
+
+
+From qkou at qkou.info  Sat Dec  7 00:16:43 2019
+From: qkou at qkou.info (Qiang Kou)
+Date: Fri, 6 Dec 2019 15:16:43 -0800
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <520C93E7-3039-4675-82E3-1E4F03783C89@nmsu.edu>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+ <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+ <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+ <CALaeKeFZZs-pDxxbRzcCoNVCcw2x3owwyLijiSMgPA04XiYeQA@mail.gmail.com>
+ <293EC338-08C5-47B2-B51E-DE230107BDEC@nmsu.edu>
+ <CALaeKeF8=FdQ+LywfVyJyZMG5nxKD6VAVmijX0HQc+yGY7yZTg@mail.gmail.com>
+ <520C93E7-3039-4675-82E3-1E4F03783C89@nmsu.edu>
+Message-ID: <CALaeKeEKFuZOYNpYPS=7omz=59-f=6YNGHfeuPv8tqioJ5q5uQ@mail.gmail.com>
+
+The sample16 showed several things you might need in your case:
+
+1. construct R objects and functions using Rcpp
+
+2. call them through the embedded R and pass results back to C++
+
+I think it is a good example, if you want to write testing cases for R/C++
+bridge code.
+
+Best,
+
+KK
+
+On Fri, Dec 6, 2019 at 3:08 PM Brook Milligan <brook at nmsu.edu> wrote:
+
+>
+>
+> > On Dec 6, 2019, at 3:58 PM, Qiang Kou <qkou at qkou.info> wrote:
+> >
+> > I suggest you check all the examples of RInside. For example,
+> >
+> >
+> https://github.com/eddelbuettel/rinside/blob/master/inst/examples/standard/rinside_sample16.cpp
+> >
+> > This might meet your requirements.
+>
+> Thanks.
+>
+> From the examples I glean the following:
+>
+> - RInside::RInside(int,char*[])
+> - RInside::operator[](...)
+> - Several RInside::parseEval*(...) member functions
+>
+> Is this the entire public API?
+>
+> Is there any documentation on these more specific than guessing from the
+> examples?
+>
+> Thanks for your help.
+>
+> Cheers,
+> Brook
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191206/69e23276/attachment.html>
+
+From qkou at qkou.info  Sat Dec  7 00:29:39 2019
+From: qkou at qkou.info (Qiang Kou)
+Date: Fri, 6 Dec 2019 15:29:39 -0800
+Subject: [Rcpp-devel] Value type of DataFrame::operator[]
+In-Reply-To: <C511A2D2-9B14-4874-8110-033AAF8EE5CA@nmsu.edu>
+References: <C511A2D2-9B14-4874-8110-033AAF8EE5CA@nmsu.edu>
+Message-ID: <CALaeKeExtPD5JhMwDUC6mETaEWppdt-Qr7970prZ1SF3JSUaoQ@mail.gmail.com>
+
+What about using "TYPEOF"? Please see R Internals (
+https://cran.r-project.org/doc/manuals/r-release/R-ints.html#SEXPTYPEs) for
+more details.
+
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+DataFrame rcpp_df(){
+  NumericVector   numeric = {1,3};
+  IntegerVector   integer = {1,3};
+  CharacterVector character = {"B","D"};
+  LogicalVector   logical = {false, true};
+
+  DataFrame df = DataFrame::create(Named("numeric") = numeric,
+                                Named("integer") = integer,
+                                Named("character") = character,
+                                Named("logical") = logical);
+
+  Rcpp::Rcout << "numeric:" << TYPEOF(df["numeric"]) << std::endl;
+  Rcpp::Rcout << "integer:" << TYPEOF(df["integer"]) << std::endl;
+  Rcpp::Rcout << "character:" << TYPEOF(df["character"]) << std::endl;
+  Rcpp::Rcout << "logical:" << TYPEOF(df["logical"]) << std::endl;
+
+  return df;
+}
+
+/*
+> Rcpp::sourceCpp("test.cc")
+> df <- rcpp_df()
+numeric:14
+integer:13
+character:13
+logical:10
+*/
+
+On Fri, Dec 6, 2019 at 2:59 PM Brook Milligan <brook at nmsu.edu> wrote:
+
+> Is there a way to discover the value type for the result of calling
+> DataFrame::operator[]?  For example, is there a metafiction that will
+> deduce the type?
+>
+> A similar question could be asked about the result of calling
+> Vector::operator[].
+>
+> I understand that these functions actually return a proxy, but it would be
+> very helpful to find out the underlying value type.
+>
+> Thanks for your help.
+>
+> Cheers,
+> Brook
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191206/eb615b4b/attachment.html>
+
+From edd at debian.org  Sat Dec  7 00:47:04 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 6 Dec 2019 17:47:04 -0600
+Subject: [Rcpp-devel] Segmentation faults
+In-Reply-To: <CALaeKeEKFuZOYNpYPS=7omz=59-f=6YNGHfeuPv8tqioJ5q5uQ@mail.gmail.com>
+References: <92DEC7DB-556F-4443-8BB0-D9D9D691E5CF@nmsu.edu>
+ <1A22E0D9-0C7B-497E-A027-C1ABEC689E78@illinois.edu>
+ <70E22C00-4745-4159-AB42-2FD565BE0264@nmsu.edu>
+ <CALaeKeFZZs-pDxxbRzcCoNVCcw2x3owwyLijiSMgPA04XiYeQA@mail.gmail.com>
+ <293EC338-08C5-47B2-B51E-DE230107BDEC@nmsu.edu>
+ <CALaeKeF8=FdQ+LywfVyJyZMG5nxKD6VAVmijX0HQc+yGY7yZTg@mail.gmail.com>
+ <520C93E7-3039-4675-82E3-1E4F03783C89@nmsu.edu>
+ <CALaeKeEKFuZOYNpYPS=7omz=59-f=6YNGHfeuPv8tqioJ5q5uQ@mail.gmail.com>
+Message-ID: <24042.59512.517673.37553@rob.eddelbuettel.com>
+
+
+Brook,
+
+
+Rcpp: Browseable and searchable class hierarchy 
+
+  http://dirk.eddelbuettel.com/code/rcpp/html/
+  (still complicated as there is a lot of "machinery")
+
+
+RInside: Similar (but less as there simply is less: Rcpp does the marshalling)
+
+  http://dirk.eddelbuettel.com/code/rinside/html/
+
+
+Otherwise:
+
+   Nine vignettes for Rcpp including two peer-reviewed papers
+
+   *Plenty* of working examples as documention for RInside below examples/
+   (or inst/examples/ in the sources)
+
+   A book about it all
+   
+   Lots of other documentation on other places on the interwebs
+
+
+Hope this helps,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From serguei.sokol at gmail.com  Mon Dec  9 11:24:24 2019
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Mon, 9 Dec 2019 11:24:24 +0100
+Subject: [Rcpp-devel] Value type of DataFrame::operator[]
+In-Reply-To: <CALaeKeExtPD5JhMwDUC6mETaEWppdt-Qr7970prZ1SF3JSUaoQ@mail.gmail.com>
+References: <C511A2D2-9B14-4874-8110-033AAF8EE5CA@nmsu.edu>
+ <CALaeKeExtPD5JhMwDUC6mETaEWppdt-Qr7970prZ1SF3JSUaoQ@mail.gmail.com>
+Message-ID: <9c234751-5f0c-fca6-4caf-bb34f7f1e032@gmail.com>
+
+Le 07/12/2019 à 00:29, Qiang Kou a écrit :
+> What about using "TYPEOF"? Please see R Internals 
+> (https://cran.r-project.org/doc/manuals/r-release/R-ints.html#SEXPTYPEs) 
+> for more details.
+... and if you want to convert integer encoded SEXPTYPE to a human 
+readable string you can use
+
+const char * Rf_type2char(SEXPTYPE);
+
+By the way, conversion in the opposite direction is made by
+
+SEXPTYPE Rf_str2type(const char *);
+
+Best,
+Sergueï.
+
+> 
+> #include <Rcpp.h>
+> 
+> using namespace Rcpp;
+> 
+> // [[Rcpp::export]]
+> DataFrame rcpp_df(){
+>    NumericVector   numeric = {1,3};
+>    IntegerVector   integer = {1,3};
+>    CharacterVector character = {"B","D"};
+>    LogicalVector   logical = {false, true};
+> 
+>    DataFrame df = DataFrame::create(Named("numeric") = numeric,
+>                                  Named("integer") = integer,
+>                                  Named("character") = character,
+>                                  Named("logical") = logical);
+> 
+>    Rcpp::Rcout << "numeric:" << TYPEOF(df["numeric"]) << std::endl;
+>    Rcpp::Rcout << "integer:" << TYPEOF(df["integer"]) << std::endl;
+>    Rcpp::Rcout << "character:" << TYPEOF(df["character"]) << std::endl;
+>    Rcpp::Rcout << "logical:" << TYPEOF(df["logical"]) << std::endl;
+> 
+>    return df;
+> }
+> 
+> /*
+>  > Rcpp::sourceCpp("test.cc")
+>  > df <- rcpp_df()
+> numeric:14
+> integer:13
+> character:13
+> logical:10
+> */
+> 
+> On Fri, Dec 6, 2019 at 2:59 PM Brook Milligan <brook at nmsu.edu 
+> <mailto:brook at nmsu.edu>> wrote:
+> 
+>     Is there a way to discover the value type for the result of calling
+>     DataFrame::operator[]?  For example, is there a metafiction that
+>     will deduce the type?
+> 
+>     A similar question could be asked about the result of calling
+>     Vector::operator[].
+> 
+>     I understand that these functions actually return a proxy, but it
+>     would be very helpful to find out the underlying value type.
+> 
+>     Thanks for your help.
+> 
+>     Cheers,
+>     Brook
+> 
+>     _______________________________________________
+>     Rcpp-devel mailing list
+>     Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From nzshaam at gmail.com  Thu Dec 19 05:26:08 2019
+From: nzshaam at gmail.com (Shaami)
+Date: Thu, 19 Dec 2019 17:26:08 +1300
+Subject: [Rcpp-devel] dmvnorm() of mvtnorm using RcppArmadillo
+Message-ID: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+
+Hi Dear
+
+I want to use dmvnorm() function into an cpp function using RcppArmadillo I
+am trying to execute the following function. It gives me error
+
+cannot convert 'SEXP' to 'double' in assignment
+
+Could you please guide where I am wrong?
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+arma::rowvec  dmvnormC(const arma::mat& x, const arma::vec& mean, const
+arma::mat& sigma, int give_log)
+{
+  Environment pkg = Environment::namespace_env("mvtnorm");
+  Function dmvnorm = pkg["mvtnorm"];
+  int N = x.n_rows;
+  arma::rowvec f(N, fill::zeros);
+  for(int k=0; k<N; k++)
+    {
+      f(k) = dmvnorm(x.row(k), mean,  sigma, give_log);
+    }
+  return f;
+}
+
+Thank you
+
+Shaami
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191219/ffd50a7c/attachment.html>
+
+From qkou at qkou.info  Thu Dec 19 06:01:35 2019
+From: qkou at qkou.info (Qiang Kou)
+Date: Wed, 18 Dec 2019 21:01:35 -0800
+Subject: [Rcpp-devel] dmvnorm() of mvtnorm using RcppArmadillo
+In-Reply-To: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+References: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+Message-ID: <CALaeKeHWGOaJWJtAqdsNu5rBbzp1mJ5RFKUj1dzG6OaA6WXt8Q@mail.gmail.com>
+
+Please try the line below:
+
+f(k) = *Rcpp::as<double>*(dmvnorm(x.row(k), mean,  sigma, give_log));
+
+Best,
+
+KK
+
+On Wed, Dec 18, 2019 at 8:27 PM Shaami <nzshaam at gmail.com> wrote:
+
+> Hi Dear
+>
+> I want to use dmvnorm() function into an cpp function using RcppArmadillo
+> I am trying to execute the following function. It gives me error
+>
+> cannot convert 'SEXP' to 'double' in assignment
+>
+> Could you please guide where I am wrong?
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> using namespace arma;
+>
+> //[[Rcpp::depends(RcppArmadillo)]]
+> //[[Rcpp::export]]
+>
+> arma::rowvec  dmvnormC(const arma::mat& x, const arma::vec& mean, const
+> arma::mat& sigma, int give_log)
+> {
+>   Environment pkg = Environment::namespace_env("mvtnorm");
+>   Function dmvnorm = pkg["mvtnorm"];
+>   int N = x.n_rows;
+>   arma::rowvec f(N, fill::zeros);
+>   for(int k=0; k<N; k++)
+>     {
+>       f(k) = dmvnorm(x.row(k), mean,  sigma, give_log);
+>     }
+>   return f;
+> }
+>
+> Thank you
+>
+> Shaami
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191218/0ef405c9/attachment.html>
+
+From nzshaam at gmail.com  Thu Dec 19 07:57:44 2019
+From: nzshaam at gmail.com (Shaami)
+Date: Thu, 19 Dec 2019 19:57:44 +1300
+Subject: [Rcpp-devel] dmvnorm() of mvtnorm using RcppArmadillo
+In-Reply-To: <CAGR+MS6fqro55t48Kie4g1y3Fb0_N023+Gr9mS1GMeD3zk8CwA@mail.gmail.com>
+References: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+ <CALaeKeHWGOaJWJtAqdsNu5rBbzp1mJ5RFKUj1dzG6OaA6WXt8Q@mail.gmail.com>
+ <CAGR+MS6fqro55t48Kie4g1y3Fb0_N023+Gr9mS1GMeD3zk8CwA@mail.gmail.com>
+Message-ID: <CAGR+MS6nhOq-VxgzRV0VeGGtpqBsenX-FuJVf9OAukwupKTQuA@mail.gmail.com>
+
+Dear Sir
+
+It compiles successfully. But when I use it I get an error message.
+
+
+
+On Thu, Dec 19, 2019 at 7:41 PM Shaami <nzshaam at gmail.com> wrote:
+
+> Great. It worked.
+>
+> Thank you very much
+>
+> On Thu, 19 Dec 2019, 6:01 PM Qiang Kou, <qkou at qkou.info> wrote:
+>
+>> Please try the line below:
+>>
+>> f(k) = *Rcpp::as<double>*(dmvnorm(x.row(k), mean,  sigma, give_log));
+>>
+>> Best,
+>>
+>> KK
+>>
+>> On Wed, Dec 18, 2019 at 8:27 PM Shaami <nzshaam at gmail.com> wrote:
+>>
+>>> Hi Dear
+>>>
+>>> I want to use dmvnorm() function into an cpp function using
+>>> RcppArmadillo I am trying to execute the following function. It gives me
+>>> error
+>>>
+>>> cannot convert 'SEXP' to 'double' in assignment
+>>>
+>>> Could you please guide where I am wrong?
+>>>
+>>> #include <RcppArmadillo.h>
+>>> using namespace Rcpp;
+>>> using namespace RcppArmadillo;
+>>> using namespace arma;
+>>>
+>>> //[[Rcpp::depends(RcppArmadillo)]]
+>>> //[[Rcpp::export]]
+>>>
+>>> arma::rowvec  dmvnormC(const arma::mat& x, const arma::vec& mean, const
+>>> arma::mat& sigma, int give_log)
+>>> {
+>>>   Environment pkg = Environment::namespace_env("mvtnorm");
+>>>   Function dmvnorm = pkg["mvtnorm"];
+>>>   int N = x.n_rows;
+>>>   arma::rowvec f(N, fill::zeros);
+>>>   for(int k=0; k<N; k++)
+>>>     {
+>>>       f(k) = dmvnorm(x.row(k), mean,  sigma, give_log);
+>>>     }
+>>>   return f;
+>>> }
+>>>
+>>> Thank you
+>>>
+>>> Shaami
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191219/503e054f/attachment.html>
+
+From nzshaam at gmail.com  Thu Dec 19 08:01:08 2019
+From: nzshaam at gmail.com (Shaami)
+Date: Thu, 19 Dec 2019 20:01:08 +1300
+Subject: [Rcpp-devel] dmvnorm() of mvtnorm using RcppArmadillo
+In-Reply-To: <CAGR+MS6nhOq-VxgzRV0VeGGtpqBsenX-FuJVf9OAukwupKTQuA@mail.gmail.com>
+References: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+ <CALaeKeHWGOaJWJtAqdsNu5rBbzp1mJ5RFKUj1dzG6OaA6WXt8Q@mail.gmail.com>
+ <CAGR+MS6fqro55t48Kie4g1y3Fb0_N023+Gr9mS1GMeD3zk8CwA@mail.gmail.com>
+ <CAGR+MS6nhOq-VxgzRV0VeGGtpqBsenX-FuJVf9OAukwupKTQuA@mail.gmail.com>
+Message-ID: <CAGR+MS7xq0gA=Z6PUe=XSOkYnQZd5sjausvXSdSA-efW+u3T8A@mail.gmail.com>
+
+Hi Sir
+
+Could you please help for the following error message.
+
+Below is the minimum working example and error I got.
+
+y <- matrix(1:10, nrow=5)
+mean <- c(4, 5)
+sigma <- matrix(c(0.01, 0.009, 0.009, 1.2), nrow =2, byrow = TRUE)
+dmvnormC(y, mean, sigma, 0) # Function is below.
+
+Error in dmvnormC(y, mean, sig, 0) :
+  Cannot convert object to a function: [type=NULL; target=CLOSXP,
+SPECIALSXP, or BUILTINSXP].
+
+
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+arma::vec  dmvnormC(const arma::mat& x, const arma::vec& mean, const
+arma::mat& sigma, int give_log)
+{
+  Environment pkg = Environment::namespace_env("mvtnorm");
+  Function dmvnorm = pkg["mvtnorm"];
+  int N = x.n_rows;
+  arma::rowvec f(N, fill::zeros);
+  for(int k=0; k<N; k++)
+    {
+      f(k) = Rcpp::as<double>(dmvnorm(x.row(k), mean,  sigma, give_log));
+    }
+  return f;
+}
+
+
+Thank You
+
+On Thu, Dec 19, 2019 at 7:57 PM Shaami <nzshaam at gmail.com> wrote:
+
+> Dear Sir
+>
+> It compiles successfully. But when I use it I get an error message.
+>
+>
+>
+> On Thu, Dec 19, 2019 at 7:41 PM Shaami <nzshaam at gmail.com> wrote:
+>
+>> Great. It worked.
+>>
+>> Thank you very much
+>>
+>> On Thu, 19 Dec 2019, 6:01 PM Qiang Kou, <qkou at qkou.info> wrote:
+>>
+>>> Please try the line below:
+>>>
+>>> f(k) = *Rcpp::as<double>*(dmvnorm(x.row(k), mean,  sigma, give_log));
+>>>
+>>> Best,
+>>>
+>>> KK
+>>>
+>>> On Wed, Dec 18, 2019 at 8:27 PM Shaami <nzshaam at gmail.com> wrote:
+>>>
+>>>> Hi Dear
+>>>>
+>>>> I want to use dmvnorm() function into an cpp function using
+>>>> RcppArmadillo I am trying to execute the following function. It gives me
+>>>> error
+>>>>
+>>>> cannot convert 'SEXP' to 'double' in assignment
+>>>>
+>>>> Could you please guide where I am wrong?
+>>>>
+>>>> #include <RcppArmadillo.h>
+>>>> using namespace Rcpp;
+>>>> using namespace RcppArmadillo;
+>>>> using namespace arma;
+>>>>
+>>>> //[[Rcpp::depends(RcppArmadillo)]]
+>>>> //[[Rcpp::export]]
+>>>>
+>>>> arma::rowvec  dmvnormC(const arma::mat& x, const arma::vec& mean, const
+>>>> arma::mat& sigma, int give_log)
+>>>> {
+>>>>   Environment pkg = Environment::namespace_env("mvtnorm");
+>>>>   Function dmvnorm = pkg["mvtnorm"];
+>>>>   int N = x.n_rows;
+>>>>   arma::rowvec f(N, fill::zeros);
+>>>>   for(int k=0; k<N; k++)
+>>>>     {
+>>>>       f(k) = dmvnorm(x.row(k), mean,  sigma, give_log);
+>>>>     }
+>>>>   return f;
+>>>> }
+>>>>
+>>>> Thank you
+>>>>
+>>>> Shaami
+>>>> _______________________________________________
+>>>> Rcpp-devel mailing list
+>>>> Rcpp-devel at lists.r-forge.r-project.org
+>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191219/676a72fc/attachment-0001.html>
+
+From ralf.stubner at gmail.com  Thu Dec 19 12:19:43 2019
+From: ralf.stubner at gmail.com (Ralf Stubner)
+Date: Thu, 19 Dec 2019 12:19:43 +0100
+Subject: [Rcpp-devel] dmvnorm() of mvtnorm using RcppArmadillo
+In-Reply-To: <CAGR+MS7xq0gA=Z6PUe=XSOkYnQZd5sjausvXSdSA-efW+u3T8A@mail.gmail.com>
+References: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+ <CALaeKeHWGOaJWJtAqdsNu5rBbzp1mJ5RFKUj1dzG6OaA6WXt8Q@mail.gmail.com>
+ <CAGR+MS6fqro55t48Kie4g1y3Fb0_N023+Gr9mS1GMeD3zk8CwA@mail.gmail.com>
+ <CAGR+MS6nhOq-VxgzRV0VeGGtpqBsenX-FuJVf9OAukwupKTQuA@mail.gmail.com>
+ <CAGR+MS7xq0gA=Z6PUe=XSOkYnQZd5sjausvXSdSA-efW+u3T8A@mail.gmail.com>
+Message-ID: <CAFQwRQw5XQRJA2aBEZitS-CtyPagOmoTkZJ6J8ytKS=LAG_XUQ@mail.gmail.com>
+
+On Thu, Dec 19, 2019 at 8:01 AM Shaami <nzshaam at gmail.com> wrote:
+
+>   Environment pkg = Environment::namespace_env("mvtnorm");
+>   Function dmvnorm = pkg["mvtnorm"];
+>
+
+There is no mvtnorm function in the mvtnorm package. You probably want to
+dmvnorm function instead.
+
+BTW, the mvtnorm package provides a C API for the dmvnorm function, c.f.
+https://stackoverflow.com/a/51294364/8416610
+
+cheerio
+ralf
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191219/88e007cb/attachment.html>
+
+From nzshaam at gmail.com  Thu Dec 19 19:50:45 2019
+From: nzshaam at gmail.com (Shaami)
+Date: Fri, 20 Dec 2019 07:50:45 +1300
+Subject: [Rcpp-devel] dmvnorm() of mvtnorm using RcppArmadillo
+In-Reply-To: <CAFQwRQw5XQRJA2aBEZitS-CtyPagOmoTkZJ6J8ytKS=LAG_XUQ@mail.gmail.com>
+References: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+ <CALaeKeHWGOaJWJtAqdsNu5rBbzp1mJ5RFKUj1dzG6OaA6WXt8Q@mail.gmail.com>
+ <CAGR+MS6fqro55t48Kie4g1y3Fb0_N023+Gr9mS1GMeD3zk8CwA@mail.gmail.com>
+ <CAGR+MS6nhOq-VxgzRV0VeGGtpqBsenX-FuJVf9OAukwupKTQuA@mail.gmail.com>
+ <CAGR+MS7xq0gA=Z6PUe=XSOkYnQZd5sjausvXSdSA-efW+u3T8A@mail.gmail.com>
+ <CAFQwRQw5XQRJA2aBEZitS-CtyPagOmoTkZJ6J8ytKS=LAG_XUQ@mail.gmail.com>
+Message-ID: <CAGR+MS5EJL4p-1zHkyP030zVu3V5OXu7u_95zioCDEy3hQrWEg@mail.gmail.com>
+
+Dear Sir
+
+Here is my MWE.
+
+I am still getting the follwoing error.
+
+Error in dmvnormC(x, mean, sigma, 0) : Cannot convert object to a function:
+[type=NULL; target=CLOSXP, SPECIALSXP, or BUILTINSXP].
+
+Could you please guide what is going wrong?
+y <- matrix(1:10, nrow=5)
+mean <- c(4, 5)
+sigma <- matrix(c(0.01, 0.009, 0.009, 1.2), nrow =2, byrow = TRUE)
+dmvnormC(y, mean, sigma, 0) # Function is below.
+#include <RcppArmadillo.h>
+#include <mvtnormAPI.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::depends(mvtnorm)]]
+//[[Rcpp::export]]
+
+arma::vec  dmvnormC(const arma::mat& x, const arma::vec& mean, const
+arma::mat& sigma, int give_log)
+{
+  Environment pkg = Environment::namespace_env("mvtnorm");
+  Function dmvnorm = pkg["mvtnorm"];
+  int N = x.n_rows;
+  arma::rowvec f(N);
+  for(int k=0; k<N; k++)
+    {
+      f(k) = Rcpp::as<double>(dmvnorm(x.row(k), mean,  sigma, give_log));
+    }
+  return f;
+}
+
+
+Thank you
+
+
+On Fri, Dec 20, 2019 at 12:19 AM Ralf Stubner <ralf.stubner at gmail.com>
+wrote:
+
+>
+>
+> On Thu, Dec 19, 2019 at 8:01 AM Shaami <nzshaam at gmail.com> wrote:
+>
+>>   Environment pkg = Environment::namespace_env("mvtnorm");
+>>   Function dmvnorm = pkg["mvtnorm"];
+>>
+>
+> There is no mvtnorm function in the mvtnorm package. You probably want to
+> dmvnorm function instead.
+>
+> BTW, the mvtnorm package provides a C API for the dmvnorm function, c.f.
+> https://stackoverflow.com/a/51294364/8416610
+>
+> cheerio
+> ralf
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191220/21ca3ab4/attachment.html>
+
+From edd at debian.org  Thu Dec 19 21:19:19 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Dec 2019 14:19:19 -0600
+Subject: [Rcpp-devel] dmvnorm() of mvtnorm using RcppArmadillo
+In-Reply-To: <CAGR+MS5EJL4p-1zHkyP030zVu3V5OXu7u_95zioCDEy3hQrWEg@mail.gmail.com>
+References: <CAGR+MS4RPj_g_ySJ01sbT8AL72igLRTJXe-BW6cqOX=y_oxDSA@mail.gmail.com>
+ <CALaeKeHWGOaJWJtAqdsNu5rBbzp1mJ5RFKUj1dzG6OaA6WXt8Q@mail.gmail.com>
+ <CAGR+MS6fqro55t48Kie4g1y3Fb0_N023+Gr9mS1GMeD3zk8CwA@mail.gmail.com>
+ <CAGR+MS6nhOq-VxgzRV0VeGGtpqBsenX-FuJVf9OAukwupKTQuA@mail.gmail.com>
+ <CAGR+MS7xq0gA=Z6PUe=XSOkYnQZd5sjausvXSdSA-efW+u3T8A@mail.gmail.com>
+ <CAFQwRQw5XQRJA2aBEZitS-CtyPagOmoTkZJ6J8ytKS=LAG_XUQ@mail.gmail.com>
+ <CAGR+MS5EJL4p-1zHkyP030zVu3V5OXu7u_95zioCDEy3hQrWEg@mail.gmail.com>
+Message-ID: <24059.56135.527795.975554@rob.eddelbuettel.com>
+
+
+On 20 December 2019 at 07:50, Shaami wrote:
+| #include <RcppArmadillo.h>
+| #include <mvtnormAPI.h>
+
+That is not used as you call the R function.
+
+In short, don't call the R function. I buys you nothing.  You were told to
+look into using the API from that header.  I would do that if I were you.
+
+| using namespace Rcpp;
+| using namespace RcppArmadillo;
+| using namespace arma;
+
+Flattening namespaces like that is generally a bad idea.
+ 
+| //[[Rcpp::depends(RcppArmadillo)]]
+| //[[Rcpp::depends(mvtnorm)]]
+
+Again, you don't use it (yet) so no reason (yet) to include this.
+
+| //[[Rcpp::export]]
+| 
+
+That empty line is a bad idea.
+
+| arma::vec  dmvnormC(const arma::mat& x, const arma::vec& mean, const
+| arma::mat& sigma, int give_log)
+| {
+|   Environment pkg = Environment::namespace_env("mvtnorm");
+|   Function dmvnorm = pkg["mvtnorm"];
+
+As above. R code runs at the speed of R code.  Calling it N times makes it N
+times worse.
+
+|   int N = x.n_rows;
+|   arma::rowvec f(N);
+|   for(int k=0; k<N; k++)
+|     {
+|       f(k) = Rcpp::as<double>(dmvnorm(x.row(k), mean,  sigma, give_log));
+
+I would decompose this into two or three steps. Call dmvnorm() [til you know
+better]. Convert to a double.  Assign the double to f(k).
+
+Dirk
+
+|     }
+|   return f;
+| }
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From nzshaam at gmail.com  Tue Dec 24 01:45:50 2019
+From: nzshaam at gmail.com (Shaami)
+Date: Tue, 24 Dec 2019 13:45:50 +1300
+Subject: [Rcpp-devel] uniroot problem
+Message-ID: <CAGR+MS7SpWN3mm1s_6Ckdoz23d3A6K15EgTyC8+LnKNLzGY9xw@mail.gmail.com>
+
+Dear Friends
+
+Could you please help with the following example? I do not get function
+value at zero using uniroot() in R. Could you suggest something? I want
+function value zero at any point like 2.4, 2.5, 2.6, 4.5, 5.9 etc.
+
+Thank You
+
+x = c(-100, -20, 100, 230, 500, 920, 1000)
+a = c(1000, 12, 300, 0, 100, 300, 750)
+Fn = function(t, x, a){
+  sum = 0
+  for(i in 1:length(x)){
+    sum = sum + punif(t, min=x[i]-a[i], max=x[i]+a[i])
+  }
+  return(sum)
+}uniroot(function(t){Fn(t, x, a) - 2.4}, interval=c(min(x-a), max(x+a)))
+uniroot(function(t){Fn(t, x, a) - 2.5}, interval=c(min(x-a), max(x+a)))
+uniroot(function(t){Fn(t, x, a) - 2.8}, interval=c(min(x-a), max(x+a)))
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191224/8e8caa8e/attachment.html>
+
+From edd at debian.org  Tue Dec 24 01:59:30 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 23 Dec 2019 18:59:30 -0600
+Subject: [Rcpp-devel] uniroot problem
+In-Reply-To: <CAGR+MS7SpWN3mm1s_6Ckdoz23d3A6K15EgTyC8+LnKNLzGY9xw@mail.gmail.com>
+References: <CAGR+MS7SpWN3mm1s_6Ckdoz23d3A6K15EgTyC8+LnKNLzGY9xw@mail.gmail.com>
+Message-ID: <24065.25330.498890.592344@rob.eddelbuettel.com>
+
+
+On 24 December 2019 at 13:45, Shaami wrote:
+| Could you please help with the following example? I do not get function
+| value at zero using uniroot() in R. Could you suggest something? I want
+| function value zero at any point like 2.4, 2.5, 2.6, 4.5, 5.9 etc.
+| 
+| Thank You
+| 
+| x = c(-100, -20, 100, 230, 500, 920, 1000)
+| a = c(1000, 12, 300, 0, 100, 300, 750)
+| Fn = function(t, x, a){
+|   sum = 0
+|   for(i in 1:length(x)){
+|     sum = sum + punif(t, min=x[i]-a[i], max=x[i]+a[i])
+|   }
+|   return(sum)
+| }uniroot(function(t){Fn(t, x, a) - 2.4}, interval=c(min(x-a), max(x+a)))
+| uniroot(function(t){Fn(t, x, a) - 2.5}, interval=c(min(x-a), max(x+a)))
+| uniroot(function(t){Fn(t, x, a) - 2.8}, interval=c(min(x-a), max(x+a)))
+
+What have you tried so far?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From gbatoolfatima at gmail.com  Sat Dec 28 02:16:25 2019
+From: gbatoolfatima at gmail.com (Fatima Batool)
+Date: Fri, 27 Dec 2019 20:16:25 -0500
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+Message-ID: <CAA1a2UmBE085qNNor7LdU6Zr=Q+c0595vBr5VjPMGXuBPhJE9g@mail.gmail.com>
+
+Hi all,
+
+Could anyone please advice what is going on in the following error and how
+can I fix it?
+
+sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+-DNDEBUG
+-I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+-I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+ -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") :
+  Error 1 occurred building shared library.
+clang: warning: no such sysroot directory:
+'/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+In file included from trial.cpp:9:
+In file included from /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15:
+fatal error: 'stdio.h' file not found
+#include_next <stdio.h>
+              ^~~~~~~~~
+1 error generated.
+make: *** [trial.o] Error 1
+
+
+I was able to source all .cpp files before system updates. I have recently
+updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am working
+in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang version
+4.0.1.
+
+I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk
+subdirectories exist there.
+
+
+
+Best wishes,
+Fatima
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191227/3fc41c25/attachment.html>
+
+From edd at debian.org  Sat Dec 28 02:32:34 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 27 Dec 2019 19:32:34 -0600
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <CAA1a2UmBE085qNNor7LdU6Zr=Q+c0595vBr5VjPMGXuBPhJE9g@mail.gmail.com>
+References: <CAA1a2UmBE085qNNor7LdU6Zr=Q+c0595vBr5VjPMGXuBPhJE9g@mail.gmail.com>
+Message-ID: <24070.45234.354464.503363@rob.eddelbuettel.com>
+
+
+Hi Fatima,
+
+On 27 December 2019 at 20:16, Fatima Batool wrote:
+| Hi all,
+| 
+| Could anyone please advice what is going on in the following error and how
+| can I fix it?
+| 
+| sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+| clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+| -DNDEBUG
+| -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+| -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot
+| /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+|  -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+| Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") :
+|   Error 1 occurred building shared library.
+| clang: warning: no such sysroot directory:
+| '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+| In file included from trial.cpp:9:
+| In file included from /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+| /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15:
+| fatal error: 'stdio.h' file not found
+| #include_next <stdio.h>
+|               ^~~~~~~~~
+| 1 error generated.
+| make: *** [trial.o] Error 1
+| 
+| 
+| I was able to source all .cpp files before system updates. I have recently
+| updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am working
+| in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang version
+| 4.0.1.
+| 
+| I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk
+| subdirectories exist there.
+
+Not a macOS user myself but please consider
+
+ a) this older issue 
+    https://github.com/RcppCore/Rcpp/issues/922
+
+ b) this resource page for macOS it mentions
+    https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
+
+ c) pertinent entries in the Rcpp FAQ
+
+We have seen this '#include_next <somefile.h>' error before, and I believe it
+means your installation is imcomplete.  Sadly, on macOS it seems to require
+quite a few steps to get everything set up...
+
+As always, a good simple test is to see if
+
+   Rcpp::evalCpp("2 + 2")
+
+comes back without error and shows the expected answer...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at R-project.org  Sat Dec 28 17:45:25 2019
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Sat, 28 Dec 2019 11:45:25 -0500
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <CAA1a2UmBE085qNNor7LdU6Zr=Q+c0595vBr5VjPMGXuBPhJE9g@mail.gmail.com>
+References: <CAA1a2UmBE085qNNor7LdU6Zr=Q+c0595vBr5VjPMGXuBPhJE9g@mail.gmail.com>
+Message-ID: <B9EEED83-A328-48B3-8E55-DA131E278FFB@R-project.org>
+
+Fatima,
+
+it means you don't have command line tools installed (they are independent of Xcode and Apple OS upgrades delete things, unfortunately) - try
+
+sudo xcode-select —install
+
+That should fix the error you see. However, Catalina broke more things so you may look at the links Dirk pointed out if you get new errors.
+
+Cheers,
+Simon
+
+
+
+> On Dec 27, 2019, at 8:16 PM, Fatima Batool <gbatoolfatima at gmail.com> wrote:
+> 
+> Hi all, 
+> 
+> Could anyone please advice what is going on in the following error and how can I fix it?
+> 
+> sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") 
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+> Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") : 
+>   Error 1 occurred building shared library.
+> clang: warning: no such sysroot directory: '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+> In file included from trial.cpp:9:
+> In file included from /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+> #include_next <stdio.h>
+>               ^~~~~~~~~
+> 1 error generated.
+> make: *** [trial.o] Error 1
+> 
+> 
+> I was able to source all .cpp files before system updates. I have recently updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am working in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang version 4.0.1. 
+> 
+> I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk subdirectories exist there. 
+> 
+> 
+> 
+> Best wishes, 
+> Fatima
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From gbatoolfatima at gmail.com  Sat Dec 28 18:37:53 2019
+From: gbatoolfatima at gmail.com (Fatima Batool)
+Date: Sat, 28 Dec 2019 12:37:53 -0500
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <B9EEED83-A328-48B3-8E55-DA131E278FFB@R-project.org>
+References: <CAA1a2UmBE085qNNor7LdU6Zr=Q+c0595vBr5VjPMGXuBPhJE9g@mail.gmail.com>
+ <B9EEED83-A328-48B3-8E55-DA131E278FFB@R-project.org>
+Message-ID: <CAA1a2Uk3tyN1zZVQaKEu_r_e_CsKQ2gOrTr9unRUR0m72iT85w@mail.gmail.com>
+
+Hi Drik and Simon,
+
+thanks you for the help!
+
+I have followed all the instructions Drik mentioned here:
+*https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
+<https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/>*
+and then run a hello world.cpp example but unfortunately the error is still
+there.
+
+>
+Rcpp::sourceCpp('/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp')
+clang-7: error: no such file or directory: '/lib/libc++abi.1.dylib'
+make: *** [sourceCpp_6.so] Error 1
+clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+-DNDEBUG -I../inst/include
+-I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+-I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/RcppArmadillo/include"
+-I"/Users/fatimabatool/Documents/New/Rcodes/ASW" -isysroot
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+ -fPIC  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -c
+helloworld.cpp -o helloworld.o
+clang++ -std=gnu++11 -dynamiclib -Wl,-headerpad_max_install_names
+-undefined dynamic_lookup -single_module -multiply_defined suppress
+-Wl,-rpath,/lib /lib/libc++abi.1.dylib
+-L/Library/Frameworks/R.framework/Resources/lib -L/usr/local/lib -o
+sourceCpp_6.so helloworld.o -L/Library/Frameworks/R.framework/Resources/lib
+-lRlapack -L/Library/Frameworks/R.framework/Resources/lib -lRblas
+-L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0
+-L/usr/local/gfortran/lib -lgfortran -lquadmath -lm
+-F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework
+-Wl,CoreFoundation
+Error in
+Rcpp::sourceCpp("/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp")
+:
+  Error 1 occurred building shared library.
+
+Have removed old installation files, installed command line tools, upgraded
+to clang-7 and gfotron6.1. I have added set of compilation files to
+~/.R/Makevars
+ as mentioned and the file exist there (attached) but there is still no
+CommandLineTools directory in Library/Developer. Should I try to create
+these myself?
+
+Best wishes,
+Fatima
+
+On Sat, Dec 28, 2019 at 11:45 AM Simon Urbanek <simon.urbanek at r-project.org>
+wrote:
+
+> Fatima,
+>
+> it means you don't have command line tools installed (they are independent
+> of Xcode and Apple OS upgrades delete things, unfortunately) - try
+>
+> sudo xcode-select —install
+>
+> That should fix the error you see. However, Catalina broke more things so
+> you may look at the links Dirk pointed out if you get new errors.
+>
+> Cheers,
+> Simon
+>
+>
+>
+> > On Dec 27, 2019, at 8:16 PM, Fatima Batool <gbatoolfatima at gmail.com>
+> wrote:
+> >
+> > Hi all,
+> >
+> > Could anyone please advice what is going on in the following error and
+> how can I fix it?
+> >
+> > sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+> > clang++ -std=gnu++11
+> -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG
+>  -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot
+> /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+> -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+> > Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+> :
+> >   Error 1 occurred building shared library.
+> > clang: warning: no such sysroot directory:
+> '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+> > In file included from trial.cpp:9:
+> > In file included from
+> /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+> >
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15:
+> fatal error: 'stdio.h' file not found
+> > #include_next <stdio.h>
+> >               ^~~~~~~~~
+> > 1 error generated.
+> > make: *** [trial.o] Error 1
+> >
+> >
+> > I was able to source all .cpp files before system updates. I have
+> recently updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am
+> working in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang
+> version 4.0.1.
+> >
+> > I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk
+> subdirectories exist there.
+> >
+> >
+> >
+> > Best wishes,
+> > Fatima
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191228/724821dd/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Makevars
+Type: application/octet-stream
+Size: 419 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191228/724821dd/attachment.obj>
+
+From simon.urbanek at r-project.org  Sat Dec 28 20:14:08 2019
+From: simon.urbanek at r-project.org (Simon Urbanek)
+Date: Sat, 28 Dec 2019 14:14:08 -0500
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <CAA1a2Uk3tyN1zZVQaKEu_r_e_CsKQ2gOrTr9unRUR0m72iT85w@mail.gmail.com>
+References: <CAA1a2Uk3tyN1zZVQaKEu_r_e_CsKQ2gOrTr9unRUR0m72iT85w@mail.gmail.com>
+Message-ID: <331AC668-58B6-4D96-93C7-401AD65BBFD0@r-project.org>
+
+Did you follow the instructions I sent you?
+
+Sent from my iPhone
+
+> On Dec 28, 2019, at 12:38, Fatima Batool <gbatoolfatima at gmail.com> wrote:
+> 
+> ﻿
+> Hi Drik and Simon,
+> 
+> thanks you for the help!
+> 
+> I have followed all the instructions Drik mentioned here: https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/ and then run a hello world.cpp example but unfortunately the error is still there. 
+> 
+> > Rcpp::sourceCpp('/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp')
+> clang-7: error: no such file or directory: '/lib/libc++abi.1.dylib'
+> make: *** [sourceCpp_6.so] Error 1
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -I../inst/include   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/RcppArmadillo/include" -I"/Users/fatimabatool/Documents/New/Rcodes/ASW" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -c helloworld.cpp -o helloworld.o
+> clang++ -std=gnu++11 -dynamiclib -Wl,-headerpad_max_install_names -undefined dynamic_lookup -single_module -multiply_defined suppress -Wl,-rpath,/lib /lib/libc++abi.1.dylib -L/Library/Frameworks/R.framework/Resources/lib -L/usr/local/lib -o sourceCpp_6.so helloworld.o -L/Library/Frameworks/R.framework/Resources/lib -lRlapack -L/Library/Frameworks/R.framework/Resources/lib -lRblas -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0 -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework -Wl,CoreFoundation
+> Error in Rcpp::sourceCpp("/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp") : 
+>   Error 1 occurred building shared library.
+> 
+> Have removed old installation files, installed command line tools, upgraded to clang-7 and gfotron6.1. I have added set of compilation files to  ~/.R/Makevars
+>  as mentioned and the file exist there (attached) but there is still no CommandLineTools directory in Library/Developer. Should I try to create these myself?
+> 
+> Best wishes, 
+> Fatima
+> 
+>> On Sat, Dec 28, 2019 at 11:45 AM Simon Urbanek <simon.urbanek at r-project.org> wrote:
+>> Fatima,
+>> 
+>> it means you don't have command line tools installed (they are independent of Xcode and Apple OS upgrades delete things, unfortunately) - try
+>> 
+>> sudo xcode-select —install
+>> 
+>> That should fix the error you see. However, Catalina broke more things so you may look at the links Dirk pointed out if you get new errors.
+>> 
+>> Cheers,
+>> Simon
+>> 
+>> 
+>> 
+>> > On Dec 27, 2019, at 8:16 PM, Fatima Batool <gbatoolfatima at gmail.com> wrote:
+>> > 
+>> > Hi all, 
+>> > 
+>> > Could anyone please advice what is going on in the following error and how can I fix it?
+>> > 
+>> > sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") 
+>> > clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+>> > Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") : 
+>> >   Error 1 occurred building shared library.
+>> > clang: warning: no such sysroot directory: '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+>> > In file included from trial.cpp:9:
+>> > In file included from /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+>> > /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+>> > #include_next <stdio.h>
+>> >               ^~~~~~~~~
+>> > 1 error generated.
+>> > make: *** [trial.o] Error 1
+>> > 
+>> > 
+>> > I was able to source all .cpp files before system updates. I have recently updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am working in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang version 4.0.1. 
+>> > 
+>> > I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk subdirectories exist there. 
+>> > 
+>> > 
+>> > 
+>> > Best wishes, 
+>> > Fatima
+>> > _______________________________________________
+>> > Rcpp-devel mailing list
+>> > Rcpp-devel at lists.r-forge.r-project.org
+>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> 
+> 
+> <Makevars>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191228/8da23539/attachment-0001.html>
+
+From gbatoolfatima at gmail.com  Sun Dec 29 00:04:56 2019
+From: gbatoolfatima at gmail.com (Fatima Batool)
+Date: Sat, 28 Dec 2019 18:04:56 -0500
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <331AC668-58B6-4D96-93C7-401AD65BBFD0@r-project.org>
+References: <CAA1a2Uk3tyN1zZVQaKEu_r_e_CsKQ2gOrTr9unRUR0m72iT85w@mail.gmail.com>
+ <331AC668-58B6-4D96-93C7-401AD65BBFD0@r-project.org>
+Message-ID: <CAA1a2Uk1eNRs1Kpb+RZB6C3_MchbebdfuO9KKTrY1ibcB2Z3Mg@mail.gmail.com>
+
+That's nothing extra, it's the first step in the link.
+
+On Sat, Dec 28, 2019 at 2:14 PM Simon Urbanek <simon.urbanek at r-project.org>
+wrote:
+
+> Did you follow the instructions I sent you?
+>
+> Sent from my iPhone
+>
+> On Dec 28, 2019, at 12:38, Fatima Batool <gbatoolfatima at gmail.com> wrote:
+>
+> ﻿
+> Hi Drik and Simon,
+>
+> thanks you for the help!
+>
+> I have followed all the instructions Drik mentioned here: *https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
+> <https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/>*
+> and then run a hello world.cpp example but unfortunately the error is still
+> there.
+>
+> >
+> Rcpp::sourceCpp('/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp')
+> clang-7: error: no such file or directory: '/lib/libc++abi.1.dylib'
+> make: *** [sourceCpp_6.so] Error 1
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+> -DNDEBUG -I../inst/include
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/RcppArmadillo/include"
+> -I"/Users/fatimabatool/Documents/New/Rcodes/ASW" -isysroot
+> /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+>  -fPIC  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -c
+> helloworld.cpp -o helloworld.o
+> clang++ -std=gnu++11 -dynamiclib -Wl,-headerpad_max_install_names
+> -undefined dynamic_lookup -single_module -multiply_defined suppress
+> -Wl,-rpath,/lib /lib/libc++abi.1.dylib
+> -L/Library/Frameworks/R.framework/Resources/lib -L/usr/local/lib -o
+> sourceCpp_6.so helloworld.o -L/Library/Frameworks/R.framework/Resources/lib
+> -lRlapack -L/Library/Frameworks/R.framework/Resources/lib -lRblas
+> -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0
+> -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm
+> -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework
+> -Wl,CoreFoundation
+> Error in
+> Rcpp::sourceCpp("/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp")
+> :
+>   Error 1 occurred building shared library.
+>
+> Have removed old installation files, installed command line tools,
+> upgraded to clang-7 and gfotron6.1. I have added set of compilation files
+> to  ~/.R/Makevars
+>  as mentioned and the file exist there (attached) but there is still no
+> CommandLineTools directory in Library/Developer. Should I try to create
+> these myself?
+>
+> Best wishes,
+> Fatima
+>
+> On Sat, Dec 28, 2019 at 11:45 AM Simon Urbanek <
+> simon.urbanek at r-project.org> wrote:
+>
+>> Fatima,
+>>
+>> it means you don't have command line tools installed (they are
+>> independent of Xcode and Apple OS upgrades delete things, unfortunately) -
+>> try
+>>
+>> sudo xcode-select —install
+>>
+>> That should fix the error you see. However, Catalina broke more things so
+>> you may look at the links Dirk pointed out if you get new errors.
+>>
+>> Cheers,
+>> Simon
+>>
+>>
+>>
+>> > On Dec 27, 2019, at 8:16 PM, Fatima Batool <gbatoolfatima at gmail.com>
+>> wrote:
+>> >
+>> > Hi all,
+>> >
+>> > Could anyone please advice what is going on in the following error and
+>> how can I fix it?
+>> >
+>> > sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+>> > clang++ -std=gnu++11
+>> -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG
+>>  -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+>> -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot
+>> /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+>> -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+>> > Error in
+>> sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") :
+>> >   Error 1 occurred building shared library.
+>> > clang: warning: no such sysroot directory:
+>> '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+>> > In file included from trial.cpp:9:
+>> > In file included from
+>> /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+>> >
+>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15:
+>> fatal error: 'stdio.h' file not found
+>> > #include_next <stdio.h>
+>> >               ^~~~~~~~~
+>> > 1 error generated.
+>> > make: *** [trial.o] Error 1
+>> >
+>> >
+>> > I was able to source all .cpp files before system updates. I have
+>> recently updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am
+>> working in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang
+>> version 4.0.1.
+>> >
+>> > I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk
+>> subdirectories exist there.
+>> >
+>> >
+>> >
+>> > Best wishes,
+>> > Fatima
+>> > _______________________________________________
+>> > Rcpp-devel mailing list
+>> > Rcpp-devel at lists.r-forge.r-project.org
+>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>> <Makevars>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191228/d394ba06/attachment.html>
+
+From balamut2 at illinois.edu  Sun Dec 29 03:50:06 2019
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Sun, 29 Dec 2019 02:50:06 +0000
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <CAA1a2Uk1eNRs1Kpb+RZB6C3_MchbebdfuO9KKTrY1ibcB2Z3Mg@mail.gmail.com>
+References: <CAA1a2Uk3tyN1zZVQaKEu_r_e_CsKQ2gOrTr9unRUR0m72iT85w@mail.gmail.com>
+ <331AC668-58B6-4D96-93C7-401AD65BBFD0@r-project.org>
+ <CAA1a2Uk1eNRs1Kpb+RZB6C3_MchbebdfuO9KKTrY1ibcB2Z3Mg@mail.gmail.com>
+Message-ID: <3B5BF0F3-96FE-4D3B-B1A2-79057100DC8B@illinois.edu>
+
+Fatima,
+
+I think the ~/.R/Makevars didn’t get created correctly. In particular, the ${R_HOME} path didn’t get extended:
+
+>  -Wl,-rpath,/lib /lib/libc++abi.1.dylib
+
+Could you modify the ~/.R/Makevars file and ensure it has:
+
+# clang: start
+CFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+CCFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+CXXFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+CPPFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+
+SHLIB_CXXLDFLAGS+=-Wl,-rpath,${R_HOME}/lib ${R_HOME}/lib/libc++abi.1.dylib
+SHLIB_CXX14LDFLAGS+=-Wl,-rpath,${R_HOME}/lib ${R_HOME}/lib/libc++abi.1.dylib
+# clang: end
+
+- JJB
+
+
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Fatima Batool <gbatoolfatima at gmail.com>
+Date: Saturday, December 28, 2019 at 5:05 PM
+To: Simon Urbanek <simon.urbanek at r-project.org>
+Cc: "rcpp-devel at lists.r-forge.r-project.org" <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] building shared library error with sourceCpp
+
+That's nothing extra, it's the first step in the link.
+
+On Sat, Dec 28, 2019 at 2:14 PM Simon Urbanek <simon.urbanek at r-project.org<mailto:simon.urbanek at r-project.org>> wrote:
+Did you follow the instructions I sent you?
+Sent from my iPhone
+
+
+On Dec 28, 2019, at 12:38, Fatima Batool <gbatoolfatima at gmail.com<mailto:gbatoolfatima at gmail.com>> wrote:
+Hi Drik and Simon,
+
+thanks you for the help!
+
+I have followed all the instructions Drik mentioned here: https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/ and then run a hello world.cpp example but unfortunately the error is still there.
+
+> Rcpp::sourceCpp('/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp')
+clang-7: error: no such file or directory: '/lib/libc++abi.1.dylib'
+make: *** [sourceCpp_6.so] Error 1
+clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -I../inst/include   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/RcppArmadillo/include" -I"/Users/fatimabatool/Documents/New/Rcodes/ASW" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -c helloworld.cpp -o helloworld.o
+clang++ -std=gnu++11 -dynamiclib -Wl,-headerpad_max_install_names -undefined dynamic_lookup -single_module -multiply_defined suppress -Wl,-rpath,/lib /lib/libc++abi.1.dylib -L/Library/Frameworks/R.framework/Resources/lib -L/usr/local/lib -o sourceCpp_6.so helloworld.o -L/Library/Frameworks/R.framework/Resources/lib -lRlapack -L/Library/Frameworks/R.framework/Resources/lib -lRblas -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0 -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework -Wl,CoreFoundation
+Error in Rcpp::sourceCpp("/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp") :
+  Error 1 occurred building shared library.
+
+Have removed old installation files, installed command line tools, upgraded to clang-7 and gfotron6.1. I have added set of compilation files to  ~/.R/Makevars
+ as mentioned and the file exist there (attached) but there is still no CommandLineTools directory in Library/Developer. Should I try to create these myself?
+
+Best wishes,
+Fatima
+
+On Sat, Dec 28, 2019 at 11:45 AM Simon Urbanek <simon.urbanek at r-project.org<mailto:simon.urbanek at r-project.org>> wrote:
+Fatima,
+
+it means you don't have command line tools installed (they are independent of Xcode and Apple OS upgrades delete things, unfortunately) - try
+
+sudo xcode-select —install
+
+That should fix the error you see. However, Catalina broke more things so you may look at the links Dirk pointed out if you get new errors.
+
+Cheers,
+Simon
+
+
+
+> On Dec 27, 2019, at 8:16 PM, Fatima Batool <gbatoolfatima at gmail.com<mailto:gbatoolfatima at gmail.com>> wrote:
+>
+> Hi all,
+>
+> Could anyone please advice what is going on in the following error and how can I fix it?
+>
+> sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+> Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp") :
+>   Error 1 occurred building shared library.
+> clang: warning: no such sysroot directory: '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+> In file included from trial.cpp:9:
+> In file included from /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15: fatal error: 'stdio.h' file not found
+> #include_next <stdio.h>
+>               ^~~~~~~~~
+> 1 error generated.
+> make: *** [trial.o] Error 1
+>
+>
+> I was able to source all .cpp files before system updates. I have recently updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am working in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang version 4.0.1.
+>
+> I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk subdirectories exist there.
+>
+>
+>
+> Best wishes,
+> Fatima
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org<mailto:Rcpp-devel at lists.r-forge.r-project.org>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+<Makevars>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191229/b20d56b3/attachment-0001.html>
+
+From nzshaam at gmail.com  Sun Dec 29 04:48:27 2019
+From: nzshaam at gmail.com (Shaami)
+Date: Sun, 29 Dec 2019 16:48:27 +1300
+Subject: [Rcpp-devel] uniroot problem
+In-Reply-To: <CAGR+MS7SpWN3mm1s_6Ckdoz23d3A6K15EgTyC8+LnKNLzGY9xw@mail.gmail.com>
+References: <CAGR+MS7SpWN3mm1s_6Ckdoz23d3A6K15EgTyC8+LnKNLzGY9xw@mail.gmail.com>
+Message-ID: <CAGR+MS6A6Z=HVKWxjRkBeuOUMgW6wBhmvJ5x1b_9DLBhiKXgtA@mail.gmail.com>
+
+Any suggestion plz. What could be missing that I donot get function root to
+be zero at some points?
+
+On Tue, 24 Dec 2019, 1:45 PM Shaami, <nzshaam at gmail.com> wrote:
+
+> Dear Friends
+>
+> Could you please help with the following example? I do not get function
+> value at zero using uniroot() in R. Could you suggest something? I want
+> function value zero at any point like 2.4, 2.5, 2.6, 4.5, 5.9 etc.
+>
+> Thank You
+>
+> x = c(-100, -20, 100, 230, 500, 920, 1000)
+> a = c(1000, 12, 300, 0, 100, 300, 750)
+> Fn = function(t, x, a){
+>   sum = 0
+>   for(i in 1:length(x)){
+>     sum = sum + punif(t, min=x[i]-a[i], max=x[i]+a[i])
+>   }
+>   return(sum)
+> }uniroot(function(t){Fn(t, x, a) - 2.4}, interval=c(min(x-a), max(x+a)))
+> uniroot(function(t){Fn(t, x, a) - 2.5}, interval=c(min(x-a), max(x+a)))
+> uniroot(function(t){Fn(t, x, a) - 2.8}, interval=c(min(x-a), max(x+a)))
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191229/7e69b501/attachment.html>
+
+From jdnewmil at dcn.davis.ca.us  Sun Dec 29 06:20:21 2019
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Sat, 28 Dec 2019 21:20:21 -0800
+Subject: [Rcpp-devel] uniroot problem
+In-Reply-To: <CAGR+MS6A6Z=HVKWxjRkBeuOUMgW6wBhmvJ5x1b_9DLBhiKXgtA@mail.gmail.com>
+References: <CAGR+MS7SpWN3mm1s_6Ckdoz23d3A6K15EgTyC8+LnKNLzGY9xw@mail.gmail.com>
+ <CAGR+MS6A6Z=HVKWxjRkBeuOUMgW6wBhmvJ5x1b_9DLBhiKXgtA@mail.gmail.com>
+Message-ID: <ADC56B26-B43A-4423-8C82-903478BF16B1@dcn.davis.ca.us>
+
+I get 230 for all three runs, which looks right to me. I don't understand your concern .. maybe you need to plot Fn yourself.
+
+On December 28, 2019 7:48:27 PM PST, Shaami <nzshaam at gmail.com> wrote:
+>Any suggestion plz. What could be missing that I donot get function
+>root to
+>be zero at some points?
+>
+>On Tue, 24 Dec 2019, 1:45 PM Shaami, <nzshaam at gmail.com> wrote:
+>
+>> Dear Friends
+>>
+>> Could you please help with the following example? I do not get
+>function
+>> value at zero using uniroot() in R. Could you suggest something? I
+>want
+>> function value zero at any point like 2.4, 2.5, 2.6, 4.5, 5.9 etc.
+>>
+>> Thank You
+>>
+>> x = c(-100, -20, 100, 230, 500, 920, 1000)
+>> a = c(1000, 12, 300, 0, 100, 300, 750)
+>> Fn = function(t, x, a){
+>>   sum = 0
+>>   for(i in 1:length(x)){
+>>     sum = sum + punif(t, min=x[i]-a[i], max=x[i]+a[i])
+>>   }
+>>   return(sum)
+>> }uniroot(function(t){Fn(t, x, a) - 2.4}, interval=c(min(x-a),
+>max(x+a)))
+>> uniroot(function(t){Fn(t, x, a) - 2.5}, interval=c(min(x-a),
+>max(x+a)))
+>> uniroot(function(t){Fn(t, x, a) - 2.8}, interval=c(min(x-a),
+>max(x+a)))
+>>
+>>
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From gbatoolfatima at gmail.com  Sun Dec 29 21:45:00 2019
+From: gbatoolfatima at gmail.com (Fatima Batool)
+Date: Sun, 29 Dec 2019 15:45:00 -0500
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <3B5BF0F3-96FE-4D3B-B1A2-79057100DC8B@illinois.edu>
+References: <CAA1a2Uk3tyN1zZVQaKEu_r_e_CsKQ2gOrTr9unRUR0m72iT85w@mail.gmail.com>
+ <331AC668-58B6-4D96-93C7-401AD65BBFD0@r-project.org>
+ <CAA1a2Uk1eNRs1Kpb+RZB6C3_MchbebdfuO9KKTrY1ibcB2Z3Mg@mail.gmail.com>
+ <3B5BF0F3-96FE-4D3B-B1A2-79057100DC8B@illinois.edu>
+Message-ID: <CAA1a2UkyC3iPe0bUSyNND5eYxpa9Ca6XOP0iDJezDbWP2ECmEg@mail.gmail.com>
+
+Ah, I guess something else is wrong. The Flags are already there. Please
+see the attached file which is Makevars in .R.
+
+Simon can you guess what else it could be? I didn't change things myself.
+Do you recommend doing all installations again? If so in which order?
+
+On Sat, Dec 28, 2019 at 9:50 PM Balamuta, James Joseph <
+balamut2 at illinois.edu> wrote:
+
+> Fatima,
+>
+>
+>
+> I think the ~/.R/Makevars didn’t get created correctly. In particular, the
+> ${R_HOME} path didn’t get extended:
+>
+>
+>
+> >  -Wl,-rpath,/lib /lib/libc++abi.1.dylib
+>
+>
+>
+> Could you modify the ~/.R/Makevars file and ensure it has:
+>
+>
+>
+> # clang: start
+>
+> CFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+>
+> CCFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+>
+> CXXFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+>
+> CPPFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+> -I/usr/local/include
+>
+>
+>
+> SHLIB_CXXLDFLAGS+=-Wl,-rpath,${R_HOME}/lib ${R_HOME}/lib/libc++abi.1.dylib
+>
+> SHLIB_CXX14LDFLAGS+=-Wl,-rpath,${R_HOME}/lib
+> ${R_HOME}/lib/libc++abi.1.dylib
+>
+> # clang: end
+>
+>
+>
+> - JJB
+>
+>
+>
+>
+>
+> *From: *Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on
+> behalf of Fatima Batool <gbatoolfatima at gmail.com>
+> *Date: *Saturday, December 28, 2019 at 5:05 PM
+> *To: *Simon Urbanek <simon.urbanek at r-project.org>
+> *Cc: *"rcpp-devel at lists.r-forge.r-project.org" <
+> rcpp-devel at lists.r-forge.r-project.org>
+> *Subject: *Re: [Rcpp-devel] building shared library error with sourceCpp
+>
+>
+>
+> That's nothing extra, it's the first step in the link.
+>
+>
+>
+> On Sat, Dec 28, 2019 at 2:14 PM Simon Urbanek <simon.urbanek at r-project.org>
+> wrote:
+>
+> Did you follow the instructions I sent you?
+>
+> Sent from my iPhone
+>
+>
+>
+> On Dec 28, 2019, at 12:38, Fatima Batool <gbatoolfatima at gmail.com> wrote:
+>
+> Hi Drik and Simon,
+>
+>
+>
+> thanks you for the help!
+>
+>
+>
+> I have followed all the instructions Drik mentioned here: *
+> https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
+> <https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/>*
+> and then run a hello world.cpp example but unfortunately the error is still
+> there.
+>
+>
+>
+> >
+> Rcpp::sourceCpp('/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp')
+>
+> clang-7: error: no such file or directory: '/lib/libc++abi.1.dylib'
+>
+> make: *** [sourceCpp_6.so] Error 1
+>
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+> -DNDEBUG -I../inst/include
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/RcppArmadillo/include"
+> -I"/Users/fatimabatool/Documents/New/Rcodes/ASW" -isysroot
+> /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+>  -fPIC  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -c
+> helloworld.cpp -o helloworld.o
+>
+> clang++ -std=gnu++11 -dynamiclib -Wl,-headerpad_max_install_names
+> -undefined dynamic_lookup -single_module -multiply_defined suppress
+> -Wl,-rpath,/lib /lib/libc++abi.1.dylib
+> -L/Library/Frameworks/R.framework/Resources/lib -L/usr/local/lib -o
+> sourceCpp_6.so helloworld.o -L/Library/Frameworks/R.framework/Resources/lib
+> -lRlapack -L/Library/Frameworks/R.framework/Resources/lib -lRblas
+> -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0
+> -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm
+> -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework
+> -Wl,CoreFoundation
+>
+> Error in
+> Rcpp::sourceCpp("/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp")
+> :
+>
+>   Error 1 occurred building shared library.
+>
+>
+>
+> Have removed old installation files, installed command line tools,
+> upgraded to clang-7 and gfotron6.1. I have added set of compilation files
+> to  ~/.R/Makevars
+>
+>  as mentioned and the file exist there (attached) but there is still no
+> CommandLineTools directory in Library/Developer. Should I try to create
+> these myself?
+>
+>
+>
+> Best wishes,
+>
+> Fatima
+>
+>
+>
+> On Sat, Dec 28, 2019 at 11:45 AM Simon Urbanek <
+> simon.urbanek at r-project.org> wrote:
+>
+> Fatima,
+>
+> it means you don't have command line tools installed (they are independent
+> of Xcode and Apple OS upgrades delete things, unfortunately) - try
+>
+> sudo xcode-select —install
+>
+> That should fix the error you see. However, Catalina broke more things so
+> you may look at the links Dirk pointed out if you get new errors.
+>
+> Cheers,
+> Simon
+>
+>
+>
+> > On Dec 27, 2019, at 8:16 PM, Fatima Batool <gbatoolfatima at gmail.com>
+> wrote:
+> >
+> > Hi all,
+> >
+> > Could anyone please advice what is going on in the following error and
+> how can I fix it?
+> >
+> > sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+> > clang++ -std=gnu++11
+> -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG
+>  -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot
+> /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+> -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+> > Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+> :
+> >   Error 1 occurred building shared library.
+> > clang: warning: no such sysroot directory:
+> '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+> > In file included from trial.cpp:9:
+> > In file included from
+> /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+> >
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15:
+> fatal error: 'stdio.h' file not found
+> > #include_next <stdio.h>
+> >               ^~~~~~~~~
+> > 1 error generated.
+> > make: *** [trial.o] Error 1
+> >
+> >
+> > I was able to source all .cpp files before system updates. I have
+> recently updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am
+> working in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang
+> version 4.0.1.
+> >
+> > I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk
+> subdirectories exist there.
+> >
+> >
+> >
+> > Best wishes,
+> > Fatima
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> <Makevars>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191229/801c865f/attachment.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Terminal Saved Output
+Type: application/octet-stream
+Size: 1147 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191229/801c865f/attachment.obj>
+
+From gbatoolfatima at gmail.com  Sun Dec 29 23:28:51 2019
+From: gbatoolfatima at gmail.com (Fatima Batool)
+Date: Sun, 29 Dec 2019 17:28:51 -0500
+Subject: [Rcpp-devel] building shared library error with sourceCpp
+In-Reply-To: <D15F3B54-7E75-42B3-9B54-B1A8E883D3F1@illinois.edu>
+References: <CAA1a2Uk3tyN1zZVQaKEu_r_e_CsKQ2gOrTr9unRUR0m72iT85w@mail.gmail.com>
+ <331AC668-58B6-4D96-93C7-401AD65BBFD0@r-project.org>
+ <CAA1a2Uk1eNRs1Kpb+RZB6C3_MchbebdfuO9KKTrY1ibcB2Z3Mg@mail.gmail.com>
+ <3B5BF0F3-96FE-4D3B-B1A2-79057100DC8B@illinois.edu>
+ <CAA1a2UkyC3iPe0bUSyNND5eYxpa9Ca6XOP0iDJezDbWP2ECmEg@mail.gmail.com>
+ <D15F3B54-7E75-42B3-9B54-B1A8E883D3F1@illinois.edu>
+Message-ID: <CAA1a2Um_XDFFFXcTat0HUaP1om35OiD5krWai+bSSucsj=Fn2w@mail.gmail.com>
+
+It, works now. Thank you James  for pointing out the C++ compiler flags
+configuration error.
+
+Best,
+Fatima
+
+On Sun, Dec 29, 2019 at 5:08 PM Balamuta, James Joseph <
+balamut2 at illinois.edu> wrote:
+
+> The Makevars is not correct. Remove:
+>
+>
+>
+> CPPFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+> -I/usr/l$
+>
+> SHLIB_CXXLDFLAGS+=-Wl,-rpath,/lib /lib/libc++abi.1.dylib
+>
+> SHLIB_CXX14LDFLAGS+=-Wl,-rpath,/lib /lib/libc++abi.1.dylib
+>
+>
+>
+> Replace with:
+>
+>
+>
+> CPPFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+> -I/usr/local/include
+>
+> SHLIB_CXXLDFLAGS+=-Wl,-rpath,${R_HOME}/lib ${R_HOME}/lib/libc++abi.1.dylib
+>
+> SHLIB_CXX14LDFLAGS+=-Wl,-rpath,${R_HOME}/lib
+> ${R_HOME}/lib/libc++abi.1.dylib
+>
+>
+>
+> - JJB
+>
+>
+>
+>
+>
+> *From: *Fatima Batool <gbatoolfatima at gmail.com>
+> *Date: *Sunday, December 29, 2019 at 2:45 PM
+> *To: *James Balamuta <balamut2 at illinois.edu>
+> *Cc: *"rcpp-devel at lists.r-forge.r-project.org" <
+> rcpp-devel at lists.r-forge.r-project.org>
+> *Subject: *Re: [Rcpp-devel] building shared library error with sourceCpp
+>
+>
+>
+> Ah, I guess something else is wrong. The Flags are already there. Please
+> see the attached file which is Makevars in .R.
+>
+>
+>
+> Simon can you guess what else it could be? I didn't change things myself.
+> Do you recommend doing all installations again? If so in which order?
+>
+>
+>
+> On Sat, Dec 28, 2019 at 9:50 PM Balamuta, James Joseph <
+> balamut2 at illinois.edu> wrote:
+>
+> Fatima,
+>
+>
+>
+> I think the ~/.R/Makevars didn’t get created correctly. In particular, the
+> ${R_HOME} path didn’t get extended:
+>
+>
+>
+> >  -Wl,-rpath,/lib /lib/libc++abi.1.dylib
+>
+>
+>
+> Could you modify the ~/.R/Makevars file and ensure it has:
+>
+>
+>
+> # clang: start
+>
+> CFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+>
+> CCFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+>
+> CXXFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+>
+> CPPFLAGS=-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+> -I/usr/local/include
+>
+>
+>
+> SHLIB_CXXLDFLAGS+=-Wl,-rpath,${R_HOME}/lib ${R_HOME}/lib/libc++abi.1.dylib
+>
+> SHLIB_CXX14LDFLAGS+=-Wl,-rpath,${R_HOME}/lib
+> ${R_HOME}/lib/libc++abi.1.dylib
+>
+> # clang: end
+>
+>
+>
+> - JJB
+>
+>
+>
+>
+>
+> *From: *Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on
+> behalf of Fatima Batool <gbatoolfatima at gmail.com>
+> *Date: *Saturday, December 28, 2019 at 5:05 PM
+> *To: *Simon Urbanek <simon.urbanek at r-project.org>
+> *Cc: *"rcpp-devel at lists.r-forge.r-project.org" <
+> rcpp-devel at lists.r-forge.r-project.org>
+> *Subject: *Re: [Rcpp-devel] building shared library error with sourceCpp
+>
+>
+>
+> That's nothing extra, it's the first step in the link.
+>
+>
+>
+> On Sat, Dec 28, 2019 at 2:14 PM Simon Urbanek <simon.urbanek at r-project.org>
+> wrote:
+>
+> Did you follow the instructions I sent you?
+>
+> Sent from my iPhone
+>
+>
+>
+> On Dec 28, 2019, at 12:38, Fatima Batool <gbatoolfatima at gmail.com> wrote:
+>
+> Hi Drik and Simon,
+>
+>
+>
+> thanks you for the help!
+>
+>
+>
+> I have followed all the instructions Drik mentioned here: *https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/
+> <https://thecoatlessprofessor.com/programming/cpp/r-compiler-tools-for-rcpp-on-macos/>*
+> and then run a hello world.cpp example but unfortunately the error is still
+> there.
+>
+>
+>
+> >
+> Rcpp::sourceCpp('/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp')
+>
+> clang-7: error: no such file or directory: '/lib/libc++abi.1.dylib'
+>
+> make: *** [sourceCpp_6.so] Error 1
+>
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+> -DNDEBUG -I../inst/include
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/RcppArmadillo/include"
+> -I"/Users/fatimabatool/Documents/New/Rcodes/ASW" -isysroot
+> /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+>  -fPIC  -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -c
+> helloworld.cpp -o helloworld.o
+>
+> clang++ -std=gnu++11 -dynamiclib -Wl,-headerpad_max_install_names
+> -undefined dynamic_lookup -single_module -multiply_defined suppress
+> -Wl,-rpath,/lib /lib/libc++abi.1.dylib
+> -L/Library/Frameworks/R.framework/Resources/lib -L/usr/local/lib -o
+> sourceCpp_6.so helloworld.o -L/Library/Frameworks/R.framework/Resources/lib
+> -lRlapack -L/Library/Frameworks/R.framework/Resources/lib -lRblas
+> -L/usr/local/gfortran/lib/gcc/x86_64-apple-darwin15/6.1.0
+> -L/usr/local/gfortran/lib -lgfortran -lquadmath -lm
+> -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework
+> -Wl,CoreFoundation
+>
+> Error in
+> Rcpp::sourceCpp("/Users/fatimabatool/documents/New/Rcodes/ASW/helloworld.cpp")
+> :
+>
+>   Error 1 occurred building shared library.
+>
+>
+>
+> Have removed old installation files, installed command line tools,
+> upgraded to clang-7 and gfotron6.1. I have added set of compilation files
+> to  ~/.R/Makevars
+>
+>  as mentioned and the file exist there (attached) but there is still no
+> CommandLineTools directory in Library/Developer. Should I try to create
+> these myself?
+>
+>
+>
+> Best wishes,
+>
+> Fatima
+>
+>
+>
+> On Sat, Dec 28, 2019 at 11:45 AM Simon Urbanek <
+> simon.urbanek at r-project.org> wrote:
+>
+> Fatima,
+>
+> it means you don't have command line tools installed (they are independent
+> of Xcode and Apple OS upgrades delete things, unfortunately) - try
+>
+> sudo xcode-select —install
+>
+> That should fix the error you see. However, Catalina broke more things so
+> you may look at the links Dirk pointed out if you get new errors.
+>
+> Cheers,
+> Simon
+>
+>
+>
+> > On Dec 27, 2019, at 8:16 PM, Fatima Batool <gbatoolfatima at gmail.com>
+> wrote:
+> >
+> > Hi all,
+> >
+> > Could anyone please advice what is going on in the following error and
+> how can I fix it?
+> >
+> > sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+> > clang++ -std=gnu++11
+> -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG
+>  -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/Users/fatimabatool/Documents/New/Rcodes" -isysroot
+> /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include
+> -fPIC  -Wall -g -O2  -c trial.cpp -o trial.o
+> > Error in sourceCpp("/Users/fatimabatool/documents/New/Rcodes/trial.cpp")
+> :
+> >   Error 1 occurred building shared library.
+> > clang: warning: no such sysroot directory:
+> '/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk' [-Wmissing-sysroot]
+> > In file included from trial.cpp:9:
+> > In file included from
+> /Users/fatimabatool/Documents/New/Rcodes/trial.hpp:12:
+> >
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/stdio.h:108:15:
+> fatal error: 'stdio.h' file not found
+> > #include_next <stdio.h>
+> >               ^~~~~~~~~
+> > 1 error generated.
+> > make: *** [trial.o] Error 1
+> >
+> >
+> > I was able to source all .cpp files before system updates. I have
+> recently updated my MacOS to Catalina (10.15.2) and using Xcode 11.3. I am
+> working in R Action of the Toe. Using version 1.0.3 of Rcpp. I have clang
+> version 4.0.1.
+> >
+> > I have Library/Developer but no ../CommandLineTools/SDKs/MAcOSX.sdk
+> subdirectories exist there.
+> >
+> >
+> >
+> > Best wishes,
+> > Fatima
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> <Makevars>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20191229/d00f81fb/attachment-0001.html>
+

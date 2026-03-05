@@ -1,0 +1,885 @@
+From ian.fellows at stat.ucla.edu  Tue Jan  8 22:31:20 2019
+From: ian.fellows at stat.ucla.edu (Fellows, Ian)
+Date: Tue, 8 Jan 2019 21:31:20 +0000
+Subject: [Rcpp-devel] Debugging intermittant vignette re-building failure
+In-Reply-To: <mailman.19966.1544458437.2604.rcpp-devel@lists.r-forge.r-project.org>
+References: <mailman.19966.1544458437.2604.rcpp-devel@lists.r-forge.r-project.org>
+Message-ID: <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+
+?
+Hi All,  
+
+I have a package (?https://github.com/statnet/lolog?| https://cran.r-project.org/web/packages/lolog/index.html ) that makes extensive use of Rcpp modules and passes module objects up and down between R and C++ regularly. I?ve used the package extensively in large simulation studies, and analyses where it has been stable.
+
+However, I have become aware of an intermittent failure to re-build the vignettes during R CMD check. I?ve only ever encountered the issue during check. Every once in a while I get WARNINGS like the following:
+
+
+-------
+
+* checking re-building of vignette outputs ... WARNING
+Error(s) in re-building vignettes:
+? ...
+--- re-building ?lolog-ergm.Rmd? using rmarkdown
+Quitting from lines 69-75 (lolog-ergm.Rmd)
+Error: processing vignette 'lolog-ergm.Rmd' failed with diagnostics:
+unimplemented type (28) in 'duplicate'
+
+--- failed re-building ?lolog-ergm.Rmd?
+
+--- re-building ?lolog-introduction.Rmd? using rmarkdown
+--- finished re-building ?lolog-introduction.Rmd?
+
+SUMMARY: processing the following file failed:
+? ?lolog-ergm.Rmd?
+
+Error: Vignette re-building failed.
+Execution halted
+
+-------
+
+or
+
+-------
+
+* checking re-building of vignette outputs ... [336s/452s] WARNING
+Error(s) in re-building vignettes:
+? ...
+--- re-building ?lolog-ergm.Rmd? using rmarkdown
+--- finished re-building ?lolog-ergm.Rmd?
+
+--- re-building ?lolog-introduction.Rmd? using rmarkdown
+Quitting from lines 355-381 (lolog-introduction.Rmd)?
+Error: processing vignette 'lolog-introduction.Rmd' failed with diagnostics:
+cannot coerce type 'environment' to vector of type 'any'
+--- failed re-building ?lolog-introduction.Rmd?
+
+SUMMARY: processing the following file failed:
+? ?lolog-introduction.Rmd?
+
+Error: Vignette re-building failed.
+Execution halted
+
+-------
+
+
+I?ve attempted to isolate the problem to something of a smaller but have thus far been unsuccessful. Since this only happens occasionally, I thought it might have something to do with how I?m passing objects up and down ( see for example:?https://github.com/statnet/lolog/blob/master/inst/include/Model.h#L89?and?https://github.com/statnet/lolog/blob/master/inst/include/util.h#L29?), but that is just a shot in the dark.
+
+Does anyone have any insight as to how i might be able to better debug this or intuitions about what could be the cause? Is it possible to get a stack trace when rebuilding the vignettes?
+
+My apologies for the lack of a simple reproducible example.
+
+Sincerely,
+Ian Fellows
+
+
+
+
+
+
+
+From edd at debian.org  Tue Jan  8 23:03:12 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Jan 2019 16:03:12 -0600
+Subject: [Rcpp-devel] Debugging intermittant vignette re-building failure
+In-Reply-To: <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+References: <mailman.19966.1544458437.2604.rcpp-devel@lists.r-forge.r-project.org>
+ <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+Message-ID: <23605.7712.984391.812218@rob.eddelbuettel.com>
+
+
+On 8 January 2019 at 21:31, Fellows, Ian wrote:
+| I have a package (?https://github.com/statnet/lolog?| https://cran.r-project.org/web/packages/lolog/index.html ) that makes extensive use of Rcpp modules and passes module objects up and down between R and C++ regularly. I?ve used the package extensively in large simulation studies, and analyses where it has been stable.
+| 
+| However, I have become aware of an intermittent failure to re-build the vignettes during R CMD check. I?ve only ever encountered the issue during check. Every once in a while I get WARNINGS like the following:
+
+[...]
+
+| I?ve attempted to isolate the problem to something of a smaller but have thus far been unsuccessful. Since this only happens occasionally, I thought it might have something to do with how I?m passing objects up and down ( see for example:?https://github.com/statnet/lolog/blob/master/inst/include/Model.h#L89?and?https://github.com/statnet/lolog/blob/master/inst/include/util.h#L29?), but that is just a shot in the dark.
+| 
+| Does anyone have any insight as to how i might be able to better debug this or intuitions about what could be the cause? Is it possible to get a stack trace when rebuilding the vignettes?
+
+I do not. I have at times simplified, going as far as rendering the tex
+locally and shipping a not-really-vignette vignette that is just pdf.
+
+Which is of course a cop-out. That should be debug-able but one does not
+always get to the bottom ...  Maybe someone else has a better idea.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From wdunlap at tibco.com  Tue Jan  8 23:35:14 2019
+From: wdunlap at tibco.com (William Dunlap)
+Date: Tue, 8 Jan 2019 14:35:14 -0800
+Subject: [Rcpp-devel] Debugging intermittant vignette re-building failure
+In-Reply-To: <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+References: <mailman.19966.1544458437.2604.rcpp-devel@lists.r-forge.r-project.org>
+ <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+Message-ID: <CAF8bMcbkFaYFgc2c7D+UG-2dxmh5S6eJ7uDKRyKFqf-U-1xyZA@mail.gmail.com>
+
+--- re-building ?lolog-ergm.Rmd? using rmarkdown
+Quitting from lines 69-75 (lolog-ergm.Rmd)
+Error: processing vignette 'lolog-ergm.Rmd' failed with diagnostics:
+unimplemented type (28) in 'duplicate'
+
+
+I don't believe there is a type (*SXP) 28 in R.  This could be due to
+memory misuse.
+Have you tried running the R code in lolog-ergm.Rmd (and your unit tests)
+in R
+after setting gctorture(TRUE)?
+
+Bill Dunlap
+TIBCO Software
+wdunlap tibco.com
+
+
+On Tue, Jan 8, 2019 at 1:31 PM Fellows, Ian <ian.fellows at stat.ucla.edu>
+wrote:
+
+>
+> Hi All,
+>
+> I have a package ( https://github.com/statnet/lolog |
+> https://cran.r-project.org/web/packages/lolog/index.html ) that makes
+> extensive use of Rcpp modules and passes module objects up and down between
+> R and C++ regularly. I?ve used the package extensively in large simulation
+> studies, and analyses where it has been stable.
+>
+> However, I have become aware of an intermittent failure to re-build the
+> vignettes during R CMD check. I?ve only ever encountered the issue during
+> check. Every once in a while I get WARNINGS like the following:
+>
+>
+> -------
+>
+> * checking re-building of vignette outputs ... WARNING
+> Error(s) in re-building vignettes:
+>   ...
+> --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> Quitting from lines 69-75 (lolog-ergm.Rmd)
+> Error: processing vignette 'lolog-ergm.Rmd' failed with diagnostics:
+> unimplemented type (28) in 'duplicate'
+>
+> --- failed re-building ?lolog-ergm.Rmd?
+>
+> --- re-building ?lolog-introduction.Rmd? using rmarkdown
+> --- finished re-building ?lolog-introduction.Rmd?
+>
+> SUMMARY: processing the following file failed:
+>   ?lolog-ergm.Rmd?
+>
+> Error: Vignette re-building failed.
+> Execution halted
+>
+> -------
+>
+> or
+>
+> -------
+>
+> * checking re-building of vignette outputs ... [336s/452s] WARNING
+> Error(s) in re-building vignettes:
+>   ...
+> --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> --- finished re-building ?lolog-ergm.Rmd?
+>
+> --- re-building ?lolog-introduction.Rmd? using rmarkdown
+> Quitting from lines 355-381 (lolog-introduction.Rmd)
+> Error: processing vignette 'lolog-introduction.Rmd' failed with
+> diagnostics:
+> cannot coerce type 'environment' to vector of type 'any'
+> --- failed re-building ?lolog-introduction.Rmd?
+>
+> SUMMARY: processing the following file failed:
+>   ?lolog-introduction.Rmd?
+>
+> Error: Vignette re-building failed.
+> Execution halted
+>
+> -------
+>
+>
+> I?ve attempted to isolate the problem to something of a smaller but have
+> thus far been unsuccessful. Since this only happens occasionally, I thought
+> it might have something to do with how I?m passing objects up and down (
+> see for example:
+> https://github.com/statnet/lolog/blob/master/inst/include/Model.h#L89 and
+> https://github.com/statnet/lolog/blob/master/inst/include/util.h#L29 ),
+> but that is just a shot in the dark.
+>
+> Does anyone have any insight as to how i might be able to better debug
+> this or intuitions about what could be the cause? Is it possible to get a
+> stack trace when rebuilding the vignettes?
+>
+> My apologies for the lack of a simple reproducible example.
+>
+> Sincerely,
+> Ian Fellows
+>
+>
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190108/85fd1c49/attachment.html>
+
+From mikeguggis at gmail.com  Wed Jan  9 15:03:40 2019
+From: mikeguggis at gmail.com (mike guggis)
+Date: Wed, 9 Jan 2019 09:03:40 -0500
+Subject: [Rcpp-devel] Debugging Rcpp for Solaris
+Message-ID: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+
+Hello,
+
+I submitted a package to CRAN that passed all checks in RStudio but failed
+when it was tested on Solaris (after it was on CRAN). Now I need to correct
+the error and resubmit to CRAN. I would like to avoid using CRAN as a
+debugging tool. Is there a way to check packages on Solaris? I am using
+Windows 10.
+
+The packages checks are here
+https://cran.r-project.org/web/checks/check_results_BiProbitPartial.html
+
+An excerpt of the error is below
+
+BiProbitPartialMCMC.cpp:424:49: error: call of overloaded ?log(bool)?
+is ambiguous
+         double SupportRatio = log(abs(rhoStar)<1) - log(abs(rho)<1);
+                                                 ^
+
+There is a similar error for the second log function. It seems I can
+simply fix it with an if/else statement, but I would like to check it
+before submitting back to CRAN.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190109/d5d18d0c/attachment.html>
+
+From serguei.sokol at gmail.com  Wed Jan  9 15:35:04 2019
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Wed, 9 Jan 2019 15:35:04 +0100
+Subject: [Rcpp-devel] Debugging Rcpp for Solaris
+In-Reply-To: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+References: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+Message-ID: <fff16315-3a05-9a1a-a15e-59e637d4dac8@gmail.com>
+
+On 09/01/2019 15:03, mike guggis wrote:
+> Hello,
+> 
+> I submitted a package to CRAN that passed all checks in RStudio but 
+> failed when it was tested on Solaris (after it was on CRAN). Now I need 
+> to correct the error and resubmit to CRAN. I would like to avoid using 
+> CRAN as a debugging tool. Is there a way to check packages on Solaris? I 
+> am using Windows 10.
+> 
+> The packages checks are here 
+> https://cran.r-project.org/web/checks/check_results_BiProbitPartial.html
+> 
+> An excerpt of the error is below
+> 
+> BiProbitPartialMCMC.cpp:424:49: error: call of overloaded ?log(bool)? is ambiguous
+>           double SupportRatio = log(abs(rhoStar)<1) - log(abs(rho)<1);
+>                                                   ^
+> 
+> There is a similar error for the second log function. It seems I can 
+> simply fix it with an if/else statement, but I would like to check it 
+> before submitting back to CRAN.
+It does not respond to your question about Solaris but I am just curios 
+about the logic behind this line of code. Do you really mean to 
+calculate a log() of Boolean variable with a result -Inf (for false) and 
+0 (for true)? Or is it a typo and you meant (log(abs(rhoStar)) < 1)? 
+Then what would be the meaning of a difference between two booleans? Can 
+it really be a "SupportRatio" with only three possible values: -1, 0 and 1?
+
+You can just ignore all these questions if you cannot afford spare time.
+
+Best,
+Serguei.
+
+From iucar at fedoraproject.org  Wed Jan  9 15:56:34 2019
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Wed, 9 Jan 2019 15:56:34 +0100
+Subject: [Rcpp-devel] Debugging Rcpp for Solaris
+In-Reply-To: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+References: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+Message-ID: <CALEXWq1bRG4ObOto4x6zVRVNOg-EPS=ForWFygJOPf1nYMn2Sw@mail.gmail.com>
+
+On Wed, 9 Jan 2019 at 15:04, mike guggis <mikeguggis at gmail.com> wrote:
+>
+> Hello,
+>
+> I submitted a package to CRAN that passed all checks in RStudio but failed when it was tested on Solaris (after it was on CRAN). Now I need to correct the error and resubmit to CRAN. I would like to avoid using CRAN as a debugging tool. Is there a way to check packages on Solaris? I am using Windows 10.
+>
+> The packages checks are here https://cran.r-project.org/web/checks/check_results_BiProbitPartial.html
+>
+> An excerpt of the error is below
+>
+> BiProbitPartialMCMC.cpp:424:49: error: call of overloaded ?log(bool)? is ambiguous
+>          double SupportRatio = log(abs(rhoStar)<1) - log(abs(rho)<1);
+>                                                  ^
+>
+> There is a similar error for the second log function. It seems I can simply fix it with an if/else statement, but I would like to check it before submitting back to CRAN.
+
+I had a bug once only arising in Solaris SPARC. I found a forgotten
+storage room in the university packed with old stuff, and rescued a
+dusty Sun SPARC server. A professor allowed me to attach it in the
+department's server room and, surprisingly enough, it worked except
+for a fan. Then I installed all the stuff needed with great pain, and
+finally found and solved the bug. In fact, it was in Rcpp. So go
+figure, I was very sad when the SPARC machine on CRAN died.
+
+But I digress. Now there's just the x86 Solaris machine, so you can
+test this in a virtual machine, using e.g. VirtualBox. Or you can try
+the Solaris box on rhub:
+
+https://builder.r-hub.io/advanced
+
+I?aki
+
+From ralf.stubner at daqana.com  Wed Jan  9 15:58:10 2019
+From: ralf.stubner at daqana.com (Ralf Stubner)
+Date: Wed, 9 Jan 2019 15:58:10 +0100
+Subject: [Rcpp-devel] Debugging Rcpp for Solaris
+In-Reply-To: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+References: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+Message-ID: <59b2a22c-6bf1-aa34-de8c-342fa710a011@daqana.com>
+
+On 09.01.19 15:03, mike guggis wrote:
+> I submitted a package to CRAN that passed all checks in RStudio but
+> failed when it was tested on Solaris (after it was on CRAN). Now I need
+> to correct the error and resubmit to CRAN. I would like to avoid using
+> CRAN as a debugging tool. Is there a way to check packages on Solaris?
+
+You can use rhub.io. However, I recently had problems with Rcpp not
+being available on Solaris: https://github.com/r-hub/rhub/issues/185
+
+Greetings
+Ralf
+
+-- 
+Ralf Stubner
+Senior Software Engineer / Trainer
+
+daqana GmbH
+Dortustra?e 48
+14467 Potsdam
+
+T: +49 331 23 61 93 11
+F: +49 331 23 61 93 90
+M: +49 162 20 91 196
+Mail: ralf.stubner at daqana.com
+
+Sitz: Potsdam
+Register: AG Potsdam HRB 27966
+Ust.-IdNr.: DE300072622
+Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190109/c579d22f/attachment.sig>
+
+From kevinushey at gmail.com  Wed Jan  9 16:25:58 2019
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Wed, 9 Jan 2019 07:25:58 -0800
+Subject: [Rcpp-devel] Debugging Rcpp for Solaris
+In-Reply-To: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+References: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+Message-ID: <CAJXgQP0C9gHrbkVhXp1HAys1+CfMxqdmMDNUZWEcD9RBvK4JkA@mail.gmail.com>
+
+Many of the Solaris quirks are documented in R-exts:
+
+https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Portable-C-and-C_002b_002b-code
+
+In particular:
+
+Mathematical functions such as sqrt are defined in C++ for
+floating-point arguments. It is legitimate in C++ to overload these
+with versions for types float, double, long double and possibly more.
+This means that calling sqrt on an integer type may have ?overloading
+ambiguity? as it could be promoted to any of the supported
+floating-point types: this is commonly seen on Solaris, but for pow
+also seen on macOS. (C++98 has an overload for std::pow(<double>,
+<int>), but this may not be visible from the main namespace. C++11
+requires additional overloads for integer types, and ambiguous
+overloads are more common in C++11 (and later) compiler modes.)
+
+You seem to be bumping into some form of this.
+
+That said, it seems unlikely that you intended to take the log of a bool...
+
+Best,
+Kevin
+
+On Wed, Jan 9, 2019 at 6:04 AM mike guggis <mikeguggis at gmail.com> wrote:
+>
+> Hello,
+>
+> I submitted a package to CRAN that passed all checks in RStudio but failed when it was tested on Solaris (after it was on CRAN). Now I need to correct the error and resubmit to CRAN. I would like to avoid using CRAN as a debugging tool. Is there a way to check packages on Solaris? I am using Windows 10.
+>
+> The packages checks are here https://cran.r-project.org/web/checks/check_results_BiProbitPartial.html
+>
+> An excerpt of the error is below
+>
+> BiProbitPartialMCMC.cpp:424:49: error: call of overloaded ?log(bool)? is ambiguous
+>          double SupportRatio = log(abs(rhoStar)<1) - log(abs(rho)<1);
+>                                                  ^
+>
+> There is a similar error for the second log function. It seems I can simply fix it with an if/else statement, but I would like to check it before submitting back to CRAN.
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From qkou at qkou.info  Wed Jan  9 18:12:47 2019
+From: qkou at qkou.info (Qiang Kou)
+Date: Wed, 9 Jan 2019 17:12:47 +0000
+Subject: [Rcpp-devel] Debugging Rcpp for Solaris
+In-Reply-To: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+References: <CAMJg9Pz2jFaZJ=VUCahoXQfjA12R-TZp_CuVWcs1oEEPePRTqQ@mail.gmail.com>
+Message-ID: <DM6PR07MB5244E989FD879F28DF662778FF8B0@DM6PR07MB5244.namprd07.prod.outlook.com>
+
+For testing, I suggest you use a virtual machine.
+
+You can find the instructions by the link below:
+
+https://github.com/jeroen/solarisvm
+
+Best,
+
+KK
+
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of mike guggis <mikeguggis at gmail.com>
+Date: Wednesday, January 9, 2019 at 6:04 AM
+To: "rcpp-devel at lists.r-forge.r-project.org" <rcpp-devel at lists.r-forge.r-project.org>
+Subject: [Rcpp-devel] Debugging Rcpp for Solaris
+
+Hello,
+
+I submitted a package to CRAN that passed all checks in RStudio but failed when it was tested on Solaris (after it was on CRAN). Now I need to correct the error and resubmit to CRAN. I would like to avoid using CRAN as a debugging tool. Is there a way to check packages on Solaris? I am using Windows 10.
+
+The packages checks are here https://cran.r-project.org/web/checks/check_results_BiProbitPartial.html
+
+An excerpt of the error is below
+
+BiProbitPartialMCMC.cpp:424:49: error: call of overloaded ?log(bool)? is ambiguous
+
+         double SupportRatio = log(abs(rhoStar)<1) - log(abs(rho)<1);
+
+                                                 ^
+
+There is a similar error for the second log function. It seems I can simply fix it with an if/else statement, but I would like to check it before submitting back to CRAN.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190109/199701ae/attachment-0001.html>
+
+From ian.fellows at stat.ucla.edu  Thu Jan 10 01:23:14 2019
+From: ian.fellows at stat.ucla.edu (Fellows, Ian)
+Date: Thu, 10 Jan 2019 00:23:14 +0000
+Subject: [Rcpp-devel] Debugging intermittant vignette re-building failure
+In-Reply-To: <CAF8bMcbkFaYFgc2c7D+UG-2dxmh5S6eJ7uDKRyKFqf-U-1xyZA@mail.gmail.com>
+References: <mailman.19966.1544458437.2604.rcpp-devel@lists.r-forge.r-project.org>
+ <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+ <CAF8bMcbkFaYFgc2c7D+UG-2dxmh5S6eJ7uDKRyKFqf-U-1xyZA@mail.gmail.com>
+Message-ID: <etPan.5c369071.5d8f1c72.2574@stat.ucla.edu>
+
+?
+Thank you Bill,
+
+I have tried gctorture, and low and behold I got an error in some of my code (Yay!). I was able to pin the gctorture error to something small and reproducible. It turns out in a one place I created temporary SEXP variables (see the example below), and I guess these were not protected automatically by Rcpp. I?ve changed these to RObject objects and things seem to work fine, though I?ll have to do a bunch more builds to be sure.
+
+This has gotten me a little worried about other places in the code where SEXPs pop up. I?ve now limited the use of SEXPs to function parameters and return values. This is mostly for transport of objects to and from R. Let?s say I have a method like
+
+SEXP afunc(){
+? List lis;
+? // add things to list
+? return lis;
+}
+
+My understanding is that afunc safe to use in a module. Is it also safe to call from other C++ code, or is lis open to garbage collection?
+
+
+
+Thanks,?
+Ian
+
+
+
+---------
+
+library(inline)
+library(Rcpp)
+inc <- '
+using namespace Rcpp;
+class TestObj {
+public:
+? TestObj(int i){}
+??
+? void set(SEXP robj){
+? ? ? ? try{
+? ? ? ? ? ? Language call("as.factor",robj);
+? ? ? ? ? ? RObject facSexp = call.eval();
+? ? ? ? ? ? Language call1("as.integer",facSexp);
+? ? ? ? ? ? SEXP intSexp = call1.eval();
+? ? ? ? ? ? Language call2("levels",facSexp);
+? ? ? ? ? ? SEXP levelsSexp = call2.eval();
+? ? ? ? ? ? vals = as< std::vector<int> >(intSexp); //here be errors with gctorture
+? ? ? ? } catch(std::exception &ex) {		
+? ? ? ? ? ? forward_exception_to_r(ex);
+? ? ? ? } catch(...){
+? ? ? ? ? ? ::Rf_error("error, invalid object addDiscreteVariableR");
+? ? ? ? }
+? ??
+? }
+? std::vector<int> vals;
+};
+RCPP_MODULE(mod) {
+class_<TestObj>( "TestObj" )
+.constructor<int>()
+.method( "set", &TestObj::set )
+;
+}
+'
+fx <- cxxfunction(signature(), plugin="Rcpp", include=inc)
+mod <- Module("mod", getDynLib(fx))
+obj <- new(mod$TestObj, 1L)
+vals <- 1:4
+gc()
+gctorture(T)
+obj$set(vals)
+# Error in obj$set(vals) :?
+# ? Not compatible with requested type: [type=list; target=integer].
+
+--------
+
+
+
+
+
+On January 8, 2019 at 2:35:30 PM, William Dunlap (wdunlap at tibco.com(mailto:wdunlap at tibco.com)) wrote:
+
+> > --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> > Quitting from lines 69-75 (lolog-ergm.Rmd)
+> > Error: processing vignette 'lolog-ergm.Rmd' failed with diagnostics:
+> > unimplemented type (28) in 'duplicate'
+>  
+> I don't believe there is a type (*SXP) 28 in R. This could be due to memory misuse. Have you tried running the R code in lolog-ergm.Rmd (and your unit tests) in R  
+> after setting gctorture(TRUE)?  
+>  
+> Bill Dunlap
+> TIBCO Software
+> wdunlap tibco.com(http://tibco.com)  
+>  
+> On Tue, Jan 8, 2019 at 1:31 PM Fellows, Ian wrote:
+> >  
+> > Hi All,  
+> >  
+> > I have a package ( https://github.com/statnet/lolog | https://cran.r-project.org/web/packages/lolog/index.html ) that makes extensive use of Rcpp modules and passes module objects up and down between R and C++ regularly. I?ve used the package extensively in large simulation studies, and analyses where it has been stable.
+> >  
+> > However, I have become aware of an intermittent failure to re-build the vignettes during R CMD check. I?ve only ever encountered the issue during check. Every once in a while I get WARNINGS like the following:
+> >  
+> >  
+> > -------
+> >  
+> > * checking re-building of vignette outputs ... WARNING
+> > Error(s) in re-building vignettes:
+> > ...
+> > --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> > Quitting from lines 69-75 (lolog-ergm.Rmd)
+> > Error: processing vignette 'lolog-ergm.Rmd' failed with diagnostics:
+> > unimplemented type (28) in 'duplicate'
+> >  
+> > --- failed re-building ?lolog-ergm.Rmd?
+> >  
+> > --- re-building ?lolog-introduction.Rmd? using rmarkdown
+> > --- finished re-building ?lolog-introduction.Rmd?
+> >  
+> > SUMMARY: processing the following file failed:
+> > ?lolog-ergm.Rmd?
+> >  
+> > Error: Vignette re-building failed.
+> > Execution halted
+> >  
+> > -------
+> >  
+> > or
+> >  
+> > -------
+> >  
+> > * checking re-building of vignette outputs ... [336s/452s] WARNING
+> > Error(s) in re-building vignettes:
+> > ...
+> > --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> > --- finished re-building ?lolog-ergm.Rmd?
+> >  
+> > --- re-building ?lolog-introduction.Rmd? using rmarkdown
+> > Quitting from lines 355-381 (lolog-introduction.Rmd)  
+> > Error: processing vignette 'lolog-introduction.Rmd' failed with diagnostics:
+> > cannot coerce type 'environment' to vector of type 'any'
+> > --- failed re-building ?lolog-introduction.Rmd?
+> >  
+> > SUMMARY: processing the following file failed:
+> > ?lolog-introduction.Rmd?
+> >  
+> > Error: Vignette re-building failed.
+> > Execution halted
+> >  
+> > -------
+> >  
+> >  
+> > I?ve attempted to isolate the problem to something of a smaller but have thus far been unsuccessful. Since this only happens occasionally, I thought it might have something to do with how I?m passing objects up and down ( see for example: https://github.com/statnet/lolog/blob/master/inst/include/Model.h#L89 and https://github.com/statnet/lolog/blob/master/inst/include/util.h#L29 ), but that is just a shot in the dark.
+> >  
+> > Does anyone have any insight as to how i might be able to better debug this or intuitions about what could be the cause? Is it possible to get a stack trace when rebuilding the vignettes?
+> >  
+> > My apologies for the lack of a simple reproducible example.
+> >  
+> > Sincerely,
+> > Ian Fellows
+> >  
+> >  
+> >  
+> >  
+> >  
+> >  
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org(mailto:Rcpp-devel at lists.r-forge.r-project.org)
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From kevinushey at gmail.com  Thu Jan 10 01:41:53 2019
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Wed, 9 Jan 2019 16:41:53 -0800
+Subject: [Rcpp-devel] Debugging intermittant vignette re-building failure
+In-Reply-To: <etPan.5c369071.5d8f1c72.2574@stat.ucla.edu>
+References: <mailman.19966.1544458437.2604.rcpp-devel@lists.r-forge.r-project.org>
+ <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+ <CAF8bMcbkFaYFgc2c7D+UG-2dxmh5S6eJ7uDKRyKFqf-U-1xyZA@mail.gmail.com>
+ <etPan.5c369071.5d8f1c72.2574@stat.ucla.edu>
+Message-ID: <CAJXgQP0WP6qngnkfENMftR2pmVP6TAb3iiRc=d6zJMZAQf4Lmw@mail.gmail.com>
+
+In general, once an Rcpp API gives you a SEXP, it is unprotected and
+the onus is on your to manage its protection.
+
+In your code:
+
+            SEXP intSexp = call1.eval();
+            Language call2("levels",facSexp);
+            SEXP levelsSexp = call2.eval();
+            vals = as< std::vector<int> >(intSexp); //here be errors
+with gctorture
+
+Those SEXPs are unprotected, so would be eligible for garbage collection.
+
+You could instead use Shield<SEXP> or RObject to act as thin wrappers
+over a SEXP which needs protection from the garbage collector.
+
+Best,
+Kevin
+
+On Wed, Jan 9, 2019 at 4:23 PM Fellows, Ian <ian.fellows at stat.ucla.edu> wrote:
+>
+>
+> Thank you Bill,
+>
+> I have tried gctorture, and low and behold I got an error in some of my code (Yay!). I was able to pin the gctorture error to something small and reproducible. It turns out in a one place I created temporary SEXP variables (see the example below), and I guess these were not protected automatically by Rcpp. I?ve changed these to RObject objects and things seem to work fine, though I?ll have to do a bunch more builds to be sure.
+>
+> This has gotten me a little worried about other places in the code where SEXPs pop up. I?ve now limited the use of SEXPs to function parameters and return values. This is mostly for transport of objects to and from R. Let?s say I have a method like
+>
+> SEXP afunc(){
+>   List lis;
+>   // add things to list
+>   return lis;
+> }
+>
+> My understanding is that afunc safe to use in a module. Is it also safe to call from other C++ code, or is lis open to garbage collection?
+>
+>
+>
+> Thanks,
+> Ian
+>
+>
+>
+> ---------
+>
+> library(inline)
+> library(Rcpp)
+> inc <- '
+> using namespace Rcpp;
+> class TestObj {
+> public:
+>   TestObj(int i){}
+>
+>   void set(SEXP robj){
+>         try{
+>             Language call("as.factor",robj);
+>             RObject facSexp = call.eval();
+>             Language call1("as.integer",facSexp);
+>             SEXP intSexp = call1.eval();
+>             Language call2("levels",facSexp);
+>             SEXP levelsSexp = call2.eval();
+>             vals = as< std::vector<int> >(intSexp); //here be errors with gctorture
+>         } catch(std::exception &ex) {
+>             forward_exception_to_r(ex);
+>         } catch(...){
+>             ::Rf_error("error, invalid object addDiscreteVariableR");
+>         }
+>
+>   }
+>   std::vector<int> vals;
+> };
+> RCPP_MODULE(mod) {
+> class_<TestObj>( "TestObj" )
+> .constructor<int>()
+> .method( "set", &TestObj::set )
+> ;
+> }
+> '
+> fx <- cxxfunction(signature(), plugin="Rcpp", include=inc)
+> mod <- Module("mod", getDynLib(fx))
+> obj <- new(mod$TestObj, 1L)
+> vals <- 1:4
+> gc()
+> gctorture(T)
+> obj$set(vals)
+> # Error in obj$set(vals) :
+> #   Not compatible with requested type: [type=list; target=integer].
+>
+> --------
+>
+>
+>
+>
+>
+> On January 8, 2019 at 2:35:30 PM, William Dunlap (wdunlap at tibco.com(mailto:wdunlap at tibco.com)) wrote:
+>
+> > > --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> > > Quitting from lines 69-75 (lolog-ergm.Rmd)
+> > > Error: processing vignette 'lolog-ergm.Rmd' failed with diagnostics:
+> > > unimplemented type (28) in 'duplicate'
+> >
+> > I don't believe there is a type (*SXP) 28 in R. This could be due to memory misuse. Have you tried running the R code in lolog-ergm.Rmd (and your unit tests) in R
+> > after setting gctorture(TRUE)?
+> >
+> > Bill Dunlap
+> > TIBCO Software
+> > wdunlap tibco.com(http://tibco.com)
+> >
+> > On Tue, Jan 8, 2019 at 1:31 PM Fellows, Ian wrote:
+> > >
+> > > Hi All,
+> > >
+> > > I have a package ( https://github.com/statnet/lolog | https://cran.r-project.org/web/packages/lolog/index.html ) that makes extensive use of Rcpp modules and passes module objects up and down between R and C++ regularly. I?ve used the package extensively in large simulation studies, and analyses where it has been stable.
+> > >
+> > > However, I have become aware of an intermittent failure to re-build the vignettes during R CMD check. I?ve only ever encountered the issue during check. Every once in a while I get WARNINGS like the following:
+> > >
+> > >
+> > > -------
+> > >
+> > > * checking re-building of vignette outputs ... WARNING
+> > > Error(s) in re-building vignettes:
+> > > ...
+> > > --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> > > Quitting from lines 69-75 (lolog-ergm.Rmd)
+> > > Error: processing vignette 'lolog-ergm.Rmd' failed with diagnostics:
+> > > unimplemented type (28) in 'duplicate'
+> > >
+> > > --- failed re-building ?lolog-ergm.Rmd?
+> > >
+> > > --- re-building ?lolog-introduction.Rmd? using rmarkdown
+> > > --- finished re-building ?lolog-introduction.Rmd?
+> > >
+> > > SUMMARY: processing the following file failed:
+> > > ?lolog-ergm.Rmd?
+> > >
+> > > Error: Vignette re-building failed.
+> > > Execution halted
+> > >
+> > > -------
+> > >
+> > > or
+> > >
+> > > -------
+> > >
+> > > * checking re-building of vignette outputs ... [336s/452s] WARNING
+> > > Error(s) in re-building vignettes:
+> > > ...
+> > > --- re-building ?lolog-ergm.Rmd? using rmarkdown
+> > > --- finished re-building ?lolog-ergm.Rmd?
+> > >
+> > > --- re-building ?lolog-introduction.Rmd? using rmarkdown
+> > > Quitting from lines 355-381 (lolog-introduction.Rmd)
+> > > Error: processing vignette 'lolog-introduction.Rmd' failed with diagnostics:
+> > > cannot coerce type 'environment' to vector of type 'any'
+> > > --- failed re-building ?lolog-introduction.Rmd?
+> > >
+> > > SUMMARY: processing the following file failed:
+> > > ?lolog-introduction.Rmd?
+> > >
+> > > Error: Vignette re-building failed.
+> > > Execution halted
+> > >
+> > > -------
+> > >
+> > >
+> > > I?ve attempted to isolate the problem to something of a smaller but have thus far been unsuccessful. Since this only happens occasionally, I thought it might have something to do with how I?m passing objects up and down ( see for example: https://github.com/statnet/lolog/blob/master/inst/include/Model.h#L89 and https://github.com/statnet/lolog/blob/master/inst/include/util.h#L29 ), but that is just a shot in the dark.
+> > >
+> > > Does anyone have any insight as to how i might be able to better debug this or intuitions about what could be the cause? Is it possible to get a stack trace when rebuilding the vignettes?
+> > >
+> > > My apologies for the lack of a simple reproducible example.
+> > >
+> > > Sincerely,
+> > > Ian Fellows
+> > >
+> > >
+> > >
+> > >
+> > >
+> > >
+> > > _______________________________________________
+> > > Rcpp-devel mailing list
+> > > Rcpp-devel at lists.r-forge.r-project.org(mailto:Rcpp-devel at lists.r-forge.r-project.org)
+> > > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Thu Jan 10 02:06:08 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 9 Jan 2019 19:06:08 -0600
+Subject: [Rcpp-devel] Debugging intermittant vignette re-building failure
+In-Reply-To: <etPan.5c369071.5d8f1c72.2574@stat.ucla.edu>
+References: <mailman.19966.1544458437.2604.rcpp-devel@lists.r-forge.r-project.org>
+ <etPan.5c3516a8.367ea104.2574@stat.ucla.edu>
+ <CAF8bMcbkFaYFgc2c7D+UG-2dxmh5S6eJ7uDKRyKFqf-U-1xyZA@mail.gmail.com>
+ <etPan.5c369071.5d8f1c72.2574@stat.ucla.edu>
+Message-ID: <23606.39552.659415.240763@rob.eddelbuettel.com>
+
+
+On 10 January 2019 at 00:23, Fellows, Ian wrote:
+| My understanding is that afunc safe to use in a module. Is it also safe to call from other C++ code, or is lis open to garbage collection?
+
+Every SEXP contains memory owned by R -- we create them that way and when we
+return them to R they are indistinguishable. They really are R objects. [
+Also note the caveat that SEXPs are just SEXPs -- no reference
+counting. RObject is better, Rcpp::Shield<SEXP> is a more modern variant ]
+
+Hence when you want to share in the C++ side, STL containers may be preferable.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

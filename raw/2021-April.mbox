@@ -1,0 +1,334 @@
+From prezzemolo at ctemplar.com  Sat Apr  3 15:45:02 2021
+From: prezzemolo at ctemplar.com (prezzemolo)
+Date: Sat, 03 Apr 2021 13:45:02 -0000
+Subject: [Rcpp-devel] A clean way to handle character/strings between R and
+	Rcpp
+Message-ID: <94729f7b5ef04586b7dd324b54f458f4-prezzemolo@ctemplar.com>
+
+Hey.I am wondering if there's some general guidance on what the 'right' options are to cleanly handle character arguments passed from R to Rcpp.It is all rather simple: let's say I have a human-readable argument vector c("tree", "herb", "shrub") [It could also be a factor in R], which I can send to an Rcpp function along with other arguments for evaluation.What would be the cleanest way to define those arguments (plant types) in R to then have as little trouble sending them over to Rcpp for use in cases like if() statements?The use of enums comes to mind:// beginningoffileenum class var_type {&nbsp;flower,&nbsp;tree };RCPP_EXPOSED_ENUM_NODECL(var_type)// [[Rcpp::export]]int charHandle1(var_type text_arg = var_type::flower) {&nbsp;if(text_arg == var_type::flower) {&nbsp;&nbsp;&nbsp;Rcout &lt;&lt; static_cast&lt;int&gt;(text_arg) &lt;&lt; " says '0 (flower)'.\n";&nbsp;} else if(text_arg == var_type::tree) {&nbsp;&nbsp;&nbsp;Rcout &lt;&lt; static_cast&lt;int&gt;(text_arg) &lt;&lt; " says '1 (tree)'.\n";&nbsp;}&nbsp;return 0;}// endoffileThis however, doesn't seem to work. I understand R would have to know the var_type for it to work. Then I can do it simply by comparing the const char * argument. This will work, but the strcmp() comparison isn't very straightforward for someone who doesn't know C++ (and perhaps for some other reasons).// [[Rcpp::export]]int charHandle2(const char* text_arg = "flower") {&nbsp;if(strcmp(text_arg, "flower") == 0) {&nbsp;&nbsp;&nbsp;Rcout &lt;&lt; text_arg &lt;&lt; " says 'flower'.\n";&nbsp;} else if(strcmp(text_arg, "tree") == 0) {&nbsp;&nbsp;&nbsp;Rcout &lt;&lt; text_arg &lt;&lt; " says 'tree'.\n";&nbsp;}&nbsp;return 0;}I am looking for some good practice guidance on how to handle this safely and legibly to avoid sending people to function definitions. An argument could be made, for instance, that a list of plant type arguments could be stored as factor in R and then sent and used in some way in Rcpp. What other options are there? To my best knowledge, support for enums is limited - I glanced over the vignettes and couldn't find any significant mention of enums (or factors, really), so I guess some other way of handling such cases should be taken. Has anyone dealt with such cases and has recommendations?Regards,Angelo (Greetings from Genoa)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210403/b9e77034/attachment.html>
+
+From edd at debian.org  Sat Apr  3 16:01:34 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 3 Apr 2021 09:01:34 -0500
+Subject: [Rcpp-devel] A clean way to handle character/strings between R
+	and	Rcpp
+In-Reply-To: <94729f7b5ef04586b7dd324b54f458f4-prezzemolo@ctemplar.com>
+References: <94729f7b5ef04586b7dd324b54f458f4-prezzemolo@ctemplar.com>
+Message-ID: <24680.30014.691854.49998@rob.eddelbuettel.com>
+
+
+Could you by chance send that again in __text__ format?  It came into my mail
+client as mostly unformatted and hence unreadable word soup.  Sorry for the
+bother, and Hi from Chicago.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From prezzemolo at ctemplar.com  Sat Apr  3 16:28:33 2021
+From: prezzemolo at ctemplar.com (prezzemolo)
+Date: Sat, 03 Apr 2021 14:28:33 -0000
+Subject: [Rcpp-devel] A clean way to handle character/strings between R and
+	Rcpp
+Message-ID: <00c274c1a61f4c7f81e6715bb070a446-prezzemolo@ctemplar.com>
+
+Hey.
+
+I am wondering if there's some general guidance on what the 'right' options are to cleanly handle character arguments passed from R to Rcpp.
+
+It is all rather simple: let's say I have a human-readable argument vector c("tree", "herb", "shrub") [It could also be a factor in R], which I can send to an Rcpp function along with other arguments for evaluation.
+What would be the cleanest way to define those arguments (plant types) in R to then have as little trouble sending them over to Rcpp for use in cases like if() statements?
+
+
+The use of enums comes to mind:
+
+// beginningoffile
+enum class var_type { flower, tree };
+
+RCPP_EXPOSED_ENUM_NODECL(var_type)
+
+// [[Rcpp::export]]
+int charHandle1(var_type text_arg = var_type::flower) {
+ if(text_arg == var_type::flower) {
+  Rcout << static_cast<int>(text_arg) << " says '0 (flower)'.\n";
+ } else if(text_arg == var_type::tree) {
+  Rcout << static_cast<int>(text_arg) << " says '1 (tree)'.\n";
+ }
+ return 0;
+}
+// endoffile
+
+This however, doesn't seem to work. I understand R would have to know the var_type for it to work.
+Then I can do it simply by comparing the const char * argument. This will work, but the strcmp() comparison isn't very straightforward for someone who doesn't know C++ (and perhaps for some other reasons).
+
+// [[Rcpp::export]]
+int charHandle2(const char* text_arg = "flower") {
+ if(strcmp(text_arg, "flower") == 0) {
+  Rcout << text_arg << " says 'flower'.\n";
+ } else if(strcmp(text_arg, "tree") == 0) {
+  Rcout << text_arg << " says 'tree'.\n";
+ }
+ return 0;
+}
+
+I am looking for some good practice guidance on how to handle this safely and legibly to avoid sending people to function definitions. An argument could be made, for instance, that a list of plant type used as function arguments could be stored as factor in R and then sent and used in some way in Rcpp. What other options are there? To my best knowledge, support for enums is limited - I glanced over the vignettes and couldn't find any significant mention of enums (or factors, really), so I guess some other way of handling such cases should be taken. Has anyone dealt with such cases and has recommendations?
+
+Regards,
+Angelo (Greetings from Genoa)
+
+From iucar at fedoraproject.org  Sat Apr  3 16:55:25 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sat, 3 Apr 2021 16:55:25 +0200
+Subject: [Rcpp-devel] A clean way to handle character/strings between R
+ and Rcpp
+In-Reply-To: <00c274c1a61f4c7f81e6715bb070a446-prezzemolo@ctemplar.com>
+References: <00c274c1a61f4c7f81e6715bb070a446-prezzemolo@ctemplar.com>
+Message-ID: <CALEXWq34kBzfn4oEEPKn+ohPbt=hcZM6BbpwmG6dvaAX31b-3g@mail.gmail.com>
+
+On Sat, 3 Apr 2021 at 16:28, prezzemolo <prezzemolo at ctemplar.com> wrote:
+>
+> Hey.
+>
+> I am wondering if there's some general guidance on what the 'right' options are to cleanly handle character arguments passed from R to Rcpp.
+>
+> It is all rather simple: let's say I have a human-readable argument vector c("tree", "herb", "shrub") [It could also be a factor in R], which I can send to an Rcpp function along with other arguments for evaluation.
+> What would be the cleanest way to define those arguments (plant types) in R to then have as little trouble sending them over to Rcpp for use in cases like if() statements?
+
+You can use the == operator with standard strings:
+
+Rcpp::cppFunction('
+void test(std::string x) {
+  if (x == "flower")
+    Rcout << "flower" << std::endl;
+  else if (x == "tree")
+    Rcout << "tree" << std::endl;
+  else
+    Rcout << "string " << x << " not found" << std::endl;
+}
+')
+
+test("flower")
+#> flower
+test("tree")
+#> tree
+test("other")
+#> string other not found
+
+
+Iñaki
+
+
+>
+>
+> The use of enums comes to mind:
+>
+> // beginningoffile
+> enum class var_type { flower, tree };
+>
+> RCPP_EXPOSED_ENUM_NODECL(var_type)
+>
+> // [[Rcpp::export]]
+> int charHandle1(var_type text_arg = var_type::flower) {
+>  if(text_arg == var_type::flower) {
+>   Rcout << static_cast<int>(text_arg) << " says '0 (flower)'.\n";
+>  } else if(text_arg == var_type::tree) {
+>   Rcout << static_cast<int>(text_arg) << " says '1 (tree)'.\n";
+>  }
+>  return 0;
+> }
+> // endoffile
+>
+> This however, doesn't seem to work. I understand R would have to know the var_type for it to work.
+> Then I can do it simply by comparing the const char * argument. This will work, but the strcmp() comparison isn't very straightforward for someone who doesn't know C++ (and perhaps for some other reasons).
+>
+> // [[Rcpp::export]]
+> int charHandle2(const char* text_arg = "flower") {
+>  if(strcmp(text_arg, "flower") == 0) {
+>   Rcout << text_arg << " says 'flower'.\n";
+>  } else if(strcmp(text_arg, "tree") == 0) {
+>   Rcout << text_arg << " says 'tree'.\n";
+>  }
+>  return 0;
+> }
+>
+> I am looking for some good practice guidance on how to handle this safely and legibly to avoid sending people to function definitions. An argument could be made, for instance, that a list of plant type used as function arguments could be stored as factor in R and then sent and used in some way in Rcpp. What other options are there? To my best knowledge, support for enums is limited - I glanced over the vignettes and couldn't find any significant mention of enums (or factors, really), so I guess some other way of handling such cases should be taken. Has anyone dealt with such cases and has recommendations?
+>
+> Regards,
+> Angelo (Greetings from Genoa)
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Iñaki Úcar
+
+From edd at debian.org  Sat Apr  3 17:05:37 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 3 Apr 2021 10:05:37 -0500
+Subject: [Rcpp-devel] A clean way to handle character/strings between R
+	and	Rcpp
+In-Reply-To: <00c274c1a61f4c7f81e6715bb070a446-prezzemolo@ctemplar.com>
+References: <00c274c1a61f4c7f81e6715bb070a446-prezzemolo@ctemplar.com>
+Message-ID: <24680.33857.251962.612101@rob.eddelbuettel.com>
+
+
+On 3 April 2021 at 14:28, prezzemolo wrote:
+| Hey.
+| 
+| I am wondering if there's some general guidance on what the 'right' options are to cleanly handle character arguments passed from R to Rcpp.
+| 
+| It is all rather simple: let's say I have a human-readable argument vector c("tree", "herb", "shrub") [It could also be a factor in R], which I can send to an Rcpp function along with other arguments for evaluation.
+| What would be the cleanest way to define those arguments (plant types) in R to then have as little trouble sending them over to Rcpp for use in cases like if() statements?
+| 
+| 
+| The use of enums comes to mind:
+| 
+| // beginningoffile
+| enum class var_type { flower, tree };
+
+That is a custom type you know / your C++ code knows. R and Rcpp have never
+seen it --> extra work for you --> maybe simpler to do something else.
+
+| RCPP_EXPOSED_ENUM_NODECL(var_type)
+| 
+| // [[Rcpp::export]]
+| int charHandle1(var_type text_arg = var_type::flower) {
+
+So don't do that.  Wrrite a 'mapper' function taking a std::string (or
+Rcpp::CharacterVector or one of the equivalent ones, then map to your enum).
+
+As the "fundamental theorem of software engineering" says "All problems in
+computer science can be solved by another level of indirection" -- see for
+example https://en.wikipedia.org/wiki/Indirection
+
+|  if(text_arg == var_type::flower) {
+|   Rcout << static_cast<int>(text_arg) << " says '0 (flower)'.\n";
+|  } else if(text_arg == var_type::tree) {
+|   Rcout << static_cast<int>(text_arg) << " says '1 (tree)'.\n";
+|  }
+|  return 0;
+| }
+| // endoffile
+| 
+| This however, doesn't seem to work. I understand R would have to know the var_type for it to work.
+| Then I can do it simply by comparing the const char * argument. This will work, but the strcmp() comparison isn't very straightforward for someone who doesn't know C++ (and perhaps for some other reasons).
+
+So make it const std::string text_arg = "flower" -- this lets you compare
+via == (and loads of example packages do that.
+
+-----------------------------------------------------------------------------
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+void charHandle2(const std::string text_arg = "flower") {
+    if (text_arg == "flower") {
+        Rcpp::Rcout << text_arg << " says 'flower'.\n";
+    } else if (text_arg == "tree") {
+        Rcpp::Rcout << text_arg << " says 'tree'.\n";
+    } else {
+        Rcpp::Rcout << text_arg << " was incrompehensible.\n";
+    }           
+}
+
+/*** R
+charHandle2("flower")
+charHandle2("tree")
+charHandle2("banana")
+*/
+-----------------------------------------------------------------------------
+
+That updated example yields:
+
+> Rcpp::sourceCpp("/tmp/angelo.cpp")
+
+> charHandle2("flower")
+flower says 'flower'.
+
+> charHandle2("tree")
+tree says 'tree'.
+
+> charHandle2("banana")
+banana was incrompehensible.
+> 
+
+Hope this helps,  Dirk
+
+
+| // [[Rcpp::export]]
+| int charHandle2(const char* text_arg = "flower") {
+|  if(strcmp(text_arg, "flower") == 0) {
+|   Rcout << text_arg << " says 'flower'.\n";
+|  } else if(strcmp(text_arg, "tree") == 0) {
+|   Rcout << text_arg << " says 'tree'.\n";
+|  }
+|  return 0;
+| }
+| 
+| I am looking for some good practice guidance on how to handle this safely and legibly to avoid sending people to function definitions. An argument could be made, for instance, that a list of plant type used as function arguments could be stored as factor in R and then sent and used in some way in Rcpp. What other options are there? To my best knowledge, support for enums is limited - I glanced over the vignettes and couldn't find any significant mention of enums (or factors, really), so I guess some other way of handling such cases should be taken. Has anyone dealt with such cases and has recommendations?
+| 
+| Regards,
+| Angelo (Greetings from Genoa)
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Apr 28 00:17:49 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 27 Apr 2021 17:17:49 -0500
+Subject: [Rcpp-devel] Moving towards STRICT_R_HEADERS in Rcpp.h
+Message-ID: <24712.36237.214643.954926@rob.eddelbuettel.com>
+
+
+Some of you may have seen the earlier discussions at GitHub about enabling
+STRICT_R_HEADERS by default.  The _Writing R Extensions_ manual recommends
+it, but somehow we didn't do this right at the start. And prior attempts at
+enabling it stopped when we saw that "a few dozen" packages (at CRAN) that
+use Rcpp would be affected.  It is now a few years later, and the count is
+still at "just a few dozen" so we started to ask for help in making this
+change.
+
+The GitHub issue ticket at
+  https://github.com/RcppCore/Rcpp/issues/1158
+has more details, as well as a list of just over 50 packages that are
+affected.  So far I contacted about ten: some via a PR (if I found the
+package at GitHub), the others by email (hoping the email makes it, not all
+hosts like my Comcast-based setup here...). I even heard back from a few
+already which is fabulous--thank you!
+
+This would of course go faster if I could count on some help. If your package
+is on the list, please take a look.
+
+In a nutshell
+- precede '#include <Rcpp.h>' with '#define STRICT_R_HEADERS' and build
+- the top of issue #1158 referenced above has the most common cases:
+  - sometimes it is just swapping PI for M_PI
+  - sometimes it is just adding '#include <float.h>' (or cfloat) as
+    otherwise things like FLT_MIN or DBL_MIN are no longer known
+
+And there is even a helper script testing for the common case which Inaki put
+together, you find it here:
+  https://github.com/RcppCore/rcpp-logs/blob/master/scripts/strictHeaders.R
+and you can run it via 'r' (littler) or 'Rscript'.
+
+In short, it's a five-minute job, including testing.  And we are *not* in a
+hurry.  But help would be really, truly, greatly appreciated.
+
+Let us know if you have questions, either here or at #1158 as a follow-up.
+
+Thanks, and onwards towards 'Stricter R headers'!
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

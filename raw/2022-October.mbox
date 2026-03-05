@@ -1,0 +1,1201 @@
+From etienne.come at univ-eiffel.fr  Wed Oct  5 12:35:24 2022
+From: etienne.come at univ-eiffel.fr (etienne.come at univ-eiffel.fr)
+Date: Wed, 5 Oct 2022 12:35:24 +0200 (CEST)
+Subject: [Rcpp-devel] Use cholmod modify module in an Rcpp / RcppEigen
+	package
+Message-ID: <1142748934.27334438.1664966124742.JavaMail.zimbra@ifsttar.fr>
+
+Hi folks, 
+
+I want to use the cholmod functions from the modify module https://github.com/PetterS/SuiteSparse/tree/master/CHOLMOD/Modify inside an Rcpp/RcppEigen R package. 
+
+>From my understanding, these functions are not exposed by Rcpp or RcppEigen but RcppEigen expose a subset of cholmod functionalities via the RcppEigenCholmod header (https://github.com/RcppCore/RcppEigen/blob/master/inst/include/RcppEigenCholmod.h) and the actual sources come from the Matrix package https://github.com/cran/Matrix/tree/master/src/CHOLMOD. 
+
+I've checked that the modify module is present in the src folder of the Matrix package https://github.com/cran/Matrix/tree/master/src/CHOLMOD/Modify but I'm lost on how to proceed in order to be able to use it. 
+Any help on the best way to achieve this will be greatly welcome. 
+
+Thanks a lot. 
+
+Etienne 
+
+
+
+Etienne Côme, @comeetie 
+Chargé de Recherche 
+Université Gustave Eiffel 
+GRETTIA/COSYS 
+Tel : 01 81 66 87 18 
+Web : http://www.comeetie.fr 
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20221005/61f4e12d/attachment.html>
+
+From edd at debian.org  Fri Oct  7 00:21:46 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Oct 2022 17:21:46 -0500
+Subject: [Rcpp-devel] Use cholmod modify module in an Rcpp /
+	RcppEigen	package
+In-Reply-To: <1142748934.27334438.1664966124742.JavaMail.zimbra@ifsttar.fr>
+References: <1142748934.27334438.1664966124742.JavaMail.zimbra@ifsttar.fr>
+Message-ID: <25407.21754.742538.102345@rob.eddelbuettel.com>
+
+
+Salut Etienne,
+
+Sorry for missing this email yesterday.
+
+On 5 October 2022 at 12:35, etienne.come at univ-eiffel.fr wrote:
+| I want to use the cholmod functions from the modify module https://github.com/PetterS/SuiteSparse/tree/master/CHOLMOD/Modify inside an Rcpp/RcppEigen R package. 
+| 
+| >From my understanding, these functions are not exposed by Rcpp or RcppEigen but RcppEigen expose a subset of cholmod functionalities via the RcppEigenCholmod header (https://github.com/RcppCore/RcppEigen/blob/master/inst/include/RcppEigenCholmod.h) and the actual sources come from the Matrix package https://github.com/cran/Matrix/tree/master/src/CHOLMOD. 
+
+Right. All this goes back to careful work by Doug back when his hierarchical
+model code predominantly relied on (Rcpp)Eigen.
+
+| I've checked that the modify module is present in the src folder of the Matrix package https://github.com/cran/Matrix/tree/master/src/CHOLMOD/Modify but I'm lost on how to proceed in order to be able to use it. 
+| Any help on the best way to achieve this will be greatly welcome. 
+
+Well that is a different package, namely Matrix.
+
+We have some examples of sharing / exporting code between packages.  But to a
+very first approximation ... if you just want to get going, maybe make a copy
+of Modify/ in your package?  Assumming, of course, there are no conflicts
+with the other exported interfaces from Matrix and RcppEigen.
+
+Best regards,  Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rsparapa at mcw.edu  Mon Oct 10 16:02:58 2022
+From: rsparapa at mcw.edu (Sparapani, Rodney)
+Date: Mon, 10 Oct 2022 14:02:58 +0000
+Subject: [Rcpp-devel] sourceCpp with RcppEigen?
+Message-ID: <DM5PR01MB25858878D318004C9A67ECC1CB209@DM5PR01MB2585.prod.exchangelabs.com>
+
+Hi Gang:
+
+I’m wondering what it would take to make RcppEigen functions
+work wth sourceCpp?  Please let me know.  Thanks
+
+--
+Rodney Sparapani, Associate Professor of Biostatistics
+Director, Wisconsin Chapter of the American Statistical Association
+Institute for Health and Equity, Division of Biostatistics
+Medical College of Wisconsin, Milwaukee Campus
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20221010/859c6a00/attachment.html>
+
+From edd at debian.org  Mon Oct 10 16:16:10 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 10 Oct 2022 09:16:10 -0500
+Subject: [Rcpp-devel] sourceCpp with RcppEigen?
+In-Reply-To: <DM5PR01MB25858878D318004C9A67ECC1CB209@DM5PR01MB2585.prod.exchangelabs.com>
+References: <DM5PR01MB25858878D318004C9A67ECC1CB209@DM5PR01MB2585.prod.exchangelabs.com>
+Message-ID: <25412.10538.171510.133982@rob.eddelbuettel.com>
+
+
+On 10 October 2022 at 14:02, Sparapani, Rodney wrote:
+| I’m wondering what it would take to make RcppEigen functions
+| work wth sourceCpp?  Please let me know.  Thanks
+
+The standard one line: add    `// [[Rcpp::depends(RcppEigen)]]`
+
+We have been doing this in that very documented and visible way for about a
+decade (!!) since Rcpp Attributes was added, and overall pretty much since
+the very beginning because plugins (via the `inline` package) have been a
+part of Rcpp much longer.  Just look around at existing examples.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Mon Oct 10 16:30:31 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 10 Oct 2022 09:30:31 -0500
+Subject: [Rcpp-devel] sourceCpp with RcppEigen?
+In-Reply-To: <25412.10538.171510.133982@rob.eddelbuettel.com>
+References: <DM5PR01MB25858878D318004C9A67ECC1CB209@DM5PR01MB2585.prod.exchangelabs.com>
+ <25412.10538.171510.133982@rob.eddelbuettel.com>
+Message-ID: <25412.11399.256524.705725@rob.eddelbuettel.com>
+
+
+On 10 October 2022 at 09:16, Dirk Eddelbuettel wrote:
+| 
+| On 10 October 2022 at 14:02, Sparapani, Rodney wrote:
+| | I’m wondering what it would take to make RcppEigen functions
+| | work wth sourceCpp?  Please let me know.  Thanks
+| 
+| The standard one line: add    `// [[Rcpp::depends(RcppEigen)]]`
+
+I.e. here is (verbatim) what README.md has:
+
+
+
+### Examples
+
+A few examples are over at the [Rcpp Gallery](https://gallery.rcpp.org/tags/eigen/). A simple one is
+
+```c++
+#include <RcppEigen.h>
+
+// [[Rcpp::depends(RcppEigen)]]
+
+using Eigen::Map;                       // 'maps' rather than copies
+using Eigen::MatrixXd;                  // variable size matrix, double precision
+using Eigen::VectorXd;                  // variable size vector, double precision
+using Eigen::SelfAdjointEigenSolver;    // one of the eigenvalue solvers
+
+// [[Rcpp::export]]
+VectorXd getEigenValues(Map<MatrixXd> M) {
+    SelfAdjointEigenSolver<MatrixXd> es(M);
+    return es.eigenvalues();
+}
+```
+
+which can be turned into a function callable from R via a simple
+
+```
+sourceCpp("eigenExample.cpp")
+```
+
+due to the two Rcpp directives to use headers from the RcppEigen package, and to export
+the `getEigenValues()` function -- but read [the full
+post](https://gallery.rcpp.org/articles/eigen-eigenvalues/) for details.
+
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From etienne.come at univ-eiffel.fr  Tue Oct 11 09:43:55 2022
+From: etienne.come at univ-eiffel.fr (etienne.come at univ-eiffel.fr)
+Date: Tue, 11 Oct 2022 09:43:55 +0200 (CEST)
+Subject: [Rcpp-devel] Use cholmod modify module in an Rcpp /
+	RcppEigen	package
+In-Reply-To: <25407.21754.742538.102345@rob.eddelbuettel.com>
+References: <1142748934.27334438.1664966124742.JavaMail.zimbra@ifsttar.fr>
+ <25407.21754.742538.102345@rob.eddelbuettel.com>
+Message-ID: <819211082.33029338.1665474235530.JavaMail.zimbra@ifsttar.fr>
+
+Hi Dirk,
+
+Thanks for your response. I've managed to deal with cholmod directly by copying it in my src as you suggested. This create conflicts with RcppEigen but since i was using it only to access the cholmod functionalities it will be ok for my use case.
+
+Thanks for all,
+
+Etienne
+
+
+
+Etienne Côme, @comeetie
+Chargé de Recherche
+Université Gustave Eiffel
+GRETTIA/COSYS
+Tel : 01 81 66 87 18
+Web : http://www.comeetie.fr
+
+----- Mail original -----
+De: "Dirk Eddelbuettel" <edd at debian.org>
+À: "etienne come" <etienne.come at univ-eiffel.fr>
+Cc: "rcpp-devel" <rcpp-devel at lists.r-forge.r-project.org>
+Envoyé: Vendredi 7 Octobre 2022 00:21:46
+Objet: Re: [Rcpp-devel] Use cholmod modify module in an Rcpp / RcppEigen	package
+
+Salut Etienne,
+
+Sorry for missing this email yesterday.
+
+On 5 October 2022 at 12:35, etienne.come at univ-eiffel.fr wrote:
+| I want to use the cholmod functions from the modify module https://github.com/PetterS/SuiteSparse/tree/master/CHOLMOD/Modify inside an Rcpp/RcppEigen R package. 
+| 
+| >From my understanding, these functions are not exposed by Rcpp or RcppEigen but RcppEigen expose a subset of cholmod functionalities via the RcppEigenCholmod header (https://github.com/RcppCore/RcppEigen/blob/master/inst/include/RcppEigenCholmod.h) and the actual sources come from the Matrix package https://github.com/cran/Matrix/tree/master/src/CHOLMOD. 
+
+Right. All this goes back to careful work by Doug back when his hierarchical
+model code predominantly relied on (Rcpp)Eigen.
+
+| I've checked that the modify module is present in the src folder of the Matrix package https://github.com/cran/Matrix/tree/master/src/CHOLMOD/Modify but I'm lost on how to proceed in order to be able to use it. 
+| Any help on the best way to achieve this will be greatly welcome. 
+
+Well that is a different package, namely Matrix.
+
+We have some examples of sharing / exporting code between packages.  But to a
+very first approximation ... if you just want to get going, maybe make a copy
+of Modify/ in your package?  Assumming, of course, there are no conflicts
+with the other exported interfaces from Matrix and RcppEigen.
+
+Best regards,  Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From konrad_kraemer at yahoo.de  Fri Oct 21 12:15:11 2022
+From: konrad_kraemer at yahoo.de (konrad)
+Date: Fri, 21 Oct 2022 12:15:11 +0200
+Subject: [Rcpp-devel] thread safety RNG
+References: <d7bd75cd-525f-b0d6-9f98-60750286220e.ref@yahoo.de>
+Message-ID: <d7bd75cd-525f-b0d6-9f98-60750286220e@yahoo.de>
+
+Dear all,
+
+
+my package ast2ast includes currently some random number generation 
+functions (e.g. R::dunif) within the C++ code.
+
+So my question is whether the RNG functions in the namespace 'R' are 
+thread safe?
+
+Moreover, I would like to know how to handle the functions GetRNGstate() 
+and PutRNGstate(). I guess that these functions modify a global 
+variable. Thus, it is necessary to lock these functions with a mutex.
+
+As a side note ast2ast translates R to C++ code. This code is thread 
+safe in the sense that no static methods are implemented or that memory 
+is associated with functions or global variables. Therefore, it would 
+also be cool if the RNGs could abe used in parallel.
+
+
+Thank you very much for your help.
+
+
+All the best,
+
+
+Konrad
+
+
+From edd at debian.org  Fri Oct 21 18:11:21 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 21 Oct 2022 11:11:21 -0500
+Subject: [Rcpp-devel] thread safety RNG
+In-Reply-To: <d7bd75cd-525f-b0d6-9f98-60750286220e@yahoo.de>
+References: <d7bd75cd-525f-b0d6-9f98-60750286220e.ref@yahoo.de>
+ <d7bd75cd-525f-b0d6-9f98-60750286220e@yahoo.de>
+Message-ID: <25426.50345.551240.979662@rob.eddelbuettel.com>
+
+
+Hi Konrad,
+
+I have been meaning to look at ast2ast for some time now but alas no time
+yet...
+
+On 21 October 2022 at 12:15, konrad wrote:
+| my package ast2ast includes currently some random number generation 
+| functions (e.g. R::dunif) within the C++ code.
+| 
+| So my question is whether the RNG functions in the namespace 'R' are 
+| thread safe?
+
+It's been a while since I worked that corner but my initial reactions are
+ - nope sadly they are not (AFAIK)
+ - have you seen what 'Writing R Extensions' says on RNG state?
+ - this is why we have streaming / multi-threaded RNGs on CRAN
+ 
+| Moreover, I would like to know how to handle the functions GetRNGstate() 
+| and PutRNGstate(). I guess that these functions modify a global 
+| variable. Thus, it is necessary to lock these functions with a mutex.
+
+Don't you need a mutex for all of R anyway? (Depending on whether you can in
+or out I guess.) Put differently, 'all of R' is in a mutex as R is
+(generally) single-threaded (with a few local threaded overlays in places). 
+
+| As a side note ast2ast translates R to C++ code. This code is thread 
+| safe in the sense that no static methods are implemented or that memory 
+| is associated with functions or global variables. Therefore, it would 
+| also be cool if the RNGs could abe used in parallel.
+
+Maybe start by seeing what Writing R Extension recommends and experiment with
+an even narrow layer of just C to exclude any Rcpp side effect (there should
+not be any but smaller sandboxen help on exploration I have found).
+
+Lastly, RcppParallel is a little bit in this space to by offering very
+explicit use of TBB / tinythread as does RcppThread by Thomas (but I am less
+familiar with it).
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Juan.Domingo at uv.es  Sat Oct 29 20:41:11 2022
+From: Juan.Domingo at uv.es (Juan Domingo Esteve)
+Date: Sat, 29 Oct 2022 20:41:11 +0200
+Subject: [Rcpp-devel] Something strange with the package check and calls to
+	C abort
+Message-ID: <632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>
+
+Dear all:
+
+  I am new to this list and I am using Rcpp for my first large and serious package, so
+I apologize if probably this is a naive question, but I have browsed the web and looked
+at the stored mail messages of this list from the beginning of this year without finding
+an answer.
+
+  My package passed the checks and I was about to try uploading to CRAN but this morning
+I have updated all R packages (including Rcpp and devtools) and now the package fails the
+check because of two warnings. These are
+
+Found ‘abort’, possibly from ‘abort’ (C)
+       Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+         ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’, ‘matmetadata.o’,
+         ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+         ‘symmetricmatrix.o’, ‘teststop.o’
+     Found ‘printf’, possibly from ‘printf’ (C)
+       Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+         ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’, ‘matmetadata.o’,
+         ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+         ‘symmetricmatrix.o’, ‘teststop.o’
+
+I don't call abort, exit or any similar C library function and all my
+interaction are through Rcpp::Rcout, Rcpp::Rcerr, Rcpp::warning and
+Rcpp::stop.
+
+After some checks, I have found that this happens when I use
+Rcpp::warning and Rcpp::stop. Indeed, with a code like this in testtstop.cpp
+
+#include <Rcpp.h>
+
+void test()
+{
+  Rcpp::Rcout << "This is the standard output\n";
+  Rcpp::Rcerr << "This is the standard error\n";
+  Rcpp::warning("This is a warning\n");
+  Rcpp::stop("This should stop the program.\n");
+  return;
+}
+
+the object teststop.o disappears from the list of those which annoy
+devtools:check when I comment the lines with Rcpp::warning and Rcpp::stop.
+
+As a last resort, I have tried to download the sources of the Rcpp
+package itself and compile/check in the same way, to convince myself
+that the failure might be there. And indeed, I have got this:
+
+W  checking compiled code ...
+    File ‘Rcpp/libs/Rcpp.so’:
+      Found ‘abort’, possibly from ‘abort’ (C)
+        Objects: ‘attributes.o’, ‘module.o’
+      Found ‘printf’, possibly from ‘printf’ (C)
+        Objects: ‘attributes.o’, ‘module.o’
+
+    Compiled code should not call entry points which might terminate R nor
+    write to stdout/stderr instead of to the console, nor use Fortran I/O
+    nor system RNGs.
+
+An abort function is effectively called from file inst/include/Rcpp/r_cast.h
+at lines 75 and 129.
+
+Might this be the cause of the check failure?
+
+I know that this seems more a problem from devtools:check than from Rcpp, but
+it is much more likely that I am totally misunderstanding the question, since
+this would prevent any package done with Rcpp to be uploaded to CRAN and many
+people would have already noticed.
+
+  So again, I reiterate my apologies and if you are so kind to point me to
+appropriate documentation to solve the issue, I would be very grateful.
+
+  Sincerely
+
+   Juan
+-- 
+________________________________________________________________
+Juan Domingo Esteve
+Dept. of Informatics, School of Engineering
+University of Valencia
+Avda. de la Universidad, s/n.
+         46100-Burjasot (Valencia)
+            SPAIN
+
+Telephone:      +34-963543572
+Fax:            +34-963543550
+email:  Juan.Domingo at uv.es
+________________________________________________________________
+
+From edd at debian.org  Sat Oct 29 20:58:41 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 29 Oct 2022 13:58:41 -0500
+Subject: [Rcpp-devel] Something strange with the package check and calls
+	to	C abort
+In-Reply-To: <632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>
+References: <632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>
+Message-ID: <25437.30689.555832.652269@rob.eddelbuettel.com>
+
+
+On 29 October 2022 at 20:41, Juan Domingo Esteve wrote:
+|   I am new to this list and I am using Rcpp for my first large and serious package, so
+
+No worries. "By construction" we all were at that point at some point in the past.
+
+| I apologize if probably this is a naive question, but I have browsed the web and looked
+| at the stored mail messages of this list from the beginning of this year without finding
+| an answer.
+| 
+|   My package passed the checks and I was about to try uploading to CRAN but this morning
+| I have updated all R packages (including Rcpp and devtools) and now the package fails the
+| check because of two warnings. These are
+| 
+| Found ‘abort’, possibly from ‘abort’ (C)
+|        Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+|          ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’, ‘matmetadata.o’,
+|          ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+|          ‘symmetricmatrix.o’, ‘teststop.o’
+|      Found ‘printf’, possibly from ‘printf’ (C)
+|        Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+|          ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’, ‘matmetadata.o’,
+|          ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+|          ‘symmetricmatrix.o’, ‘teststop.o’
+| 
+| I don't call abort, exit or any similar C library function and all my
+| interaction are through Rcpp::Rcout, Rcpp::Rcerr, Rcpp::warning and
+| Rcpp::stop.
+| 
+| After some checks, I have found that this happens when I use
+| Rcpp::warning and Rcpp::stop. Indeed, with a code like this in testtstop.cpp
+| 
+| #include <Rcpp.h>
+| 
+| void test()
+| {
+|   Rcpp::Rcout << "This is the standard output\n";
+|   Rcpp::Rcerr << "This is the standard error\n";
+|   Rcpp::warning("This is a warning\n");
+|   Rcpp::stop("This should stop the program.\n");
+|   return;
+| }
+| 
+| the object teststop.o disappears from the list of those which annoy
+| devtools:check when I comment the lines with Rcpp::warning and Rcpp::stop.
+
+Simplify.  Only use devtools::check() when you are positively sure you know
+what it is doing. If in doubt rely only on R CMD build + R CMD check.
+
+A package containing (only) that file above should NOT warn. If it does,
+something else is wrong.
+
+Also, using such a minimal package is very good practice. Isolating errors is
+the key to debugging.
+ 
+| As a last resort, I have tried to download the sources of the Rcpp
+| package itself and compile/check in the same way, to convince myself
+| that the failure might be there. And indeed, I have got this:
+| 
+| W  checking compiled code ...
+|     File ‘Rcpp/libs/Rcpp.so’:
+|       Found ‘abort’, possibly from ‘abort’ (C)
+|         Objects: ‘attributes.o’, ‘module.o’
+|       Found ‘printf’, possibly from ‘printf’ (C)
+|         Objects: ‘attributes.o’, ‘module.o’
+| 
+|     Compiled code should not call entry points which might terminate R nor
+|     write to stdout/stderr instead of to the console, nor use Fortran I/O
+|     nor system RNGs.
+
+Well now if we look at the (official !!) page
+
+   https://cran.r-project.org/web/checks/check_results_Rcpp.html
+
+we see no such warnings. Nor do I here. So you have to be a bot more
+forthcoming in how you created those.
+
+| An abort function is effectively called from file inst/include/Rcpp/r_cast.h
+| at lines 75 and 129.
+| 
+| Might this be the cause of the check failure?
+
+No.
+
+| I know that this seems more a problem from devtools:check than from Rcpp, but
+| it is much more likely that I am totally misunderstanding the question, since
+
+Yes.
+
+| this would prevent any package done with Rcpp to be uploaded to CRAN and many
+| people would have already noticed.
+| 
+|   So again, I reiterate my apologies and if you are so kind to point me to
+| appropriate documentation to solve the issue, I would be very grateful.
+
+Start with simpler, more self contained examples. Use the tested and
+prescribed tools (neither 'Writing R Extensions' by R Core nor our
+documentation mentions or suggests devtools as far as I know).
+
+Minimal examples *are* helpful. When I needed to be sure I (re-)created UBSAN
+or ASAN errors I created the sanitizers package with known *true positives*
+ensure I could validate my test case.
+
+Here you will see that simple use of
+
+   std::cout
+   std::cerr
+   print
+   abort
+   exit
+
+are all sufficient to create this error. And guess what: you will not find
+them in the Rcpp sources.
+
+Good luck, and keep probing. It is worth it.
+
+Cheers, Dirk
+
+|   Sincerely
+| 
+|    Juan
+| -- 
+| ________________________________________________________________
+| Juan Domingo Esteve
+| Dept. of Informatics, School of Engineering
+| University of Valencia
+| Avda. de la Universidad, s/n.
+|          46100-Burjasot (Valencia)
+|             SPAIN
+| 
+| Telephone:      +34-963543572
+| Fax:            +34-963543550
+| email:  Juan.Domingo at uv.es
+| ________________________________________________________________
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Juan.Domingo at uv.es  Sat Oct 29 23:07:56 2022
+From: Juan.Domingo at uv.es (Juan Domingo Esteve)
+Date: Sat, 29 Oct 2022 23:07:56 +0200
+Subject: [Rcpp-devel] Something strange with the package check and calls
+ to C abort
+In-Reply-To: <25437.30689.555832.652269@rob.eddelbuettel.com>
+References: <632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>
+ <25437.30689.555832.652269@rob.eddelbuettel.com>
+Message-ID: <8242d74c-98f6-d893-e90a-4cb5b258975b@uv.es>
+
+Dear Dirk:
+
+  Thank you very much for your extremely quick response.
+
+    I have cheked with R CMD build + R CMD check, as you suggested,
+    and I have found the error.
+
+    The call to abort is still present with R CMD check but, when I
+  copy the code in another machine which I have not yet updated, it
+  works perfectly.
+
+    The check generates file symbols.rds that, when loaded with
+  S<-loadRDS("symbols.rds") shows the complete table, and certainly,
+  symbol abort is present only in the second machine.
+
+    My guess is that this may be related with the _default_ compilation
+  flags (I haven't altered myself), which are different between both
+  machines. Since it seems a quite specific and obscure problem, I will
+  try to isolate with a minimal package, as you suggest, and I will post
+  a summary including all details and compilation/linking  flags, since it
+  might help others with the same problem (if anyone else).
+
+    Again, thank you very much for your time.
+
+      Sincerely
+
+        Juan
+
+El 29/10/22 a las 20:58, Dirk Eddelbuettel escribió:
+> 
+> On 29 October 2022 at 20:41, Juan Domingo Esteve wrote:
+> |   I am new to this list and I am using Rcpp for my first large and serious package, so
+> 
+> No worries. "By construction" we all were at that point at some point in the past.
+> 
+> | I apologize if probably this is a naive question, but I have browsed the web and looked
+> | at the stored mail messages of this list from the beginning of this year without finding
+> | an answer.
+> |
+> |   My package passed the checks and I was about to try uploading to CRAN but this morning
+> | I have updated all R packages (including Rcpp and devtools) and now the package fails the
+> | check because of two warnings. These are
+> |
+> | Found ‘abort’, possibly from ‘abort’ (C)
+> |        Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+> |          ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’, ‘matmetadata.o’,
+> |          ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+> |          ‘symmetricmatrix.o’, ‘teststop.o’
+> |      Found ‘printf’, possibly from ‘printf’ (C)
+> |        Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+> |          ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’, ‘matmetadata.o’,
+> |          ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+> |          ‘symmetricmatrix.o’, ‘teststop.o’
+> |
+> | I don't call abort, exit or any similar C library function and all my
+> | interaction are through Rcpp::Rcout, Rcpp::Rcerr, Rcpp::warning and
+> | Rcpp::stop.
+> |
+> | After some checks, I have found that this happens when I use
+> | Rcpp::warning and Rcpp::stop. Indeed, with a code like this in testtstop.cpp
+> |
+> | #include <Rcpp.h>
+> |
+> | void test()
+> | {
+> |   Rcpp::Rcout << "This is the standard output\n";
+> |   Rcpp::Rcerr << "This is the standard error\n";
+> |   Rcpp::warning("This is a warning\n");
+> |   Rcpp::stop("This should stop the program.\n");
+> |   return;
+> | }
+> |
+> | the object teststop.o disappears from the list of those which annoy
+> | devtools:check when I comment the lines with Rcpp::warning and Rcpp::stop.
+> 
+> Simplify.  Only use devtools::check() when you are positively sure you know
+> what it is doing. If in doubt rely only on R CMD build + R CMD check.
+> 
+> A package containing (only) that file above should NOT warn. If it does,
+> something else is wrong.
+> 
+> Also, using such a minimal package is very good practice. Isolating errors is
+> the key to debugging.
+>   
+> | As a last resort, I have tried to download the sources of the Rcpp
+> | package itself and compile/check in the same way, to convince myself
+> | that the failure might be there. And indeed, I have got this:
+> |
+> | W  checking compiled code ...
+> |     File ‘Rcpp/libs/Rcpp.so’:
+> |       Found ‘abort’, possibly from ‘abort’ (C)
+> |         Objects: ‘attributes.o’, ‘module.o’
+> |       Found ‘printf’, possibly from ‘printf’ (C)
+> |         Objects: ‘attributes.o’, ‘module.o’
+> |
+> |     Compiled code should not call entry points which might terminate R nor
+> |     write to stdout/stderr instead of to the console, nor use Fortran I/O
+> |     nor system RNGs.
+> 
+> Well now if we look at the (official !!) page
+> 
+>     https://urldefense.com/v3/__https://cran.r-project.org/web/checks/check_results_Rcpp.html__;!!D9dNQwwGXtA!U8voohz5lb9Mvawf6PO0kKpLjrSsFH5HIpTOnCYaEkk5sEeKpsyaRk0HznuPjkWWoF4Cw6MIh1_g$
+> 
+> we see no such warnings. Nor do I here. So you have to be a bot more
+> forthcoming in how you created those.
+> 
+> | An abort function is effectively called from file inst/include/Rcpp/r_cast.h
+> | at lines 75 and 129.
+> |
+> | Might this be the cause of the check failure?
+> 
+> No.
+> 
+> | I know that this seems more a problem from devtools:check than from Rcpp, but
+> | it is much more likely that I am totally misunderstanding the question, since
+> 
+> Yes.
+> 
+> | this would prevent any package done with Rcpp to be uploaded to CRAN and many
+> | people would have already noticed.
+> |
+> |   So again, I reiterate my apologies and if you are so kind to point me to
+> | appropriate documentation to solve the issue, I would be very grateful.
+> 
+> Start with simpler, more self contained examples. Use the tested and
+> prescribed tools (neither 'Writing R Extensions' by R Core nor our
+> documentation mentions or suggests devtools as far as I know).
+> 
+> Minimal examples *are* helpful. When I needed to be sure I (re-)created UBSAN
+> or ASAN errors I created the sanitizers package with known *true positives*
+> ensure I could validate my test case.
+> 
+> Here you will see that simple use of
+> 
+>     std::cout
+>     std::cerr
+>     print
+>     abort
+>     exit
+> 
+> are all sufficient to create this error. And guess what: you will not find
+> them in the Rcpp sources.
+> 
+> Good luck, and keep probing. It is worth it.
+> 
+> Cheers, Dirk
+> 
+> |   Sincerely
+> |
+> |    Juan
+> | --
+> | ________________________________________________________________
+> | Juan Domingo Esteve
+> | Dept. of Informatics, School of Engineering
+> | University of Valencia
+> | Avda. de la Universidad, s/n.
+> |          46100-Burjasot (Valencia)
+> |             SPAIN
+> |
+> | Telephone:      +34-963543572
+> | Fax:            +34-963543550
+> | email:  Juan.Domingo at uv.es
+> | ________________________________________________________________
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://urldefense.com/v3/__https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel__;!!D9dNQwwGXtA!U8voohz5lb9Mvawf6PO0kKpLjrSsFH5HIpTOnCYaEkk5sEeKpsyaRk0HznuPjkWWoF4Cww_Q9-9j$
+
+-- 
+________________________________________________________________
+Juan Domingo Esteve
+Dept. of Informatics, School of Engineering
+University of Valencia
+Avda. de la Universidad, s/n.
+         46100-Burjasot (Valencia)
+            SPAIN
+
+Telephone:      +34-963543572
+Fax:            +34-963543550
+email:  Juan.Domingo at uv.es
+________________________________________________________________
+
+From Juan.Domingo at uv.es  Sun Oct 30 12:26:14 2022
+From: Juan.Domingo at uv.es (Juan Domingo Esteve)
+Date: Sun, 30 Oct 2022 12:26:14 +0100
+Subject: [Rcpp-devel] Problem with abort function and compilation in
+	Fedora-Linux
+In-Reply-To: <8242d74c-98f6-d893-e90a-4cb5b258975b@uv.es>
+References: <632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>
+ <25437.30689.555832.652269@rob.eddelbuettel.com>
+ <8242d74c-98f6-d893-e90a-4cb5b258975b@uv.es>
+Message-ID: <29cdb713-32bd-2b86-7987-9476b651bf9a@uv.es>
+
+Dear all:
+
+  Yesterday I posted a request for help due to a problem compiling my package
+which received inmediate response from Dirk to indicate that obviously the
+use of some Rcpp functions could not be the cause of including abort and printf
+in the compiled code. Fortunately, I have found the failure and its solution,
+which I post to be archived, just in case anyone may use it.
+
+Keywords: compiler options, abort, package check, Fedora
+
+Problem description:
+
+  When compiling a package with C++ source code using Rcpp in a Linux system,
+  kernel 5.19.16-100, distribution Fedora 35, the generated package does not
+  pass the R CMD check test, giving two warnings and one note.
+
+  The warnings are about the use of abort and printf functios from the
+  basic C library, which is not allowed since it would make R crash. Of course,
+  the code did not use any of this functions, neither it uses cout or cerr.
+
+  Since the package compiled correctly in another machine, I compared the used
+  compilation flags and tried manual compilation getting rid of one of them each.
+  The offending flag was -Wp,-D_GLIBCXX_ASSERTION and, looking for it, I found
+  the note in the R documentation, part 'R Installation and Administration' which
+  says:
+
+  "Additional compilation flags can be specified for added safety/security checks. For example Fedora adds
+
+-Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS
+-Fexceptions -fstack-protector-strong -fasynchronous-unwind-tables
+-fstack-clash-protection -fcf-protection
+
+to all the C, C++ and Fortran compiler flags (even though _GLIBCXX_ASSERTIONS is only for C++ in current GCC
+and glibc and none of these are documented for gfortran). Use of _GLIBCXX_ASSERTIONS will link abort and printf
+into almost all C++ code, and R CMD check --as-cran will warn."
+
+  Moreover, the inclusion of flag -D_FORTIFY_SOURCE=2 provokes a warning in compilation (which
+  does not hurt the later check but it is annoying) and also this flag and the -Werror=format-security
+  rise a note in R CMD check saying:
+  Compilation used the following non-portable flag(s):
+      ‘-Werror=format-security’ ‘-Wp,-D_FORTIFY_SOURCE=2’
+      ‘-Wp,-D_GLIBCXX_ASSERTIONS’
+
+Solution:
+
+  Defaults compilation flags, at least in the Fedora default installation or R, are in file
+
+  /usr/lib64/R/etc/Makeconf
+
+  As root or with sudo, make a copy of this file (just in case you make a mistake or want to revert changes)
+  and edit it getting rid of the -Wp,-D_GLIBCXX_ASSERTION whenever it is used. You can also get
+  rid of -Werror=format-security and -Wp,-D_FORTIFY_SOURCE=2 if you want to avoid the note in check.
+
+I hope this may be useful to anyone else.
+
+  Juan
+
+-- 
+________________________________________________________________
+Juan Domingo Esteve
+Dept. of Informatics, School of Engineering
+University of Valencia
+Avda. de la Universidad, s/n.
+         46100-Burjasot (Valencia)
+            SPAIN
+
+Telephone:      +34-963543572
+Fax:            +34-963543550
+email:  Juan.Domingo at uv.es
+________________________________________________________________
+
+From Juan.Domingo at uv.es  Mon Oct 31 11:14:32 2022
+From: Juan.Domingo at uv.es (Juan Domingo Esteve)
+Date: Mon, 31 Oct 2022 11:14:32 +0100
+Subject: [Rcpp-devel] Problem with abort function and compilation in
+ Fedora-Linux
+In-Reply-To: <29cdb713-32bd-2b86-7987-9476b651bf9a@uv.es>
+References: <632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>
+ <25437.30689.555832.652269@rob.eddelbuettel.com>
+ <8242d74c-98f6-d893-e90a-4cb5b258975b@uv.es>
+ <29cdb713-32bd-2b86-7987-9476b651bf9a@uv.es>
+Message-ID: <e20d8d33-af44-ba9f-cfe6-026eaec139d1@uv.es>
+
+Dear all:
+
+  Following my own post about problems with compilation flags in Fedora,
+  after having consulted Iñaki Úcar, one of the maintaners of R in Fedora,
+  he has said me that the solution of altering the base file of flags
+  /usr/lib64/R/etc/Makeconf is not the right way for two reasons:
+
+  - Fedora is quite strict with the policy of flags oriented to crash
+  prevention and stringly recommends to use them
+  - The file /usr/lib64/R/etc/Makeconf will get overwritten on every
+  package update.
+
+  Therefore, the rigth solution he recommends is:
+
+  - Copy the file /usr/lib64/R/etc/Makeconf to any place under
+    you $HOME folder with a significant name, let's say $HOME/.R/CRANchek.Makevars
+    and alter it appropriately with/without the compilation flags you need.
+  - Create a .Renviron file (or add this line to the current one):
+    R_MAKEVARS_USER=~/.R/CRANcheck.Makevars
+
+  If you want this to apply for all your R executions put .Renviron in your $HOME.
+  Otherwise, it can be set up per project in the project directory
+  (see https://community.rstudio.com/t/location-of-renviron-file/116139)
+
+  Another thing he made me notice is that, even if you compile with
+  non-CRAN complaint flags, the real CRAN check is done at the CRAN server,
+  where those flags will NOT be used, so the only problem would be the annoying
+  WARNING that appears in _your_ machine when you do the R CMD check --as-cran
+  But for people doing this firs time, like me, this was still worrying since at
+  first you really believe your package will not pass the check...
+
+  Sorry for my mistake in the previous post.
+
+    Juan
+
+El 30/10/22 a las 12:26, Juan Domingo Esteve escribió:
+> Dear all:
+> 
+>   Yesterday I posted a request for help due to a problem compiling my package
+> which received inmediate response from Dirk to indicate that obviously the
+> use of some Rcpp functions could not be the cause of including abort and printf
+> in the compiled code. Fortunately, I have found the failure and its solution,
+> which I post to be archived, just in case anyone may use it.
+> 
+> Keywords: compiler options, abort, package check, Fedora
+> 
+> Problem description:
+> 
+>   When compiling a package with C++ source code using Rcpp in a Linux system,
+>   kernel 5.19.16-100, distribution Fedora 35, the generated package does not
+>   pass the R CMD check test, giving two warnings and one note.
+> 
+>   The warnings are about the use of abort and printf functios from the
+>   basic C library, which is not allowed since it would make R crash. Of course,
+>   the code did not use any of this functions, neither it uses cout or cerr.
+> 
+>   Since the package compiled correctly in another machine, I compared the used
+>   compilation flags and tried manual compilation getting rid of one of them each.
+>   The offending flag was -Wp,-D_GLIBCXX_ASSERTION and, looking for it, I found
+>   the note in the R documentation, part 'R Installation and Administration' which
+>   says:
+> 
+>   "Additional compilation flags can be specified for added safety/security checks. For example Fedora adds
+> 
+> -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -Wp,-D_GLIBCXX_ASSERTIONS
+> -Fexceptions -fstack-protector-strong -fasynchronous-unwind-tables
+> -fstack-clash-protection -fcf-protection
+> 
+> to all the C, C++ and Fortran compiler flags (even though _GLIBCXX_ASSERTIONS is only for C++ in current GCC
+> and glibc and none of these are documented for gfortran). Use of _GLIBCXX_ASSERTIONS will link abort and printf
+> into almost all C++ code, and R CMD check --as-cran will warn."
+> 
+>   Moreover, the inclusion of flag -D_FORTIFY_SOURCE=2 provokes a warning in compilation (which
+>   does not hurt the later check but it is annoying) and also this flag and the -Werror=format-security
+>   rise a note in R CMD check saying:
+>   Compilation used the following non-portable flag(s):
+>       ‘-Werror=format-security’ ‘-Wp,-D_FORTIFY_SOURCE=2’
+>       ‘-Wp,-D_GLIBCXX_ASSERTIONS’
+> 
+> Solution:
+> 
+>   Defaults compilation flags, at least in the Fedora default installation or R, are in file
+> 
+>   /usr/lib64/R/etc/Makeconf
+> 
+>   As root or with sudo, make a copy of this file (just in case you make a mistake or want to revert changes)
+>   and edit it getting rid of the -Wp,-D_GLIBCXX_ASSERTION whenever it is used. You can also get
+>   rid of -Werror=format-security and -Wp,-D_FORTIFY_SOURCE=2 if you want to avoid the note in check.
+> 
+> I hope this may be useful to anyone else.
+> 
+>   Juan
+> 
+
+-- 
+________________________________________________________________
+Juan Domingo Esteve
+Dept. of Informatics, School of Engineering
+University of Valencia
+Avda. de la Universidad, s/n.
+         46100-Burjasot (Valencia)
+            SPAIN
+
+Telephone:      +34-963543572
+Fax:            +34-963543550
+email:  Juan.Domingo at uv.es
+________________________________________________________________
+
+From kevinushey at gmail.com  Mon Oct 31 19:01:22 2022
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Mon, 31 Oct 2022 11:01:22 -0700
+Subject: [Rcpp-devel] Something strange with the package check and calls
+ to C abort
+In-Reply-To: <8242d74c-98f6-d893-e90a-4cb5b258975b@uv.es>
+References: <632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>
+ <25437.30689.555832.652269@rob.eddelbuettel.com>
+ <8242d74c-98f6-d893-e90a-4cb5b258975b@uv.es>
+Message-ID: <CAJXgQP1Gdm6m8hz7f=At5PQD5ywKBkgw+gnSQRj4XEJ_kiutUg@mail.gmail.com>
+
+For posterity, what machine are you compiling the package on? If you're
+using a modern Linux system, it's possible the default compilation flags
+are including stack protection code during compilation that might call
+abort on error. See e.g.
+
+https://developers.redhat.com/articles/2022/06/02/use-compiler-flags-stack-protection-gcc-and-clang
+
+It might be useful if you could share your package / the code used when
+compiling the C++ code in your package.
+
+Best,
+Kevin
+
+On Sat, Oct 29, 2022 at 2:08 PM Juan Domingo Esteve <Juan.Domingo at uv.es>
+wrote:
+
+> Dear Dirk:
+>
+>   Thank you very much for your extremely quick response.
+>
+>     I have cheked with R CMD build + R CMD check, as you suggested,
+>     and I have found the error.
+>
+>     The call to abort is still present with R CMD check but, when I
+>   copy the code in another machine which I have not yet updated, it
+>   works perfectly.
+>
+>     The check generates file symbols.rds that, when loaded with
+>   S<-loadRDS("symbols.rds") shows the complete table, and certainly,
+>   symbol abort is present only in the second machine.
+>
+>     My guess is that this may be related with the _default_ compilation
+>   flags (I haven't altered myself), which are different between both
+>   machines. Since it seems a quite specific and obscure problem, I will
+>   try to isolate with a minimal package, as you suggest, and I will post
+>   a summary including all details and compilation/linking  flags, since it
+>   might help others with the same problem (if anyone else).
+>
+>     Again, thank you very much for your time.
+>
+>       Sincerely
+>
+>         Juan
+>
+> El 29/10/22 a las 20:58, Dirk Eddelbuettel escribió:
+> >
+> > On 29 October 2022 at 20:41, Juan Domingo Esteve wrote:
+> > |   I am new to this list and I am using Rcpp for my first large and
+> serious package, so
+> >
+> > No worries. "By construction" we all were at that point at some point in
+> the past.
+> >
+> > | I apologize if probably this is a naive question, but I have browsed
+> the web and looked
+> > | at the stored mail messages of this list from the beginning of this
+> year without finding
+> > | an answer.
+> > |
+> > |   My package passed the checks and I was about to try uploading to
+> CRAN but this morning
+> > | I have updated all R packages (including Rcpp and devtools) and now
+> the package fails the
+> > | check because of two warnings. These are
+> > |
+> > | Found ‘abort’, possibly from ‘abort’ (C)
+> > |        Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+> > |          ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’,
+> ‘matmetadata.o’,
+> > |          ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+> > |          ‘symmetricmatrix.o’, ‘teststop.o’
+> > |      Found ‘printf’, possibly from ‘printf’ (C)
+> > |        Objects: ‘RcppExports.o’, ‘fullmatrix.o’, ‘jmatrix.o’,
+> > |          ‘matgetcols.o’, ‘matgetdiag.o’, ‘matgetrows.o’,
+> ‘matmetadata.o’,
+> > |          ‘matwrite.o’, ‘memhelper.o’, ‘sparsematrix.o’,
+> > |          ‘symmetricmatrix.o’, ‘teststop.o’
+> > |
+> > | I don't call abort, exit or any similar C library function and all my
+> > | interaction are through Rcpp::Rcout, Rcpp::Rcerr, Rcpp::warning and
+> > | Rcpp::stop.
+> > |
+> > | After some checks, I have found that this happens when I use
+> > | Rcpp::warning and Rcpp::stop. Indeed, with a code like this in
+> testtstop.cpp
+> > |
+> > | #include <Rcpp.h>
+> > |
+> > | void test()
+> > | {
+> > |   Rcpp::Rcout << "This is the standard output\n";
+> > |   Rcpp::Rcerr << "This is the standard error\n";
+> > |   Rcpp::warning("This is a warning\n");
+> > |   Rcpp::stop("This should stop the program.\n");
+> > |   return;
+> > | }
+> > |
+> > | the object teststop.o disappears from the list of those which annoy
+> > | devtools:check when I comment the lines with Rcpp::warning and
+> Rcpp::stop.
+> >
+> > Simplify.  Only use devtools::check() when you are positively sure you
+> know
+> > what it is doing. If in doubt rely only on R CMD build + R CMD check.
+> >
+> > A package containing (only) that file above should NOT warn. If it does,
+> > something else is wrong.
+> >
+> > Also, using such a minimal package is very good practice. Isolating
+> errors is
+> > the key to debugging.
+> >
+> > | As a last resort, I have tried to download the sources of the Rcpp
+> > | package itself and compile/check in the same way, to convince myself
+> > | that the failure might be there. And indeed, I have got this:
+> > |
+> > | W  checking compiled code ...
+> > |     File ‘Rcpp/libs/Rcpp.so’:
+> > |       Found ‘abort’, possibly from ‘abort’ (C)
+> > |         Objects: ‘attributes.o’, ‘module.o’
+> > |       Found ‘printf’, possibly from ‘printf’ (C)
+> > |         Objects: ‘attributes.o’, ‘module.o’
+> > |
+> > |     Compiled code should not call entry points which might terminate R
+> nor
+> > |     write to stdout/stderr instead of to the console, nor use Fortran
+> I/O
+> > |     nor system RNGs.
+> >
+> > Well now if we look at the (official !!) page
+> >
+> >
+> https://urldefense.com/v3/__https://cran.r-project.org/web/checks/check_results_Rcpp.html__;!!D9dNQwwGXtA!U8voohz5lb9Mvawf6PO0kKpLjrSsFH5HIpTOnCYaEkk5sEeKpsyaRk0HznuPjkWWoF4Cw6MIh1_g$
+> >
+> > we see no such warnings. Nor do I here. So you have to be a bot more
+> > forthcoming in how you created those.
+> >
+> > | An abort function is effectively called from file
+> inst/include/Rcpp/r_cast.h
+> > | at lines 75 and 129.
+> > |
+> > | Might this be the cause of the check failure?
+> >
+> > No.
+> >
+> > | I know that this seems more a problem from devtools:check than from
+> Rcpp, but
+> > | it is much more likely that I am totally misunderstanding the
+> question, since
+> >
+> > Yes.
+> >
+> > | this would prevent any package done with Rcpp to be uploaded to CRAN
+> and many
+> > | people would have already noticed.
+> > |
+> > |   So again, I reiterate my apologies and if you are so kind to point
+> me to
+> > | appropriate documentation to solve the issue, I would be very grateful.
+> >
+> > Start with simpler, more self contained examples. Use the tested and
+> > prescribed tools (neither 'Writing R Extensions' by R Core nor our
+> > documentation mentions or suggests devtools as far as I know).
+> >
+> > Minimal examples *are* helpful. When I needed to be sure I (re-)created
+> UBSAN
+> > or ASAN errors I created the sanitizers package with known *true
+> positives*
+> > ensure I could validate my test case.
+> >
+> > Here you will see that simple use of
+> >
+> >     std::cout
+> >     std::cerr
+> >     print
+> >     abort
+> >     exit
+> >
+> > are all sufficient to create this error. And guess what: you will not
+> find
+> > them in the Rcpp sources.
+> >
+> > Good luck, and keep probing. It is worth it.
+> >
+> > Cheers, Dirk
+> >
+> > |   Sincerely
+> > |
+> > |    Juan
+> > | --
+> > | ________________________________________________________________
+> > | Juan Domingo Esteve
+> > | Dept. of Informatics, School of Engineering
+> > | University of Valencia
+> > | Avda. de la Universidad, s/n.
+> > |          46100-Burjasot (Valencia)
+> > |             SPAIN
+> > |
+> > | Telephone:      +34-963543572
+> > | Fax:            +34-963543550
+> > | email:  Juan.Domingo at uv.es
+> > | ________________________________________________________________
+> > | _______________________________________________
+> > | Rcpp-devel mailing list
+> > | Rcpp-devel at lists.r-forge.r-project.org
+> > |
+> https://urldefense.com/v3/__https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel__;!!D9dNQwwGXtA!U8voohz5lb9Mvawf6PO0kKpLjrSsFH5HIpTOnCYaEkk5sEeKpsyaRk0HznuPjkWWoF4Cww_Q9-9j$
+>
+> --
+> ________________________________________________________________
+> Juan Domingo Esteve
+> Dept. of Informatics, School of Engineering
+> University of Valencia
+> Avda. de la Universidad, s/n.
+>          46100-Burjasot (Valencia)
+>             SPAIN
+>
+> Telephone:      +34-963543572
+> Fax:            +34-963543550
+> email:  Juan.Domingo at uv.es
+> ________________________________________________________________
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20221031/2438bf29/attachment.html>
+

@@ -1,0 +1,1205 @@
+From nzshaam at gmail.com  Thu Jan  5 02:56:33 2017
+From: nzshaam at gmail.com (Shaami)
+Date: Thu, 5 Jan 2017 14:56:33 +1300
+Subject: [Rcpp-devel] Timings for a program
+Message-ID: <CAGR+MS7ucGRWd5hWhYguv2wN1awX7COqghegw=1WTi=Cdh5aBw@mail.gmail.com>
+
+Hi Rcpp Friends
+
+I am new to Rcpp. I have converted my R program into an Rcpp program.
+I want to ask a general question. Using Rcpp, my code is taking about 3
+minutes to produce output for 100 observations. But it is taking about 2.45
+hours to produce output for 1000 observations. Any suggestions or technical
+hint for this type of problem.
+
+Thank to all
+
+Shaami
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170105/abda506d/attachment.html>
+
+From xian at unm.edu  Thu Jan  5 13:39:57 2017
+From: xian at unm.edu (Christian Gunning)
+Date: Thu, 5 Jan 2017 05:39:57 -0700
+Subject: [Rcpp-devel] Timings for a program
+Message-ID: <CADNH-Psgp=1-NPRLWp6MpCW4oYF4xo9KfMoT4poxrTu346MuBw@mail.gmail.com>
+
+> I am new to Rcpp. I have converted my R program into an Rcpp program.
+> I want to ask a general question. Using Rcpp, my code is taking about 3
+> minutes to produce output for 100 observations. But it is taking about 2.45
+> hours to produce output for 1000 observations. Any suggestions or technical
+> hint for this type of problem.
+
+First off, please include a minimal working example with your
+question. Without more information, there's not much we can do to
+help.
+
+In the meantime, you might find this to be an interesting and helpful read:
+http://www.burns-stat.com/documents/books/the-r-inferno/
+
+Best,
+Christian
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+http://www.x14n.org
+
+From plummerm at iarc.fr  Thu Jan  5 17:03:46 2017
+From: plummerm at iarc.fr (Martyn Plummer)
+Date: Thu, 5 Jan 2017 16:03:46 +0000
+Subject: [Rcpp-devel] Timings for a program
+In-Reply-To: <CADNH-Psgp=1-NPRLWp6MpCW4oYF4xo9KfMoT4poxrTu346MuBw@mail.gmail.com>
+References: <CADNH-Psgp=1-NPRLWp6MpCW4oYF4xo9KfMoT4poxrTu346MuBw@mail.gmail.com>
+Message-ID: <1483632196.2097.68.camel@iarc.fr>
+
+On Thu, 2017-01-05 at 05:39 -0700, Christian Gunning wrote:
+> > 
+> > I am new to Rcpp. I have converted my R program into an Rcpp program.
+> > I want to ask a general question. Using Rcpp, my code is taking about 3
+> > minutes to produce output for 100 observations. But it is taking about 2.45
+> > hours to produce output for 1000 observations. Any suggestions or technical
+> > hint for this type of problem.
+> 
+> First off, please include a minimal working example with your
+> question. Without more information, there's not much we can do to
+> help.
+
+I agree with Christian that a reproducible working example is necessary
+for detailed help with your problem. But I'm also bold enough to make a
+guess about what is going on.
+
+Your program is implementing an algorithm that is not linear in the
+sample size but polynomial. You can verify this by recording run times
+for sample sizes of 50, 60, 70, 80, 90, and 100. Plotting the run time
+against the sample size should show the non-linear relationship. At a
+sample size of 1000 the non-linear effects dominate, giving you a
+roughly 5-fold increase in the run time over what you expect from your
+smaller example.
+
+It was pointed out many years ago by Joel Spolsky that this phenomenon
+can arise from using a high level interface without understanding the
+low-level implementation details. See his Wikipedia entry:
+
+https://en.wikipedia.org/wiki/Joel_Spolsky#Schlemiel_the_Painter.27s_al
+gorithm
+
+Frequent reallocations of existing memory are a typical cause of this
+problem.
+
+All of this means that finding the underlying problem might be quite
+hard for you to find, which is all the more reason to strip down your
+program to find the smallest example that shows this behaviour.
+
+Martyn
+
+> In the meantime, you might find this to be an interesting and helpful
+> read:
+> http://www.burns-stat.com/documents/books/the-r-inferno/
+> 
+> Best,
+> Christian-----------------------------------------------------------------------
+This message and its attachments are strictly confidential. If you are
+not the intended recipient of this message, please immediately notify 
+the sender and delete it. Since its integrity cannot be guaranteed, 
+its content cannot involve the sender's responsibility. Any misuse, 
+any disclosure or publication of its content, either whole or partial, 
+is prohibited, exception made of formally approved use
+-----------------------------------------------------------------------
+
+From nzshaam at gmail.com  Sat Jan  7 04:53:22 2017
+From: nzshaam at gmail.com (Shaami)
+Date: Sat, 7 Jan 2017 16:53:22 +1300
+Subject: [Rcpp-devel] Timings for a program
+In-Reply-To: <1483632196.2097.68.camel@iarc.fr>
+References: <CADNH-Psgp=1-NPRLWp6MpCW4oYF4xo9KfMoT4poxrTu346MuBw@mail.gmail.com>
+ <1483632196.2097.68.camel@iarc.fr>
+Message-ID: <CAGR+MS5kx4MCh65937=YYcGzhvpGZu+tMhds8D6-ysUw9e0Ugw@mail.gmail.com>
+
+Hello Dear
+
+Your suggestions are quite useful. I have deleted two for loops from my
+code and trying to use vectors in place of them. It is hard for me to
+produce a minimal example. However, now I am trying to use vectorization. I
+am having some error. Following is an example code. My basic purpose is
+subcube element wise multiplication with matrix's row. The operand % is not
+working in this case. Any suggestion would be appreciated.
+
+Here a is a cube of dimension (3, 3, 1) and b is a matrix of dimension (3,
+3).
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+arma::cube sub(arma::cube a, arma::mat b)
+{
+        a.subcube(2,0,0,2,2,0) = a.subcube(1, 0, 0, 1, 2, 0) .* b.row(0);
+        return a;
+}
+
+
+The error is
+
+
+subcube.cpp: In function ?arma::cube sub(arma::cube, arma::mat)?:
+subcube.cpp:11:65: error: ?arma::Mat<eT>::row(arma::uword) [with eT =
+double; arma::uword = unsigned int](0u)? cannot be used as a member
+pointer, since it is of type  arma::subview_row<double>?
+  a.subcube(2,0,0,2,2,0) = a.subcube(1, 0, 0, 1, 2, 0) .* b.row(0);
+
+
+
+
+
+
+Thank You so much again for suggesting how to think about to produce a
+speedy code.
+
+Shaami
+
+
+On Fri, Jan 6, 2017 at 5:03 AM, Martyn Plummer <plummerm at iarc.fr> wrote:
+
+> On Thu, 2017-01-05 at 05:39 -0700, Christian Gunning wrote:
+> > >
+> > > I am new to Rcpp. I have converted my R program into an Rcpp program.
+> > > I want to ask a general question. Using Rcpp, my code is taking about 3
+> > > minutes to produce output for 100 observations. But it is taking about
+> 2.45
+> > > hours to produce output for 1000 observations. Any suggestions or
+> technical
+> > > hint for this type of problem.
+> >
+> > First off, please include a minimal working example with your
+> > question. Without more information, there's not much we can do to
+> > help.
+>
+> I agree with Christian that a reproducible working example is necessary
+> for detailed help with your problem. But I'm also bold enough to make a
+> guess about what is going on.
+>
+> Your program is implementing an algorithm that is not linear in the
+> sample size but polynomial. You can verify this by recording run times
+> for sample sizes of 50, 60, 70, 80, 90, and 100. Plotting the run time
+> against the sample size should show the non-linear relationship. At a
+> sample size of 1000 the non-linear effects dominate, giving you a
+> roughly 5-fold increase in the run time over what you expect from your
+> smaller example.
+>
+> It was pointed out many years ago by Joel Spolsky that this phenomenon
+> can arise from using a high level interface without understanding the
+> low-level implementation details. See his Wikipedia entry:
+>
+> https://en.wikipedia.org/wiki/Joel_Spolsky#Schlemiel_the_Painter.27s_al
+> gorithm
+>
+> Frequent reallocations of existing memory are a typical cause of this
+> problem.
+>
+> All of this means that finding the underlying problem might be quite
+> hard for you to find, which is all the more reason to strip down your
+> program to find the smallest example that shows this behaviour.
+>
+> Martyn
+>
+> > In the meantime, you might find this to be an interesting and helpful
+> > read:
+> > http://www.burns-stat.com/documents/books/the-r-inferno/
+> >
+> > Best,
+> > Christian---------------------------------------------------
+> --------------------
+> This message and its attachments are strictly confidential. If you are
+> not the intended recipient of this message, please immediately notify
+> the sender and delete it. Since its integrity cannot be guaranteed,
+> its content cannot involve the sender's responsibility. Any misuse,
+> any disclosure or publication of its content, either whole or partial,
+> is prohibited, exception made of formally approved use
+> -----------------------------------------------------------------------
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170107/f4ea38da/attachment.html>
+
+From xian at unm.edu  Sat Jan  7 05:03:42 2017
+From: xian at unm.edu (Christian Gunning)
+Date: Fri, 6 Jan 2017 21:03:42 -0700
+Subject: [Rcpp-devel] Timings for a program
+Message-ID: <CADNH-Pu+hWtxocfNJuEC+KhfYrUseCtQaBDx9EpCr9WXkCrJkw@mail.gmail.com>
+
+Why is there a dot in ".*"? Are you perhaps thinking of Matlab?
+
+On Fri, Jan 6, 2017 at 8:53 PM, Shaami <nzshaam at gmail.com> wrote:
+> I have deleted two for loops from my code and trying to use vectors in place
+> of them.
+
+For reference, there's very little benefit to removing loops in a
+compiled language.  What Martyn said is exactly correct - it's your
+responsibility to understand the difference between an interpreted
+language like R and a compiled language like C++.
+
+Some rules of thumb:
+* In both R and C++, avoid unnecessary memory allocations.
+* In R, minimize the number of distinct function calls.
+  - A single function call: val = sum(1:10)
+  - 10 function calls: val = 0; for (ii in 1:10) { val = val + ii}
+
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+
+From nzshaam at gmail.com  Mon Jan  9 02:52:16 2017
+From: nzshaam at gmail.com (Shaami)
+Date: Mon, 9 Jan 2017 14:52:16 +1300
+Subject: [Rcpp-devel] element wise multiplication of a subcube and a row of
+	a matrix
+Message-ID: <CAGR+MS4u=+=ga48Zb2gwu8T8PT1yd6pmw-wkUP0EO+zBBXGBzw@mail.gmail.com>
+
+Hi Rcpp Friends
+
+I am posting again a question about the subject cited. I tried to search
+this problem but did not find. My question is why we cannot multiply
+element wise a subcube and a row of a matrix.
+
+Any help would be appriciated. The following is sample code which is giving
+erros about the operand %.
+
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+arma::rowvec sub(arma::cube a, arma::mat b)
+{
+        rowvec x  =  a.subcube(0, 0, 0, 0, 2, 0)% b.row(0);
+        return x;
+}
+
+
+Thank You
+
+Shaami
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170109/ce7cf2bf/attachment.html>
+
+From xian at unm.edu  Mon Jan  9 12:56:54 2017
+From: xian at unm.edu (Christian Gunning)
+Date: Mon, 9 Jan 2017 04:56:54 -0700
+Subject: [Rcpp-devel] R.e. element wise multiplication of a subcube and a
+	row of a matrix
+Message-ID: <CADNH-Pu1C=MN30RJQDgaOUf24iFb0U1okyEZMdVY4-RTQxs9PQ@mail.gmail.com>
+
+> I am posting again a question about the subject cited. I tried to search
+> this problem but did not find. My question is why we cannot multiply
+> element wise a subcube and a row of a matrix.
+>
+> Any help would be appriciated. The following is sample code which is giving
+> erros about the operand %.
+>
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> using namespace arma;
+> //[[Rcpp::depends(RcppArmadillo)]]
+> //[[Rcpp::export]]
+>
+> arma::rowvec sub(arma::cube a, arma::mat b)
+> {
+>         rowvec x  =  a.subcube(0, 0, 0, 0, 2, 0)% b.row(0);
+>         return x;
+> }
+
+Shaami,
+
+When posting questions to the list, please include a complete working example.
+Hint - how would I paste your example into R and get a result?
+What do you expect the result to be?
+How does the result differ from your expectations?
+
+best,
+Christian
+
+From edd at debian.org  Mon Jan  9 13:47:21 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 9 Jan 2017 06:47:21 -0600
+Subject: [Rcpp-devel] R.e. element wise multiplication of a subcube and
+	a	row of a matrix
+In-Reply-To: <CADNH-Pu1C=MN30RJQDgaOUf24iFb0U1okyEZMdVY4-RTQxs9PQ@mail.gmail.com>
+References: <CADNH-Pu1C=MN30RJQDgaOUf24iFb0U1okyEZMdVY4-RTQxs9PQ@mail.gmail.com>
+Message-ID: <22643.34393.450416.150799@max.nulle.part>
+
+
+On 9 January 2017 at 04:56, Christian Gunning wrote:
+| > I am posting again a question about the subject cited. I tried to search
+| > this problem but did not find. My question is why we cannot multiply
+| > element wise a subcube and a row of a matrix.
+| >
+| > Any help would be appriciated. The following is sample code which is giving
+| > erros about the operand %.
+| >
+| >
+| > #include <RcppArmadillo.h>
+| > using namespace Rcpp;
+| > using namespace RcppArmadillo;
+| > using namespace arma;
+| > //[[Rcpp::depends(RcppArmadillo)]]
+| > //[[Rcpp::export]]
+| >
+| > arma::rowvec sub(arma::cube a, arma::mat b)
+| > {
+| >         rowvec x  =  a.subcube(0, 0, 0, 0, 2, 0)% b.row(0);
+| >         return x;
+| > }
+| 
+| Shaami,
+| 
+| When posting questions to the list, please include a complete working example.
+| Hint - how would I paste your example into R and get a result?
+| What do you expect the result to be?
+| How does the result differ from your expectations?
+
+And ... seeing that your example doesn't even build / do anything is a good
+lead to make more progress on your end before relying on us.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Mon Jan 16 00:40:52 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 15 Jan 2017 17:40:52 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp 0.12.9
+Message-ID: <22652.2180.326194.443153@max.nulle.part>
+
+
+Rcpp 0.12.9 arrived on CRAN yesterday.  The announcement is at
+
+   http://dirk.eddelbuettel.com/blog/2017/01/15#rcpp_0.12.7
+
+and (without links) below.
+
+Cheers,  Dirk
+
+
+  Sun, 15 Jan 2017
+
+  Rcpp 0.12.9: Next round
+
+   Yesterday afternoon, the nineth update in the 0.12.* series of Rcpp made
+   it to the CRAN network for GNU R. Windows binaries have by now been
+   generated; and the package was updated in Debian too. This 0.12.9 release
+   follows the 0.12.0 release from late July, the 0.12.1 release in
+   September, the 0.12.2 release in November, the 0.12.3 release in January,
+   the 0.12.4 release in March, the 0.12.5 release in May, the 0.12.6 release
+   in July, the 0.12.7 release in September, and the 0.12.8 release in
+   November --- making it the thirteenth release at the steady bi-montly
+   release frequency.
+
+   Rcpp has become the most popular way of enhancing GNU R with C or C++
+   code. As of today, 906 packages on CRAN depend on Rcpp for making
+   analytical code go faster and further. That is up by sixthythree packages
+   over the two months since the last release -- or about a package a day!
+
+   Some of the changes in this release are smaller and detail-oriented. We
+   did squash one annoying bug (stemming from the improved exception
+   handling) in Rcpp::stop() that hit a few people. Nathan Russell added a
+   sample() function (similar to the optional one in RcppArmadillo; this
+   required a minor cleanup by for small number of other packages which used
+   both namespaces 'opened'. Date and Datetime objects now have format()
+   methods and << output support. We now have coverage reports via covr as
+   well. Last but not least James "coatless" Balamuta was once more tireless
+   on documentation and API consistency --- see below for more details.
+
+    Changes in Rcpp version 0.12.9 (2017-01-14)
+
+       * Changes in Rcpp API:
+
+            * The exception stack message is now correctly demangled on all
+              compiler versions (Jim Hester in #598)
+
+            * Date and Datetime object and vector now have format methods and
+              operator<< support (#599).
+
+            * The size operator in Matrix is explicitly referenced avoiding a
+              g++-6 issues (#607 fixing #605).
+
+            * The underlying date calculation code was updated (#621, #623).
+
+            * Addressed improper diagonal fill for non-symmetric matrices
+              (James Balamuta in #622 addressing #619)
+
+       * Changes in Rcpp Sugar:
+
+            * Added new Sugar function sample() (Nathan Russell in #610 and
+              #616).
+
+            * Added new Sugar function Arg() (James Balamuta in #626
+              addressing #625).
+
+       * Changes in Rcpp unit tests
+
+            * Added Environment::find unit tests and an
+              Environment::get(Symbol) test (James Balamuta in #595
+              addressing issue #594).
+
+            * Added diagonal matrix fill tests (James Balamuta in #622
+              addressing #619)
+
+       * Changes in Rcpp Documentation:
+
+            * Exposed pointers macros were included in the Rcpp Extending
+              vignette (MathurinD; James Balamuta in #592 addressing #418).
+
+            * The file Rcpp.bib move to directory bib which is guaranteed to
+              be present (#631).
+
+       * Changes in Rcpp build system
+
+            * Travis CI now also calls covr for coverage analysis (Jim Hester
+              in PR #591)
+
+   Thanks to CRANberries, you can also look at a diff to the previous
+   release. As always, even fuller details are on the Rcpp Changelog page and
+   the Rcpp page which also leads to the downloads page, the browseable
+   doxygen docs and zip files of doxygen output for the standard formats. A
+   local directory has source and documentation too. Questions, comments etc
+   should go to the rcpp-devel mailing list off the R-Forge page.
+
+   This post by Dirk Eddelbuettel originated on his Thinking inside the box
+   blog. Please report excessive re-aggregation in third-party for-profit
+   settings.
+
+                                                  /code/rcpp | permanent link
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From zkokia at 163.com  Thu Jan 19 17:10:35 2017
+From: zkokia at 163.com (Kokia Z)
+Date: Fri, 20 Jan 2017 00:10:35 +0800 (CST)
+Subject: [Rcpp-devel] How to use sourceCpp() to call a file with '.hpp'
+Message-ID: <6a50efa4.8fef.159b77e75e5.Coremail.zkokia@163.com>
+
+I have found a .hpp file called fn_kron.hpp, and I have learned that sourceCpp() can be used to call c++ file to R. But when I wrote in this way, it returned the filename must be '.cpp', so how could I use sourceCpp to call this package? 
+
+
+Thanks for your help. :)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170120/72360836/attachment.html>
+
+From edd at debian.org  Thu Jan 19 18:24:11 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Jan 2017 11:24:11 -0600
+Subject: [Rcpp-devel] How to use sourceCpp() to call a file with '.hpp'
+In-Reply-To: <6a50efa4.8fef.159b77e75e5.Coremail.zkokia@163.com>
+References: <6a50efa4.8fef.159b77e75e5.Coremail.zkokia@163.com>
+Message-ID: <22656.63035.337282.882662@max.nulle.part>
+
+
+On 20 January 2017 at 00:10, Kokia Z wrote:
+| I have found a .hpp file called fn_kron.hpp, and I have learned that sourceCpp
+| () can be used to call c++ file to R. But when I wrote in this way, it returned
+| the filename must be '.cpp', so how could I use sourceCpp to call this package?
+
+You have a file ending in hpp.
+
+sourceCpp wants a file ending in cpp.
+
+Impasse? No, create a one-liner cpp file sourcing the hpp file. Or just rename.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Frank.Gibbons at astrazeneca.com  Fri Jan 20 20:29:27 2017
+From: Frank.Gibbons at astrazeneca.com (Gibbons, Frank)
+Date: Fri, 20 Jan 2017 19:29:27 +0000
+Subject: [Rcpp-devel] Using Rcpp to solve ODEs: LSODE (deSolve) says
+ "Confusion over the length of parms"
+Message-ID: <HE1PR04MB1433688D5F82ED855B117535F4710@HE1PR04MB1433.eurprd04.prod.outlook.com>
+
+Hi,
+
+Just joined the list. I've searched online for help, and could find little mention of the problem I'm having, and zero solutions. I'm getting a strange error message when using Rcpp to combine a C-implementation of some simple linear ODEs with deSolve in package "popED". (It's a package for optimal design of experiments. Because it relies on repeated solution of the ODEs at each iterative step, a pure-R implementation is too slow for me on non-trivial problems.)
+
+I've attached the R code (it implements a pure-R/deSolve solution, then a deSolve/Rcpp implementation). The problem is one of pharmacokinetics: what's the optimal time (or dose) to use in order to best estimate parameters that describe drug absorption, distribution and elimination from the body, using the parameters KA, V, and CL respectively. The design can be constrained in a number of ways. The script does two things for each model implementation: first it evaluates an initial design, second it attempts to optimize that design by parameter search, which requires repeated evaluation of the (ODE-based) model. Strange thing is: it all works fine for the initial model evaluation, so the code works (and Rcpp is 3x faster, expect bigger gains in the optimization step). But then it falls over in the model optimization step:
+
+> tic(); output <- poped_optim(poped.db.compiled, opt_xt =TRUE, parallel=F, method = c("LS")); toc()
+Error in lsoda(y, times, func, parms, ...) :
+  Confusion over the length of parms
+In addition: Warning message:
+In lsoda(y, times, func, parms, ...) :
+  Number of parameters passed to solver, 3; number in DLL, 5
+Called from: lsoda(y, times, func, parms, ...)
+
+How can it run to evaluate the model, then fail when it comes to optimization? Since the error is coming from LSODA (the solver that is wrapped by deSolve), I'm guessing the problem lies in interface between deSolve and the code I've got. I'm no stranger to language extension (years ago, I used SWIG to extend some Python libraries with C code), but I'm struggling to understand where to look for the source of this problem. In particular, it's telling me the DLL has 5 parameters, but I just don't see where that could be coming from: I explicitly pass in three parameters (the KA, V, and CL from above). Does Rcpp inject extras that are somehow being exposed inappropriately?
+
+One last thing: you may look at this model and ask why I'm not using the obvious closed-form solution for the concentration profile - that's the fastest way to the answer. The answer is that this isn't really the problem I'm interested in, and those don't have an easy closed-form solution.
+
+Would really appreciate any pointers you can give. Many thanks and kind regards,
+
+-Frank
+
+
+
+
+
+
+
+P.S.
+> R.Version()
+$platform
+[1] "x86_64-w64-mingw32"
+
+$arch
+[1] "x86_64"
+
+$os
+[1] "mingw32"
+
+$system
+[1] "x86_64, mingw32"
+
+$status
+[1] ""
+
+$major
+[1] "3"
+
+$minor
+[1] "3.2"
+
+$year
+[1] "2016"
+
+$month
+[1] "10"
+
+$day
+[1] "31"
+
+$`svn rev`
+[1] "71607"
+
+$language
+[1] "R"
+
+$version.string
+[1] "R version 3.3.2 (2016-10-31)"
+
+$nickname
+[1] "Sincere Pumpkin Patch"
+
+
+
+>
+
+
+
+
+Frank Gibbons, PhD
+Principal Scientist
+_____________________________________________________________________________________________
+DMPK Modeling & Simulation | IMED Oncology | AstraZeneca
+35 Gatehouse Lane, Waltham MA  02451, USA
++1-781-839-4032   frank.gibbons at astrazeneca.com<mailto:frank.gibbons at astrazeneca.com>
+
+
+________________________________
+
+Confidentiality Notice: This message is private and may contain confidential and proprietary information. If you have received this message in error, please notify us and remove it from your system and note that you must not copy, distribute or take any action in reliance on it. Any unauthorized use or disclosure of the contents of this message is not permitted and may be unlawful.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170120/e43c17cb/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: myExampleODE.compiled.R
+Type: application/octet-stream
+Size: 4343 bytes
+Desc: myExampleODE.compiled.R
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170120/e43c17cb/attachment-0001.obj>
+
+From edd at debian.org  Mon Jan 23 02:50:50 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 22 Jan 2017 19:50:50 -0600
+Subject: [Rcpp-devel] Using Rcpp to solve ODEs: LSODE (deSolve) says
+ "Confusion over the length of parms"
+In-Reply-To: <HE1PR04MB1433688D5F82ED855B117535F4710@HE1PR04MB1433.eurprd04.prod.outlook.com>
+References: <HE1PR04MB1433688D5F82ED855B117535F4710@HE1PR04MB1433.eurprd04.prod.outlook.com>
+Message-ID: <22661.24954.936698.261235@max.nulle.part>
+
+
+Frank,
+
+That's a pretty long message and a lot of code.  Can you try to distill it
+down to a particular (smaller?) issue?
+
+And FWIW I cannot run. After saving your attachment, and installing PopED, I
+get
+
+R> source("/tmp/myExampleODE.compiled.R")
+
+Attaching package: ?deSolve?
+
+The following object is masked from ?package:graphics?:
+
+    matplot
+
+Elapsed time: 10.425 seconds.
+Error in poped.db$settings$optsw[2] <- opt_xt : 
+  object 'poped.db.compiled' not found
+R> 
+
+I also recommend the rbenchmark and microbenchmark packages over tic() and toc().
+
+Sorry that I have no quick fix.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kyleb at metrumrg.com  Mon Jan 23 19:34:57 2017
+From: kyleb at metrumrg.com (Kyle Baron)
+Date: Mon, 23 Jan 2017 12:34:57 -0600
+Subject: [Rcpp-devel] Using Rcpp to solve ODEs: LSODE (deSolve) says
+ "Confusion over the length of parms"
+In-Reply-To: <22661.24954.936698.261235@max.nulle.part>
+References: <HE1PR04MB1433688D5F82ED855B117535F4710@HE1PR04MB1433.eurprd04.prod.outlook.com>
+ <22661.24954.936698.261235@max.nulle.part>
+Message-ID: <CAJ2Cw8SdtWcuKs1Jhm7+x=AxgjS+78oAu1a3Lj0A=JdkNO43zg@mail.gmail.com>
+
+Frank -
+
+In the code you provided, it looks like it is "poped.db.compiled.rcpp", not
+"poped.db.compiled".
+
+I found that, after making the change to fix the error that Dirk pointed
+out, the code appears to work with no error (attached).  I don't know if
+the results are what you were intending, however.
+
+Also: I would not set up the optimization like this.  When you create
+the one_comp_oral_ode function with cppFunction and hand that off to
+deSolve, you are still passing along an R function to get called.  Even if
+the calculations are accomplished with Rcpp, it still an R function.  So
+every step the solver takes, it will have to call an R function.  I don't
+think this is what you want. When you write the ode function as suggested
+by the deSolve package vignette, you pass off the name of a C function and
+the solver calls that C function directly as the system advances.  It will
+be faster than what you are doing with cppFunction.
+
+Finally, I'll ask if you have looked at one of the more-modern simulation
+packages for R that are designed for PK/PD work?
+I maintain mrgsolve: https://github.com/metrumresearchgroup/mrgsolve
+You could also look at RxODE: https://cran.r-project.
+org/web/packages/RxODE/index.html
+
+Hope that helps ...
+Kyle
+
+
+
+On Sun, Jan 22, 2017 at 7:50 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Frank,
+>
+> That's a pretty long message and a lot of code.  Can you try to distill it
+> down to a particular (smaller?) issue?
+>
+> And FWIW I cannot run. After saving your attachment, and installing PopED,
+> I
+> get
+>
+> R> source("/tmp/myExampleODE.compiled.R")
+>
+> Attaching package: ?deSolve?
+>
+> The following object is masked from ?package:graphics?:
+>
+>     matplot
+>
+> Elapsed time: 10.425 seconds.
+> Error in poped.db$settings$optsw[2] <- opt_xt :
+>   object 'poped.db.compiled' not found
+> R>
+>
+> I also recommend the rbenchmark and microbenchmark packages over tic() and
+> toc().
+>
+> Sorry that I have no quick fix.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+
+-- 
+Kyle Baron
+Metrum Research Group
+860-735-7043, Ext. 202
+kyleb at metrumrg.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170123/32cf39a0/attachment.html>
+
+From Frank.Gibbons at astrazeneca.com  Wed Jan 25 18:33:43 2017
+From: Frank.Gibbons at astrazeneca.com (Gibbons, Frank)
+Date: Wed, 25 Jan 2017 17:33:43 +0000
+Subject: [Rcpp-devel] Using Rcpp to solve ODEs: LSODE (deSolve) says
+ "Confusion over the length of parms"
+In-Reply-To: <CAJ2Cw8SdtWcuKs1Jhm7+x=AxgjS+78oAu1a3Lj0A=JdkNO43zg@mail.gmail.com>
+References: <HE1PR04MB1433688D5F82ED855B117535F4710@HE1PR04MB1433.eurprd04.prod.outlook.com>
+ <22661.24954.936698.261235@max.nulle.part>
+ <CAJ2Cw8SdtWcuKs1Jhm7+x=AxgjS+78oAu1a3Lj0A=JdkNO43zg@mail.gmail.com>
+Message-ID: <HE1PR04MB1433D466B7C4AADB478724C0F4740@HE1PR04MB1433.eurprd04.prod.outlook.com>
+
+Kyle,
+
+D?oh! You?re absolutely right. Embarrassing. :-}
+(I?m told that?s the emoticon for ?sheepish grin?.)
+
+I did try going the way suggested by deSolve, but find that (for reasons unknown to me), ?R CMD SHLIB? compiles the object file but not the DLL (error about not having permission).
+
+I wasn?t aware of RxODE at all (and only vaguely familiar with mrgsolve), but installed it, read through the tutorial (from the journal CPT-PSP), and within a few hours was in business. It won?t be for everyone of course, since it?s specialized for PK/PD modeling, but it enabled me to get a 15x performance improvement in my application (which requires repeated model evaluation to optimize a study design). This is huge: over-lunchbreak vs over-night. If the speedup reported by the authors in their tutorial applies to my situation, this improvement factor will improve as the model grows (currently just 2 ODEs).
+
+For those with similar goals as mine (PK/PD models), highly recommend it. Much like Rcpp, it enables specification of both the compiled and non-compiled parts of the code in a single file. But like SHLIB, it compiles behind the scenes (few seconds), and while I don?t fully understand what?s going on under the hood, it performs as if there?s a minimum of back-and-forth between R and C.
+
+Many thanks to you both
+
+-Frank
+
+From: Kyle Baron [mailto:kyleb at metrumrg.com]
+Sent: Monday, January 23, 2017 1:35 PM
+To: Dirk Eddelbuettel <edd at debian.org>
+Cc: Gibbons, Frank <Frank.Gibbons at astrazeneca.com>; rcpp-devel at lists.r-forge.r-project.org
+Subject: Re: [Rcpp-devel] Using Rcpp to solve ODEs: LSODE (deSolve) says "Confusion over the length of parms"
+
+Frank -
+
+In the code you provided, it looks like it is "poped.db.compiled.rcpp", not "poped.db.compiled".
+
+I found that, after making the change to fix the error that Dirk pointed out, the code appears to work with no error (attached).  I don't know if the results are what you were intending, however.
+
+Also: I would not set up the optimization like this.  When you create the one_comp_oral_ode function with cppFunction and hand that off to deSolve, you are still passing along an R function to get called.  Even if the calculations are accomplished with Rcpp, it still an R function.  So every step the solver takes, it will have to call an R function.  I don't think this is what you want. When you write the ode function as suggested by the deSolve package vignette, you pass off the name of a C function and the solver calls that C function directly as the system advances.  It will be faster than what you are doing with cppFunction.
+
+Finally, I'll ask if you have looked at one of the more-modern simulation packages for R that are designed for PK/PD work?
+I maintain mrgsolve: https://github.com/metrumresearchgroup/mrgsolve
+You could also look at RxODE: https://cran.r-project.org/web/packages/RxODE/index.html
+
+Hope that helps ...
+Kyle
+
+
+
+On Sun, Jan 22, 2017 at 7:50 PM, Dirk Eddelbuettel <edd at debian.org<mailto:edd at debian.org>> wrote:
+
+Frank,
+
+That's a pretty long message and a lot of code.  Can you try to distill it
+down to a particular (smaller?) issue?
+
+And FWIW I cannot run. After saving your attachment, and installing PopED, I
+get
+
+R> source("/tmp/myExampleODE.compiled.R")
+
+Attaching package: ?deSolve?
+
+The following object is masked from ?package:graphics?:
+
+    matplot
+
+Elapsed time: 10.425 seconds.
+Error in poped.db$settings$optsw[2] <- opt_xt :
+  object 'poped.db.compiled' not found
+R>
+
+I also recommend the rbenchmark and microbenchmark packages over tic() and toc().
+
+Sorry that I have no quick fix.
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org<mailto:edd at debian.org>
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org<mailto:Rcpp-devel at lists.r-forge.r-project.org>
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+--
+Kyle Baron
+Metrum Research Group
+860-735-7043, Ext. 202
+kyleb at metrumrg.com<mailto:kyleb at metrumrg.com>
+
+________________________________
+
+Confidentiality Notice: This message is private and may contain confidential and proprietary information. If you have received this message in error, please notify us and remove it from your system and note that you must not copy, distribute or take any action in reliance on it. Any unauthorized use or disclosure of the contents of this message is not permitted and may be unlawful.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170125/663986cb/attachment.html>
+
+From tkeitt at utexas.edu  Wed Jan 25 19:13:52 2017
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Wed, 25 Jan 2017 12:13:52 -0600
+Subject: [Rcpp-devel] Using Rcpp to solve ODEs: LSODE (deSolve) says
+ "Confusion over the length of parms"
+In-Reply-To: <HE1PR04MB1433D466B7C4AADB478724C0F4740@HE1PR04MB1433.eurprd04.prod.outlook.com>
+References: <HE1PR04MB1433688D5F82ED855B117535F4710@HE1PR04MB1433.eurprd04.prod.outlook.com>
+ <22661.24954.936698.261235@max.nulle.part>
+ <CAJ2Cw8SdtWcuKs1Jhm7+x=AxgjS+78oAu1a3Lj0A=JdkNO43zg@mail.gmail.com>
+ <HE1PR04MB1433D466B7C4AADB478724C0F4740@HE1PR04MB1433.eurprd04.prod.outlook.com>
+Message-ID: <CANnL8gqfpAAmds72b-HDkkr3wV_1z+hgY916zDh8QW7kE6XArA@mail.gmail.com>
+
+There's also https://github.com/thk686/odeintr (use the devel version, not
+CRAN -- need to upload a bug fix).
+
+THK
+
+http://www.keittlab.org/
+
+On Wed, Jan 25, 2017 at 11:33 AM, Gibbons, Frank <
+Frank.Gibbons at astrazeneca.com> wrote:
+
+> Kyle,
+>
+>
+>
+> D?oh! You?re absolutely right. Embarrassing. :-}
+>
+> (I?m told that?s the emoticon for ?sheepish grin?.)
+>
+>
+>
+> I did try going the way suggested by deSolve, but find that (for reasons
+> unknown to me), ?R CMD SHLIB? compiles the object file but not the DLL
+> (error about not having permission).
+>
+>
+>
+> I wasn?t aware of RxODE at all (and only vaguely familiar with mrgsolve),
+> but installed it, read through the tutorial (from the journal CPT-PSP), and
+> within a few hours was in business. It won?t be for everyone of course,
+> since it?s specialized for PK/PD modeling, but it enabled me to get a 15x
+> performance improvement in my application (which requires repeated model
+> evaluation to optimize a study design). This is huge: over-lunchbreak vs
+> over-night. If the speedup reported by the authors in their tutorial
+> applies to my situation, this improvement factor will improve as the model
+> grows (currently just 2 ODEs).
+>
+>
+>
+> For those with similar goals as mine (PK/PD models), highly recommend it.
+> Much like Rcpp, it enables specification of both the compiled and
+> non-compiled parts of the code in a single file. But like SHLIB, it
+> compiles behind the scenes (few seconds), and while I don?t fully
+> understand what?s going on under the hood, it performs as if there?s a
+> minimum of back-and-forth between R and C.
+>
+>
+>
+> Many thanks to you both
+>
+>
+>
+> -Frank
+>
+>
+>
+> *From:* Kyle Baron [mailto:kyleb at metrumrg.com]
+> *Sent:* Monday, January 23, 2017 1:35 PM
+> *To:* Dirk Eddelbuettel <edd at debian.org>
+> *Cc:* Gibbons, Frank <Frank.Gibbons at astrazeneca.com>;
+> rcpp-devel at lists.r-forge.r-project.org
+> *Subject:* Re: [Rcpp-devel] Using Rcpp to solve ODEs: LSODE (deSolve)
+> says "Confusion over the length of parms"
+>
+>
+>
+> Frank -
+>
+>
+>
+> In the code you provided, it looks like it is "poped.db.compiled.rcpp",
+> not "poped.db.compiled".
+>
+>
+>
+> I found that, after making the change to fix the error that Dirk pointed
+> out, the code appears to work with no error (attached).  I don't know if
+> the results are what you were intending, however.
+>
+>
+>
+> Also: I would not set up the optimization like this.  When you create
+> the one_comp_oral_ode function with cppFunction and hand that off to
+> deSolve, you are still passing along an R function to get called.  Even if
+> the calculations are accomplished with Rcpp, it still an R function.  So
+> every step the solver takes, it will have to call an R function.  I don't
+> think this is what you want. When you write the ode function as suggested
+> by the deSolve package vignette, you pass off the name of a C function and
+> the solver calls that C function directly as the system advances.  It will
+> be faster than what you are doing with cppFunction.
+>
+>
+>
+> Finally, I'll ask if you have looked at one of the more-modern simulation
+> packages for R that are designed for PK/PD work?
+>
+> I maintain mrgsolve: https://github.com/metrumresearchgroup/mrgsolve
+>
+> You could also look at RxODE: https://cran.r-project.
+> org/web/packages/RxODE/index.html
+>
+>
+>
+> Hope that helps ...
+>
+> Kyle
+>
+>
+>
+>
+>
+>
+>
+> On Sun, Jan 22, 2017 at 7:50 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> Frank,
+>
+> That's a pretty long message and a lot of code.  Can you try to distill it
+> down to a particular (smaller?) issue?
+>
+> And FWIW I cannot run. After saving your attachment, and installing PopED,
+> I
+> get
+>
+> R> source("/tmp/myExampleODE.compiled.R")
+>
+> Attaching package: ?deSolve?
+>
+> The following object is masked from ?package:graphics?:
+>
+>     matplot
+>
+> Elapsed time: 10.425 seconds.
+> Error in poped.db$settings$optsw[2] <- opt_xt :
+>   object 'poped.db.compiled' not found
+> R>
+>
+> I also recommend the rbenchmark and microbenchmark packages over tic() and
+> toc().
+>
+> Sorry that I have no quick fix.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+>
+> --
+>
+> Kyle Baron
+>
+> Metrum Research Group
+>
+> 860-735-7043, Ext. 202 <(860)%20735-7043>
+>
+> kyleb at metrumrg.com
+>
+>
+> ------------------------------
+>
+> *Confidentiality Notice: *This message is private and may contain
+> confidential and proprietary information. If you have received this message
+> in error, please notify us and remove it from your system and note that you
+> must not copy, distribute or take any action in reliance on it. Any
+> unauthorized use or disclosure of the contents of this message is not
+> permitted and may be unlawful.
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170125/6c008d42/attachment-0001.html>
+
+From tkeitt at utexas.edu  Wed Jan 25 20:33:51 2017
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Wed, 25 Jan 2017 13:33:51 -0600
+Subject: [Rcpp-devel] testthat + sourceCpp
+Message-ID: <CANnL8gqjvWk=Zowfaok6PWjo1z63stVkNu=HjQnKthskVNTj7w@mail.gmail.com>
+
+I have a package that compiles C++ at runtime using sourceCpp and I would
+like to use testthat with the package. Its clear that testthat sets up a
+non-standard environment and so it is difficult to combine it with
+sourceCpp. The first hurdle was include paths not working.
+
+This bit of code in the test_ file seemed to fix that:
+
+ccflags = Sys.getenv("CCFLAGS")
+ipath = file.path(getwd(), "inst", "include")
+ccflags = if (nzchar(ccflags)) paste(ccflags, paste0("-I", ipath)) else
+paste0("-I", ipath)
+Sys.setenv(CCFLAGS = ccflags)
+
+However, once compiled, the object does not load correctly as I cannot call
+the compiled function. Does anyone have a workaround? (I have searched and
+not found anything terribly useful.)
+
+THK
+
+http://www.keittlab.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170125/3f545759/attachment.html>
+
+From jj.allaire at gmail.com  Thu Jan 26 00:52:44 2017
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Wed, 25 Jan 2017 18:52:44 -0500
+Subject: [Rcpp-devel] testthat + sourceCpp
+In-Reply-To: <CANnL8gqjvWk=Zowfaok6PWjo1z63stVkNu=HjQnKthskVNTj7w@mail.gmail.com>
+References: <CANnL8gqjvWk=Zowfaok6PWjo1z63stVkNu=HjQnKthskVNTj7w@mail.gmail.com>
+Message-ID: <CAKw=oCyDxkd0ppHy7LPbbj8vhA4+suZemCjcQURpzErh5TBfBQ@mail.gmail.com>
+
+Not 100% sure about this but I think the workaround for using sourceCpp
+within tests is to define R_TESTS="" (that's what we do in Rcpp and
+RcppParallel). Here's the code I'm thinking of:
+https://github.com/RcppCore/Rcpp/blob/master/tests/doRUnit.R#L42-L43
+
+Note that we use RUnit in both of those packages so there could indeed be
+some issue with testthat that we're not aware of.
+
+
+On Wed, Jan 25, 2017 at 2:33 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+
+> I have a package that compiles C++ at runtime using sourceCpp and I would
+> like to use testthat with the package. Its clear that testthat sets up a
+> non-standard environment and so it is difficult to combine it with
+> sourceCpp. The first hurdle was include paths not working.
+>
+> This bit of code in the test_ file seemed to fix that:
+>
+> ccflags = Sys.getenv("CCFLAGS")
+> ipath = file.path(getwd(), "inst", "include")
+> ccflags = if (nzchar(ccflags)) paste(ccflags, paste0("-I", ipath)) else
+> paste0("-I", ipath)
+> Sys.setenv(CCFLAGS = ccflags)
+>
+> However, once compiled, the object does not load correctly as I cannot
+> call the compiled function. Does anyone have a workaround? (I have searched
+> and not found anything terribly useful.)
+>
+> THK
+>
+> http://www.keittlab.org/
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170125/8f33704d/attachment.html>
+
+From tkeitt at utexas.edu  Thu Jan 26 04:31:17 2017
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Wed, 25 Jan 2017 21:31:17 -0600
+Subject: [Rcpp-devel] testthat + sourceCpp
+In-Reply-To: <CAKw=oCyDxkd0ppHy7LPbbj8vhA4+suZemCjcQURpzErh5TBfBQ@mail.gmail.com>
+References: <CANnL8gqjvWk=Zowfaok6PWjo1z63stVkNu=HjQnKthskVNTj7w@mail.gmail.com>
+ <CAKw=oCyDxkd0ppHy7LPbbj8vhA4+suZemCjcQURpzErh5TBfBQ@mail.gmail.com>
+Message-ID: <CANnL8gq_F-Sdzv-Swy6b0-z6EpB6cep2UKHpagA30KmSHYzXUA@mail.gmail.com>
+
+Figured it out.
+
+My snippet below does _not_ solve the problem of include paths. The key is
+to symlink ./inst/include to ./include. After that it works if I call
+"devtools::tests()". It fails however with "devtools::check(args =
+c('--as-cran'))".
+
+THK
+
+http://www.keittlab.org/
+
+On Wed, Jan 25, 2017 at 5:52 PM, JJ Allaire <jj.allaire at gmail.com> wrote:
+
+> Not 100% sure about this but I think the workaround for using sourceCpp
+> within tests is to define R_TESTS="" (that's what we do in Rcpp and
+> RcppParallel). Here's the code I'm thinking of: https://github.com/
+> RcppCore/Rcpp/blob/master/tests/doRUnit.R#L42-L43
+>
+> Note that we use RUnit in both of those packages so there could indeed be
+> some issue with testthat that we're not aware of.
+>
+>
+> On Wed, Jan 25, 2017 at 2:33 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+>
+>> I have a package that compiles C++ at runtime using sourceCpp and I would
+>> like to use testthat with the package. Its clear that testthat sets up a
+>> non-standard environment and so it is difficult to combine it with
+>> sourceCpp. The first hurdle was include paths not working.
+>>
+>> This bit of code in the test_ file seemed to fix that:
+>>
+>> ccflags = Sys.getenv("CCFLAGS")
+>> ipath = file.path(getwd(), "inst", "include")
+>> ccflags = if (nzchar(ccflags)) paste(ccflags, paste0("-I", ipath)) else
+>> paste0("-I", ipath)
+>> Sys.setenv(CCFLAGS = ccflags)
+>>
+>> However, once compiled, the object does not load correctly as I cannot
+>> call the compiled function. Does anyone have a workaround? (I have searched
+>> and not found anything terribly useful.)
+>>
+>> THK
+>>
+>> http://www.keittlab.org/
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170125/d667e095/attachment.html>
+

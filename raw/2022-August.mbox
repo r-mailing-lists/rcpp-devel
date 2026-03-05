@@ -1,0 +1,298 @@
+From serguei.sokol at gmail.com  Wed Aug  3 11:14:41 2022
+From: serguei.sokol at gmail.com (Sokol Serguei)
+Date: Wed, 3 Aug 2022 11:14:41 +0200
+Subject: [Rcpp-devel] Need some hep reading files
+In-Reply-To: <CAH3kUhE-wBDc+5kHrArGx4Gj9OXdhqdZgesgwnmWExYr_TzVaQ@mail.gmail.com>
+References: <CAH3kUhFLyKBFnJAVrn2E9L3FW2mTfpEvDWT+N=QBW_pY7VF02w@mail.gmail.com>
+ <CAH3kUhE-wBDc+5kHrArGx4Gj9OXdhqdZgesgwnmWExYr_TzVaQ@mail.gmail.com>
+Message-ID: <eb15afa9-8406-f084-093d-6bd83e8daf39@gmail.com>
+
+Le 29/07/2022 à 23:43, Roberto Spadim a écrit :
+> I don't know if I'm  clear in last message
+> What I want to do is something like this, but i don't know if Rcpp can 
+> 'convert' the ifstream to SEXP and keep the object intact:
+XPtr was designed to wrap any C++ pointer to SEXP structure and make a 
+backward conversion too. So I would start with this kind of helper.
+
+For example, see 
+https://www.r-bloggers.com/2010/01/external-pointers-with-rcpp/
+
+You have to pay a particular attention to what should happen if on R 
+side, your pointer-wrapper goes out of scope and thus becomes a subject 
+to garbage collection. Should your ifstream be destroyed automatically 
+at this moment or you will do it later by yourself?
+
+Best,
+Serguei.
+
+
+>
+> One RCPP function to open the file and return the "ifstream" object
+>
+> ifstream some_open_function(){
+>   ifstream infile;
+>   infile.open("afile.dat");
+>   return infile;
+> }
+>
+> one read function:
+>
+> string read_file(ifstream infile){
+>   string data;
+>   infile >> data;
+>   return data;
+> }
+>
+> one close function:
+>
+> void close_file(ifstream infile){
+>    infile.close();
+> }
+>
+>
+>
+>
+>
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+From konrad_kraemer at yahoo.de  Wed Aug 10 08:22:17 2022
+From: konrad_kraemer at yahoo.de (konrad)
+Date: Wed, 10 Aug 2022 08:22:17 +0200
+Subject: [Rcpp-devel] cost of .Call
+References: <f102faee-9777-cba0-f8aa-6e1e0cd3cfc8.ref@yahoo.de>
+Message-ID: <f102faee-9777-cba0-f8aa-6e1e0cd3cfc8@yahoo.de>
+
+Dear all,
+
+
+I have a question regarding the cost of .Call. If I implement the 
+rosenbrock function in R and in Rcpp. The R version is substentially 
+faster then the C++ version. The Rcpp function is basically an R 
+function which calls the C++ function using .Call. Which part of the 
+code generates this overhead of the Rcpp function. Is it the .Call 
+itself or the conversion of the types from R to Rcpp? Or have I done 
+something wrong?
+
+
+library(Rcpp)
+library(microbenchmark)
+
+
+fr <- function(x) {   ## Rosenbrock Banana function
+   x1 <- x[1]
+   x2 <- x[2]
+   100 * (x2 - x1 * x1)^2 + (1 - x1)^2
+}
+
+sourceCpp(code = "
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+double fr_rcpp(Rcpp::NumericVector x) {
+   double x1 = x[0];
+   double x2 = x[1];
+   return 100 * (x2 - x1 * x1)*(x2 - x1 * x1) + (1 - x1)*(1 - x1);
+}
+")
+
+x <- c(1, 2)
+identical(fr(x), fr_rcpp(x))
+
+r <- microbenchmark(fr(x), fr_rcpp(x))
+boxplot(r)
+
+
+Thank you very much for your help!
+
+
+All the best,
+
+
+Konrad
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220810/abe5e12f/attachment.html>
+
+From edd at debian.org  Wed Aug 10 17:22:03 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 10 Aug 2022 10:22:03 -0500
+Subject: [Rcpp-devel] cost of .Call
+In-Reply-To: <f102faee-9777-cba0-f8aa-6e1e0cd3cfc8@yahoo.de>
+References: <f102faee-9777-cba0-f8aa-6e1e0cd3cfc8.ref@yahoo.de>
+ <f102faee-9777-cba0-f8aa-6e1e0cd3cfc8@yahoo.de>
+Message-ID: <25331.52507.532321.621740@rob.eddelbuettel.com>
+
+
+Hi Konrad,
+
+On 10 August 2022 at 08:22, konrad wrote:
+| I have a question regarding the cost of .Call. If I implement the 
+| rosenbrock function in R and in Rcpp. The R version is substentially 
+| faster then the C++ version. The Rcpp function is basically an R 
+| function which calls the C++ function using .Call. Which part of the 
+| code generates this overhead of the Rcpp function. Is it the .Call 
+| itself or the conversion of the types from R to Rcpp? Or have I done 
+| something wrong?
+
+It's just a not a meaningful benchmark as there are essentially no operations
+on the R side either.
+
+And Rcpp, by making it _convenient_ injects some extra code and tests and
+state keeping all of which is documented and for which you have some toggles
+to suppress at least parts.
+
+But in short, it's a non-question. By all means keep exploring Rcpp but you
+will need something meatier for it to make sense. You should have no problem
+finding examples.
+
+Cheers, Dirk
+
+| 
+| library(Rcpp)
+| library(microbenchmark)
+| 
+| 
+| fr <- function(x) {   ## Rosenbrock Banana function
+|    x1 <- x[1]
+|    x2 <- x[2]
+|    100 * (x2 - x1 * x1)^2 + (1 - x1)^2
+| }
+| 
+| sourceCpp(code = "
+| #include <Rcpp.h>
+| 
+| // [[Rcpp::export]]
+| double fr_rcpp(Rcpp::NumericVector x) {
+|    double x1 = x[0];
+|    double x2 = x[1];
+|    return 100 * (x2 - x1 * x1)*(x2 - x1 * x1) + (1 - x1)*(1 - x1);
+| }
+| ")
+| 
+| x <- c(1, 2)
+| identical(fr(x), fr_rcpp(x))
+| 
+| r <- microbenchmark(fr(x), fr_rcpp(x))
+| boxplot(r)
+| 
+| 
+| Thank you very much for your help!
+| 
+| 
+| All the best,
+| 
+| 
+| Konrad
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From avraham.adler at gmail.com  Wed Aug 10 18:51:19 2022
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Wed, 10 Aug 2022 19:51:19 +0300
+Subject: [Rcpp-devel] cost of .Call
+In-Reply-To: <25331.52507.532321.621740@rob.eddelbuettel.com>
+References: <25331.52507.532321.621740@rob.eddelbuettel.com>
+Message-ID: <C84514D5-FA38-448A-B94D-E7220B27CDFE@gmail.com>
+
+Hi Konrad. 
+
+As Dirk said, Rcpp makes life easy for the programmer by taking care of some of the background work automatically. So there may be a time vs. speed trade off against bespoke handwritten code. I have a comparison between a few implementations (base, C,Rcpp, Fortran) of a relatively simple function which may interest you [1]. 
+
+Thanks,
+
+Avi
+
+[1] https://www.avrahamadler.com/2018/12/23/the-need-for-speed-part-2-c-vs-fortran-vs-c/
+
+Sent from my iPhone
+
+> On Aug 10, 2022, at 6:22 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> ﻿
+> Hi Konrad,
+> 
+> On 10 August 2022 at 08:22, konrad wrote:
+> | I have a question regarding the cost of .Call. If I implement the 
+> | rosenbrock function in R and in Rcpp. The R version is substentially 
+> | faster then the C++ version. The Rcpp function is basically an R 
+> | function which calls the C++ function using .Call. Which part of the 
+> | code generates this overhead of the Rcpp function. Is it the .Call 
+> | itself or the conversion of the types from R to Rcpp? Or have I done 
+> | something wrong?
+> 
+> It's just a not a meaningful benchmark as there are essentially no operations
+> on the R side either.
+> 
+> And Rcpp, by making it _convenient_ injects some extra code and tests and
+> state keeping all of which is documented and for which you have some toggles
+> to suppress at least parts.
+> 
+> But in short, it's a non-question. By all means keep exploring Rcpp but you
+> will need something meatier for it to make sense. You should have no problem
+> finding examples.
+> 
+> Cheers, Dirk
+> 
+> | 
+> | library(Rcpp)
+> | library(microbenchmark)
+> | 
+> | 
+> | fr <- function(x) {   ## Rosenbrock Banana function
+> |    x1 <- x[1]
+> |    x2 <- x[2]
+> |    100 * (x2 - x1 * x1)^2 + (1 - x1)^2
+> | }
+> | 
+> | sourceCpp(code = "
+> | #include <Rcpp.h>
+> | 
+> | // [[Rcpp::export]]
+> | double fr_rcpp(Rcpp::NumericVector x) {
+> |    double x1 = x[0];
+> |    double x2 = x[1];
+> |    return 100 * (x2 - x1 * x1)*(x2 - x1 * x1) + (1 - x1)*(1 - x1);
+> | }
+> | ")
+> | 
+> | x <- c(1, 2)
+> | identical(fr(x), fr_rcpp(x))
+> | 
+> | r <- microbenchmark(fr(x), fr_rcpp(x))
+> | boxplot(r)
+> | 
+> | 
+> | Thank you very much for your help!
+> | 
+> | 
+> | All the best,
+> | 
+> | 
+> | Konrad
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> -- 
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220810/31ee94e1/attachment.html>
+

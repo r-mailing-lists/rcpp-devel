@@ -1,0 +1,2820 @@
+From qkou at umail.iu.edu  Sun Nov  1 16:23:46 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Sun, 1 Nov 2015 10:23:46 -0500
+Subject: [Rcpp-devel] Overflow error when creating a large matrix
+In-Reply-To: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+References: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+Message-ID: <CAJ_LAMB6Bpz12FJT75HDFYQqSHa3jZbYp3b7DOKv66K=gfeogw@mail.gmail.com>
+
+On Sat, Oct 31, 2015 at 3:08 PM, Alessandro Mammana <mammana at molgen.mpg.de>
+wrote:
+
+> Dear All,
+> When creating a large matrix with the follwing code:
+>
+> #include <Rcpp.h>
+> // [[Rcpp::export]]
+> Rcpp::IntegerMatrix makeMat(int nrow, int ncol){
+>         Rcpp::IntegerMatrix mat(nrow, ncol);
+>         return mat;
+> }
+>
+> I get the error:
+>
+> Error in .Primitive(".Call")(<pointer: 0x7f86936d3ea0>, nrow, ncol) :
+>   negative length vectors are not allowed
+>
+> Where nrow*ncol is a very large number (about 3*10^9). I understand
+> that such a number cannot be represented by an int type, but this does
+> not seem to be a problem when in R I do:
+>
+> > mat <- matrix(0, nrow=nrow, ncol=ncol)
+>
+>
+Can you post a reproducible example? I will look into it.
+
+
+> Questions:
+> 1. why is the behaviour different between R and Rcpp in the allocation
+> of a matrix?
+
+
+It should be the same (at least we want to make them same).
+
+
+>
+
+2. In a 64 bits machine, what is actually the maximum allowed length
+> of a vector/matrix? does the length of a vector/matrix need to be
+> represented by an int?
+
+
+The length limit is R_xlen_t, which is defined in [1]. For matrix, this
+limit is for the number of all elements ( nrow * ncol).
+
+Best wishes,
+
+KK
+
+[1] https://github.com/wch/r-source/blob/trunk/src/include/Rinternals.h#L68
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151101/1f467776/attachment.html>
+
+From florian.plaza at jouy.inra.fr  Sun Nov  1 16:37:44 2015
+From: florian.plaza at jouy.inra.fr (=?UTF-8?Q?Florian_Plaza_O=c3=b1ate?=)
+Date: Sun, 1 Nov 2015 16:37:44 +0100
+Subject: [Rcpp-devel] Overflow error when creating a large matrix
+In-Reply-To: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+References: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+Message-ID: <563631C8.2050702@jouy.inra.fr>
+
+The bug is probably fixed by this commit:
+https://github.com/RcppCore/Rcpp/commit/eb069bf5c20aaa4d38e0ca2897bf04e956cb8c4c
+
+Le 31/10/2015 20:08, Alessandro Mammana a ?crit :
+> Dear All,
+> When creating a large matrix with the follwing code:
+>
+> #include <Rcpp.h>
+> // [[Rcpp::export]]
+> Rcpp::IntegerMatrix makeMat(int nrow, int ncol){
+>          Rcpp::IntegerMatrix mat(nrow, ncol);
+>          return mat;
+> }
+>
+> I get the error:
+>
+> Error in .Primitive(".Call")(<pointer: 0x7f86936d3ea0>, nrow, ncol) :
+>    negative length vectors are not allowed
+>
+> Where nrow*ncol is a very large number (about 3*10^9). I understand
+> that such a number cannot be represented by an int type, but this does
+> not seem to be a problem when in R I do:
+>
+>> mat <- matrix(0, nrow=nrow, ncol=ncol)
+>
+> Questions:
+> 1. why is the behaviour different between R and Rcpp in the allocation
+> of a matrix?
+> 2. In a 64 bits machine, what is actually the maximum allowed length
+> of a vector/matrix? does the length of a vector/matrix need to be
+> represented by an int?
+>
+> Thanks a lot and best regards,
+> Alessandro
+>
+
+From mammana at molgen.mpg.de  Sun Nov  1 19:30:06 2015
+From: mammana at molgen.mpg.de (Alessandro Mammana)
+Date: Sun, 1 Nov 2015 18:30:06 +0000
+Subject: [Rcpp-devel] Overflow error when creating a large matrix
+In-Reply-To: <563631C8.2050702@jouy.inra.fr>
+References: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+ <563631C8.2050702@jouy.inra.fr>
+Message-ID: <CA+RJ7GNp7LH3cqbKMAAqY4pc=EL-qcV0ZAOB1yFZMSD19w+i4g@mail.gmail.com>
+
+It's great that R and Rcpp have support for long vectors! that makes
+my life so much easier!
+
+So I installed Rcpp version 0.12.1 and the error is still there (see
+end of the email). If I interpret the commit history correctly, the
+commit that fixes the bug was done shortly after the 0.12.1 release
+right? Is there an easy way of getting the latest version of the
+master branch?
+I tried:
+
+devtools::install_github("https://github.com/RcppCore/Rcpp")
+
+But I got:
+
+Error in username %||% getOption("github.user") %||% stop("Unknown username.") :
+  Unknown username.
+
+> sourceCpp("makeMat.cpp")
+> makeMat(18, 136633572)
+Error in .Primitive(".Call")(<pointer: 0x7f57d1c73ee0>, nrow, ncol) :
+  negative length vectors are not allowed
+> sesssionInfo()
+Error: could not find function "sesssionInfo"
+> sessionInfo()
+R version 3.2.0 (2015-04-16)
+Platform: x86_64-unknown-linux-gnu (64-bit)
+Running under: MarIuX64 2.0 GNU/Linux 2010-2012
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C         LC_TIME=C
+ [4] LC_COLLATE=C         LC_MONETARY=C        LC_MESSAGES=C
+ [7] LC_PAPER=C           LC_NAME=C            LC_ADDRESS=C
+[10] LC_TELEPHONE=C       LC_MEASUREMENT=C     LC_IDENTIFICATION=C
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] Rcpp_0.12.1
+
+On Sun, Nov 1, 2015 at 3:37 PM, Florian Plaza O?ate
+<florian.plaza at jouy.inra.fr> wrote:
+> The bug is probably fixed by this commit:
+> https://github.com/RcppCore/Rcpp/commit/eb069bf5c20aaa4d38e0ca2897bf04e956cb8c4c
+>
+>
+> Le 31/10/2015 20:08, Alessandro Mammana a ?crit :
+>>
+>> Dear All,
+>> When creating a large matrix with the follwing code:
+>>
+>> #include <Rcpp.h>
+>> // [[Rcpp::export]]
+>> Rcpp::IntegerMatrix makeMat(int nrow, int ncol){
+>>          Rcpp::IntegerMatrix mat(nrow, ncol);
+>>          return mat;
+>> }
+>>
+>> I get the error:
+>>
+>> Error in .Primitive(".Call")(<pointer: 0x7f86936d3ea0>, nrow, ncol) :
+>>    negative length vectors are not allowed
+>>
+>> Where nrow*ncol is a very large number (about 3*10^9). I understand
+>> that such a number cannot be represented by an int type, but this does
+>> not seem to be a problem when in R I do:
+>>
+>>> mat <- matrix(0, nrow=nrow, ncol=ncol)
+>>
+>>
+>> Questions:
+>> 1. why is the behaviour different between R and Rcpp in the allocation
+>> of a matrix?
+>> 2. In a 64 bits machine, what is actually the maximum allowed length
+>> of a vector/matrix? does the length of a vector/matrix need to be
+>> represented by an int?
+>>
+>> Thanks a lot and best regards,
+>> Alessandro
+>>
+>
+
+
+
+-- 
+Alessandro Mammana, PhD Student
+Max Planck Institute for Molecular Genetics
+Ihnestra?e 63-73
+D-14195 Berlin, Germany
+
+From mammana at molgen.mpg.de  Sun Nov  1 20:35:52 2015
+From: mammana at molgen.mpg.de (Alessandro Mammana)
+Date: Sun, 1 Nov 2015 19:35:52 +0000
+Subject: [Rcpp-devel] Overflow error when creating a large matrix
+In-Reply-To: <CA+RJ7GNp7LH3cqbKMAAqY4pc=EL-qcV0ZAOB1yFZMSD19w+i4g@mail.gmail.com>
+References: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+ <563631C8.2050702@jouy.inra.fr>
+ <CA+RJ7GNp7LH3cqbKMAAqY4pc=EL-qcV0ZAOB1yFZMSD19w+i4g@mail.gmail.com>
+Message-ID: <CA+RJ7GPLSkBSdbKSXVG0M--ZZkEDt-d0hZqYzyDgsaewMT5cGw@mail.gmail.com>
+
+As Sean O'Riordain correctly pointed out, I used the install_github
+command improperly. Doing
+
+devtools::install_github("RcppCore/Rcpp")
+
+works and the big matrix is allocated correctly.
+
+Thanks for the help and for the great work you are doing!
+Ale
+
+On Sun, Nov 1, 2015 at 6:30 PM, Alessandro Mammana
+<mammana at molgen.mpg.de> wrote:
+> It's great that R and Rcpp have support for long vectors! that makes
+> my life so much easier!
+>
+> So I installed Rcpp version 0.12.1 and the error is still there (see
+> end of the email). If I interpret the commit history correctly, the
+> commit that fixes the bug was done shortly after the 0.12.1 release
+> right? Is there an easy way of getting the latest version of the
+> master branch?
+> I tried:
+>
+> devtools::install_github("https://github.com/RcppCore/Rcpp")
+>
+> But I got:
+>
+> Error in username %||% getOption("github.user") %||% stop("Unknown username.") :
+>   Unknown username.
+>
+>> sourceCpp("makeMat.cpp")
+>> makeMat(18, 136633572)
+> Error in .Primitive(".Call")(<pointer: 0x7f57d1c73ee0>, nrow, ncol) :
+>   negative length vectors are not allowed
+>> sesssionInfo()
+> Error: could not find function "sesssionInfo"
+>> sessionInfo()
+> R version 3.2.0 (2015-04-16)
+> Platform: x86_64-unknown-linux-gnu (64-bit)
+> Running under: MarIuX64 2.0 GNU/Linux 2010-2012
+>
+> locale:
+>  [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C         LC_TIME=C
+>  [4] LC_COLLATE=C         LC_MONETARY=C        LC_MESSAGES=C
+>  [7] LC_PAPER=C           LC_NAME=C            LC_ADDRESS=C
+> [10] LC_TELEPHONE=C       LC_MEASUREMENT=C     LC_IDENTIFICATION=C
+>
+> attached base packages:
+> [1] stats     graphics  grDevices utils     datasets  methods   base
+>
+> other attached packages:
+> [1] Rcpp_0.12.1
+>
+> On Sun, Nov 1, 2015 at 3:37 PM, Florian Plaza O?ate
+> <florian.plaza at jouy.inra.fr> wrote:
+>> The bug is probably fixed by this commit:
+>> https://github.com/RcppCore/Rcpp/commit/eb069bf5c20aaa4d38e0ca2897bf04e956cb8c4c
+>>
+>>
+>> Le 31/10/2015 20:08, Alessandro Mammana a ?crit :
+>>>
+>>> Dear All,
+>>> When creating a large matrix with the follwing code:
+>>>
+>>> #include <Rcpp.h>
+>>> // [[Rcpp::export]]
+>>> Rcpp::IntegerMatrix makeMat(int nrow, int ncol){
+>>>          Rcpp::IntegerMatrix mat(nrow, ncol);
+>>>          return mat;
+>>> }
+>>>
+>>> I get the error:
+>>>
+>>> Error in .Primitive(".Call")(<pointer: 0x7f86936d3ea0>, nrow, ncol) :
+>>>    negative length vectors are not allowed
+>>>
+>>> Where nrow*ncol is a very large number (about 3*10^9). I understand
+>>> that such a number cannot be represented by an int type, but this does
+>>> not seem to be a problem when in R I do:
+>>>
+>>>> mat <- matrix(0, nrow=nrow, ncol=ncol)
+>>>
+>>>
+>>> Questions:
+>>> 1. why is the behaviour different between R and Rcpp in the allocation
+>>> of a matrix?
+>>> 2. In a 64 bits machine, what is actually the maximum allowed length
+>>> of a vector/matrix? does the length of a vector/matrix need to be
+>>> represented by an int?
+>>>
+>>> Thanks a lot and best regards,
+>>> Alessandro
+>>>
+>>
+>
+>
+>
+> --
+> Alessandro Mammana, PhD Student
+> Max Planck Institute for Molecular Genetics
+> Ihnestra?e 63-73
+> D-14195 Berlin, Germany
+
+
+
+-- 
+Alessandro Mammana, PhD Student
+Max Planck Institute for Molecular Genetics
+Ihnestra?e 63-73
+D-14195 Berlin, Germany
+
+From mammana at molgen.mpg.de  Sun Nov  1 23:08:56 2015
+From: mammana at molgen.mpg.de (Alessandro Mammana)
+Date: Sun, 1 Nov 2015 22:08:56 +0000
+Subject: [Rcpp-devel] Overflow error when creating a large matrix
+In-Reply-To: <CA+RJ7GPLSkBSdbKSXVG0M--ZZkEDt-d0hZqYzyDgsaewMT5cGw@mail.gmail.com>
+References: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+ <563631C8.2050702@jouy.inra.fr>
+ <CA+RJ7GNp7LH3cqbKMAAqY4pc=EL-qcV0ZAOB1yFZMSD19w+i4g@mail.gmail.com>
+ <CA+RJ7GPLSkBSdbKSXVG0M--ZZkEDt-d0hZqYzyDgsaewMT5cGw@mail.gmail.com>
+Message-ID: <CA+RJ7GOyJWT4x239hU7rn1OSuN1OYVrs6vfXUZ=j=ceNRPu6NQ@mail.gmail.com>
+
+I got another error when using the Matrix.column() function, as in the
+code below:
+
+#include <Rcpp.h>
+#include "array.cpp"
+// [[Rcpp::export]]
+Rcpp::IntegerMatrix makeMat(int nrow=18, int ncol=136633572){
+        Rcpp::IntegerMatrix mat(nrow, ncol);
+        for (int i = 0; i < ncol; ++i) {
+                Rcpp::MatrixColumn<INTSXP> col = mat.column(i);
+                for (int j = 0; j < nrow; ++j){
+                        col[j] = 1;
+                }
+        }
+        return mat;
+}
+
+Then in R:
+
+> library(Rcpp)
+> sourceCpp("makeMat.cpp")
+> mat <- makeMat()
+
+ *** caught segfault ***
+address 0x7f4c1e825088, cause 'memory not mapped'
+
+Traceback:
+ 1: .Primitive(".Call")(<pointer: 0x7f5068e0cee0>, nrow, ncol)
+ 2: makeMat()
+
+
+If I had to guess, the column function is doing the multiplication
+i*nrow and storing it as an int, which overflows when i is big. I am
+sorry that I cannot point to the Rcpp code where this happens and
+propose the fix, I am sitting on a chair with my laptop on my legs,
+not quite convenient for programming :D.
+
+Best,
+Alessandro
+
+On Sun, Nov 1, 2015 at 7:35 PM, Alessandro Mammana
+<mammana at molgen.mpg.de> wrote:
+> As Sean O'Riordain correctly pointed out, I used the install_github
+> command improperly. Doing
+>
+> devtools::install_github("RcppCore/Rcpp")
+>
+> works and the big matrix is allocated correctly.
+>
+> Thanks for the help and for the great work you are doing!
+> Ale
+>
+> On Sun, Nov 1, 2015 at 6:30 PM, Alessandro Mammana
+> <mammana at molgen.mpg.de> wrote:
+>> It's great that R and Rcpp have support for long vectors! that makes
+>> my life so much easier!
+>>
+>> So I installed Rcpp version 0.12.1 and the error is still there (see
+>> end of the email). If I interpret the commit history correctly, the
+>> commit that fixes the bug was done shortly after the 0.12.1 release
+>> right? Is there an easy way of getting the latest version of the
+>> master branch?
+>> I tried:
+>>
+>> devtools::install_github("https://github.com/RcppCore/Rcpp")
+>>
+>> But I got:
+>>
+>> Error in username %||% getOption("github.user") %||% stop("Unknown username.") :
+>>   Unknown username.
+>>
+>>> sourceCpp("makeMat.cpp")
+>>> makeMat(18, 136633572)
+>> Error in .Primitive(".Call")(<pointer: 0x7f57d1c73ee0>, nrow, ncol) :
+>>   negative length vectors are not allowed
+>>> sesssionInfo()
+>> Error: could not find function "sesssionInfo"
+>>> sessionInfo()
+>> R version 3.2.0 (2015-04-16)
+>> Platform: x86_64-unknown-linux-gnu (64-bit)
+>> Running under: MarIuX64 2.0 GNU/Linux 2010-2012
+>>
+>> locale:
+>>  [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C         LC_TIME=C
+>>  [4] LC_COLLATE=C         LC_MONETARY=C        LC_MESSAGES=C
+>>  [7] LC_PAPER=C           LC_NAME=C            LC_ADDRESS=C
+>> [10] LC_TELEPHONE=C       LC_MEASUREMENT=C     LC_IDENTIFICATION=C
+>>
+>> attached base packages:
+>> [1] stats     graphics  grDevices utils     datasets  methods   base
+>>
+>> other attached packages:
+>> [1] Rcpp_0.12.1
+>>
+>> On Sun, Nov 1, 2015 at 3:37 PM, Florian Plaza O?ate
+>> <florian.plaza at jouy.inra.fr> wrote:
+>>> The bug is probably fixed by this commit:
+>>> https://github.com/RcppCore/Rcpp/commit/eb069bf5c20aaa4d38e0ca2897bf04e956cb8c4c
+>>>
+>>>
+>>> Le 31/10/2015 20:08, Alessandro Mammana a ?crit :
+>>>>
+>>>> Dear All,
+>>>> When creating a large matrix with the follwing code:
+>>>>
+>>>> #include <Rcpp.h>
+>>>> // [[Rcpp::export]]
+>>>> Rcpp::IntegerMatrix makeMat(int nrow, int ncol){
+>>>>          Rcpp::IntegerMatrix mat(nrow, ncol);
+>>>>          return mat;
+>>>> }
+>>>>
+>>>> I get the error:
+>>>>
+>>>> Error in .Primitive(".Call")(<pointer: 0x7f86936d3ea0>, nrow, ncol) :
+>>>>    negative length vectors are not allowed
+>>>>
+>>>> Where nrow*ncol is a very large number (about 3*10^9). I understand
+>>>> that such a number cannot be represented by an int type, but this does
+>>>> not seem to be a problem when in R I do:
+>>>>
+>>>>> mat <- matrix(0, nrow=nrow, ncol=ncol)
+>>>>
+>>>>
+>>>> Questions:
+>>>> 1. why is the behaviour different between R and Rcpp in the allocation
+>>>> of a matrix?
+>>>> 2. In a 64 bits machine, what is actually the maximum allowed length
+>>>> of a vector/matrix? does the length of a vector/matrix need to be
+>>>> represented by an int?
+>>>>
+>>>> Thanks a lot and best regards,
+>>>> Alessandro
+>>>>
+>>>
+>>
+>>
+>>
+>> --
+>> Alessandro Mammana, PhD Student
+>> Max Planck Institute for Molecular Genetics
+>> Ihnestra?e 63-73
+>> D-14195 Berlin, Germany
+>
+>
+>
+> --
+> Alessandro Mammana, PhD Student
+> Max Planck Institute for Molecular Genetics
+> Ihnestra?e 63-73
+> D-14195 Berlin, Germany
+
+
+
+-- 
+Alessandro Mammana, PhD Student
+Max Planck Institute for Molecular Genetics
+Ihnestra?e 63-73
+D-14195 Berlin, Germany
+
+From edd at debian.org  Mon Nov  2 00:20:01 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 1 Nov 2015 17:20:01 -0600
+Subject: [Rcpp-devel] Overflow error when creating a large matrix
+In-Reply-To: <CA+RJ7GPLSkBSdbKSXVG0M--ZZkEDt-d0hZqYzyDgsaewMT5cGw@mail.gmail.com>
+References: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+ <563631C8.2050702@jouy.inra.fr>
+ <CA+RJ7GNp7LH3cqbKMAAqY4pc=EL-qcV0ZAOB1yFZMSD19w+i4g@mail.gmail.com>
+ <CA+RJ7GPLSkBSdbKSXVG0M--ZZkEDt-d0hZqYzyDgsaewMT5cGw@mail.gmail.com>
+Message-ID: <22070.40481.701714.804007@max.nulle.part>
+
+
+On 1 November 2015 at 19:35, Alessandro Mammana wrote:
+| As Sean O'Riordain correctly pointed out, I used the install_github
+| command improperly. Doing
+| 
+| devtools::install_github("RcppCore/Rcpp")
+
+Oh noooooes. install_gitub() is not what one should use when we have drat.
+
+I just rolled the Rcpp repo forward to 0.12.1.4, created a tarball and pushed
+it into the drat repo of the RcppCore organization.  See the README here
+
+   https://github.com/RcppCore/drat
+
+and just do
+
+   drat:::add("RcppCore")
+   install.packages("Rcpp")
+ 
+| works and the big matrix is allocated correctly.
+| 
+| Thanks for the help and for the great work you are doing!
+
+Indeed.  Nice to see this working.
+
+Dirk, for once in Boston
+
+| Ale
+| 
+| On Sun, Nov 1, 2015 at 6:30 PM, Alessandro Mammana
+| <mammana at molgen.mpg.de> wrote:
+| > It's great that R and Rcpp have support for long vectors! that makes
+| > my life so much easier!
+| >
+| > So I installed Rcpp version 0.12.1 and the error is still there (see
+| > end of the email). If I interpret the commit history correctly, the
+| > commit that fixes the bug was done shortly after the 0.12.1 release
+| > right? Is there an easy way of getting the latest version of the
+| > master branch?
+| > I tried:
+| >
+| > devtools::install_github("https://github.com/RcppCore/Rcpp")
+| >
+| > But I got:
+| >
+| > Error in username %||% getOption("github.user") %||% stop("Unknown username.") :
+| >   Unknown username.
+| >
+| >> sourceCpp("makeMat.cpp")
+| >> makeMat(18, 136633572)
+| > Error in .Primitive(".Call")(<pointer: 0x7f57d1c73ee0>, nrow, ncol) :
+| >   negative length vectors are not allowed
+| >> sesssionInfo()
+| > Error: could not find function "sesssionInfo"
+| >> sessionInfo()
+| > R version 3.2.0 (2015-04-16)
+| > Platform: x86_64-unknown-linux-gnu (64-bit)
+| > Running under: MarIuX64 2.0 GNU/Linux 2010-2012
+| >
+| > locale:
+| >  [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C         LC_TIME=C
+| >  [4] LC_COLLATE=C         LC_MONETARY=C        LC_MESSAGES=C
+| >  [7] LC_PAPER=C           LC_NAME=C            LC_ADDRESS=C
+| > [10] LC_TELEPHONE=C       LC_MEASUREMENT=C     LC_IDENTIFICATION=C
+| >
+| > attached base packages:
+| > [1] stats     graphics  grDevices utils     datasets  methods   base
+| >
+| > other attached packages:
+| > [1] Rcpp_0.12.1
+| >
+| > On Sun, Nov 1, 2015 at 3:37 PM, Florian Plaza O?ate
+| > <florian.plaza at jouy.inra.fr> wrote:
+| >> The bug is probably fixed by this commit:
+| >> https://github.com/RcppCore/Rcpp/commit/eb069bf5c20aaa4d38e0ca2897bf04e956cb8c4c
+| >>
+| >>
+| >> Le 31/10/2015 20:08, Alessandro Mammana a ?crit :
+| >>>
+| >>> Dear All,
+| >>> When creating a large matrix with the follwing code:
+| >>>
+| >>> #include <Rcpp.h>
+| >>> // [[Rcpp::export]]
+| >>> Rcpp::IntegerMatrix makeMat(int nrow, int ncol){
+| >>>          Rcpp::IntegerMatrix mat(nrow, ncol);
+| >>>          return mat;
+| >>> }
+| >>>
+| >>> I get the error:
+| >>>
+| >>> Error in .Primitive(".Call")(<pointer: 0x7f86936d3ea0>, nrow, ncol) :
+| >>>    negative length vectors are not allowed
+| >>>
+| >>> Where nrow*ncol is a very large number (about 3*10^9). I understand
+| >>> that such a number cannot be represented by an int type, but this does
+| >>> not seem to be a problem when in R I do:
+| >>>
+| >>>> mat <- matrix(0, nrow=nrow, ncol=ncol)
+| >>>
+| >>>
+| >>> Questions:
+| >>> 1. why is the behaviour different between R and Rcpp in the allocation
+| >>> of a matrix?
+| >>> 2. In a 64 bits machine, what is actually the maximum allowed length
+| >>> of a vector/matrix? does the length of a vector/matrix need to be
+| >>> represented by an int?
+| >>>
+| >>> Thanks a lot and best regards,
+| >>> Alessandro
+| >>>
+| >>
+| >
+| >
+| >
+| > --
+| > Alessandro Mammana, PhD Student
+| > Max Planck Institute for Molecular Genetics
+| > Ihnestra?e 63-73
+| > D-14195 Berlin, Germany
+| 
+| 
+| 
+| -- 
+| Alessandro Mammana, PhD Student
+| Max Planck Institute for Molecular Genetics
+| Ihnestra?e 63-73
+| D-14195 Berlin, Germany
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Mon Nov  2 00:56:19 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Sun, 1 Nov 2015 18:56:19 -0500
+Subject: [Rcpp-devel] Overflow error when creating a large matrix
+In-Reply-To: <CA+RJ7GOyJWT4x239hU7rn1OSuN1OYVrs6vfXUZ=j=ceNRPu6NQ@mail.gmail.com>
+References: <CA+RJ7GMvPu0W8B2+p+wTu4NJ5YhcGoNrXrLxpHpNedB_9DViSw@mail.gmail.com>
+ <563631C8.2050702@jouy.inra.fr>
+ <CA+RJ7GNp7LH3cqbKMAAqY4pc=EL-qcV0ZAOB1yFZMSD19w+i4g@mail.gmail.com>
+ <CA+RJ7GPLSkBSdbKSXVG0M--ZZkEDt-d0hZqYzyDgsaewMT5cGw@mail.gmail.com>
+ <CA+RJ7GOyJWT4x239hU7rn1OSuN1OYVrs6vfXUZ=j=ceNRPu6NQ@mail.gmail.com>
+Message-ID: <CAJ_LAMBjc_9Vot6oSvnSHRr5utmT3xKof096oDKkdKVibxTfSg@mail.gmail.com>
+
+Hi, Alessandro,
+
+I have confirmed and reproduced your error.
+
+It should be a bug and it is in
+https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/vector/MatrixColumn.h#L39
+
+In your case, i and n both are integers, but i * n caused an overflow. We
+will fix this soon.
+
+Thank you for the test on big vector and matrix. More test will be truly
+appreciated.
+
+Best wishes,
+
+KK
+
+On Sun, Nov 1, 2015 at 5:08 PM, Alessandro Mammana <mammana at molgen.mpg.de>
+wrote:
+
+> I got another error when using the Matrix.column() function, as in the
+> code below:
+>
+> #include <Rcpp.h>
+> #include "array.cpp"
+> // [[Rcpp::export]]
+> Rcpp::IntegerMatrix makeMat(int nrow=18, int ncol=136633572){
+>         Rcpp::IntegerMatrix mat(nrow, ncol);
+>         for (int i = 0; i < ncol; ++i) {
+>                 Rcpp::MatrixColumn<INTSXP> col = mat.column(i);
+>                 for (int j = 0; j < nrow; ++j){
+>                         col[j] = 1;
+>                 }
+>         }
+>         return mat;
+> }
+>
+> Then in R:
+>
+> > library(Rcpp)
+> > sourceCpp("makeMat.cpp")
+> > mat <- makeMat()
+>
+>  *** caught segfault ***
+> address 0x7f4c1e825088, cause 'memory not mapped'
+>
+> Traceback:
+>  1: .Primitive(".Call")(<pointer: 0x7f5068e0cee0>, nrow, ncol)
+>  2: makeMat()
+>
+>
+> If I had to guess, the column function is doing the multiplication
+> i*nrow and storing it as an int, which overflows when i is big. I am
+> sorry that I cannot point to the Rcpp code where this happens and
+> propose the fix, I am sitting on a chair with my laptop on my legs,
+> not quite convenient for programming :D.
+>
+> Best,
+> Alessandro
+>
+> On Sun, Nov 1, 2015 at 7:35 PM, Alessandro Mammana
+> <mammana at molgen.mpg.de> wrote:
+> > As Sean O'Riordain correctly pointed out, I used the install_github
+> > command improperly. Doing
+> >
+> > devtools::install_github("RcppCore/Rcpp")
+> >
+> > works and the big matrix is allocated correctly.
+> >
+> > Thanks for the help and for the great work you are doing!
+> > Ale
+> >
+> > On Sun, Nov 1, 2015 at 6:30 PM, Alessandro Mammana
+> > <mammana at molgen.mpg.de> wrote:
+> >> It's great that R and Rcpp have support for long vectors! that makes
+> >> my life so much easier!
+> >>
+> >> So I installed Rcpp version 0.12.1 and the error is still there (see
+> >> end of the email). If I interpret the commit history correctly, the
+> >> commit that fixes the bug was done shortly after the 0.12.1 release
+> >> right? Is there an easy way of getting the latest version of the
+> >> master branch?
+> >> I tried:
+> >>
+> >> devtools::install_github("https://github.com/RcppCore/Rcpp")
+> >>
+> >> But I got:
+> >>
+> >> Error in username %||% getOption("github.user") %||% stop("Unknown
+> username.") :
+> >>   Unknown username.
+> >>
+> >>> sourceCpp("makeMat.cpp")
+> >>> makeMat(18, 136633572)
+> >> Error in .Primitive(".Call")(<pointer: 0x7f57d1c73ee0>, nrow, ncol) :
+> >>   negative length vectors are not allowed
+> >>> sesssionInfo()
+> >> Error: could not find function "sesssionInfo"
+> >>> sessionInfo()
+> >> R version 3.2.0 (2015-04-16)
+> >> Platform: x86_64-unknown-linux-gnu (64-bit)
+> >> Running under: MarIuX64 2.0 GNU/Linux 2010-2012
+> >>
+> >> locale:
+> >>  [1] LC_CTYPE=en_US.UTF-8 LC_NUMERIC=C         LC_TIME=C
+> >>  [4] LC_COLLATE=C         LC_MONETARY=C        LC_MESSAGES=C
+> >>  [7] LC_PAPER=C           LC_NAME=C            LC_ADDRESS=C
+> >> [10] LC_TELEPHONE=C       LC_MEASUREMENT=C     LC_IDENTIFICATION=C
+> >>
+> >> attached base packages:
+> >> [1] stats     graphics  grDevices utils     datasets  methods   base
+> >>
+> >> other attached packages:
+> >> [1] Rcpp_0.12.1
+> >>
+> >> On Sun, Nov 1, 2015 at 3:37 PM, Florian Plaza O?ate
+> >> <florian.plaza at jouy.inra.fr> wrote:
+> >>> The bug is probably fixed by this commit:
+> >>>
+> https://github.com/RcppCore/Rcpp/commit/eb069bf5c20aaa4d38e0ca2897bf04e956cb8c4c
+> >>>
+> >>>
+> >>> Le 31/10/2015 20:08, Alessandro Mammana a ?crit :
+> >>>>
+> >>>> Dear All,
+> >>>> When creating a large matrix with the follwing code:
+> >>>>
+> >>>> #include <Rcpp.h>
+> >>>> // [[Rcpp::export]]
+> >>>> Rcpp::IntegerMatrix makeMat(int nrow, int ncol){
+> >>>>          Rcpp::IntegerMatrix mat(nrow, ncol);
+> >>>>          return mat;
+> >>>> }
+> >>>>
+> >>>> I get the error:
+> >>>>
+> >>>> Error in .Primitive(".Call")(<pointer: 0x7f86936d3ea0>, nrow, ncol) :
+> >>>>    negative length vectors are not allowed
+> >>>>
+> >>>> Where nrow*ncol is a very large number (about 3*10^9). I understand
+> >>>> that such a number cannot be represented by an int type, but this does
+> >>>> not seem to be a problem when in R I do:
+> >>>>
+> >>>>> mat <- matrix(0, nrow=nrow, ncol=ncol)
+> >>>>
+> >>>>
+> >>>> Questions:
+> >>>> 1. why is the behaviour different between R and Rcpp in the allocation
+> >>>> of a matrix?
+> >>>> 2. In a 64 bits machine, what is actually the maximum allowed length
+> >>>> of a vector/matrix? does the length of a vector/matrix need to be
+> >>>> represented by an int?
+> >>>>
+> >>>> Thanks a lot and best regards,
+> >>>> Alessandro
+> >>>>
+> >>>
+> >>
+> >>
+> >>
+> >> --
+> >> Alessandro Mammana, PhD Student
+> >> Max Planck Institute for Molecular Genetics
+> >> Ihnestra?e 63-73
+> >> D-14195 Berlin, Germany
+> >
+> >
+> >
+> > --
+> > Alessandro Mammana, PhD Student
+> > Max Planck Institute for Molecular Genetics
+> > Ihnestra?e 63-73
+> > D-14195 Berlin, Germany
+>
+>
+>
+> --
+> Alessandro Mammana, PhD Student
+> Max Planck Institute for Molecular Genetics
+> Ihnestra?e 63-73
+> D-14195 Berlin, Germany
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151101/38e740d4/attachment.html>
+
+From gblanchet.list at gmail.com  Mon Nov  2 19:48:30 2015
+From: gblanchet.list at gmail.com (Guillaume Blanchet)
+Date: Mon, 2 Nov 2015 13:48:30 -0500
+Subject: [Rcpp-devel] large number of warnings for simple use of Rcpp
+Message-ID: <33EA3E6B-F32A-47EB-90D6-82D06AA14D7B@gmail.com>
+
+Hi ! 
+
+I apologie in advance if this question has already been answered but I have yet to find a solution to my problem.
+
+I recently started to learn Rcpp using the book ? Seamless R and C++ Integration with Rcpp ? by Dirk Eddelbuettel.
+
+Using the Fibonacci C code from the book, I tried to reproduce the example to get a feeling of how to work with Rcpp. More precisely, I wrote the following C code in a file that I called  ? fibonacci.cpp ?.
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+//[[Rcpp::export]]
+int fibonacci(const int x) {
+	if(x < 2){
+		return(x);
+	}else{
+		return fibonacci(x-1)+fibonacci(x-2);
+	}
+}
+
+Following, I called this file using the following command line:
+
+sourceCpp("fibonacci.cpp")
+
+What I get in return is a series of 80 warnings. Although, these warning may be helpful to answer this question, to keep this message concise I will not attached them here. However, if you feel they maybe helpful, let me know and I will send them along. 
+
+Note that I am currently working on a Macbook Pro with the new OS (El Capitan). Following the advice given on the CRAN, I organized the Makevar file using clang as follow:
+
+CC=clang
+CXX=clang++
+CFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+CXXFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+FLIBS=-lgfortran
+
+Any reasons, why I get so many warnings ?
+
+Thanks in advance for your answer ! 
+
+Have a good day !
+
+Guillaume
+
+
+
+
+From kevinushey at gmail.com  Mon Nov  2 19:58:48 2015
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Mon, 2 Nov 2015 10:58:48 -0800
+Subject: [Rcpp-devel] large number of warnings for simple use of Rcpp
+In-Reply-To: <33EA3E6B-F32A-47EB-90D6-82D06AA14D7B@gmail.com>
+References: <33EA3E6B-F32A-47EB-90D6-82D06AA14D7B@gmail.com>
+Message-ID: <CAJXgQP28foXioTQNBwCKzKECnXnS5XZNprHOdt30aTu0GTEB2g@mail.gmail.com>
+
+Hi Guillaume,
+
+Compiling with the Makevars you provided, I see a number of warnings
+related to sign conversion and loss of integer precision (due to the
+use of `-Wconversion` in the Makevars).
+
+I'll add an issue on the GitHub issue tracker just so we don't lose sight of it.
+
+Thanks,
+Kevin
+
+On Mon, Nov 2, 2015 at 10:48 AM, Guillaume Blanchet
+<gblanchet.list at gmail.com> wrote:
+> Hi !
+>
+> I apologie in advance if this question has already been answered but I have yet to find a solution to my problem.
+>
+> I recently started to learn Rcpp using the book ? Seamless R and C++ Integration with Rcpp ? by Dirk Eddelbuettel.
+>
+> Using the Fibonacci C code from the book, I tried to reproduce the example to get a feeling of how to work with Rcpp. More precisely, I wrote the following C code in a file that I called  ? fibonacci.cpp ?.
+>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> //[[Rcpp::export]]
+> int fibonacci(const int x) {
+>         if(x < 2){
+>                 return(x);
+>         }else{
+>                 return fibonacci(x-1)+fibonacci(x-2);
+>         }
+> }
+>
+> Following, I called this file using the following command line:
+>
+> sourceCpp("fibonacci.cpp")
+>
+> What I get in return is a series of 80 warnings. Although, these warning may be helpful to answer this question, to keep this message concise I will not attached them here. However, if you feel they maybe helpful, let me know and I will send them along.
+>
+> Note that I am currently working on a Macbook Pro with the new OS (El Capitan). Following the advice given on the CRAN, I organized the Makevar file using clang as follow:
+>
+> CC=clang
+> CXX=clang++
+> CFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+> CXXFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+> FLIBS=-lgfortran
+>
+> Any reasons, why I get so many warnings ?
+>
+> Thanks in advance for your answer !
+>
+> Have a good day !
+>
+> Guillaume
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From gblanchet.list at gmail.com  Tue Nov  3 21:31:53 2015
+From: gblanchet.list at gmail.com (Guillaume Blanchet)
+Date: Tue, 3 Nov 2015 15:31:53 -0500
+Subject: [Rcpp-devel] large number of warnings for simple use of Rcpp
+In-Reply-To: <CAJXgQP28foXioTQNBwCKzKECnXnS5XZNprHOdt30aTu0GTEB2g@mail.gmail.com>
+References: <33EA3E6B-F32A-47EB-90D6-82D06AA14D7B@gmail.com>
+ <CAJXgQP28foXioTQNBwCKzKECnXnS5XZNprHOdt30aTu0GTEB2g@mail.gmail.com>
+Message-ID: <D44FAB1C-DC74-4A33-99D4-6045C6521D99@gmail.com>
+
+Hi ! 
+
+Great thanks ! 
+
+In the mean time, what do you suggest I can do if I want to work with Rcpp ? Or can something be done to the Makevars or is this problem running deeper ?
+
+Have a good day ! 
+
+Guillaume
+
+> Le 2 nov. 2015 ? 13:58, Kevin Ushey <kevinushey at gmail.com> a ?crit :
+> 
+> Hi Guillaume,
+> 
+> Compiling with the Makevars you provided, I see a number of warnings
+> related to sign conversion and loss of integer precision (due to the
+> use of `-Wconversion` in the Makevars).
+> 
+> I'll add an issue on the GitHub issue tracker just so we don't lose sight of it.
+> 
+> Thanks,
+> Kevin
+> 
+> On Mon, Nov 2, 2015 at 10:48 AM, Guillaume Blanchet
+> <gblanchet.list at gmail.com> wrote:
+>> Hi !
+>> 
+>> I apologie in advance if this question has already been answered but I have yet to find a solution to my problem.
+>> 
+>> I recently started to learn Rcpp using the book ? Seamless R and C++ Integration with Rcpp ? by Dirk Eddelbuettel.
+>> 
+>> Using the Fibonacci C code from the book, I tried to reproduce the example to get a feeling of how to work with Rcpp. More precisely, I wrote the following C code in a file that I called  ? fibonacci.cpp ?.
+>> 
+>> #include <Rcpp.h>
+>> using namespace Rcpp;
+>> 
+>> //[[Rcpp::export]]
+>> int fibonacci(const int x) {
+>>        if(x < 2){
+>>                return(x);
+>>        }else{
+>>                return fibonacci(x-1)+fibonacci(x-2);
+>>        }
+>> }
+>> 
+>> Following, I called this file using the following command line:
+>> 
+>> sourceCpp("fibonacci.cpp")
+>> 
+>> What I get in return is a series of 80 warnings. Although, these warning may be helpful to answer this question, to keep this message concise I will not attached them here. However, if you feel they maybe helpful, let me know and I will send them along.
+>> 
+>> Note that I am currently working on a Macbook Pro with the new OS (El Capitan). Following the advice given on the CRAN, I organized the Makevar file using clang as follow:
+>> 
+>> CC=clang
+>> CXX=clang++
+>> CFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+>> CXXFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+>> FLIBS=-lgfortran
+>> 
+>> Any reasons, why I get so many warnings ?
+>> 
+>> Thanks in advance for your answer !
+>> 
+>> Have a good day !
+>> 
+>> Guillaume
+>> 
+>> 
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From edd at debian.org  Tue Nov  3 22:01:38 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 3 Nov 2015 15:01:38 -0600
+Subject: [Rcpp-devel] large number of warnings for simple use of Rcpp
+In-Reply-To: <D44FAB1C-DC74-4A33-99D4-6045C6521D99@gmail.com>
+References: <33EA3E6B-F32A-47EB-90D6-82D06AA14D7B@gmail.com>
+ <CAJXgQP28foXioTQNBwCKzKECnXnS5XZNprHOdt30aTu0GTEB2g@mail.gmail.com>
+ <D44FAB1C-DC74-4A33-99D4-6045C6521D99@gmail.com>
+Message-ID: <22073.8370.17713.985903@max.nulle.part>
+
+
+On 3 November 2015 at 15:31, Guillaume Blanchet wrote:
+| Hi ! 
+| 
+| Great thanks ! 
+| 
+| In the mean time, what do you suggest I can do if I want to work with Rcpp ? Or can something be done to the Makevars or is this problem running deeper ?
+
+Sure -- just remove the offense warning from ~/.R/Makevars.
+
+Here is what I use:
+
+CFLAGS +=              -O3 -Wall -pipe -pedantic -std=gnu99 
+CXXFLAGS +=           -O3 -Wall -pipe -Wno-unused -pedantic 
+FFLAGS += -O3 -g0 -Wall -pipe
+FCFLAGS += -O3 -g0 -Wall -pipe
+VER=
+CCACHE=ccache
+CC=$(CCACHE) gcc$(VER)
+CXX=$(CCACHE) g++$(VER)
+SHLIB_CXXLD=g++$(VER)
+FC=ccache gfortran$(VER)
+F77=$(CCACHE) gfortran$(VER)
+#CXX1X=ccache g++$(VER)
+#CXX1XFLAGS=-O3 -Wall -pipe -Wno-unused -pedantic 
+#CXX1XFLAGS=-O3 -Wall -pipe -Wno-unused
+#CXX1XSTD = -std=c++0x
+
+(The real file is a little longer, I sometimes comment things in and out.)
+
+(My $RHOME/etc/Makeconf also has more settings based on the Debian/Ubuntu config.)
+
+Dirk
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jsmith5889 at yahoo.com  Wed Nov  4 22:20:28 2015
+From: jsmith5889 at yahoo.com (jsmith5889 at yahoo.com)
+Date: Wed, 4 Nov 2015 22:20:28 +0100
+Subject: [Rcpp-devel] Problem installing RcppEigen: cannot find -lgfortran
+	-lquadmath
+Message-ID: <563A769C.3060208@yahoo.com>
+
+Hi all,
+
+I hope that this mailing list is an appropriate outlet for my comment:
+
+When I tried to install RcppEigen, I got the following error message
+during the linking step:
+
+g++ -shared -L/usr/lib64/R/lib -L/usr/local/lib64 -o RcppEigen.so
+RcppEigen.o RcppExports.o fastLm.o -L/usr/lib64/R/lib -lRlapack
+-L/usr/lib64/R/lib -lRblas -lgfortran -lm -lquadmath -L/usr/lib64/R/lib -lR
+/usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+cannot find -lgfortran
+/usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+cannot find -lquadmath
+
+This problem appeared with R 3.2.2 on an openSuse tumbleweed machine
+using g++ 5.2.1, and I verified that both libgfortran and libquadmath
+were installed in /usr/lib64.
+
+I noticed that my /usr/lib64 contained the files libgfortran.so.3 and
+libquadmath.so.0, but not copies (or links) without a version number. I
+could solve the installation problem by creating version-free links
+libgfortran.so and libquadmath.so in /usr/lib64 that pointed to the
+libgfortran.so.3 and libquadmath.so.0 files, respectively.
+
+I would appreciate if anyone could check if they have the same problem,
+and if this configuration is not exclusive to my computer.
+
+Thanks,
+Lutz
+
+From edd at debian.org  Wed Nov  4 23:27:49 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 4 Nov 2015 16:27:49 -0600
+Subject: [Rcpp-devel] Problem installing RcppEigen: cannot find
+	-lgfortran	-lquadmath
+In-Reply-To: <563A769C.3060208@yahoo.com>
+References: <563A769C.3060208@yahoo.com>
+Message-ID: <22074.34405.699412.821799@max.nulle.part>
+
+
+On 4 November 2015 at 22:20, jsmith5889 at yahoo.com wrote:
+| Hi all,
+| 
+| I hope that this mailing list is an appropriate outlet for my comment:
+| 
+| When I tried to install RcppEigen, I got the following error message
+| during the linking step:
+| 
+| g++ -shared -L/usr/lib64/R/lib -L/usr/local/lib64 -o RcppEigen.so
+| RcppEigen.o RcppExports.o fastLm.o -L/usr/lib64/R/lib -lRlapack
+| -L/usr/lib64/R/lib -lRblas -lgfortran -lm -lquadmath -L/usr/lib64/R/lib -lR
+| /usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+| cannot find -lgfortran
+| /usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+| cannot find -lquadmath
+| 
+| This problem appeared with R 3.2.2 on an openSuse tumbleweed machine
+| using g++ 5.2.1, and I verified that both libgfortran and libquadmath
+| were installed in /usr/lib64.
+
+You need the equivalent of libgfortran-dev to _build_ against Fortran and not
+just _run_ against it.
+ 
+| I noticed that my /usr/lib64 contained the files libgfortran.so.3 and
+| libquadmath.so.0, but not copies (or links) without a version number. I
+
+The -dev versions give you that.
+
+Dirk
+
+| could solve the installation problem by creating version-free links
+| libgfortran.so and libquadmath.so in /usr/lib64 that pointed to the
+| libgfortran.so.3 and libquadmath.so.0 files, respectively.
+| 
+| I would appreciate if anyone could check if they have the same problem,
+| and if this configuration is not exclusive to my computer.
+| 
+| Thanks,
+| Lutz
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jsmith5889 at yahoo.com  Wed Nov  4 23:40:12 2015
+From: jsmith5889 at yahoo.com (jsmith5889 at yahoo.com)
+Date: Wed, 4 Nov 2015 23:40:12 +0100
+Subject: [Rcpp-devel] Problem installing RcppEigen: cannot find
+ -lgfortran -lquadmath
+In-Reply-To: <22074.34405.699412.821799@max.nulle.part>
+References: <563A769C.3060208@yahoo.com>
+ <22074.34405.699412.821799@max.nulle.part>
+Message-ID: <563A894C.8020508@yahoo.com>
+
+Thanks Dirk!
+
+Could you please elaborate on what you mean by *building* against these
+libraries?-- The compilation step went through without any problems;
+only the linking step failed.
+
+Also, it seems that I didn't need to add anything to my system that I
+didn't already have---creating an un-versioned symbolic link to existing
+files did the trick.
+
+-Lutz
+
+On 11/04/2015 11:27 PM, Dirk Eddelbuettel wrote:
+> 
+> On 4 November 2015 at 22:20, jsmith5889 at yahoo.com wrote:
+> | Hi all,
+> | 
+> | I hope that this mailing list is an appropriate outlet for my comment:
+> | 
+> | When I tried to install RcppEigen, I got the following error message
+> | during the linking step:
+> | 
+> | g++ -shared -L/usr/lib64/R/lib -L/usr/local/lib64 -o RcppEigen.so
+> | RcppEigen.o RcppExports.o fastLm.o -L/usr/lib64/R/lib -lRlapack
+> | -L/usr/lib64/R/lib -lRblas -lgfortran -lm -lquadmath -L/usr/lib64/R/lib -lR
+> | /usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+> | cannot find -lgfortran
+> | /usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+> | cannot find -lquadmath
+> | 
+> | This problem appeared with R 3.2.2 on an openSuse tumbleweed machine
+> | using g++ 5.2.1, and I verified that both libgfortran and libquadmath
+> | were installed in /usr/lib64.
+> 
+> You need the equivalent of libgfortran-dev to _build_ against Fortran and not
+> just _run_ against it.
+>  
+> | I noticed that my /usr/lib64 contained the files libgfortran.so.3 and
+> | libquadmath.so.0, but not copies (or links) without a version number. I
+> 
+> The -dev versions give you that.
+> 
+> Dirk
+> 
+> | could solve the installation problem by creating version-free links
+> | libgfortran.so and libquadmath.so in /usr/lib64 that pointed to the
+> | libgfortran.so.3 and libquadmath.so.0 files, respectively.
+> | 
+> | I would appreciate if anyone could check if they have the same problem,
+> | and if this configuration is not exclusive to my computer.
+> | 
+> | Thanks,
+> | Lutz
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+From edd at debian.org  Thu Nov  5 00:31:59 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 4 Nov 2015 17:31:59 -0600
+Subject: [Rcpp-devel] Problem installing RcppEigen: cannot find
+ -lgfortran -lquadmath
+In-Reply-To: <563A894C.8020508@yahoo.com>
+References: <563A769C.3060208@yahoo.com>
+ <22074.34405.699412.821799@max.nulle.part>
+ <563A894C.8020508@yahoo.com>
+Message-ID: <22074.38255.208012.358417@max.nulle.part>
+
+
+On 4 November 2015 at 23:40, jsmith5889 at yahoo.com wrote:
+| Thanks Dirk!
+| 
+| Could you please elaborate on what you mean by *building* against these
+| libraries?-- The compilation step went through without any problems;
+| only the linking step failed.
+
+"buidling" == compiling and linking
+ 
+| Also, it seems that I didn't need to add anything to my system that I
+| didn't already have---creating an un-versioned symbolic link to existing
+| files did the trick.
+
+I do not recommended playing tricks behind the back of your package
+management system.
+
+Any decent introduction to your Linux distro of choice should explain the
+difference between 'libfoo' and 'libfoo-dev' well.
+
+Let's stop this discussion here, it is about "who do I work on Linux" and
+is of limited interest to the Rcpp audience here.
+
+Dirk
+ 
+| -Lutz
+| 
+| On 11/04/2015 11:27 PM, Dirk Eddelbuettel wrote:
+| > 
+| > On 4 November 2015 at 22:20, jsmith5889 at yahoo.com wrote:
+| > | Hi all,
+| > | 
+| > | I hope that this mailing list is an appropriate outlet for my comment:
+| > | 
+| > | When I tried to install RcppEigen, I got the following error message
+| > | during the linking step:
+| > | 
+| > | g++ -shared -L/usr/lib64/R/lib -L/usr/local/lib64 -o RcppEigen.so
+| > | RcppEigen.o RcppExports.o fastLm.o -L/usr/lib64/R/lib -lRlapack
+| > | -L/usr/lib64/R/lib -lRblas -lgfortran -lm -lquadmath -L/usr/lib64/R/lib -lR
+| > | /usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+| > | cannot find -lgfortran
+| > | /usr/lib64/gcc/x86_64-suse-linux/5/../../../../x86_64-suse-linux/bin/ld:
+| > | cannot find -lquadmath
+| > | 
+| > | This problem appeared with R 3.2.2 on an openSuse tumbleweed machine
+| > | using g++ 5.2.1, and I verified that both libgfortran and libquadmath
+| > | were installed in /usr/lib64.
+| > 
+| > You need the equivalent of libgfortran-dev to _build_ against Fortran and not
+| > just _run_ against it.
+| >  
+| > | I noticed that my /usr/lib64 contained the files libgfortran.so.3 and
+| > | libquadmath.so.0, but not copies (or links) without a version number. I
+| > 
+| > The -dev versions give you that.
+| > 
+| > Dirk
+| > 
+| > | could solve the installation problem by creating version-free links
+| > | libgfortran.so and libquadmath.so in /usr/lib64 that pointed to the
+| > | libgfortran.so.3 and libquadmath.so.0 files, respectively.
+| > | 
+| > | I would appreciate if anyone could check if they have the same problem,
+| > | and if this configuration is not exclusive to my computer.
+| > | 
+| > | Thanks,
+| > | Lutz
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| > 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From cdetermanjr at gmail.com  Tue Nov 10 17:00:23 2015
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Tue, 10 Nov 2015 10:00:23 -0600
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+Message-ID: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+
+I have installed a more recent compiler and would like to use the
+-std=c++11 flag instead of the -std=c++0x.
+
+system('g++ --version')
+truncated... 5.2.0
+
+I have a Makevars.win file where I initially set the CXX_STD=CXX11 however
+this uses the default C++11 flag returned from R CMD config CXX1XSTD (i.e.
+c++0x).  This is insufficient as I am using template aliases (not supported
+in c++0x).
+
+I also tried putting the -std=c++11 directly in the PKG_CXXFLAGS but I get
+an error stating:
+
+cc1plus.exe: error: unrecognized command line option '-std=c++11'
+
+I can use the C++11 flag if I set PKG_CXXFLAGS manually and run sourceCpp
+on a single file but I want to apply it over an entire package.
+
+Thanks,
+Charles
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151110/87289348/attachment.html>
+
+From edd at debian.org  Tue Nov 10 17:16:33 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 10 Nov 2015 10:16:33 -0600
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+References: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+Message-ID: <22082.6241.131617.132439@max.nulle.part>
+
+
+On 10 November 2015 at 10:00, Charles Determan wrote:
+| I have installed a more recent compiler and would like to use the -std=c++11
+| flag instead of the -std=c++0x.
+| 
+| system('g++ --version')
+| truncated... 5.2.0
+| 
+| I have a Makevars.win file where I initially set the CXX_STD=CXX11 however this
+| uses the default C++11 flag returned from R CMD config CXX1XSTD (i.e. c++0x).?
+| This is insufficient as I am using template aliases (not supported in c++0x).
+| 
+| I also tried putting the -std=c++11 directly in the PKG_CXXFLAGS but I get an
+| error stating:
+| 
+| cc1plus.exe: error: unrecognized command line option '-std=c++11'
+
+That would suggest that g++-4.6.2.exe is still running.
+
+Dirk
+ 
+| I can use the C++11 flag if I set PKG_CXXFLAGS manually and run sourceCpp on a
+| single file but I want to apply it over an entire package.
+| 
+| Thanks,
+| Charles
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From cdetermanjr at gmail.com  Tue Nov 10 17:18:11 2015
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Tue, 10 Nov 2015 10:18:11 -0600
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <22082.6241.131617.132439@max.nulle.part>
+References: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+ <22082.6241.131617.132439@max.nulle.part>
+Message-ID: <CAKxd1KOFrZtVobV5kVXD_1pM1Z5L0v-7oQ0MiYNW__Hckj3Mng@mail.gmail.com>
+
+Okay, is there a way for me to use the newer compiler for building the
+package on Windows?  I've tried everything I can think of and fail to get
+the new one to register when building a package.
+
+Charles
+
+On Tue, Nov 10, 2015 at 10:16 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 10 November 2015 at 10:00, Charles Determan wrote:
+> | I have installed a more recent compiler and would like to use the
+> -std=c++11
+> | flag instead of the -std=c++0x.
+> |
+> | system('g++ --version')
+> | truncated... 5.2.0
+> |
+> | I have a Makevars.win file where I initially set the CXX_STD=CXX11
+> however this
+> | uses the default C++11 flag returned from R CMD config CXX1XSTD (i.e.
+> c++0x).
+> | This is insufficient as I am using template aliases (not supported in
+> c++0x).
+> |
+> | I also tried putting the -std=c++11 directly in the PKG_CXXFLAGS but I
+> get an
+> | error stating:
+> |
+> | cc1plus.exe: error: unrecognized command line option '-std=c++11'
+>
+> That would suggest that g++-4.6.2.exe is still running.
+>
+> Dirk
+>
+> | I can use the C++11 flag if I set PKG_CXXFLAGS manually and run
+> sourceCpp on a
+> | single file but I want to apply it over an entire package.
+> |
+> | Thanks,
+> | Charles
+> |
+> |
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151110/8d662e56/attachment.html>
+
+From edd at debian.org  Tue Nov 10 17:30:28 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 10 Nov 2015 10:30:28 -0600
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <CAKxd1KOFrZtVobV5kVXD_1pM1Z5L0v-7oQ0MiYNW__Hckj3Mng@mail.gmail.com>
+References: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+ <22082.6241.131617.132439@max.nulle.part>
+ <CAKxd1KOFrZtVobV5kVXD_1pM1Z5L0v-7oQ0MiYNW__Hckj3Mng@mail.gmail.com>
+Message-ID: <22082.7076.698467.5952@max.nulle.part>
+
+
+On 10 November 2015 at 10:18, Charles Determan wrote:
+| Okay, is there a way for me to use the newer compiler for building the package
+| on Windows?? I've tried everything I can think of and fail to get the new one
+| to register when building a package.
+
+Set CXX1X in Makevars or in R's $RHOME/etc/Makeconf
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From cdetermanjr at gmail.com  Tue Nov 10 17:41:34 2015
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Tue, 10 Nov 2015 10:41:34 -0600
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <tencent_738F9943482037C44F08142B@qq.com>
+References: <tencent_738F9943482037C44F08142B@qq.com>
+Message-ID: <CAKxd1KM8Xa20gOAezDbnMTU3CEYX8UkfqacRzNmA0_v_JmXqMw@mail.gmail.com>
+
+The most recent Rtools still uses 4.6.3 so that doesn't help here.
+
+On Tue, Nov 10, 2015 at 10:34 AM, ??? <mail at qinwf.com> wrote:
+
+> You can try Rtools 3.3
+>
+> https://cran.r-project.org/bin/windows/Rtools/
+>
+> https://github.com/rwinlib/r-base
+>
+> http://www.stat.ucla.edu/%7Ejeroen/mingw-w64/
+>
+> ------
+>
+> Okay, is there a way for me to use the newer compiler for building the package on Windows?  I've tried everything I can think of and fail to get the new one to register when building a package.
+>
+> Charles
+>
+> On Tue, Nov 10, 2015 at 10:16 AM, Dirk Eddelbuettel <edd at debian.org
+> > wrote:
+>
+>
+> On 10 November 2015 at 10:00, Charles Determan wrote:
+>
+> | I have installed a more recent compiler and would like to use the -std=c++11
+> | flag instead of the -std=c++0x.
+> |
+> | system('g++ --version')
+> | truncated... 5.2.0
+> |
+>
+> | I have a Makevars.win file where I initially set the CXX_STD=CXX11 however this
+>
+> | uses the default C++11 flag returned from R CMD config CXX1XSTD (i.e. c++0x).
+>
+> | This is insufficient as I am using template aliases (not supported in c++0x).
+> |
+>
+> | I also tried putting the -std=c++11 directly in the PKG_CXXFLAGS but I get an
+> | error stating:
+> |
+> | cc1plus.exe: error: unrecognized command line option '-std=c++11'
+>
+> That would suggest that g++-4.6.2.exe is still running.
+>
+> Dirk
+>
+>
+> | I can use the C++11 flag if I set PKG_CXXFLAGS manually and run sourceCpp on a
+> | single file but I want to apply it over an entire package.
+> |
+> | Thanks,
+> | Charles
+> |
+> |
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151110/3abe9a34/attachment.html>
+
+From plummerm at iarc.fr  Tue Nov 10 17:42:31 2015
+From: plummerm at iarc.fr (Martyn Plummer)
+Date: Tue, 10 Nov 2015 16:42:31 +0000
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <22082.7076.698467.5952@max.nulle.part>
+References: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+ <22082.6241.131617.132439@max.nulle.part>
+ <CAKxd1KOFrZtVobV5kVXD_1pM1Z5L0v-7oQ0MiYNW__Hckj3Mng@mail.gmail.com>
+ <22082.7076.698467.5952@max.nulle.part>
+Message-ID: <1447173751.19746.3.camel@iarc.fr>
+
+On Tue, 2015-11-10 at 10:30 -0600, Dirk Eddelbuettel wrote:
+> On 10 November 2015 at 10:18, Charles Determan wrote:
+> | Okay, is there a way for me to use the newer compiler for building the package
+> | on Windows?  I've tried everything I can think of and fail to get the new one
+> | to register when building a package.
+> 
+> Set CXX1X in Makevars or in R's $RHOME/etc/Makeconf
+
+It is the flag CXX1XSTD that should be overridden. With the Windows CRAN
+binary it is set to:
+
+CXX1XSTD = -std=c++0x
+
+For more details on custom compilation see section 6.3.3 of the R
+Installation and Administration manual (a.k.a R-admin)
+
+Martyn
+
+> Dirk
+> 
+
+-----------------------------------------------------------------------
+This message and its attachments are strictly confidential. If you are
+not the intended recipient of this message, please immediately notify 
+the sender and delete it. Since its integrity cannot be guaranteed, 
+its content cannot involve the sender's responsibility. Any misuse, 
+any disclosure or publication of its content, either whole or partial, 
+is prohibited, exception made of formally approved use
+-----------------------------------------------------------------------
+
+From cdetermanjr at gmail.com  Tue Nov 10 17:45:03 2015
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Tue, 10 Nov 2015 10:45:03 -0600
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <1447173751.19746.3.camel@iarc.fr>
+References: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+ <22082.6241.131617.132439@max.nulle.part>
+ <CAKxd1KOFrZtVobV5kVXD_1pM1Z5L0v-7oQ0MiYNW__Hckj3Mng@mail.gmail.com>
+ <22082.7076.698467.5952@max.nulle.part>
+ <1447173751.19746.3.camel@iarc.fr>
+Message-ID: <CAKxd1KNOG5Ckm=V7mxLOA4Tm2ORLd-AsDDMA1wF_OQqb_RveGw@mail.gmail.com>
+
+The std=c++0x is not sufficient for my purposes as it doesn't support
+template aliases.  I have tried to set CXX1XSTD=-std=c++11 in the
+Makevars.win but it doesn't appear to register.  The build proceeds as if I
+never set the variable.  Are the any packages that accomplish this?
+
+Charles
+
+On Tue, Nov 10, 2015 at 10:42 AM, Martyn Plummer <plummerm at iarc.fr> wrote:
+
+> On Tue, 2015-11-10 at 10:30 -0600, Dirk Eddelbuettel wrote:
+> > On 10 November 2015 at 10:18, Charles Determan wrote:
+> > | Okay, is there a way for me to use the newer compiler for building the
+> package
+> > | on Windows?  I've tried everything I can think of and fail to get the
+> new one
+> > | to register when building a package.
+> >
+> > Set CXX1X in Makevars or in R's $RHOME/etc/Makeconf
+>
+> It is the flag CXX1XSTD that should be overridden. With the Windows CRAN
+> binary it is set to:
+>
+> CXX1XSTD = -std=c++0x
+>
+> For more details on custom compilation see section 6.3.3 of the R
+> Installation and Administration manual (a.k.a R-admin)
+>
+> Martyn
+>
+> > Dirk
+> >
+>
+> -----------------------------------------------------------------------
+> This message and its attachments are strictly confidential. If you are
+> not the intended recipient of this message, please immediately notify
+> the sender and delete it. Since its integrity cannot be guaranteed,
+> its content cannot involve the sender's responsibility. Any misuse,
+> any disclosure or publication of its content, either whole or partial,
+> is prohibited, exception made of formally approved use
+> -----------------------------------------------------------------------
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151110/d3f8d039/attachment.html>
+
+From plummerm at iarc.fr  Tue Nov 10 17:57:35 2015
+From: plummerm at iarc.fr (Martyn Plummer)
+Date: Tue, 10 Nov 2015 16:57:35 +0000
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <CAKxd1KNOG5Ckm=V7mxLOA4Tm2ORLd-AsDDMA1wF_OQqb_RveGw@mail.gmail.com>
+References: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+ <22082.6241.131617.132439@max.nulle.part>
+ <CAKxd1KOFrZtVobV5kVXD_1pM1Z5L0v-7oQ0MiYNW__Hckj3Mng@mail.gmail.com>
+ <22082.7076.698467.5952@max.nulle.part>	<1447173751.19746.3.camel@iarc.fr>
+ <CAKxd1KNOG5Ckm=V7mxLOA4Tm2ORLd-AsDDMA1wF_OQqb_RveGw@mail.gmail.com>
+Message-ID: <1447174655.19746.9.camel@iarc.fr>
+
+If you try setting this flag in the Makevars.win file of your package
+then it will be overridden by the site-wide Makeconf which is included
+after your package-specific Makevars.win (See section 1.2.1 of R-exts)
+
+What you need to do is set it in a personal file HOME/.R/Makevars.win
+(See R-admin 6.3.3). On Windows, "HOME" is usually your Documents
+folder.
+
+Martyn
+
+On Tue, 2015-11-10 at 10:45 -0600, Charles Determan wrote:
+> The std=c++0x is not sufficient for my purposes as it doesn't support
+> template aliases.  I have tried to set CXX1XSTD=-std=c++11 in the
+> Makevars.win but it doesn't appear to register.  The build proceeds as
+> if I never set the variable.  Are the any packages that accomplish
+> this?
+> 
+> 
+> Charles
+> 
+> On Tue, Nov 10, 2015 at 10:42 AM, Martyn Plummer <plummerm at iarc.fr>
+> wrote:
+>         On Tue, 2015-11-10 at 10:30 -0600, Dirk Eddelbuettel wrote:
+>         > On 10 November 2015 at 10:18, Charles Determan wrote:
+>         > | Okay, is there a way for me to use the newer compiler for
+>         building the package
+>         > | on Windows?  I've tried everything I can think of and fail
+>         to get the new one
+>         > | to register when building a package.
+>         >
+>         > Set CXX1X in Makevars or in R's $RHOME/etc/Makeconf
+>         
+>         It is the flag CXX1XSTD that should be overridden. With the
+>         Windows CRAN
+>         binary it is set to:
+>         
+>         CXX1XSTD = -std=c++0x
+>         
+>         For more details on custom compilation see section 6.3.3 of
+>         the R
+>         Installation and Administration manual (a.k.a R-admin)
+>         
+>         Martyn
+>         
+>         > Dirk
+>         >
+>         
+>         -----------------------------------------------------------------------
+>         This message and its attachments are strictly confidential. If
+>         you are
+>         not the intended recipient of this message, please immediately
+>         notify
+>         the sender and delete it. Since its integrity cannot be
+>         guaranteed,
+>         its content cannot involve the sender's responsibility. Any
+>         misuse,
+>         any disclosure or publication of its content, either whole or
+>         partial,
+>         is prohibited, exception made of formally approved use
+>         -----------------------------------------------------------------------
+> 
+> 
+
+-----------------------------------------------------------------------
+This message and its attachments are strictly confidential. If you are
+not the intended recipient of this message, please immediately notify 
+the sender and delete it. Since its integrity cannot be guaranteed, 
+its content cannot involve the sender's responsibility. Any misuse, 
+any disclosure or publication of its content, either whole or partial, 
+is prohibited, exception made of formally approved use
+-----------------------------------------------------------------------
+
+From cdetermanjr at gmail.com  Tue Nov 10 18:13:39 2015
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Tue, 10 Nov 2015 11:13:39 -0600
+Subject: [Rcpp-devel] Windows set C++11 flag for new compiler
+In-Reply-To: <1447174655.19746.9.camel@iarc.fr>
+References: <CAKxd1KOWSrBBfBjX0L+YpzOf4QQvoPNF9J7VOsA3KzdY9c1=ng@mail.gmail.com>
+ <22082.6241.131617.132439@max.nulle.part>
+ <CAKxd1KOFrZtVobV5kVXD_1pM1Z5L0v-7oQ0MiYNW__Hckj3Mng@mail.gmail.com>
+ <22082.7076.698467.5952@max.nulle.part>
+ <1447173751.19746.3.camel@iarc.fr>
+ <CAKxd1KNOG5Ckm=V7mxLOA4Tm2ORLd-AsDDMA1wF_OQqb_RveGw@mail.gmail.com>
+ <1447174655.19746.9.camel@iarc.fr>
+Message-ID: <CAKxd1KPZ9Q4CvnUeb-Y7BYnXjVD6UxL5TLBOg0oX1Y+1239XRg@mail.gmail.com>
+
+Martyn,
+
+This ultimately solved my problem.  However, I also needed to set CXX1X as
+R continued to try and use the 4.6.3 version.  Once both CXX1X and CXX1XSTD
+were set in the HOME/.R/Makevars.win file, the compilation ran successfully.
+
+Thanks,
+Charles
+
+On Tue, Nov 10, 2015 at 10:57 AM, Martyn Plummer <plummerm at iarc.fr> wrote:
+
+> If you try setting this flag in the Makevars.win file of your package
+> then it will be overridden by the site-wide Makeconf which is included
+> after your package-specific Makevars.win (See section 1.2.1 of R-exts)
+>
+> What you need to do is set it in a personal file HOME/.R/Makevars.win
+> (See R-admin 6.3.3). On Windows, "HOME" is usually your Documents
+> folder.
+>
+> Martyn
+>
+> On Tue, 2015-11-10 at 10:45 -0600, Charles Determan wrote:
+> > The std=c++0x is not sufficient for my purposes as it doesn't support
+> > template aliases.  I have tried to set CXX1XSTD=-std=c++11 in the
+> > Makevars.win but it doesn't appear to register.  The build proceeds as
+> > if I never set the variable.  Are the any packages that accomplish
+> > this?
+> >
+> >
+> > Charles
+> >
+> > On Tue, Nov 10, 2015 at 10:42 AM, Martyn Plummer <plummerm at iarc.fr>
+> > wrote:
+> >         On Tue, 2015-11-10 at 10:30 -0600, Dirk Eddelbuettel wrote:
+> >         > On 10 November 2015 at 10:18, Charles Determan wrote:
+> >         > | Okay, is there a way for me to use the newer compiler for
+> >         building the package
+> >         > | on Windows?  I've tried everything I can think of and fail
+> >         to get the new one
+> >         > | to register when building a package.
+> >         >
+> >         > Set CXX1X in Makevars or in R's $RHOME/etc/Makeconf
+> >
+> >         It is the flag CXX1XSTD that should be overridden. With the
+> >         Windows CRAN
+> >         binary it is set to:
+> >
+> >         CXX1XSTD = -std=c++0x
+> >
+> >         For more details on custom compilation see section 6.3.3 of
+> >         the R
+> >         Installation and Administration manual (a.k.a R-admin)
+> >
+> >         Martyn
+> >
+> >         > Dirk
+> >         >
+> >
+> >
+>  -----------------------------------------------------------------------
+> >         This message and its attachments are strictly confidential. If
+> >         you are
+> >         not the intended recipient of this message, please immediately
+> >         notify
+> >         the sender and delete it. Since its integrity cannot be
+> >         guaranteed,
+> >         its content cannot involve the sender's responsibility. Any
+> >         misuse,
+> >         any disclosure or publication of its content, either whole or
+> >         partial,
+> >         is prohibited, exception made of formally approved use
+> >
+>  -----------------------------------------------------------------------
+> >
+> >
+>
+> -----------------------------------------------------------------------
+> This message and its attachments are strictly confidential. If you are
+> not the intended recipient of this message, please immediately notify
+> the sender and delete it. Since its integrity cannot be guaranteed,
+> its content cannot involve the sender's responsibility. Any misuse,
+> any disclosure or publication of its content, either whole or partial,
+> is prohibited, exception made of formally approved use
+> -----------------------------------------------------------------------
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151110/19a526e3/attachment.html>
+
+From hmamoucheyussef at gmail.com  Thu Nov 19 14:31:25 2015
+From: hmamoucheyussef at gmail.com (Hmamouche Youssef)
+Date: Thu, 19 Nov 2015 14:31:25 +0100
+Subject: [Rcpp-devel] Rcpp package building
+Message-ID: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+
+Hi everyone,
+
+
+I have builded a package on my machine, and when i like to install it on other machines, i have to install all the require tools (C++ compiler, ?), which means that i have to compile it each time.
+
+Can?I do It a single time ? and built it in such a way that can be used without compilation, just like we do for CRAN packages.
+
+Thanks in advance,
+
+Youssef
+
+Phd Student at Aix-Marseille University, France
+
+From qkou at umail.iu.edu  Thu Nov 19 16:06:58 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Thu, 19 Nov 2015 10:06:58 -0500
+Subject: [Rcpp-devel] Rcpp package building
+In-Reply-To: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+References: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+Message-ID: <CAJ_LAMDnJmWEfjhr7o8cN3SGjPgKgV8xOPu6ygMqpG33s2p6jw@mail.gmail.com>
+
+Hi,
+
+If you are on Windows/Mac, you can try R CMD build --binary .
+
+Best wishes,
+
+KK
+
+On Thu, Nov 19, 2015 at 8:31 AM, Hmamouche Youssef <
+hmamoucheyussef at gmail.com> wrote:
+
+> Hi everyone,
+>
+>
+> I have builded a package on my machine, and when i like to install it on
+> other machines, i have to install all the require tools (C++ compiler, ?),
+> which means that i have to compile it each time.
+>
+> Can?I do It a single time ? and built it in such a way that can be used
+> without compilation, just like we do for CRAN packages.
+>
+> Thanks in advance,
+>
+> Youssef
+>
+> Phd Student at Aix-Marseille University, France
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151119/2ffbfaeb/attachment.html>
+
+From hmamoucheyussef at gmail.com  Thu Nov 19 16:20:20 2015
+From: hmamoucheyussef at gmail.com (Hmamouche Youssef)
+Date: Thu, 19 Nov 2015 16:20:20 +0100
+Subject: [Rcpp-devel] Rcpp package building
+In-Reply-To: <CAJ_LAMDnJmWEfjhr7o8cN3SGjPgKgV8xOPu6ygMqpG33s2p6jw@mail.gmail.com>
+References: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+ <CAJ_LAMDnJmWEfjhr7o8cN3SGjPgKgV8xOPu6ygMqpG33s2p6jw@mail.gmail.com>
+Message-ID: <2F2BAF87-D723-434C-A3CA-0E5101FFAFEB@gmail.com>
+
+Thanks so much.
+
+Have a good day,
+
+Youssef
+> Le 19 nov. 2015 ? 16:06, Qiang Kou <qkou at umail.iu.edu> a ?crit :
+> 
+> Hi, 
+> 
+> If you are on Windows/Mac, you can try R CMD build --binary .
+> 
+> Best wishes,
+> 
+> KK
+> 
+> On Thu, Nov 19, 2015 at 8:31 AM, Hmamouche Youssef <hmamoucheyussef at gmail.com <mailto:hmamoucheyussef at gmail.com>> wrote:
+> Hi everyone,
+> 
+> 
+> I have builded a package on my machine, and when i like to install it on other machines, i have to install all the require tools (C++ compiler, ?), which means that i have to compile it each time.
+> 
+> Can?I do It a single time ? and built it in such a way that can be used without compilation, just like we do for CRAN packages.
+> 
+> Thanks in advance,
+> 
+> Youssef
+> 
+> Phd Student at Aix-Marseille University, France
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+> 
+> 
+> -- 
+> Qiang Kou
+> qkou at umail.iu.edu <mailto:qkou at umail.iu.edu>
+> School of Informatics and Computing, Indiana University
+> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151119/046d696a/attachment.html>
+
+From edd at debian.org  Thu Nov 19 16:26:28 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Nov 2015 09:26:28 -0600
+Subject: [Rcpp-devel] Rcpp package building
+In-Reply-To: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+References: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+Message-ID: <22093.59940.579830.151874@max.nulle.part>
+
+
+On 19 November 2015 at 14:31, Hmamouche Youssef wrote:
+| I have builded a package on my machine, and when i like to install it on other machines, i have to install all the require tools (C++ compiler, ?), which means that i have to compile it each time.
+
+Yes.
+
+Open Source works from source. This is pretty common.  CRAN is comprised of
+_source_ packages.  But also binary packages so: What OS? On
+
+  -- Windows you have win-builder at http://win-builder.r-project.org
+     to have a binary built for you, see its documentation
+
+  -- OS X you may be able to do it too
+
+  -- Linux it depends on distribution but
+
+     -- for Debian / Ubuntu we have
+
+        -- several hundred packages in the distro
+        -- several dozen at eg the CRAN Ubuntu directories
+        -- thousand plus at Michael's PPAs
+        -- the possibility to build your own (which I just did last eve
+           as I wanted a new prebuilt r-cran-* for Travis)
+
+     -- other distros see their volunteers 
+     
+| Can?I do It a single time ? and built it in such a way that can be used without compilation, just like we do for CRAN packages.
+
+Please explain that statement.  When I install Rcpp from CRAN on my computers
+it is essentially always from source, and yes, my computers have compilers.
+ 
+| Thanks in advance,
+| 
+| Youssef
+| 
+| Phd Student at Aix-Marseille University, France
+
+Small world. I once went to what was then called Aix-Marseille II (and then
+went to GREQAM/EHESS at the Veille Charite).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Nov 19 16:35:46 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Nov 2015 09:35:46 -0600
+Subject: [Rcpp-devel] Rcpp package building
+In-Reply-To: <2F2BAF87-D723-434C-A3CA-0E5101FFAFEB@gmail.com>
+References: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+ <CAJ_LAMDnJmWEfjhr7o8cN3SGjPgKgV8xOPu6ygMqpG33s2p6jw@mail.gmail.com>
+ <2F2BAF87-D723-434C-A3CA-0E5101FFAFEB@gmail.com>
+Message-ID: <22093.60498.635751.686413@max.nulle.part>
+
+
+On 19 November 2015 at 16:20, Hmamouche Youssef wrote:
+| Thanks so much.
+| 
+| Have a good day,
+
+Oh, and by the way, the thread does not really have anything to do with Rcpp
+per se but just with smart ways of dealing with packages.
+
+So consider taking this to r-package-devel instead.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From hmamoucheyussef at gmail.com  Thu Nov 19 17:02:05 2015
+From: hmamoucheyussef at gmail.com (Hmamouche Youssef)
+Date: Thu, 19 Nov 2015 17:02:05 +0100
+Subject: [Rcpp-devel] Rcpp package building
+In-Reply-To: <22093.59940.579830.151874@max.nulle.part>
+References: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+ <22093.59940.579830.151874@max.nulle.part>
+Message-ID: <44D0F49F-0152-40F5-9668-A9C9D30841A6@gmail.com>
+
+Hi Dirk,
+
+I agree, very small world :).
+
+For example, I have installed my package on Mac using  R CMD install 'package', so I had already C/C++ compiler, it works well. Then I generate the tar.gz package using  R CMD build ?package'.
+
+But, when I try to install the tar.gz package on other machines (Mac Or Windows in my case), I must have a C/C++ compiler..
+
+The point is that i like to install it without C/C++ compiler on the other machines.
+
+Following the ancient discussions of this email,  I have to generate the binary package using:     R CMD INSTALL --build ?package', rather than R CMD build ?package?.
+
+So in my case, there is a difference between R CMD INSTALL ?build and R CMD build when generating a binary package.
+
+
+Thanks Dirk,
+
+Youssef
+
+> Le 19 nov. 2015 ? 16:26, Dirk Eddelbuettel <edd at debian.org> a ?crit :
+> 
+> 
+> On 19 November 2015 at 14:31, Hmamouche Youssef wrote:
+> | I have builded a package on my machine, and when i like to install it on other machines, i have to install all the require tools (C++ compiler, ?), which means that i have to compile it each time.
+> 
+> Yes.
+> 
+> Open Source works from source. This is pretty common.  CRAN is comprised of
+> _source_ packages.  But also binary packages so: What OS? On
+> 
+>  -- Windows you have win-builder at http://win-builder.r-project.org
+>     to have a binary built for you, see its documentation
+> 
+>  -- OS X you may be able to do it too
+> 
+>  -- Linux it depends on distribution but
+> 
+>     -- for Debian / Ubuntu we have
+> 
+>        -- several hundred packages in the distro
+>        -- several dozen at eg the CRAN Ubuntu directories
+>        -- thousand plus at Michael's PPAs
+>        -- the possibility to build your own (which I just did last eve
+>           as I wanted a new prebuilt r-cran-* for Travis)
+> 
+>     -- other distros see their volunteers 
+> 
+> | Can?I do It a single time ? and built it in such a way that can be used without compilation, just like we do for CRAN packages.
+> 
+> Please explain that statement.  When I install Rcpp from CRAN on my computers
+> it is essentially always from source, and yes, my computers have compilers.
+> 
+> | Thanks in advance,
+> | 
+> | Youssef
+> | 
+> | Phd Student at Aix-Marseille University, France
+> 
+> Small world. I once went to what was then called Aix-Marseille II (and then
+> went to GREQAM/EHESS at the Veille Charite).
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151119/37772756/attachment-0001.html>
+
+From edd at debian.org  Thu Nov 19 17:51:26 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Nov 2015 10:51:26 -0600
+Subject: [Rcpp-devel] Rcpp package building
+In-Reply-To: <44D0F49F-0152-40F5-9668-A9C9D30841A6@gmail.com>
+References: <375171DA-E63E-4CFC-A9B7-BFF1AACA2496@gmail.com>
+ <22093.59940.579830.151874@max.nulle.part>
+ <44D0F49F-0152-40F5-9668-A9C9D30841A6@gmail.com>
+Message-ID: <22093.65038.533128.521389@max.nulle.part>
+
+
+On 19 November 2015 at 17:02, Hmamouche Youssef wrote:
+| For example, I have installed my package on Mac using  R CMD install 'package',
+| so I had already C/C++ compiler, it works well. Then I generate the tar.gz 
+
+(To be pedantic: because your as your sysadmin installed the tools required
+for this to work on OS X.  Other operating systems have similar needs, sadly.)
+
+| package using  R CMD build ?package'.
+| 
+| But, when I try to install the tar.gz package on other machines (Mac Or Windows
+| in my case), I must have a C/C++ compiler..
+
+On Windows, you can also use win-builder to prepare a package. On either the
+Mac or Windows you can also do it locally.
+
+Then look into drat (eg at http://dirk.eddelbuettel.com/code/drat.html) to
+see how super-easily you can set up and host a 'R repository' (ie like CRAN)
+at GitHub (or if you prefer, locally). We use both at work to supply some
+'public but not on CRAN' as well as local/non-public packages.  Note that you
+still need to build the binary packages---but with drat it becomes
+install.packages() as usual.
+ 
+| The point is that i like to install it without C/C++ compiler on the other
+| machines.
+
+I understand that.  But it is not the Rcpp team's fault that Windoze ships
+without a compiler (or that R does not include Rtools).  It is what is it,
+and (literally) tens of thousands of developers have learned to cope within
+these constraints.
+
+| Following the ancient discussions of this email,  I have to generate the binary
+| package using:     R CMD INSTALL --build ?package', rather than R CMD
+| build ?package?.
+
+Yes. I think years ago R CMD build had an option for that too.
+
+| So in my case, there is a difference between R CMD INSTALL ?build and R CMD
+| build when generating a binary package.
+
+Yes.  I believe this is all documented in either Writing R Packages, or R
+Installation and Administration, and both came with your R installation.
+
+Good to know you have it all working, so we can close this now.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at r-project.org  Thu Nov 19 20:19:54 2015
+From: simon.urbanek at r-project.org (Simon Urbanek)
+Date: Thu, 19 Nov 2015 14:19:54 -0500
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+	after throwing an instance of 'Rcpp::not_compatible' inside
+	class__newInstance()
+Message-ID: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+
+One package (guitar) that happens to use Rcpp started breaking recently without any change to its own code as follows:
+
+>  install.packages("guitar",,"http://rforge.net")
+>  library(guitar)
+>  Repository$new(".")
+terminate called after throwing an instance of 'Rcpp::not_compatible'
+  what():  expecting an external pointer
+Aborted (core dumped)
+
+Stack trace below - it is happening in Module.cpp class__newInstance(). The method being called is simply a static constructor:
+
+class Repository: public CPPWrapperObjectTraits<Repository, git_repository>
+{
+public:
+    explicit Repository(std::string path);
+
+
+First, I wouldn't expect an abort - ideally if anything is wrong it should just raise an R error (aborts are much harder to trace - in particular since the original issue was deep in a chain of several packages so R traceback would be helpful). Second, XPtr gets called with R_NilValue inside class__newInstance() but I have no idea why since the Repository object looks legit:
+
+> Repository
+C++ class 'Repository' <0x7f934961be60>
+Constructors:
+    Repository(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >)
+
+Fields: No public fields exposed by this class
+
+Methods: 
+     SEXP commits(SEXP)  
+           
+[...]
+
+Note that it aborts even before the constructor is called so no code from the Repository object is actually involved here - it's inside Rcpp.
+
+I have inherited the code (so please no flames, I just have to fix it ;)), so any leads as to why it now breaks while it used to work just fine would be highly appreciated. The sources are at
+https://github.com/s-u/guitar
+and the above fails both on Ubuntu and OS X (tested with R 3.2.2 and Rcpp 0.12.1 and 0.12.2 respectively).
+
+Thanks,
+Simon
+
+stack trace (based on Rcpp 0.12.2) and I have instrumented XPtr - the R object passed is simply R_NilValue:
+
+libc++abi.dylib: terminating with uncaught exception of type Rcpp::not_compatible: expecting an external pointer
+Process 8286 stopped
+* thread #1: tid = 0x155af, 0x00007fff8cdf5866 libsystem_kernel.dylib`__pthread_kill + 10, queue = 'com.apple.main-thread', stop reason = signal SIGABRT
+    frame #0: 0x00007fff8cdf5866 libsystem_kernel.dylib`__pthread_kill + 10
+libsystem_kernel.dylib`__pthread_kill + 10:
+-> 0x7fff8cdf5866:  jae    0x7fff8cdf5870            ; __pthread_kill + 20
+   0x7fff8cdf5868:  movq   %rax, %rdi
+   0x7fff8cdf586b:  jmp    0x7fff8cdf2175            ; cerror_nocancel
+   0x7fff8cdf5870:  retq   
+(lldb) bt
+* thread #1: tid = 0x155af, 0x00007fff8cdf5866 libsystem_kernel.dylib`__pthread_kill + 10, queue = 'com.apple.main-thread', stop reason = signal SIGABRT
+  * frame #0: 0x00007fff8cdf5866 libsystem_kernel.dylib`__pthread_kill + 10
+    frame #1: 0x00007fff94a0a35c libsystem_pthread.dylib`pthread_kill + 92
+    frame #2: 0x00007fff8e171b1a libsystem_c.dylib`abort + 125
+    frame #3: 0x00007fff95267f31 libc++abi.dylib`abort_message + 257
+    frame #4: 0x00007fff9528d93a libc++abi.dylib`default_terminate_handler() + 240
+    frame #5: 0x00007fff95c28322 libobjc.A.dylib`_objc_terminate() + 124
+    frame #6: 0x00007fff9528b1d1 libc++abi.dylib`std::__terminate(void (*)()) + 8
+    frame #7: 0x00007fff9528ac5b libc++abi.dylib`__cxa_throw + 124
+    frame #8: 0x00000001044d86df Rcpp.so`Rcpp::XPtr<Rcpp::Module, Rcpp::PreserveStorage, &(this=<unavailable>, x=<unavailable>, tag=<unavailable>, prot=<unavailable>))>::XPtr(SEXPREC*, SEXPREC*, SEXPREC*) + 319 at XPtr.h:67
+    frame #9: 0x00000001044d67ed Rcpp.so`class__newInstance(SEXPREC*) [inlined] Rcpp::XPtr<Rcpp::Module, Rcpp::PreserveStorage, &(this=0x0000000100806378, x=<unavailable>, tag=<unavailable>, prot=<unavailable>))>::XPtr(SEXPREC*, SEXPREC*, SEXPREC*) + 77 at XPtr.h:71
+    frame #10: 0x00000001044d67e2 Rcpp.so`class__newInstance(args=<unavailable>) + 66 at Module.cpp:140
+    frame #11: 0x000000010007406a libR.dylib`do_External(call=<unavailable>, op=<unavailable>, args=<unavailable>, env=<unavailable>) + 378 at dotcode.c:548
+[...]
+
+From edd at debian.org  Thu Nov 19 21:41:26 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Nov 2015 14:41:26 -0600
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+	after throwing an instance of 'Rcpp::not_compatible' inside
+	class__newInstance()
+In-Reply-To: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+References: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+Message-ID: <22094.13302.947344.138238@max.nulle.part>
+
+
+Simon,
+
+That may be a little tricky for a few reasons:
+
+ i)   We just released Rcpp 0.12.2. I spend a considerable amount of time
+      testing prior to a release. This time we had three full reverse
+      dependency checks totalling over 1500 builds given the 500+ revdeps.
+      Any such issue would have stopped us. 
+
+ ii)  AFAIK Carlos wrote guitar years ago yet he never pushed it to CRAN. We
+      made changes to Rcpp Modules during this time, we also made changes to
+      how exception escalate (different OS drive this...).  Because this
+      package only ever stayed on GitHub this did not get tested.  Else we
+      would have known sooner.
+
+ iii) Rcpp Modules is a clever trick that is rather useful. Sadly, it is not
+      that well documented and its principal creator has moved on too so the
+      code is not exactly actively maintained.
+
+So here we need a volunteers to dive it this and debug, maybe bisect with
+older Rcpp releases, ...
+
+It looks like this won't be Carlos, and it probably won't be me either. 
+
+Dirk
+      
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Thu Nov 19 21:59:04 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Thu, 19 Nov 2015 15:59:04 -0500
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+ after throwing an instance of 'Rcpp::not_compatible' inside
+ class__newInstance()
+In-Reply-To: <22094.13302.947344.138238@max.nulle.part>
+References: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+ <22094.13302.947344.138238@max.nulle.part>
+Message-ID: <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+
+Hi, Simon,
+
+Is there any specific reason to use this?
+
+If you need a binding for libgit2, maybe you can try
+https://github.com/ropensci/git2r
+
+At least it is actively maintained.
+
+Best,
+
+KK
+
+On Thu, Nov 19, 2015 at 3:41 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Simon,
+>
+> That may be a little tricky for a few reasons:
+>
+>  i)   We just released Rcpp 0.12.2. I spend a considerable amount of time
+>       testing prior to a release. This time we had three full reverse
+>       dependency checks totalling over 1500 builds given the 500+ revdeps.
+>       Any such issue would have stopped us.
+>
+>  ii)  AFAIK Carlos wrote guitar years ago yet he never pushed it to CRAN.
+> We
+>       made changes to Rcpp Modules during this time, we also made changes
+> to
+>       how exception escalate (different OS drive this...).  Because this
+>       package only ever stayed on GitHub this did not get tested.  Else we
+>       would have known sooner.
+>
+>  iii) Rcpp Modules is a clever trick that is rather useful. Sadly, it is
+> not
+>       that well documented and its principal creator has moved on too so
+> the
+>       code is not exactly actively maintained.
+>
+> So here we need a volunteers to dive it this and debug, maybe bisect with
+> older Rcpp releases, ...
+>
+> It looks like this won't be Carlos, and it probably won't be me either.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151119/17c862dd/attachment.html>
+
+From edd at debian.org  Thu Nov 19 23:07:53 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Nov 2015 16:07:53 -0600
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+ after throwing an instance of 'Rcpp::not_compatible' inside
+ class__newInstance()
+In-Reply-To: <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+References: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+ <22094.13302.947344.138238@max.nulle.part>
+ <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+Message-ID: <22094.18489.574935.967611@max.nulle.part>
+
+
+On 19 November 2015 at 15:59, Qiang Kou wrote:
+| Hi, Simon,
+| 
+| Is there any specific reason to use this?
+| 
+| If you need a binding for libgit2, maybe you can try?https://github.com/
+| ropensci/git2r
+| 
+| At least it is actively maintained.
+
+And on CRAN ...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at r-project.org  Thu Nov 19 23:18:35 2015
+From: simon.urbanek at r-project.org (Simon Urbanek)
+Date: Thu, 19 Nov 2015 17:18:35 -0500
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+	after throwing an instance of 'Rcpp::not_compatible' inside
+	class__newInstance()
+In-Reply-To: <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+References: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+ <22094.13302.947344.138238@max.nulle.part>
+ <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+Message-ID: <8B28BD77-1D19-46F9-94DB-760ACBD0CF1E@r-project.org>
+
+
+> On Nov 19, 2015, at 3:59 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> 
+> Hi, Simon,
+> 
+> Is there any specific reason to use this?
+> 
+
+This is OT, but, yes, git2r didn't exist when we wrote gitgist so we couldn't use it, obviously. Now, someone would have to re-write gitgist to use git2r - if you want to volunteer, I'd be very grateful :).
+
+Thanks,
+Simon
+
+
+
+> If you need a binding for libgit2, maybe you can try https://github.com/ropensci/git2r
+> 
+> At least it is actively maintained.
+> 
+> Best,
+> 
+> KK
+> 
+> On Thu, Nov 19, 2015 at 3:41 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> Simon,
+> 
+> That may be a little tricky for a few reasons:
+> 
+>  i)   We just released Rcpp 0.12.2. I spend a considerable amount of time
+>       testing prior to a release. This time we had three full reverse
+>       dependency checks totalling over 1500 builds given the 500+ revdeps.
+>       Any such issue would have stopped us.
+> 
+>  ii)  AFAIK Carlos wrote guitar years ago yet he never pushed it to CRAN. We
+>       made changes to Rcpp Modules during this time, we also made changes to
+>       how exception escalate (different OS drive this...).  Because this
+>       package only ever stayed on GitHub this did not get tested.  Else we
+>       would have known sooner.
+> 
+>  iii) Rcpp Modules is a clever trick that is rather useful. Sadly, it is not
+>       that well documented and its principal creator has moved on too so the
+>       code is not exactly actively maintained.
+> 
+> So here we need a volunteers to dive it this and debug, maybe bisect with
+> older Rcpp releases, ...
+> 
+> It looks like this won't be Carlos, and it probably won't be me either.
+> 
+> Dirk
+> 
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+> 
+> 
+> -- 
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+> 
+
+
+From edd at debian.org  Sat Nov 21 22:47:12 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 21 Nov 2015 15:47:12 -0600
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+	after throwing an instance of 'Rcpp::not_compatible' inside
+	class__newInstance()
+In-Reply-To: <8B28BD77-1D19-46F9-94DB-760ACBD0CF1E@r-project.org>
+References: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+ <22094.13302.947344.138238@max.nulle.part>
+ <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+ <8B28BD77-1D19-46F9-94DB-760ACBD0CF1E@r-project.org>
+Message-ID: <22096.58976.112221.232587@max.nulle.part>
+
+
+Simon, Carlos, Prateek,
+
+It's an issue between R and guitar. Rcpp is an bystander.  
+
+Upon cloning and running R CMD INSTALL we see it end on
+
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded
+Found more than one class "Rcpp_Reference" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Reference" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Repository" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Repository" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Index" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Index" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_OID" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_OID" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_ODBObject" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_ODBObject" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_ODB" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_ODB" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Commit" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Commit" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Tree" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Tree" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_TreeEntry" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_TreeEntry" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Blob" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Blob" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Tag" in cache; using the first, from namespace 'guitar'
+Found more than one class "Rcpp_Tag" in cache; using the first, from namespace 'guitar'
+* DONE (guitar)
+edd at max:~/git/guitar(master)$ 
+
+We had the same thing in the Rcpp examples and did this:
+
+2015-08-26  Dirk Eddelbuettel  <edd at debian.org>
+
+        * inst/unitTests/testRcppClass/src/rcpp_module.cpp: Renamed Module
+        'World' to 'RcppClassWorld' to avoid multiple modules with same name
+        (pull request #351, fixed issue #350)
+
+        * inst/unitTests/testRcppClass/man/Rcpp_class_examples.Rd: Ditto
+        * inst/unitTests/testRcppClass/R/load.R: Ditto
+        * inst/unitTests/testRcppClass/NAMESPACE: Ditto
+        * inst/unitTests/runit.Module.client.package.R: Re-enable test
+
+        * inst/unitTests/testRcppModule/src/rcpp_module.cpp: Renamed Module
+        'World' to 'RcppModuleWorld' to avoid multiple modules with same name
+
+        * inst/unitTests/cpp/modref.cpp: Rename 'World' to 'ModRefWorld'
+        * inst/unitTests/runit.modref.R (test.modRef): Ditto
+
+        * inst/unitTests/cpp/Module.cpp: Rename 'World' to 'ModuleWorld'
+        * inst/unitTests/runit.Module.R (test.Module): Ditto
+
+2015-08-25  Kurt Hornik  <Kurt.Hornik at wu.ac.at>
+
+        * R/loadModule.R: For now=TRUE, always set .botched to FALSE which
+        corresponds to the case of the methods package being in the search path
+        * inst/include/Rcpp/Reference.h: Call call with the internal Namespace
+
+
+Something was changed (by MMae as I recall) in that period that affects the
+name lookup and you simply cannot more than one reference to the same name.
+I have not yet looked into guitar -- it may just be that its build is weird
+and symbols appear multiple times.
+
+But "someone" needs to disentangle this.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Nov 21 23:01:40 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 21 Nov 2015 16:01:40 -0600
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+	after throwing an instance of 'Rcpp::not_compatible' inside
+	class__newInstance()
+In-Reply-To: <22096.58976.112221.232587@max.nulle.part>
+References: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+ <22094.13302.947344.138238@max.nulle.part>
+ <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+ <8B28BD77-1D19-46F9-94DB-760ACBD0CF1E@r-project.org>
+ <22096.58976.112221.232587@max.nulle.part>
+Message-ID: <22096.59844.200178.210820@max.nulle.part>
+
+
+On 21 November 2015 at 15:47, Dirk Eddelbuettel wrote:
+| 
+| Simon, Carlos, Prateek,
+| 
+| It's an issue between R and guitar. Rcpp is an bystander.  
+| 
+| Upon cloning and running R CMD INSTALL we see it end on
+| 
+| *** installing help indices
+| ** building package indices
+| ** testing if installed package can be loaded
+| Found more than one class "Rcpp_Reference" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Reference" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Repository" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Repository" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Index" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Index" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_OID" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_OID" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_ODBObject" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_ODBObject" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_ODB" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_ODB" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Commit" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Commit" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Tree" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Tree" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_TreeEntry" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_TreeEntry" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Blob" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Blob" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Tag" in cache; using the first, from namespace 'guitar'
+| Found more than one class "Rcpp_Tag" in cache; using the first, from namespace 'guitar'
+| * DONE (guitar)
+| edd at max:~/git/guitar(master)$ 
+| 
+| We had the same thing in the Rcpp examples and did this:
+| 
+| 2015-08-26  Dirk Eddelbuettel  <edd at debian.org>
+| 
+|         * inst/unitTests/testRcppClass/src/rcpp_module.cpp: Renamed Module
+|         'World' to 'RcppClassWorld' to avoid multiple modules with same name
+|         (pull request #351, fixed issue #350)
+| 
+|         * inst/unitTests/testRcppClass/man/Rcpp_class_examples.Rd: Ditto
+|         * inst/unitTests/testRcppClass/R/load.R: Ditto
+|         * inst/unitTests/testRcppClass/NAMESPACE: Ditto
+|         * inst/unitTests/runit.Module.client.package.R: Re-enable test
+| 
+|         * inst/unitTests/testRcppModule/src/rcpp_module.cpp: Renamed Module
+|         'World' to 'RcppModuleWorld' to avoid multiple modules with same name
+| 
+|         * inst/unitTests/cpp/modref.cpp: Rename 'World' to 'ModRefWorld'
+|         * inst/unitTests/runit.modref.R (test.modRef): Ditto
+| 
+|         * inst/unitTests/cpp/Module.cpp: Rename 'World' to 'ModuleWorld'
+|         * inst/unitTests/runit.Module.R (test.Module): Ditto
+| 
+| 2015-08-25  Kurt Hornik  <Kurt.Hornik at wu.ac.at>
+| 
+|         * R/loadModule.R: For now=TRUE, always set .botched to FALSE which
+|         corresponds to the case of the methods package being in the search path
+|         * inst/include/Rcpp/Reference.h: Call call with the internal Namespace
+| 
+| 
+| Something was changed (by MMae as I recall) in that period that affects the
+| name lookup and you simply cannot more than one reference to the same name.
+| I have not yet looked into guitar -- it may just be that its build is weird
+| and symbols appear multiple times.
+| 
+| But "someone" needs to disentangle this.
+
+It used some guerilla code that "knew better than we did" for loading; all
+that stuff changed way back when in 2012 (?) or so -- during Rcpp 0.9.*.
+
+This was simply stale code.  With a simple change, it now passes R CMD check,
+for a suitable definition of 'passes'.
+
+I'll send you a pull request in a minute or two.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at r-project.org  Sun Nov 22 03:18:10 2015
+From: simon.urbanek at r-project.org (Simon Urbanek)
+Date: Sat, 21 Nov 2015 21:18:10 -0500
+Subject: [Rcpp-devel] package using Rcpp aborting with: terminate called
+	after throwing an instance of 'Rcpp::not_compatible' inside
+	class__newInstance()
+In-Reply-To: <22096.59844.200178.210820@max.nulle.part>
+References: <A8D7E0A8-716F-4EAB-8D7F-6B0F7EAE65F3@r-project.org>
+ <22094.13302.947344.138238@max.nulle.part>
+ <CAJ_LAMB5Fkd_-f8hiAq0pLtNUjiOY0zffbm0aodJ-MF-T6yENg@mail.gmail.com>
+ <8B28BD77-1D19-46F9-94DB-760ACBD0CF1E@r-project.org>
+ <22096.58976.112221.232587@max.nulle.part>
+ <22096.59844.200178.210820@max.nulle.part>
+Message-ID: <CB478578-3BA9-4176-9256-CBD93B0207E2@r-project.org>
+
+Many thanks, Dirk! It does indeed fix the problem, very much appreciated!
+Simon
+
+
+On Nov 21, 2015, at 5:01 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+> 
+> On 21 November 2015 at 15:47, Dirk Eddelbuettel wrote:
+> | 
+> | Simon, Carlos, Prateek,
+> | 
+> | It's an issue between R and guitar. Rcpp is an bystander.  
+> | 
+> | Upon cloning and running R CMD INSTALL we see it end on
+> | 
+> | *** installing help indices
+> | ** building package indices
+> | ** testing if installed package can be loaded
+> | Found more than one class "Rcpp_Reference" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Reference" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Repository" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Repository" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Index" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Index" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_OID" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_OID" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_ODBObject" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_ODBObject" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_ODB" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_ODB" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Commit" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Commit" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Tree" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Tree" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_TreeEntry" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_TreeEntry" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Blob" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Blob" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Tag" in cache; using the first, from namespace 'guitar'
+> | Found more than one class "Rcpp_Tag" in cache; using the first, from namespace 'guitar'
+> | * DONE (guitar)
+> | edd at max:~/git/guitar(master)$ 
+> | 
+> | We had the same thing in the Rcpp examples and did this:
+> | 
+> | 2015-08-26  Dirk Eddelbuettel  <edd at debian.org>
+> | 
+> |         * inst/unitTests/testRcppClass/src/rcpp_module.cpp: Renamed Module
+> |         'World' to 'RcppClassWorld' to avoid multiple modules with same name
+> |         (pull request #351, fixed issue #350)
+> | 
+> |         * inst/unitTests/testRcppClass/man/Rcpp_class_examples.Rd: Ditto
+> |         * inst/unitTests/testRcppClass/R/load.R: Ditto
+> |         * inst/unitTests/testRcppClass/NAMESPACE: Ditto
+> |         * inst/unitTests/runit.Module.client.package.R: Re-enable test
+> | 
+> |         * inst/unitTests/testRcppModule/src/rcpp_module.cpp: Renamed Module
+> |         'World' to 'RcppModuleWorld' to avoid multiple modules with same name
+> | 
+> |         * inst/unitTests/cpp/modref.cpp: Rename 'World' to 'ModRefWorld'
+> |         * inst/unitTests/runit.modref.R (test.modRef): Ditto
+> | 
+> |         * inst/unitTests/cpp/Module.cpp: Rename 'World' to 'ModuleWorld'
+> |         * inst/unitTests/runit.Module.R (test.Module): Ditto
+> | 
+> | 2015-08-25  Kurt Hornik  <Kurt.Hornik at wu.ac.at>
+> | 
+> |         * R/loadModule.R: For now=TRUE, always set .botched to FALSE which
+> |         corresponds to the case of the methods package being in the search path
+> |         * inst/include/Rcpp/Reference.h: Call call with the internal Namespace
+> | 
+> | 
+> | Something was changed (by MMae as I recall) in that period that affects the
+> | name lookup and you simply cannot more than one reference to the same name.
+> | I have not yet looked into guitar -- it may just be that its build is weird
+> | and symbols appear multiple times.
+> | 
+> | But "someone" needs to disentangle this.
+> 
+> It used some guerilla code that "knew better than we did" for loading; all
+> that stuff changed way back when in 2012 (?) or so -- during Rcpp 0.9.*.
+> 
+> This was simply stale code.  With a simple change, it now passes R CMD check,
+> for a suitable definition of 'passes'.
+> 
+> I'll send you a pull request in a minute or two.
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> 
+
+

@@ -1,0 +1,1323 @@
+From rhelp at eoos.dds.nl  Mon Jul  2 16:40:06 2018
+From: rhelp at eoos.dds.nl (Jan van der Laan)
+Date: Mon, 2 Jul 2018 16:40:06 +0200
+Subject: [Rcpp-devel] UBSAN warning
+In-Reply-To: <CAHa5zCte8mufY431Ue4iiAO7-Ux32-0q_W=XDDT-GGRuyZ6XHw@mail.gmail.com>
+References: <CAHa5zCte8mufY431Ue4iiAO7-Ux32-0q_W=XDDT-GGRuyZ6XHw@mail.gmail.com>
+Message-ID: <e653f1ea-6b4a-963f-81d9-3d0dfdbc866a@eoos.dds.nl>
+
+
+Judging from the name of the object in which the error occurs, I suspect 
+it is in a line in which you compare a R-vector with a single (double) 
+value.
+
+The error is in the function
+
+	inline int rhs_is_not_na(int i) const {
+		STORAGE x = lhs[i] ;
+		return Rcpp::traits::is_na<RTYPE>(x) ? x : op( x, rhs ) ;
+}
+
+This functions seems to return the left hand side of the operator, when 
+the left hand value is NA. Guess this could result in the message you 
+see when the left hand value is a double.
+
+Looking at your code I see
+
+if (bandwidth < 0.0)
+   Rcpp::stop("bandwidth needs to be non-negative");
+
+if (!R_FINITE(bandwidth))
+   Rcpp::stop("inappropriate value of bandwidth");
+
+
+in 
+https://github.com/twolodzko/kernelboot/blob/master/src/univar-kd.cpp. I 
+would make more sense to first test for NA and then for < 0.0.
+
+HTH,
+Jan
+
+
+On 30-06-18 21:56, Timothy wrote:
+> Hi,
+> 
+> I maintain a package on CRAN. Recently I posted an update and was asked 
+> about UBSAN warning produced during checks of the previous version:
+> https://www.stats.ox.ac.uk/pub/bdr/memtests/clang-UBSAN/kernelboot/tests/testthat.Rout
+> It is not clear for me where does the warning come from, could you give 
+> me some hints what could it be? The warning message seems to relate to 
+> Rcpp itself, isn't it? If not, what is the best way of diagnosing causes 
+> of such warnings?
+> 
+> Thanks in advance,
+> Timothy
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+From fisikop at gmail.com  Thu Jul 12 15:32:08 2018
+From: fisikop at gmail.com (Vissarion Fisikopoulos)
+Date: Thu, 12 Jul 2018 16:32:08 +0300
+Subject: [Rcpp-devel] Rcpp package structure
+Message-ID: <CAKa7CYOJn1B8Wuu1fneM5nqCyXh0vxKs+7m=F+6_bcDUwnz2Lg@mail.gmail.com>
+
+Hi all,
+
+I am mentoring a gsoc project on development of a C++ library with an
+R interface using Rcpp.
+
+Currently the project has the following structure: let root be the
+main folder of the package, the default Rcpp package structure is in
+root/R-proj, C++ header files are in root/include and we have some
+tests for the C++ functions in root/test as well as external libraries
+in root/external.
+
+The package can be installed successfully without any problems (since
+in makevars we include all the files from root/include) but if we run
+devtools::check() in root/R-proj, it returns an error because it seems
+that it is not able to see files outside R package main folder which
+is root/R-proj.
+
+It seems that devtools expect to have C++ sources inside root/R-proj
+but then either we mix the C++ sources with the R interface or we keep
+two copies of the C++ sources (one inside R-proj and one outside).
+Since both solutions seem problematic to me I would like to ask what
+is the recommended structure for such a project?
+
+Thanks and best regards,
+Vissarion.
+
+From i.ucar86 at gmail.com  Thu Jul 12 15:56:36 2018
+From: i.ucar86 at gmail.com (=?UTF-8?B?ScOxYWtpIMOaY2Fy?=)
+Date: Thu, 12 Jul 2018 15:56:36 +0200
+Subject: [Rcpp-devel] Rcpp package structure
+In-Reply-To: <CAKa7CYOJn1B8Wuu1fneM5nqCyXh0vxKs+7m=F+6_bcDUwnz2Lg@mail.gmail.com>
+References: <CAKa7CYOJn1B8Wuu1fneM5nqCyXh0vxKs+7m=F+6_bcDUwnz2Lg@mail.gmail.com>
+Message-ID: <CALEXWq1Y-CC=EOwpGgF3=UoaeiB+nFcAdwkbN43g8_VCHGGyaA@mail.gmail.com>
+
+El jue., 12 jul. 2018 a las 15:32, Vissarion Fisikopoulos
+(<fisikop at gmail.com>) escribi?:
+>
+> Hi all,
+>
+> I am mentoring a gsoc project on development of a C++ library with an
+> R interface using Rcpp.
+>
+> Currently the project has the following structure: let root be the
+> main folder of the package, the default Rcpp package structure is in
+> root/R-proj, C++ header files are in root/include and we have some
+> tests for the C++ functions in root/test as well as external libraries
+> in root/external.
+>
+> The package can be installed successfully without any problems (since
+> in makevars we include all the files from root/include) but if we run
+> devtools::check() in root/R-proj, it returns an error because it seems
+> that it is not able to see files outside R package main folder which
+> is root/R-proj.
+>
+> It seems that devtools expect to have C++ sources inside root/R-proj
+> but then either we mix the C++ sources with the R interface or we keep
+> two copies of the C++ sources (one inside R-proj and one outside).
+> Since both solutions seem problematic to me I would like to ask what
+> is the recommended structure for such a project?
+
+See this thread:
+https://stat.ethz.ch/pipermail/r-package-devel/2017q2/001680.html
+
+Summing up, a shared library must be installed in a standard location,
+otherwise, it should be under R-proj/src. For example, this is what
+MonetDBLite does:
+https://github.com/hannesmuehleisen/MonetDBLite-R/tree/master/src
+
+If you are using git, I think that a good approach is to have a repo
+for the main C++ library and to add it as a git submodule under src/
+in the R package repo. This eases the burden of code synchronisation.
+But then you need to remember to always clone recursively.
+
+Hope it helps.
+I?aki
+
+>
+> Thanks and best regards,
+> Vissarion.
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Fri Jul 13 00:26:22 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 12 Jul 2018 17:26:22 -0500
+Subject: [Rcpp-devel] Rcpp package structure
+In-Reply-To: <CALEXWq1Y-CC=EOwpGgF3=UoaeiB+nFcAdwkbN43g8_VCHGGyaA@mail.gmail.com>
+References: <CAKa7CYOJn1B8Wuu1fneM5nqCyXh0vxKs+7m=F+6_bcDUwnz2Lg@mail.gmail.com>
+ <CALEXWq1Y-CC=EOwpGgF3=UoaeiB+nFcAdwkbN43g8_VCHGGyaA@mail.gmail.com>
+Message-ID: <23367.54670.392794.841634@rob.eddelbuettel.com>
+
+
+On 12 July 2018 at 15:56, I?aki ?car wrote:
+| El jue., 12 jul. 2018 a las 15:32, Vissarion Fisikopoulos
+| (<fisikop at gmail.com>) escribi?:
+| >
+| > Hi all,
+| >
+| > I am mentoring a gsoc project on development of a C++ library with an
+| > R interface using Rcpp.
+| >
+| > Currently the project has the following structure: let root be the
+| > main folder of the package, the default Rcpp package structure is in
+| > root/R-proj, C++ header files are in root/include and we have some
+| > tests for the C++ functions in root/test as well as external libraries
+| > in root/external.
+| >
+| > The package can be installed successfully without any problems (since
+| > in makevars we include all the files from root/include) but if we run
+| > devtools::check() in root/R-proj, it returns an error because it seems
+| > that it is not able to see files outside R package main folder which
+| > is root/R-proj.
+| >
+| > It seems that devtools expect to have C++ sources inside root/R-proj
+| > but then either we mix the C++ sources with the R interface or we keep
+| > two copies of the C++ sources (one inside R-proj and one outside).
+| > Since both solutions seem problematic to me I would like to ask what
+| > is the recommended structure for such a project?
+| 
+| See this thread:
+| https://stat.ethz.ch/pipermail/r-package-devel/2017q2/001680.html
+| 
+| Summing up, a shared library must be installed in a standard location,
+| otherwise, it should be under R-proj/src. For example, this is what
+| MonetDBLite does:
+| https://github.com/hannesmuehleisen/MonetDBLite-R/tree/master/src
+| 
+| If you are using git, I think that a good approach is to have a repo
+| for the main C++ library and to add it as a git submodule under src/
+| in the R package repo. This eases the burden of code synchronisation.
+| But then you need to remember to always clone recursively.
+
+Or have it in the same repo but maybe copy/link at build time.
+
+The package layout requirement is an R issue, and is not imposed by Rcpp.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Yagami_Ratio at hotmail.com  Fri Jul 13 18:27:51 2018
+From: Yagami_Ratio at hotmail.com (Chun Leung To)
+Date: Fri, 13 Jul 2018 16:27:51 +0000
+Subject: [Rcpp-devel] ld: warning
+Message-ID: <SN6PR06MB4719142726611CFC2E6F8C93EB580@SN6PR06MB4719.namprd06.prod.outlook.com>
+
+When I am trying to source the cpp file, it gives me a warning, as followed.
+
+
+ld: warning: text-based stub file /System/Library/Frameworks//CoreFoundation.framework/CoreFoundation.tbd and library file /System/Library/Frameworks//CoreFoundation.framework/CoreFoundation are out of sync. Falling back to library file for linking.
+
+
+Anyone know how to fix it? Thx.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180713/34c0c20a/attachment.html>
+
+From qkou at qkou.info  Fri Jul 13 18:44:03 2018
+From: qkou at qkou.info (Qiang Kou)
+Date: Fri, 13 Jul 2018 12:44:03 -0400
+Subject: [Rcpp-devel] ld: warning
+In-Reply-To: <SN6PR06MB4719142726611CFC2E6F8C93EB580@SN6PR06MB4719.namprd06.prod.outlook.com>
+References: <SN6PR06MB4719142726611CFC2E6F8C93EB580@SN6PR06MB4719.namprd06.prod.outlook.com>
+Message-ID: <CALaeKeGO+0R=Dpg0U5Fmr1d1u_VCS_YfojQ2eKAL7B+kW0DkSQ@mail.gmail.com>
+
+Hi, I think this has nothing to do with Rcpp.
+
+My best guess is the upgrade process (maybe Xcode) left some inconsistency
+files on your system.
+
+I think you can ignore this for now, since the compiler has fallen back and
+found the library file correctly.
+
+Besides, I suggest you not post both on StackOverflow [1] and the mailing
+list.
+
+Best wishes,
+
+Qiang Kou
+
+[1]
+https://stackoverflow.com/questions/51314888/ld-warning-text-based-stub-file-are-out-of-sync-falling-back-to-library-file
+
+On Fri, Jul 13, 2018 at 12:27 PM, Chun Leung To <Yagami_Ratio at hotmail.com>
+wrote:
+
+> When I am trying to source the cpp file, it gives me a warning, as
+> followed.
+>
+>
+> ld: warning: text-based stub file /System/Library/Frameworks//
+> CoreFoundation.framework/CoreFoundation.tbd and library file
+> /System/Library/Frameworks//CoreFoundation.framework/CoreFoundation are
+> out of sync. Falling back to library file for linking.
+>
+>
+> Anyone know how to fix it? Thx.
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180713/5a5ae2d3/attachment.html>
+
+From julien.chiquet at gmail.com  Wed Jul 25 17:30:44 2018
+From: julien.chiquet at gmail.com (julien chiquet)
+Date: Wed, 25 Jul 2018 17:30:44 +0200
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based C++
+ library in a R package using RcppArmadillo
+Message-ID: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+
+Hi,
+
+I am trying to wrap the optim library (https://github.com/kthohr/optim) in
+R via an R package using Rcpp/RcppArmadillo. Indeed, optim relies on
+armadillo itself. The github repository can be found here
+https://github.com/jchiquet/optimLibR
+
+To do that, I put the headers of optim into inst/include/ and the cpp files
+into src/. Then I tried to "heuristically" pull everything together in the
+src/Makevars files, after my (obviously poor) understanding of the R manual
+pages about Makevars and from the various examples that I copied from the
+web (especially from the RcppMLPACK1 which, relies on the C++ library
+MLPACK, itself based on armadillo
+https://github.com/rcppmlpack/RcppMLPACK1/blob/master/src/Makevars).
+
+The package installation (including compilation of optim) successes (at
+least, the package can be installed). Then I tried to create two small Rcpp
+functions for two examples available in the original optim library,
+starting with the following lines
+
+// [[Rcpp::depends(RcppArmadillo)]]// [[Rcpp::plugins(cpp11)]]
+#define USE_RCPP_ARMADILLO
+#include "optim.hpp"
+
+(The #define command is an option of the optim library.)
+
+However, when I call the corresponding R functions, I get the following
+Armadillo errors in R which I do not have when running them in 'pure' C++
+(I am pretty sure it is not a syntax problem, the Rcpp code and the
+original C++ code are hopefully identical, except for the headers).
+
+> library(optimLibR)> ackley_function()error: arma::memory::acquire(): out of memory
+
+> library(optimLibR)> logit_optimLib()error: Mat::init(): requested size is not compatible with column vector layout
+
+So it seems to me that the header of armadillo are correctly defined but I
+am not sure that I reach the src (cpp) part of armadillo which is required
+at the execution.
+
+If anyone can confirm or help pointing the origin of the error, I would be
+debtful...
+
+Thanks for your time,
+
+J.
+
+Thanks for your time
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180725/5d8cbf10/attachment.html>
+
+From edd at debian.org  Wed Jul 25 17:57:03 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 25 Jul 2018 10:57:03 -0500
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based
+ C++ library in a R package using RcppArmadillo
+In-Reply-To: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+References: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+Message-ID: <23384.40399.429054.944638@rob.eddelbuettel.com>
+
+
+On 25 July 2018 at 17:30, julien chiquet wrote:
+| Hi,
+| 
+| I am trying to wrap the optim library (https://github.com/kthohr/optim) in
+| R via an R package using Rcpp/RcppArmadillo. Indeed, optim relies on
+| armadillo itself. The github repository can be found here
+| https://github.com/jchiquet/optimLibR
+| 
+| To do that, I put the headers of optim into inst/include/ and the cpp files
+| into src/. Then I tried to "heuristically" pull everything together in the
+| src/Makevars files, after my (obviously poor) understanding of the R manual
+| pages about Makevars and from the various examples that I copied from the
+| web (especially from the RcppMLPACK1 which, relies on the C++ library
+| MLPACK, itself based on armadillo
+| https://github.com/rcppmlpack/RcppMLPACK1/blob/master/src/Makevars).
+| 
+| The package installation (including compilation of optim) successes (at
+| least, the package can be installed). Then I tried to create two small Rcpp
+| functions for two examples available in the original optim library,
+| starting with the following lines
+| 
+| // [[Rcpp::depends(RcppArmadillo)]]// [[Rcpp::plugins(cpp11)]]
+| #define USE_RCPP_ARMADILLO
+| #include "optim.hpp"
+| 
+| (The #define command is an option of the optim library.)
+| 
+| However, when I call the corresponding R functions, I get the following
+| Armadillo errors in R which I do not have when running them in 'pure' C++
+| (I am pretty sure it is not a syntax problem, the Rcpp code and the
+| original C++ code are hopefully identical, except for the headers).
+| 
+| > library(optimLibR)> ackley_function()error: arma::memory::acquire(): out of memory
+| 
+| > library(optimLibR)> logit_optimLib()error: Mat::init(): requested size is not compatible with column vector layout
+| 
+| So it seems to me that the header of armadillo are correctly defined but I
+| am not sure that I reach the src (cpp) part of armadillo which is required
+| at the execution.
+| 
+| If anyone can confirm or help pointing the origin of the error, I would be
+| debtful...
+| 
+| Thanks for your time,
+
+Good news / bad news. I think the good news is that everything builds, so you
+have no linking issue. In fact, no RcppArmadillo package links to Armadillo
+as we do everything via the headers.
+
+But you seem to have run-time issues which _could_ stem from the fact that
+RcppArmadillo sets a bunch of #define variables and your use may be slightly
+different / conflict with these. Maybe you can check with Keith about how
+his optim(lib) could / should be called from R.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From julien.chiquet at gmail.com  Wed Jul 25 18:26:52 2018
+From: julien.chiquet at gmail.com (julien chiquet)
+Date: Wed, 25 Jul 2018 18:26:52 +0200
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based
+ C++ library in a R package using RcppArmadillo
+In-Reply-To: <23384.40399.429054.944638@rob.eddelbuettel.com>
+References: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+ <23384.40399.429054.944638@rob.eddelbuettel.com>
+Message-ID: <CACeAVJ=_KBM0vOOOCY1J3WUTk1WtqA2DxQgYds-Ocw=_1QUApg@mail.gmail.com>
+
+On Wed, Jul 25, 2018 at 5:57 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 25 July 2018 at 17:30, julien chiquet wrote:
+> | Hi,
+> |
+> | I am trying to wrap the optim library (https://github.com/kthohr/optim)
+> in
+> | R via an R package using Rcpp/RcppArmadillo. Indeed, optim relies on
+> | armadillo itself. The github repository can be found here
+> | https://github.com/jchiquet/optimLibR
+> |
+> | To do that, I put the headers of optim into inst/include/ and the cpp
+> files
+> | into src/. Then I tried to "heuristically" pull everything together in
+> the
+> | src/Makevars files, after my (obviously poor) understanding of the R
+> manual
+> | pages about Makevars and from the various examples that I copied from the
+> | web (especially from the RcppMLPACK1 which, relies on the C++ library
+> | MLPACK, itself based on armadillo
+> | https://github.com/rcppmlpack/RcppMLPACK1/blob/master/src/Makevars).
+> |
+> | The package installation (including compilation of optim) successes (at
+> | least, the package can be installed). Then I tried to create two small
+> Rcpp
+> | functions for two examples available in the original optim library,
+> | starting with the following lines
+> |
+> | // [[Rcpp::depends(RcppArmadillo)]]// [[Rcpp::plugins(cpp11)]]
+> | #define USE_RCPP_ARMADILLO
+> | #include "optim.hpp"
+> |
+> | (The #define command is an option of the optim library.)
+> |
+> | However, when I call the corresponding R functions, I get the following
+> | Armadillo errors in R which I do not have when running them in 'pure' C++
+> | (I am pretty sure it is not a syntax problem, the Rcpp code and the
+> | original C++ code are hopefully identical, except for the headers).
+> |
+> | > library(optimLibR)> ackley_function()error: arma::memory::acquire():
+> out of memory
+> |
+> | > library(optimLibR)> logit_optimLib()error: Mat::init(): requested size
+> is not compatible with column vector layout
+> |
+> | So it seems to me that the header of armadillo are correctly defined but
+> I
+> | am not sure that I reach the src (cpp) part of armadillo which is
+> required
+> | at the execution.
+> |
+> | If anyone can confirm or help pointing the origin of the error, I would
+> be
+> | debtful...
+> |
+> | Thanks for your time,
+>
+> Good news / bad news. I think the good news is that everything builds, so
+> you
+> have no linking issue. In fact, no RcppArmadillo package links to Armadillo
+> as we do everything via the headers.
+>
+> But you seem to have run-time issues which _could_ stem from the fact that
+> RcppArmadillo sets a bunch of #define variables and your use may be
+> slightly
+> different / conflict with these. Maybe you can check with Keith about how
+> his optim(lib) could / should be called from R.
+>
+
+Thanks for your prompt and helpful answer. At least I know I do not have to
+struggle with the Makevars.
+
+I'll check with Keith.
+
+j
+
+
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180725/eaa95967/attachment-0001.html>
+
+From kth.ohr at gmail.com  Wed Jul 25 19:12:51 2018
+From: kth.ohr at gmail.com (Keith O'Hara)
+Date: Wed, 25 Jul 2018 13:12:51 -0400
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based
+	C++ library in a R package using RcppArmadillo
+In-Reply-To: <CACeAVJ=_KBM0vOOOCY1J3WUTk1WtqA2DxQgYds-Ocw=_1QUApg@mail.gmail.com>
+References: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+ <23384.40399.429054.944638@rob.eddelbuettel.com>
+ <CACeAVJ=_KBM0vOOOCY1J3WUTk1WtqA2DxQgYds-Ocw=_1QUApg@mail.gmail.com>
+Message-ID: <2E0EAB59-253F-4ACE-97AE-5DD7FA7FA861@gmail.com>
+
+I?m traveling without my laptop this week. I?ll take a look at the error when I return.
+
+Best,
+Keith
+
+> On Jul 25, 2018, at 12:26 PM, julien chiquet <julien.chiquet at gmail.com> wrote:
+> 
+>> On Wed, Jul 25, 2018 at 5:57 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+>> 
+>> On 25 July 2018 at 17:30, julien chiquet wrote:
+>> | Hi,
+>> | 
+>> | I am trying to wrap the optim library (https://github.com/kthohr/optim) in
+>> | R via an R package using Rcpp/RcppArmadillo. Indeed, optim relies on
+>> | armadillo itself. The github repository can be found here
+>> | https://github.com/jchiquet/optimLibR
+>> | 
+>> | To do that, I put the headers of optim into inst/include/ and the cpp files
+>> | into src/. Then I tried to "heuristically" pull everything together in the
+>> | src/Makevars files, after my (obviously poor) understanding of the R manual
+>> | pages about Makevars and from the various examples that I copied from the
+>> | web (especially from the RcppMLPACK1 which, relies on the C++ library
+>> | MLPACK, itself based on armadillo
+>> | https://github.com/rcppmlpack/RcppMLPACK1/blob/master/src/Makevars).
+>> | 
+>> | The package installation (including compilation of optim) successes (at
+>> | least, the package can be installed). Then I tried to create two small Rcpp
+>> | functions for two examples available in the original optim library,
+>> | starting with the following lines
+>> | 
+>> | // [[Rcpp::depends(RcppArmadillo)]]// [[Rcpp::plugins(cpp11)]]
+>> | #define USE_RCPP_ARMADILLO
+>> | #include "optim.hpp"
+>> | 
+>> | (The #define command is an option of the optim library.)
+>> | 
+>> | However, when I call the corresponding R functions, I get the following
+>> | Armadillo errors in R which I do not have when running them in 'pure' C++
+>> | (I am pretty sure it is not a syntax problem, the Rcpp code and the
+>> | original C++ code are hopefully identical, except for the headers).
+>> | 
+>> | > library(optimLibR)> ackley_function()error: arma::memory::acquire(): out of memory
+>> | 
+>> | > library(optimLibR)> logit_optimLib()error: Mat::init(): requested size is not compatible with column vector layout
+>> | 
+>> | So it seems to me that the header of armadillo are correctly defined but I
+>> | am not sure that I reach the src (cpp) part of armadillo which is required
+>> | at the execution.
+>> | 
+>> | If anyone can confirm or help pointing the origin of the error, I would be
+>> | debtful...
+>> | 
+>> | Thanks for your time,
+>> 
+>> Good news / bad news. I think the good news is that everything builds, so you
+>> have no linking issue. In fact, no RcppArmadillo package links to Armadillo
+>> as we do everything via the headers.
+>> 
+>> But you seem to have run-time issues which _could_ stem from the fact that
+>> RcppArmadillo sets a bunch of #define variables and your use may be slightly
+>> different / conflict with these. Maybe you can check with Keith about how
+>> his optim(lib) could / should be called from R.
+>  
+> Thanks for your prompt and helpful answer. At least I know I do not have to struggle with the Makevars.
+> 
+> I'll check with Keith.
+> 
+> j
+>  
+>> Dirk
+>> 
+>> -- 
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180725/8be6bec0/attachment.html>
+
+From julien.chiquet at gmail.com  Wed Jul 25 21:12:24 2018
+From: julien.chiquet at gmail.com (julien chiquet)
+Date: Wed, 25 Jul 2018 21:12:24 +0200
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based
+ C++ library in a R package using RcppArmadillo
+In-Reply-To: <2E0EAB59-253F-4ACE-97AE-5DD7FA7FA861@gmail.com>
+References: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+ <23384.40399.429054.944638@rob.eddelbuettel.com>
+ <CACeAVJ=_KBM0vOOOCY1J3WUTk1WtqA2DxQgYds-Ocw=_1QUApg@mail.gmail.com>
+ <2E0EAB59-253F-4ACE-97AE-5DD7FA7FA861@gmail.com>
+Message-ID: <CACeAVJn5hk7SwXM0FOpnrnYmOKdv=O3tdPfw=myvmDLbQgaY4Q@mail.gmail.com>
+
+Great ! And no hurry.
+
+Best,
+j
+
+
+
+Julien Chiquet
+http://julien.cremeriefamily.info
+mel: julien.chiquet at inra.fr
+tel: +33(0)1 44 08 16 73
+
+
+
+On Wed, Jul 25, 2018 at 7:12 PM Keith O'Hara <kth.ohr at gmail.com> wrote:
+
+> I?m traveling without my laptop this week. I?ll take a look at the error
+> when I return.
+>
+> Best,
+> Keith
+>
+> On Jul 25, 2018, at 12:26 PM, julien chiquet <julien.chiquet at gmail.com>
+> wrote:
+>
+> On Wed, Jul 25, 2018 at 5:57 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 25 July 2018 at 17:30, julien chiquet wrote:
+>> | Hi,
+>> |
+>> | I am trying to wrap the optim library (https://github.com/kthohr/optim)
+>> in
+>> | R via an R package using Rcpp/RcppArmadillo. Indeed, optim relies on
+>> | armadillo itself. The github repository can be found here
+>> | https://github.com/jchiquet/optimLibR
+>> |
+>> | To do that, I put the headers of optim into inst/include/ and the cpp
+>> files
+>> | into src/. Then I tried to "heuristically" pull everything together in
+>> the
+>> | src/Makevars files, after my (obviously poor) understanding of the R
+>> manual
+>> | pages about Makevars and from the various examples that I copied from
+>> the
+>> | web (especially from the RcppMLPACK1 which, relies on the C++ library
+>> | MLPACK, itself based on armadillo
+>> | https://github.com/rcppmlpack/RcppMLPACK1/blob/master/src/Makevars).
+>> |
+>> | The package installation (including compilation of optim) successes (at
+>> | least, the package can be installed). Then I tried to create two small
+>> Rcpp
+>> | functions for two examples available in the original optim library,
+>> | starting with the following lines
+>> |
+>> | // [[Rcpp::depends(RcppArmadillo)]]// [[Rcpp::plugins(cpp11)]]
+>> | #define USE_RCPP_ARMADILLO
+>> | #include "optim.hpp"
+>> |
+>> | (The #define command is an option of the optim library.)
+>> |
+>> | However, when I call the corresponding R functions, I get the following
+>> | Armadillo errors in R which I do not have when running them in 'pure'
+>> C++
+>> | (I am pretty sure it is not a syntax problem, the Rcpp code and the
+>> | original C++ code are hopefully identical, except for the headers).
+>> |
+>> | > library(optimLibR)> ackley_function()error: arma::memory::acquire():
+>> out of memory
+>> |
+>> | > library(optimLibR)> logit_optimLib()error: Mat::init(): requested
+>> size is not compatible with column vector layout
+>> |
+>> | So it seems to me that the header of armadillo are correctly defined
+>> but I
+>> | am not sure that I reach the src (cpp) part of armadillo which is
+>> required
+>> | at the execution.
+>> |
+>> | If anyone can confirm or help pointing the origin of the error, I would
+>> be
+>> | debtful...
+>> |
+>> | Thanks for your time,
+>>
+>> Good news / bad news. I think the good news is that everything builds, so
+>> you
+>> have no linking issue. In fact, no RcppArmadillo package links to
+>> Armadillo
+>> as we do everything via the headers.
+>>
+>> But you seem to have run-time issues which _could_ stem from the fact that
+>> RcppArmadillo sets a bunch of #define variables and your use may be
+>> slightly
+>> different / conflict with these. Maybe you can check with Keith about how
+>> his optim(lib) could / should be called from R.
+>>
+>
+> Thanks for your prompt and helpful answer. At least I know I do not have
+> to struggle with the Makevars.
+>
+> I'll check with Keith.
+>
+> j
+>
+>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180725/85e0883e/attachment.html>
+
+From edd at debian.org  Thu Jul 26 15:09:09 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 26 Jul 2018 08:09:09 -0500
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based
+ C++ library in a R package using RcppArmadillo
+In-Reply-To: <CACeAVJn5hk7SwXM0FOpnrnYmOKdv=O3tdPfw=myvmDLbQgaY4Q@mail.gmail.com>
+References: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+ <23384.40399.429054.944638@rob.eddelbuettel.com>
+ <CACeAVJ=_KBM0vOOOCY1J3WUTk1WtqA2DxQgYds-Ocw=_1QUApg@mail.gmail.com>
+ <2E0EAB59-253F-4ACE-97AE-5DD7FA7FA861@gmail.com>
+ <CACeAVJn5hk7SwXM0FOpnrnYmOKdv=O3tdPfw=myvmDLbQgaY4Q@mail.gmail.com>
+Message-ID: <23385.51189.641765.285621@rob.eddelbuettel.com>
+
+
+On 25 July 2018 at 21:12, julien chiquet wrote:
+| Great ! And no hurry.
+
+Cool. I'd love to see how this pans out.
+
+In the meantime, nloptr (at least the GitHub version) can be used well enough
+from R/Rcpp -- see eg https://github.com/jyypma/nloptr/issues/39 --- now I
+realize that the person I helped there is ... you.  Small world.
+
+So can you detail why the working example from nloptr does not suffice for
+you?  Because Jelmer has still not released that nloptr version to CRAN?  Or
+is there another reason?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From julien.chiquet at gmail.com  Thu Jul 26 17:06:53 2018
+From: julien.chiquet at gmail.com (julien chiquet)
+Date: Thu, 26 Jul 2018 17:06:53 +0200
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based
+ C++ library in a R package using RcppArmadillo
+In-Reply-To: <23385.51189.641765.285621@rob.eddelbuettel.com>
+References: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+ <23384.40399.429054.944638@rob.eddelbuettel.com>
+ <CACeAVJ=_KBM0vOOOCY1J3WUTk1WtqA2DxQgYds-Ocw=_1QUApg@mail.gmail.com>
+ <2E0EAB59-253F-4ACE-97AE-5DD7FA7FA861@gmail.com>
+ <CACeAVJn5hk7SwXM0FOpnrnYmOKdv=O3tdPfw=myvmDLbQgaY4Q@mail.gmail.com>
+ <23385.51189.641765.285621@rob.eddelbuettel.com>
+Message-ID: <CACeAVJnhfMFtpzGT3orNGwN6ett9V+iNBvdPGUYYX6nZNRMDgw@mail.gmail.com>
+
+On Thu, Jul 26, 2018 at 3:09 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+> So can you detail why the working example from nloptr does not suffice for
+> you?  Because Jelmer has still not released that nloptr version to CRAN?
+> Or
+> is there another reason?
+>
+
+Ok let's try an answer...  there are several reasons.
+
+As a researcher in (computational) statistics, I need to get access to
+efficient, scalable  optimization methods to fit some new statistical
+models. It seems natural to me to try an check any new fancy solution
+provided by the community, like the one offered by Keith. Moreover, I also
+often need to tune a bit the optimization algorithms at play for my
+particular problems: the solution offered by Keith, which uses armadillo,
+is great because it makes writing C++ code (and especially algebra) so easy
+even for a statistician. I also always like to check if some particular
+implementation is more robust or faster than another.
+
+You could answer me that nloptr also offers an interface to armadillo with
+the solution that you provided : that is right, and thank you again for
+that ! However, there is an optimization method from the orignal NLOPT
+library (called CCSA) working well for a particular problem that I have
+(see the git repo https://github.com/jchiquet/PLNmodels) which is curiously
+not exported in nloptr. I thus chose to develop this particular R package
+by asking the user to install a system nlopt during the install process on
+R via a config file (eg. via message asking for apt-get install
+libnlopt-dev for Linux or brew install for Mac OS and... sorry for Windows
+users for now). Then I can link directly to the system nlopt to get access
+to the headers and to the CCSA algorithm. I also like this solution because
+it bypasses R during the optimisation process (calling many times objective
+and gradient functions) and thus avoids overheads implied by calls to R
+functions. But in that case the time saved is not so impressive, so if
+Jelmer finally put an updated version with both export to C++ headers and
+CCSA algorithm, I would go back to nloptr R to help the portability
+(especially for Windows users). CRAN or github is not and problem to me as
+long as the R package and the associated stat method are at a "research"
+stage.
+
+And a final reason: I also wanted to learn how to properly wrap a C++
+library in a R package, an I thought that the optim package from Keith was
+a good opportunity for this, that could eventually help the community a bit.
+
+Best,
+
+j
+
+
+
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180726/aa1356c8/attachment.html>
+
+From edd at debian.org  Thu Jul 26 17:11:43 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 26 Jul 2018 10:11:43 -0500
+Subject: [Rcpp-devel] Linking problem when wrapping a armadillo-based
+ C++ library in a R package using RcppArmadillo
+In-Reply-To: <CACeAVJnhfMFtpzGT3orNGwN6ett9V+iNBvdPGUYYX6nZNRMDgw@mail.gmail.com>
+References: <CACeAVJkmOL+b0A95c0yzqHSpuPYxw5rKhnOHC0SXkuRmrLntxA@mail.gmail.com>
+ <23384.40399.429054.944638@rob.eddelbuettel.com>
+ <CACeAVJ=_KBM0vOOOCY1J3WUTk1WtqA2DxQgYds-Ocw=_1QUApg@mail.gmail.com>
+ <2E0EAB59-253F-4ACE-97AE-5DD7FA7FA861@gmail.com>
+ <CACeAVJn5hk7SwXM0FOpnrnYmOKdv=O3tdPfw=myvmDLbQgaY4Q@mail.gmail.com>
+ <23385.51189.641765.285621@rob.eddelbuettel.com>
+ <CACeAVJnhfMFtpzGT3orNGwN6ett9V+iNBvdPGUYYX6nZNRMDgw@mail.gmail.com>
+Message-ID: <23385.58543.377145.171353@rob.eddelbuettel.com>
+
+
+On 26 July 2018 at 17:06, julien chiquet wrote:
+| Ok let's try an answer...  there are several reasons.
+
+Awesome -- they are all perfectly good ones! I just wanted to make sure you
+were not hung up on a technicality.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From wush978 at gmail.com  Thu Jul 26 17:18:11 2018
+From: wush978 at gmail.com (Wush Wu)
+Date: Thu, 26 Jul 2018 23:18:11 +0800
+Subject: [Rcpp-devel] `checkUserInterrupt()` might not be safe if Rcout is
+	used.
+Message-ID: <CABjzuv6aBenyggjiZ_XYq6qgqgXDH3VFsozdd6_1Jb9M-3LTrQ@mail.gmail.com>
+
+Hi all,
+
+I just learned the function `checkUserInterrupt` and played with it in my
+package today. At first, everything was good. However, I sensed something
+wrong when I interrupted my function and relaunched it. In my case, the
+thread number of OpenMP decreased to 1 after an user interruption.
+
+According to the documentation, the `checkUserInterrupt` will throw an
+exception to trigger the C++ destructors on the stack. However, if I use
+`Rcout` several times (verbose mode of my function), then it will not throw
+the exception but leave the function directly.
+
+Here is a toy example to demonstrate:
+https://gist.github.com/wush978/36c4e5d8324dd14040eecb4b1dd1c631
+
+It uses `Rcout` / `std::cout` as a progressbar and check the user
+interruption. If the exception is thrown correctly, then a catch clause
+will handle the exception and write something to the `std::cerr`.
+
+If I turn off the verbose mode, then the `checkUserInterrupt` always throws
+the exception.
+
+If I turn on the verbose mode and use `jsize` to select the number of dot
+on the screen, then the `checkUserInterrupt` will exit the function
+immediately if `jsize` is large.  For example, `checkUserInterrupt` throws
+exception if `jsize = 5` but does not throw if `jsize = 100`.
+
+If I use `std::cout` instead of `Rcpp::Rcout`, then everything goes right
+again. So, there might be something wrong even if `R_TopLevelExec` is used.
+
+Well, I guess this bug might be hard to debug, but we should let the others
+aware about this at least, right?
+
+Best,
+Wush
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180726/01b0536e/attachment.html>
+
+From kevinushey at gmail.com  Thu Jul 26 18:06:26 2018
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 26 Jul 2018 09:06:26 -0700
+Subject: [Rcpp-devel] `checkUserInterrupt()` might not be safe if Rcout
+	is used.
+In-Reply-To: <CABjzuv6aBenyggjiZ_XYq6qgqgXDH3VFsozdd6_1Jb9M-3LTrQ@mail.gmail.com>
+References: <CABjzuv6aBenyggjiZ_XYq6qgqgXDH3VFsozdd6_1Jb9M-3LTrQ@mail.gmail.com>
+Message-ID: <CAJXgQP2GW=oZEd8sQy7q_yGmM_TPvDp1ThpAT4fGe1XxzaxtiQ@mail.gmail.com>
+
+What environment are you executing this on? (R in terminal, or with a GUI;
+which OS?)
+
+One thing to be cautious of is that many R APIs in graphical environments
+will also call for processing of events, and this in turn can also imply a
+check for, and handling of, interrupts. Rprintf() is in fact one such API
+(and this is called behind the scenes by Rcout).
+
+This implies something quite unfortunate: attempts to use any R APIs which
+call for processing of events within a C++ context can cause a longjmp that
+bypass C++ destructors and leave you in a bad state.
+
+Fortunately, things will be better with the newer Rcpp evaluation system
+from R 3.5 and above, thanks for R_UnwindProtect() and work from Lionel to
+integrate that with the Rcpp evaluation model. See
+https://github.com/RcppCore/Rcpp/pull/789 for some of the details on the
+initial PR. We're still settling out some final details on the API but once
+that's ready we'll have some documentation + hopefully an Rcpp gallery
+example describing its use.
+
+(We might also consider in Rcpp wrapping our calls to Rprintf() in
+R_ToplevelExec() and 'catching' and 'rethrowing' interrupts seen, but this
+might have some unintended side-effects)
+
+Best,
+Kevin
+
+On Thu, Jul 26, 2018 at 8:18 AM Wush Wu <wush978 at gmail.com> wrote:
+
+> Hi all,
+>
+> I just learned the function `checkUserInterrupt` and played with it in my
+> package today. At first, everything was good. However, I sensed something
+> wrong when I interrupted my function and relaunched it. In my case, the
+> thread number of OpenMP decreased to 1 after an user interruption.
+>
+> According to the documentation, the `checkUserInterrupt` will throw an
+> exception to trigger the C++ destructors on the stack. However, if I use
+> `Rcout` several times (verbose mode of my function), then it will not throw
+> the exception but leave the function directly.
+>
+> Here is a toy example to demonstrate:
+> https://gist.github.com/wush978/36c4e5d8324dd14040eecb4b1dd1c631
+>
+> It uses `Rcout` / `std::cout` as a progressbar and check the user
+> interruption. If the exception is thrown correctly, then a catch clause
+> will handle the exception and write something to the `std::cerr`.
+>
+> If I turn off the verbose mode, then the `checkUserInterrupt` always
+> throws the exception.
+>
+> If I turn on the verbose mode and use `jsize` to select the number of dot
+> on the screen, then the `checkUserInterrupt` will exit the function
+> immediately if `jsize` is large.  For example, `checkUserInterrupt` throws
+> exception if `jsize = 5` but does not throw if `jsize = 100`.
+>
+> If I use `std::cout` instead of `Rcpp::Rcout`, then everything goes right
+> again. So, there might be something wrong even if `R_TopLevelExec` is used.
+>
+> Well, I guess this bug might be hard to debug, but we should let the
+> others aware about this at least, right?
+>
+> Best,
+> Wush
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180726/cf9fb294/attachment-0001.html>
+
+From wush978 at gmail.com  Thu Jul 26 18:14:03 2018
+From: wush978 at gmail.com (Wush Wu)
+Date: Fri, 27 Jul 2018 00:14:03 +0800
+Subject: [Rcpp-devel] `checkUserInterrupt()` might not be safe if Rcout
+	is used.
+In-Reply-To: <CAJXgQP2GW=oZEd8sQy7q_yGmM_TPvDp1ThpAT4fGe1XxzaxtiQ@mail.gmail.com>
+References: <CABjzuv6aBenyggjiZ_XYq6qgqgXDH3VFsozdd6_1Jb9M-3LTrQ@mail.gmail.com>
+ <CAJXgQP2GW=oZEd8sQy7q_yGmM_TPvDp1ThpAT4fGe1XxzaxtiQ@mail.gmail.com>
+Message-ID: <CABjzuv6GVxghksv13st3F-fOvKc5J=7CKixDAqKV3ZRGeuJMKQ@mail.gmail.com>
+
+On Fri, Jul 27, 2018 at 12:06 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> What environment are you executing this on? (R in terminal, or with a GUI;
+> which OS?)
+>
+
+Here is my session Info:
+
+```
+R version 3.4.4 (2018-03-15)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 16.04.4 LTS
+
+Matrix products: default
+BLAS: /usr/lib/libblas/libblas.so.3.6.0
+LAPACK: /usr/lib/lapack/liblapack.so.3.6.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+LC_TIME=zh_TW.UTF-8        LC_COLLATE=en_US.UTF-8
+ [5] LC_MONETARY=zh_TW.UTF-8    LC_MESSAGES=en_US.UTF-8
+LC_PAPER=zh_TW.UTF-8       LC_NAME=C
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C
+LC_MEASUREMENT=zh_TW.UTF-8 LC_IDENTIFICATION=C
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] supc_0.2.1
+
+loaded via a namespace (and not attached):
+[1] compiler_3.4.4 tools_3.4.4    Rcpp_0.12.17
+```
+
+And I have tested it in Rstudio and console. Both of them trigger the same
+error.
+
+I have not tested R 3.5. I can give one tomorrow.
+Maybe it is worth constructing a unit test.
+
+
+>
+> One thing to be cautious of is that many R APIs in graphical environments
+> will also call for processing of events, and this in turn can also imply a
+> check for, and handling of, interrupts. Rprintf() is in fact one such API
+> (and this is called behind the scenes by Rcout).
+>
+> This implies something quite unfortunate: attempts to use any R APIs which
+> call for processing of events within a C++ context can cause a longjmp that
+> bypass C++ destructors and leave you in a bad state.
+>
+> Fortunately, things will be better with the newer Rcpp evaluation system
+> from R 3.5 and above, thanks for R_UnwindProtect() and work from Lionel to
+> integrate that with the Rcpp evaluation model. See https://github.com/
+> RcppCore/Rcpp/pull/789 for some of the details on the initial PR. We're
+> still settling out some final details on the API but once that's ready
+> we'll have some documentation + hopefully an Rcpp gallery example
+> describing its use.
+>
+> (We might also consider in Rcpp wrapping our calls to Rprintf() in
+> R_ToplevelExec() and 'catching' and 'rethrowing' interrupts seen, but this
+> might have some unintended side-effects)
+>
+> Best,
+> Kevin
+>
+> On Thu, Jul 26, 2018 at 8:18 AM Wush Wu <wush978 at gmail.com> wrote:
+>
+>> Hi all,
+>>
+>> I just learned the function `checkUserInterrupt` and played with it in my
+>> package today. At first, everything was good. However, I sensed something
+>> wrong when I interrupted my function and relaunched it. In my case, the
+>> thread number of OpenMP decreased to 1 after an user interruption.
+>>
+>> According to the documentation, the `checkUserInterrupt` will throw an
+>> exception to trigger the C++ destructors on the stack. However, if I use
+>> `Rcout` several times (verbose mode of my function), then it will not throw
+>> the exception but leave the function directly.
+>>
+>> Here is a toy example to demonstrate: https://gist.github.com/wush978/
+>> 36c4e5d8324dd14040eecb4b1dd1c631
+>>
+>> It uses `Rcout` / `std::cout` as a progressbar and check the user
+>> interruption. If the exception is thrown correctly, then a catch clause
+>> will handle the exception and write something to the `std::cerr`.
+>>
+>> If I turn off the verbose mode, then the `checkUserInterrupt` always
+>> throws the exception.
+>>
+>> If I turn on the verbose mode and use `jsize` to select the number of dot
+>> on the screen, then the `checkUserInterrupt` will exit the function
+>> immediately if `jsize` is large.  For example, `checkUserInterrupt` throws
+>> exception if `jsize = 5` but does not throw if `jsize = 100`.
+>>
+>> If I use `std::cout` instead of `Rcpp::Rcout`, then everything goes right
+>> again. So, there might be something wrong even if `R_TopLevelExec` is used.
+>>
+>> Well, I guess this bug might be hard to debug, but we should let the
+>> others aware about this at least, right?
+>>
+>> Best,
+>> Wush
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180727/8087a229/attachment.html>
+
+From wush978 at gmail.com  Mon Jul 30 06:59:15 2018
+From: wush978 at gmail.com (Wush Wu)
+Date: Mon, 30 Jul 2018 12:59:15 +0800
+Subject: [Rcpp-devel] `checkUserInterrupt()` might not be safe if Rcout
+	is used.
+In-Reply-To: <CAJXgQP2GW=oZEd8sQy7q_yGmM_TPvDp1ThpAT4fGe1XxzaxtiQ@mail.gmail.com>
+References: <CABjzuv6aBenyggjiZ_XYq6qgqgXDH3VFsozdd6_1Jb9M-3LTrQ@mail.gmail.com>
+ <CAJXgQP2GW=oZEd8sQy7q_yGmM_TPvDp1ThpAT4fGe1XxzaxtiQ@mail.gmail.com>
+Message-ID: <CABjzuv5+Jhd7-80=699mLn-erL6JNSKcsWg=hazbTDJFXw_4fw@mail.gmail.com>
+
+Hi Kevin,
+
+I tried the latest master branch ("522e66d9ea04502b4a98bb28642fb4724ff0a479")
+in R 3.5.1, but the `checkUserInterrupt` still does not throw the exception.
+
+The R is under a docker container (library/r-base:3.5.1), so there should
+be no GUI.
+
+Hope these info helps.
+
+Best,
+Wush
+
+On Fri, Jul 27, 2018 at 12:06 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> What environment are you executing this on? (R in terminal, or with a GUI;
+> which OS?)
+>
+> One thing to be cautious of is that many R APIs in graphical environments
+> will also call for processing of events, and this in turn can also imply a
+> check for, and handling of, interrupts. Rprintf() is in fact one such API
+> (and this is called behind the scenes by Rcout).
+>
+> This implies something quite unfortunate: attempts to use any R APIs which
+> call for processing of events within a C++ context can cause a longjmp that
+> bypass C++ destructors and leave you in a bad state.
+>
+> Fortunately, things will be better with the newer Rcpp evaluation system
+> from R 3.5 and above, thanks for R_UnwindProtect() and work from Lionel to
+> integrate that with the Rcpp evaluation model. See
+> https://github.com/RcppCore/Rcpp/pull/789 for some of the details on the
+> initial PR. We're still settling out some final details on the API but once
+> that's ready we'll have some documentation + hopefully an Rcpp gallery
+> example describing its use.
+>
+> (We might also consider in Rcpp wrapping our calls to Rprintf() in
+> R_ToplevelExec() and 'catching' and 'rethrowing' interrupts seen, but this
+> might have some unintended side-effects)
+>
+> Best,
+> Kevin
+>
+> On Thu, Jul 26, 2018 at 8:18 AM Wush Wu <wush978 at gmail.com> wrote:
+>
+>> Hi all,
+>>
+>> I just learned the function `checkUserInterrupt` and played with it in my
+>> package today. At first, everything was good. However, I sensed something
+>> wrong when I interrupted my function and relaunched it. In my case, the
+>> thread number of OpenMP decreased to 1 after an user interruption.
+>>
+>> According to the documentation, the `checkUserInterrupt` will throw an
+>> exception to trigger the C++ destructors on the stack. However, if I use
+>> `Rcout` several times (verbose mode of my function), then it will not throw
+>> the exception but leave the function directly.
+>>
+>> Here is a toy example to demonstrate: https://gist.github.com/wush97
+>> 8/36c4e5d8324dd14040eecb4b1dd1c631
+>>
+>> It uses `Rcout` / `std::cout` as a progressbar and check the user
+>> interruption. If the exception is thrown correctly, then a catch clause
+>> will handle the exception and write something to the `std::cerr`.
+>>
+>> If I turn off the verbose mode, then the `checkUserInterrupt` always
+>> throws the exception.
+>>
+>> If I turn on the verbose mode and use `jsize` to select the number of dot
+>> on the screen, then the `checkUserInterrupt` will exit the function
+>> immediately if `jsize` is large.  For example, `checkUserInterrupt` throws
+>> exception if `jsize = 5` but does not throw if `jsize = 100`.
+>>
+>> If I use `std::cout` instead of `Rcpp::Rcout`, then everything goes right
+>> again. So, there might be something wrong even if `R_TopLevelExec` is used.
+>>
+>> Well, I guess this bug might be hard to debug, but we should let the
+>> others aware about this at least, right?
+>>
+>> Best,
+>> Wush
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180730/d33d5e3d/attachment.html>
+
+From nzshaam at gmail.com  Mon Jul 30 07:39:46 2018
+From: nzshaam at gmail.com (Shaami)
+Date: Mon, 30 Jul 2018 17:39:46 +1200
+Subject: [Rcpp-devel] 95% and 99% confidence bands using qqPlot() in car
+	package
+Message-ID: <CAGR+MS5tKFFY2VAw4H1o4oWMFd6RGfFFttx=uj3agoDP_cL=0w@mail.gmail.com>
+
+Hi
+
+I want to use qqPlot() with 95 % and 99% confidence bands together in one
+single plot. Could you please guide me how to do that? By default, we can
+plot only one confidence band.
+
+I already acknowledge your help.
+
+Thank You
+
+Shaami
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180730/d9707dce/attachment.html>
+
+From barthriley at comcast.net  Tue Jul 31 20:55:44 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Tue, 31 Jul 2018 13:55:44 -0500
+Subject: [Rcpp-devel] Creating a multidimensional array
+Message-ID: <mailman.0.1533063359.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+Dear list
+
+I am trying to create a simple Rcpp function that creates a three-dimensional array based on the values of a four-dimensional array. The arrays are declared as NumericVectors with a dim attribute represent the number of levels of each dimension. Here is a sample of the code:
+
+NumericVector sumby4(NumericVector X) {
+  Dimension dim = X.attr("dim");
+  if(dim.size() != 4) return NULL;
+  
+  NumericVector ret = NumericVector::create(dim[0],dim[1],dim[2]);
+
+  for(int i = 0; i < dim[0]; i++) {
+    for(int j = 0; j < dim[1]; j++) {
+      for(int k = 0; k < dim[2]; k++) {
+        ret(i,j,k) = NA_REAL;
+?
+
+When I attempt to compile the package in which this function resides, I get the error message associated with the ?ret(I,j,k) = NA_REAL? line:
+
+No match for call to Rcpp::NumericVector Rcpp::Vector<14 Rcpp::PreserveStorage>})(int&, int&, int&)
+
+I take from this message that the NumericVector ret cannot be indexed by three values, even though it has been dimensioned as a 3D array. What am I doing wrong here?
+
+Barth
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180731/de61d690/attachment.html>
+
+From edd at debian.org  Tue Jul 31 21:24:43 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 31 Jul 2018 14:24:43 -0500
+Subject: [Rcpp-devel] Creating a multidimensional array
+In-Reply-To: <20180731185558.6411D18A28E@r-forge.r-project.org>
+References: <20180731185558.6411D18A28E@r-forge.r-project.org>
+Message-ID: <23392.46971.462446.644362@rob.eddelbuettel.com>
+
+
+On 31 July 2018 at 13:55, Barth Riley wrote:
+| Dear list
+| 
+| I am trying to create a simple Rcpp function that creates a three-dimensional array based on the values of a four-dimensional array. The arrays are declared as NumericVectors with a dim attribute represent the number of levels of each dimension. Here is a sample of the code:
+| 
+| NumericVector sumby4(NumericVector X) {
+|   Dimension dim = X.attr("dim");
+|   if(dim.size() != 4) return NULL;
+|   
+|   NumericVector ret = NumericVector::create(dim[0],dim[1],dim[2]);
+| 
+|   for(int i = 0; i < dim[0]; i++) {
+|     for(int j = 0; j < dim[1]; j++) {
+|       for(int k = 0; k < dim[2]; k++) {
+|         ret(i,j,k) = NA_REAL;
+| ?
+| 
+| When I attempt to compile the package in which this function resides, I get the error message associated with the ?ret(I,j,k) = NA_REAL? line:
+| 
+| No match for call to Rcpp::NumericVector Rcpp::Vector<14 Rcpp::PreserveStorage>})(int&, int&, int&)
+| 
+| I take from this message that the NumericVector ret cannot be indexed by three values, even though it has been dimensioned as a 3D array. What am I doing wrong here?
+
+Yes, the compiler barks because it sees no matching method.
+
+Now, we _have_ examples for this somewhere I think.  One thing that came up in a
+quick search is
+
+   http://gallery.rcpp.org/articles/simple-array-class/
+
+and you can see there that i) yes a multi-dim is used but ii) indexing games
+need to be played.  Maybe that helps.
+
+Else arma::cube is a real 3d data I have used happily in the past. And these
+days CRAN has xtensor (if you can do C++14).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

@@ -1,0 +1,4260 @@
+From mwmorrison93 at gmail.com  Fri Apr  1 06:13:48 2016
+From: mwmorrison93 at gmail.com (Michael Morrison)
+Date: Thu, 31 Mar 2016 21:13:48 -0700
+Subject: [Rcpp-devel] Calling ggsave or pdf from RInside
+Message-ID: <CANGs2ysDgU_FXAPkRk7VMJJriSBQ_6kJ7cftbwqjuwsR+fnB2Q@mail.gmail.com>
+
+Hello, i'm new to RInside and Rcpp. I trying to run a small test to output
+a a pdf using a series of calls to the RInside library. Whenever I call
+ggsave (or pdf) via these calls i get the following error message:
+
+*Error in pdf(file = "C:/path/to/file/file.pdf", height = 3.5,  :*
+*  failed to initialise default PDF font*
+*In addition: Warning messages:*
+*1: In pdf(file = "**C:/path/to/file/file.pdf**", height = 3.5,  :*
+*  afm file '?,x`/library/grDevices/afm/Helvetica.afm' could not be opened*
+*2: In pdf(file = "**C:/path/to/file/file.pdf**", height = 3.5,  :*
+*  cannot load afm file 'Helvetica.afm'*
+*terminate called after throwing an instance of 'std::runtime_error'*
+*  what():  Error evaluating: pdf(file="**C:/path/to/file/file.pdf**,
+height=3.5, width=5, encoding="C:/R/R-3.2.4/library/grDevices/enc/WinAnsi")*
+
+
+I have R 3.2.4 installed on a Windows Server 2008 R2 box. as you can see
+the base directory used to search for the font isn't C:\R\R-3.2.4\.... as
+it should be but instead a strange base directory "?,x" is being used. Is
+there some way that I can set the base directory to the proper location. I
+apologize if I haven't provide enough information to help troubleshoot, if
+not just please let me know what I need to send and I will do so promptly.
+
+Thanks in advance for your help.
+
+Thanks,
+Michael Morrison
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160331/2da43c64/attachment.html>
+
+From rosterma at abo.fi  Fri Apr  1 08:32:58 2016
+From: rosterma at abo.fi (rosterma at abo.fi)
+Date: Fri, 1 Apr 2016 09:32:58 +0300
+Subject: [Rcpp-devel] Incomplete Heap memory freeing under R
+In-Reply-To: <22269.31984.855812.578201@max.nulle.part>
+References: <56FD773F.3090502@abo.fi>
+ <22269.31984.855812.578201@max.nulle.part>
+Message-ID: <56FE161A.6020508@abo.fi>
+
+PS
+I have done the same test with rinside1.
+Ralf
+On 31.3.2016 22:39, Dirk Eddelbuettel wrote:
+>
+> PS  Also look at Writing R Extension for _plain_ R via valgrind. Then do
+>
+>      cat("hello, world\n"); q("no")
+>
+>     and see what Valgrind reports.  That is the second part of the baseline.
+>
+> Dirk
+>
+
+
+-- 
+Ralf ?stermark
+Ph.D(econ), Ph.D(pol)
+Professor of Accounting and Optimization Systems
+School of Business Economics at
+?bo Akademi University
+20500 ?bo
+Finland
+
+From edd at debian.org  Fri Apr  1 15:09:14 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 1 Apr 2016 08:09:14 -0500
+Subject: [Rcpp-devel] Calling ggsave or pdf from RInside
+In-Reply-To: <CANGs2ysDgU_FXAPkRk7VMJJriSBQ_6kJ7cftbwqjuwsR+fnB2Q@mail.gmail.com>
+References: <CANGs2ysDgU_FXAPkRk7VMJJriSBQ_6kJ7cftbwqjuwsR+fnB2Q@mail.gmail.com>
+Message-ID: <22270.29434.365711.726216@max.nulle.part>
+
+
+On 31 March 2016 at 21:13, Michael Morrison wrote:
+| Hello, i'm new to RInside and Rcpp. I trying to run a small test to output a a
+| pdf using a series of calls to the RInside library. Whenever I call ggsave (or
+| pdf) via these calls i get the following error message:
+| 
+| Error in pdf(file = "C:/path/to/file/file.pdf", height = 3.5, ?:
+| ? failed to initialise default PDF font
+| In addition: Warning messages:
+| 1: In pdf(file = "C:/path/to/file/file.pdf", height = 3.5, ?:
+| ? afm file '?,x`/library/grDevices/afm/Helvetica.afm' could not be opened
+| 2: In pdf(file = "C:/path/to/file/file.pdf", height = 3.5, ?:
+| ? cannot load afm file 'Helvetica.afm'
+| terminate called after throwing an instance of 'std::runtime_error'
+| ? what(): ?Error evaluating: pdf(file="C:/path/to/file/file.pdf, height=3.5,
+| width=5, encoding="C:/R/R-3.2.4/library/grDevices/enc/WinAnsi")
+| 
+| 
+| I have R 3.2.4 installed on a Windows Server 2008 R2 box. as you can see the
+| base directory used to search for the font isn't C:\R\R-3.2.4\.... as it should
+| be but instead a strange base directory "?,x" is being used. Is there some way
+| that I can set the base directory to the proper location. I apologize if I
+| haven't provide enough information to help troubleshoot, if not just please let
+| me know what I need to send and I will do so promptly.
+
+Sounds like a Windows issue. In essence, RInside calls R just like you would
+on the command-line (or through whatever GUI).  If R is lacking font
+information when running by itself, it will also lack them in RInside.
+
+The examples show plotting routines, including printing to bitmaps. That all
+works just fine on normal systems with all the font information (ie my Linux
+machines) and also on the Windows machines I tried.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mwmorrison93 at gmail.com  Fri Apr  1 16:29:43 2016
+From: mwmorrison93 at gmail.com (Michael Morrison)
+Date: Fri, 1 Apr 2016 09:29:43 -0500
+Subject: [Rcpp-devel] Calling ggsave or pdf from RInside
+In-Reply-To: <22270.29434.365711.726216@max.nulle.part>
+References: <CANGs2ysDgU_FXAPkRk7VMJJriSBQ_6kJ7cftbwqjuwsR+fnB2Q@mail.gmail.com>
+ <22270.29434.365711.726216@max.nulle.part>
+Message-ID: <CANGs2ytunqoLBUmWRoFL4yCMF+8FhT3d0Wfkc-WqFg50Dv=2PA@mail.gmail.com>
+
+Thanks for your reply, much appreciated. The call works just fine if I make
+it from the R GUI or R studio. I tested out the calls there first before
+trying to make the same calls from RInside. Do you know if there's a way
+that the base directory can be set through some other call?
+
+Thanks,
+Mike
+
+On Fri, Apr 1, 2016 at 8:09 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 31 March 2016 at 21:13, Michael Morrison wrote:
+> | Hello, i'm new to RInside and Rcpp. I trying to run a small test to
+> output a a
+> | pdf using a series of calls to the RInside library. Whenever I call
+> ggsave (or
+> | pdf) via these calls i get the following error message:
+> |
+> | Error in pdf(file = "C:/path/to/file/file.pdf", height = 3.5,  :
+> |   failed to initialise default PDF font
+> | In addition: Warning messages:
+> | 1: In pdf(file = "C:/path/to/file/file.pdf", height = 3.5,  :
+> |   afm file '?,x`/library/grDevices/afm/Helvetica.afm' could not be opened
+> | 2: In pdf(file = "C:/path/to/file/file.pdf", height = 3.5,  :
+> |   cannot load afm file 'Helvetica.afm'
+> | terminate called after throwing an instance of 'std::runtime_error'
+> |   what():  Error evaluating: pdf(file="C:/path/to/file/file.pdf,
+> height=3.5,
+> | width=5, encoding="C:/R/R-3.2.4/library/grDevices/enc/WinAnsi")
+> |
+> |
+> | I have R 3.2.4 installed on a Windows Server 2008 R2 box. as you can see
+> the
+> | base directory used to search for the font isn't C:\R\R-3.2.4\.... as it
+> should
+> | be but instead a strange base directory "?,x" is being used. Is there
+> some way
+> | that I can set the base directory to the proper location. I apologize if
+> I
+> | haven't provide enough information to help troubleshoot, if not just
+> please let
+> | me know what I need to send and I will do so promptly.
+>
+> Sounds like a Windows issue. In essence, RInside calls R just like you
+> would
+> on the command-line (or through whatever GUI).  If R is lacking font
+> information when running by itself, it will also lack them in RInside.
+>
+> The examples show plotting routines, including printing to bitmaps. That
+> all
+> works just fine on normal systems with all the font information (ie my
+> Linux
+> machines) and also on the Windows machines I tried.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160401/0fabfea7/attachment.html>
+
+From edd at debian.org  Fri Apr  1 16:49:58 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 1 Apr 2016 09:49:58 -0500
+Subject: [Rcpp-devel] Calling ggsave or pdf from RInside
+In-Reply-To: <CANGs2ytunqoLBUmWRoFL4yCMF+8FhT3d0Wfkc-WqFg50Dv=2PA@mail.gmail.com>
+References: <CANGs2ysDgU_FXAPkRk7VMJJriSBQ_6kJ7cftbwqjuwsR+fnB2Q@mail.gmail.com>
+ <22270.29434.365711.726216@max.nulle.part>
+ <CANGs2ytunqoLBUmWRoFL4yCMF+8FhT3d0Wfkc-WqFg50Dv=2PA@mail.gmail.com>
+Message-ID: <22270.35478.855627.922167@max.nulle.part>
+
+
+On 1 April 2016 at 09:29, Michael Morrison wrote:
+| Thanks for your reply, much appreciated. The call works just fine if I make it
+| from the R GUI or R studio. I tested out the calls there first before trying to
+| make the same calls from RInside. Do you know if there's a way that the base
+| directory can be set through some other call?
+
+In R:     setwd()
+
+In C++:   chdir()
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mwmorrison93 at gmail.com  Fri Apr  1 20:07:29 2016
+From: mwmorrison93 at gmail.com (Michael Morrison)
+Date: Fri, 1 Apr 2016 13:07:29 -0500
+Subject: [Rcpp-devel] Calling ggsave or pdf from RInside
+In-Reply-To: <22270.35478.855627.922167@max.nulle.part>
+References: <CANGs2ysDgU_FXAPkRk7VMJJriSBQ_6kJ7cftbwqjuwsR+fnB2Q@mail.gmail.com>
+ <22270.29434.365711.726216@max.nulle.part>
+ <CANGs2ytunqoLBUmWRoFL4yCMF+8FhT3d0Wfkc-WqFg50Dv=2PA@mail.gmail.com>
+ <22270.35478.855627.922167@max.nulle.part>
+Message-ID: <CANGs2yucACVNH89Qp851GgQCGesH5wS0Gn20SvGOX6Xo=Ae3Lw@mail.gmail.com>
+
+Thanks again Dirk, is there a way that I can specify the root R directory?
+I want to keep the working directory as is but when a library folder is
+referenced as in the case with grDevices, i would like it to use
+$(R_HOME)\library\grDevices\.... The root R folder isn't being picked up
+correctly. I do have a $R_HOME  environment variable set up but it appears
+not be used. Here's the script that i'm running via calls to the RInside
+library, each call works until I get to ggsave(...) and at that point i get
+the error message about not being able to find the file
+'?,x`/library/grDevices/afm/Helvetica.afm'
+
+require(graphics)
+library("ggplot2")
+nmmaps<-read.csv("C:/path/to/datafiles/data.csv",as.is=T)
+nmmaps$date<-as.Date(nmmaps$date)
+nmmaps<-nmmaps[nmmaps$date>as.Date("1996-12-31"),]
+nmmaps$year<-substring(nmmaps$date,1,4)
+head(nmmaps)
+ggplot(nmmaps,aes(date,temp, color=factor(season)))+geom_point()
+
+ggsave("C:/Path/to/file/myimage.pdf",
+encoding="C:/R/R-3.2.4/library/grDevices/enc/WinAnsi")
+
+
+Thank you,
+Michael
+
+On Fri, Apr 1, 2016 at 9:49 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 1 April 2016 at 09:29, Michael Morrison wrote:
+> | Thanks for your reply, much appreciated. The call works just fine if I
+> make it
+> | from the R GUI or R studio. I tested out the calls there first before
+> trying to
+> | make the same calls from RInside. Do you know if there's a way that the
+> base
+> | directory can be set through some other call?
+>
+> In R:     setwd()
+>
+> In C++:   chdir()
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160401/7d8347a2/attachment.html>
+
+From toduc at stat.unipd.it  Sat Apr  2 00:21:21 2016
+From: toduc at stat.unipd.it (To Duc Khanh)
+Date: Sat, 2 Apr 2016 00:21:21 +0200
+Subject: [Rcpp-devel] The help for parallel computing in Rcpp
+Message-ID: <95c67d262961a7745b5816165e871613.squirrel@webmail.stat.unipd.it>
+
+Dear all
+
+My name is Khanh, a PhD student in Department of Statistical Science,
+University of Padua.
+
+I would like ask you how to use the function parallelFor() -in package
+RcppParallel- to computing a "for loop". In particular, I have to compute
+a triple sum, which is
+
+\[
+\sum_{i=1}^{n} \sum_{j = 1, j \ne i}^{n} \sum_{\stackrel{k=1}{k \ne j,
+k\ne i}}^{n} I(T_i, T_j, T_k) D_{1i} D_{2j} D_{3k},
+\]
+where $I(.)$ is a function.
+
+
+I coded in Rcpp, my program has to spend more time when n is large (may
+be 5000). So I would like use the parallel computing to reduce the runing
+time. My idea is to use the parallelfor() (a function in C/C++) for the
+"for loop" corresponding to the index i, however, this work is not
+applicable to Rcpp. On the other hand, with Rcpp, I found the
+parallelFor() function, but I really do not know what can I do with my
+situation. Could you help me?
+
+I am waiting your respond. Thanks you!!
+
+Your sincerely,
+
+Khanh
+
+-- 
+Khanh To Duc
+PhD student, Department of Statistical Science, XXIX cycle.
+Office: Room 130
+Telephone: +39 049 827 4147
+Mobile: +39 345 667 0711
+http://www.stat.unipd.it/it/fare-ricerca/duc-khanh
+
+
+From dimitar.vassilev at gmail.com  Tue Apr  5 10:36:31 2016
+From: dimitar.vassilev at gmail.com (Dimitar Vassilev)
+Date: Tue, 5 Apr 2016 10:36:31 +0200
+Subject: [Rcpp-devel] dplyr Rcpp dependencies compilation errors
+Message-ID: <CAF+AZZXqJN9T83VCdRj=uOtyx_Pk4qv6p8C9=RD92t8yAN1bDw@mail.gmail.com>
+
+Hello,
+I'm trying to compile dplyr on Solaris 11.2
+pkg://solaris/entire at 0.5.11,5.11-0.175.2.15.0.5.1:20151026T231525Z
+
+
+> install.packages("dplyr");
+trying URL 'http://cran.uni-muenster.de/src/contrib/dplyr_0.4.3.tar.gz'
+Content type 'application/x-gzip' length 655997 bytes (640 KB)
+==================================================
+downloaded 640 KB
+
+* installing *source* package 'dplyr' ...
+** package 'dplyr' successfully unpacked and MD5 sums checked
+** libs
+/opt/solarisstudio12.4/bin/CC -m64 -I/usr/local/R/include -DNDEBUG
+-I../inst/include -DCOMPILING_DPLYR  -I"/usr/local/R/library/Rcpp/include"
+-I"/usr/local/R/library/BH/include"   -KPIC  -xO3 -m64 -std=c++03 -g  -c
+RcppExports.cpp -o RcppExports.o
+"/usr/local/R/library/Rcpp/include/Rcpp/Interrupt.h", line 60: Warning
+(Anachronism): Using void(*)(void*) to initialize extern "C" void(*)(void*).
+"/usr/local/R/library/Rcpp/include/Rcpp/String.h", line 67: Warning: enc
+hides Rcpp::String::enc.
+"/usr/local/R/library/Rcpp/include/Rcpp/String.h", line 81: Warning: enc
+hides Rcpp::String::enc.
+"/usr/local/R/library/Rcpp/include/Rcpp/String.h", line 95: Warning: enc
+hides Rcpp::String::enc.
+"/usr/local/R/library/Rcpp/include/Rcpp/String.h", line 107: Warning: enc
+hides Rcpp::String::enc.
+"/usr/local/R/library/BH/include/boost/exception/exception.hpp", line 140:
+Error: The name exception is ambiguous, exception and Rcpp::exception.
+"../inst/include/dplyr/Result/LazyGroupedSubsets.h", line 17: Warning: data
+hides dplyr::LazySubsets::data.
+"../inst/include/dplyr/Result/LazyRowwiseSubsets.h", line 14: Warning: data
+hides dplyr::LazySubsets::data.
+"../inst/include/dplyr/Collecter.h", line 303: Warning: levels hides
+dplyr::FactorCollecter::levels.
+1 Error(s) and 8 Warning(s) detected.
+*** Error code 2
+make: Fatal error: Command failed for target `RcppExports.o'
+ERROR: compilation failed for package 'dplyr'
+* removing '/usr/local/R/library/dplyr'
+
+The downloaded source packages are in
+        '/tmp/RtmpUzD2NL/downloaded_packages'
+Updating HTML index of packages in '.Library'
+Making 'packages.html' ... done
+Warning message:
+In install.packages("dplyr") :
+  installation of package 'dplyr' had non-zero exit status
+>
+
+root at pkglt01 ~ [10:29:52]# more .Rprofile
+local({
+ r <- getOption("repos")
+r["CRAN"] <- "http://cran.uni-muenster.de/"
+options(repos = r)
+my.configure.args <- list(
+"stringi" =
+c("--disable-cxx11",
+ "--disable-pkg-config",
+"--with-extra-libs='-lCrun'",
+"--with-extra-libs='-lCstd'"
+));
+options("configure.args" = my.configure.args);
+})
+
+root at pkglt01 ~ [10:29:55]# cat .Renviron
+options(internet.info = 0)
+TERM=vt220
+TAR=/usr/bin/tar
+R_UNZIPCMD=/usr/bin/unzip
+R_ZIPCMD=/usr/bin/zip
+MAKE=/usr/bin/make
+LD_LIBRARY_PATH=/lib:/usr/lib:/opt/solarisstudio12.4/lib/:/usr/local/R/lib:/lib:/usr/local/lib:/usr/gcc/4.8/lib/
+PAGER=/usr/bin/less
+R_BZIPCMD=/usr/bin/bzip2
+R_GZIPCMD=/usr/bin/gzip
+CXXFLAGS = -xO3 -m64 -std=c++03
+CXX1XFLAGS = -xO3 -m64 -std=c++11
+SHLIB_CXXLDFLAGS = -G -lstdc++ -lgcc_s -lCrunG3 -lrt -lm -lc
+SHLIB_CXX1XLDFLAGS = -G -lstdc++ -lgcc_s -lCrunG3 -lrt -lm -lc
+LDFLAGS = -norunpath -m64 -KPIC -DPIC -lc
+-L/opt/solarisstudio12.4/lib/sparcv9  -R/opt/solarisstudio12.4/lib/sparcv9
+-lsunperf -lfsu -lmtsk -lpicl -lkstat -L/usr/local/R/lib -R/usr/local/R/lib
+-L/usr/include/openssl -R/usr/include/openssl
+-L/usr/include/openssl/fips-140 -R/usr/include/openssl/fips-140
+-L/usr/gcc/4.8/lib -R/usr/gcc/4.8/lib
+CC = /opt/solarisstudio12.4/bin/cc -xc99 -m64
+CXX = /opt/solarisstudio12.4/bin/CC -m64
+
+root at pkglt01 ~ [10:33:39]# cat /usr/local/R/etc/Makeconf
+# etc/Makeconf.  Generated from Makeconf.in by configure.
+#
+# ${R_HOME}/etc/Makeconf
+#
+# R was configured using the following call
+# (not including env. vars and site configuration)
+# configure  '--enable-R-shlib' '--with-blas=-xlic_lib=sunperf -lsunmath '
+'--with-lapack' '--with-tcltk=no' '--with-ICU=no' '--enable-prebuilt-html'
+'--with-cairo' '--with-internal-tzcode' '--disable-long-double'
+'CC=/opt/SunProd/studio12u3/solarisstudio12.3/bin/cc -xc99 -m64'
+'CXX=/opt/SunProd/studio12u3/solarisstudio12.3/bin/CC -m64'
+'F77=/opt/SunProd/studio12u3/solarisstudio12.3/bin/f95 -m64'
+'FC=/opt/SunProd/studio12u3/solarisstudio12.3/bin/f95 -m64'
+'CFLAGS=-xlibmieee -DLINK_SIZE=2' 'CPPFLAGS=
+
+## This fails if it contains spaces, or if it is quoted
+include $(R_SHARE_DIR)/make/vars.mk
+
+AR = ar
+## Used by packages 'maps' and 'mapdata'
+AWK = gawk
+BLAS_LIBS = -xlic_lib=sunperf -lsunmath
+C_VISIBILITY =
+CC = /opt/solarisstudio12.4/bin/cc -xc99 -m64
+CFLAGS = -O -xlibmieee -DLINK_SIZE=2 $(LTO)
+CPICFLAGS = -KPIC
+CPPFLAGS =
+CXX = /opt/solarisstudio12.4/bin/CC -m64
+CXXCPP = $(CXX) -E
+CXXFLAGS = -xO3 -m64 -std=c++03 -g $(LTO)
+CXXPICFLAGS = -KPIC
+CXX1X =
+CXX1XFLAGS = -xO3 -m64 -std=c++11
+CXX1XPICFLAGS =
+CXX1XSTD =
+DYLIB_EXT = .so
+DYLIB_LD = $(CC)
+DYLIB_LDFLAGS = -G -xopenmp# $(CFLAGS) $(CPICFLAGS)
+DYLIB_LINK = $(DYLIB_LD) $(DYLIB_LDFLAGS) $(LDFLAGS)
+ECHO = echo
+ECHO_C =
+ECHO_N = -n
+ECHO_T =
+## NB, set FC before F77 as on Solaris make, setting FC sets F77
+FC = /opt/solarisstudio12.4/bin/f95 -m64
+FCFLAGS = -O -g $(LTO)
+## additional libs needed when linking with $(FC), e.g. on Solaris
+FCLIBS = -lfai -lfsu
+F77 = /opt/solarisstudio12.4/bin/f95 -m64
+F77_VISIBILITY =
+FFLAGS = -O -g $(LTO)
+FLIBS =  -lifai -lsunimath -lfai -lfai2 -lfsumai -lfprodai -lfminlai
+-lfmaxlai -lfminvai -lfmaxvai -lfui -lfsu -lsunmath -lmtsk -lm
+FCPICFLAGS = -PIC
+FPICFLAGS = -PIC
+FOUNDATION_CPPFLAGS =
+FOUNDATION_LIBS =
+JAR = /usr/jdk/instances/jdk1.8.0/bin/jar
+JAVA = /usr/jdk/instances/jdk1.8.0/jre/bin/java
+JAVAC = /usr/jdk/instances/jdk1.8.0/bin/javac
+JAVAH = /usr/jdk/instances/jdk1.8.0/include
+## JAVA_HOME might be used in the next three.
+## They are for packages 'JavaGD' and 'rJava'
+JAVA_HOME = /usr/jdk/instances/jdk1.8.0
+JAVA_CPPFLAGS = -I/usr/jdk/instances/jdk1.8.0/include
+-I/usr/jdk/instances/jdk1.8.0/include/solaris
+JAVA_LIBS = -L/usr/jdk/instances/jdk1.8.0/jre/lib
+-L/usr/jdk/instances/jdk1.8.0/lib -L/usr/jdk/instances/jdk1.8.0/db/lib
+JAVA_LD_LIBRARY_PATH =
+LAPACK_LIBS =
+## we only need this is if it is external, as otherwise link to R
+LIBINTL=
+LIBM = -lm
+LIBR0 = -L$(R_HOME)/lib$(R_ARCH)
+LIBR1 = -lR
+LIBR = -L$(R_HOME)/lib$(R_ARCH) -lR
+LIBS =  -lnsl -lsocket -lrt -lsunmath -ldl -lm -liconv -lncurses -lreadline
+-lbz2
+## needed by R CMD config
+LIBnn = lib
+LIBTOOL = $(SHELL) "$(R_HOME)/bin/libtool"
+#LDFLAGS =
+LDFLAGS = -norunpath -m64 -KPIC -DPIC -lc
+-L/opt/solarisstudio12.4/lib/sparcv9  -R/opt/solarisstudio12.4/lib/sparcv9
+-lsunperf -lfsu -lmtsk -lpicl -lkstat -L/usr/local/R/lib -R/usr/local/R/lib
+LTO =
+## needed to build applications linking to static libR
+MAIN_LD = $(CC)
+MAIN_LDFLAGS = -xopenmp
+MAIN_LINK = $(MAIN_LD) $(MAIN_LDFLAGS) $(LDFLAGS)
+MKINSTALLDIRS = $(R_HOME)/bin/mkinstalldirs
+OBJC =
+OBJCFLAGS = -g -O2 $(LTO)
+OBJC_LIBS =
+OBJCXX =
+R_ARCH =
+RANLIB = ranlib
+SAFE_FFLAGS = -g
+SED = /usr/xpg4/bin/sed
+SHELL = /bin/bash
+SHLIB_CFLAGS =
+SHLIB_CXXFLAGS =
+SHLIB_CXXLD = $(CXX)
+SHLIB_CXXLDFLAGS = -G -lstdc++ -lgcc_s -lCrunG3 -lrt -lm -lc
+SHLIB_CXX1XLD = $(CXX1X) $(CXX1XSTD)
+SHLIB_CXX1XLDFLAGS = -G -lstdc++ -lgcc_s -lCrunG3 -lrt -lm -lc
+SHLIB_EXT = .so
+SHLIB_FCLD = $(FC)
+SHLIB_FCLDFLAGS = -G
+SHLIB_FFLAGS =
+SHLIB_LD = $(CC)
+SHLIB_LDFLAGS = -G# $(CFLAGS) $(CPICFLAGS)
+SHLIB_LIBADD =
+## We want to ensure libR is picked up from $(R_HOME)/lib
+## before e.g. /usr/local/lib if a version is already installed.
+SHLIB_LINK = $(SHLIB_LD) $(SHLIB_LDFLAGS) $(LIBR0) $(LDFLAGS)
+SHLIB_OPENMP_CFLAGS = -xopenmp
+SHLIB_OPENMP_CXXFLAGS = -xopenmp
+SHLIB_OPENMP_FCFLAGS = -xopenmp
+SHLIB_OPENMP_FFLAGS = -xopenmp
+STRIP_LIBS =
+STRIP_STATIC_LIBS =
+TCLTK_CPPFLAGS =
+TCLTK_LIBS =
+YACC = bison -y
+
+## for linking to libR.a
+STATIC_LIBR = #  "$(R_HOME)/lib$(R_ARCH)/libR.a"  $(BLAS_LIBS) $(FLIBS)
+ $(LIBINTL) -lreadline -lncurses  $(LIBS)
+
+R_XTRA_CFLAGS =
+R_XTRA_CPPFLAGS =  -I$(R_INCLUDE_DIR) -DNDEBUG
+R_XTRA_CXXFLAGS =
+R_XTRA_FFLAGS =
+
+ALL_CFLAGS = $(R_XTRA_CFLAGS) $(PKG_CFLAGS) $(CPICFLAGS) $(SHLIB_CFLAGS)
+$(CFLAGS)
+ALL_CPPFLAGS = $(R_XTRA_CPPFLAGS) $(PKG_CPPFLAGS) $(CPPFLAGS)
+$(CLINK_CPPFLAGS)
+ALL_CXXFLAGS = $(R_XTRA_CXXFLAGS) $(PKG_CXXFLAGS) $(CXXPICFLAGS)
+$(SHLIB_CXXFLAGS) $(CXXFLAGS)
+ALL_OBJCFLAGS = $(PKG_OBJCFLAGS) $(CPICFLAGS) $(SHLIB_CFLAGS) $(OBJCFLAGS)
+ALL_OBJCXXFLAGS = $(PKG_OBJCXXFLAGS) $(CXXPICFLAGS) $(SHLIB_CXXFLAGS)
+$(OBJCXXFLAGS)
+ALL_FFLAGS = $(R_XTRA_FFLAGS) $(PKG_FFLAGS) $(FPICFLAGS) $(SHLIB_FFLAGS)
+$(FFLAGS)
+## LIBR here as a couple of packages use this without SHLIB_LINK
+ALL_LIBS = $(PKG_LIBS) $(SHLIB_LIBADD) $(LIBR)# $(LIBINTL)
+
+.SUFFIXES:
+.SUFFIXES: .c .cc .cpp .d .f .f90 .f95 .m .mm .M .o
+
+.c.o:
+        $(CC) $(ALL_CPPFLAGS) $(ALL_CFLAGS) -c $< -o $@
+.c.d:
+        @echo > $@
+.m.d:
+        @echo > $@
+.cc.o:
+        $(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -c $< -o $@
+.cpp.o:
+        $(CXX) $(ALL_CPPFLAGS) $(ALL_CXXFLAGS) -c $< -o $@
+.cc.d:
+        @echo > $@
+.cpp.d:
+        @echo > $@
+.m.o:
+        $(OBJC) $(ALL_CPPFLAGS) $(ALL_OBJCFLAGS) -c $< -o $@
+.mm.o:
+        $(OBJCXX) $(ALL_CPPFLAGS) $(ALL_OBJCXXFLAGS) -c $< -o $@
+.M.o:
+        $(OBJCXX) $(ALL_CPPFLAGS) $(ALL_OBJCXXFLAGS) -c $< -o $@
+.f.o:
+        $(F77) $(ALL_FFLAGS) -c $< -o $@
+.f95.o:
+        $(FC) $(PKG_FCFLAGS) $(FCPICFLAGS) $(FCFLAGS) -c  $< -o $@
+.f90.o:
+        $(FC) $(PKG_FCFLAGS) $(FCPICFLAGS) $(FCFLAGS) -c  $< -o $@
+
+/root/.bash_profile
+JAVA_HOME="/usr/jdk/instances/jdk1.8.0"
+JAVAH=${JAVA_HOME}/include
+PATH="/opt/solarisstudio12.4/bin:${JAVA_HOME}/bin:$PATH:/usr/sfw/bin/:/usr/xpg4/bin:/usr/xpg6/bin:/usr/gnu/bin:/usr/local/maven/bin:/usr/gnu/bin:/usr/local/texlive20150523/bin/sparc-solaris"
+R_LD_LIBRARY_PATH="/lib:/usr/lib:/opt/solarisstudio12.4/lib/:/usr/local/R/lib/:/usr/gcc/4.8/lib/:/usr/jdk/instances/jdk1.8.0/lib"
+LD_LIBRARY_PATH="${R_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}"
+PS1="\u@\h \w [\$(date +%k:%M:%S)]# "
+R_HOME=/usr/local/R
+#JAVA_LD_LIBRARY_PATH=${JAVA_HOME}/jre/lib:${JAVA_HOME}/lib:${JAVA_HOME}/db/lib
+JAVA_CPPFLAGS="-I${JAVA_HOME}/include -I${JAVA_HOME}/include/solaris"
+JAVA_LIBS="-L${JAVA_HOME}/jre/lib -L${JAVA_HOME}/lib -L${JAVA_HOME}/db/lib"
+#JAVA_LIBS=/usr/jdk/instances/jdk1.8.0/include:/usr/jdk/instances/jdk1.8.0/include/solaris
+export JAVA_HOME JAVAH PATH R_LD_LIBRARY_PATH LD_LIBRARY_PATH R_HOME
+JAVA_CPPFLAGS JAVA_LIBS
+
+Any idea what should I fine tune also?
+Thanks!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160405/91abbdc2/attachment.html>
+
+From edd at debian.org  Tue Apr  5 15:13:43 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 5 Apr 2016 08:13:43 -0500
+Subject: [Rcpp-devel] dplyr Rcpp dependencies compilation errors
+In-Reply-To: <CAF+AZZXqJN9T83VCdRj=uOtyx_Pk4qv6p8C9=RD92t8yAN1bDw@mail.gmail.com>
+References: <CAF+AZZXqJN9T83VCdRj=uOtyx_Pk4qv6p8C9=RD92t8yAN1bDw@mail.gmail.com>
+Message-ID: <22275.47623.20145.233634@max.nulle.part>
+
+
+On 5 April 2016 at 10:36, Dimitar Vassilev wrote:
+| I'm trying to compile dplyr on Solaris 11.2
+| pkg://solaris/entire at 0.5.11,5.11-0.175.2.15.0.5.1:20151026T231525Z
+
+I think you're on your own there.  Maybe ask the Oracle folk (cf recent
+r-devel threads) for help.
+
+Our package works fine with g++, clang++ and a bunch of other compilers.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From gorillayue at gmail.com  Tue Apr  5 16:14:44 2016
+From: gorillayue at gmail.com (Yue Li)
+Date: Tue, 5 Apr 2016 10:14:44 -0400
+Subject: [Rcpp-devel] clang-omp and clang++ -fopenmp compiler (OS X)
+Message-ID: <8C42238B-A1F9-478D-8A1A-CF5E8F75402F@gmail.com>
+
+Dear List,
+
+I?m new to openmp and wonder if anyone know how to add -fopenmp to clang++ such that it can compile successfully without error using sourceCpp.
+
+Using the dmvnorm_arma as example (http://gallery.rcpp.org/articles/dmvnorm_arma/ <http://gallery.rcpp.org/articles/dmvnorm_arma/>):
+
+I got the following compiling error when do this:
+
+> Rcpp::sourceCpp('dmvnrm_arma_mc.cpp')
+dmvnrm_arma_mc.cpp:2:10: fatal error: 'omp.h' file not found
+#include <omp.h>
+         ^
+1 error generated.
+make: *** [dmvnrm_arma_mc.o] Error 1
+clang++ -I/Library/Frameworks/R.framework/Resources/include -DNDEBUG  -I/usr/local/include -I/usr/local/include/freetype2 -I/opt/X11/include  -I"/Library/Frameworks/R.framework/Versions/3.2/Resources/library/Rcpp/include" -I"/Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include" -I"/Users/mike/Desktop"    -fPIC  -Wall -mtune=core2 -g -O2  -c dmvnrm_arma_mc.cpp -o dmvnrm_arma_mc.o
+Error in Rcpp::sourceCpp("dmvnrm_arma_mc.cpp") : 
+  Error 1 occurred building shared library.
+
+
+After installing clang-omp, i can compile the ?dmvnrm_arma_mc.cpp? code without error using clang-omp compiler instead of clang++. But in order to use the compiled code in R environment, i still need to do the sourcing and linking like what sourceCpp automatically accomplishes.
+
+So I wonder if it?s possible to either specify c++ compiler in sourceCpp or somehow add the ?-fopenmp? flag 
+
+
+Thanks in advance,
+Yue
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160405/c70ecf60/attachment.html>
+
+From qkou at umail.iu.edu  Tue Apr  5 16:24:56 2016
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Tue, 5 Apr 2016 10:24:56 -0400
+Subject: [Rcpp-devel] clang-omp and clang++ -fopenmp compiler (OS X)
+In-Reply-To: <8C42238B-A1F9-478D-8A1A-CF5E8F75402F@gmail.com>
+References: <8C42238B-A1F9-478D-8A1A-CF5E8F75402F@gmail.com>
+Message-ID: <CAJ_LAMD-qGL5N1pbYP67A4tNRU4=s-m_YbNW8t2g90OjurDKUw@mail.gmail.com>
+
+Hi, Li,
+
+Please create the file "~/.R/Makevars" and put the following content in it
+
+CC=clang-omp
+CXX=clang-omp++
+CFLAGS += -O3 -Wall -pipe -pedantic
+CXXFLAGS += -O3 -Wall -pipe -Wno-unused -pedantic -fopenmp
+
+You can add or change flags in this file.
+
+Best,
+
+KK
+
+On Tue, Apr 5, 2016 at 10:14 AM, Yue Li <gorillayue at gmail.com> wrote:
+
+> Dear List,
+>
+> I?m new to openmp and wonder if anyone know how to add -fopenmp to clang++
+> such that it can compile successfully without error using sourceCpp.
+>
+> Using the dmvnorm_arma as example (
+> http://gallery.rcpp.org/articles/dmvnorm_arma/):
+>
+> I got the following compiling error when do this:
+>
+> > Rcpp::sourceCpp('dmvnrm_arma_mc.cpp')
+> *dmvnrm_arma_mc.cpp:2:10: **fatal error: **'omp.h' file not found*
+> #include <omp.h>
+> *         ^*
+> 1 error generated.
+> make: *** [dmvnrm_arma_mc.o] Error 1
+> clang++ -I/Library/Frameworks/R.framework/Resources/include -DNDEBUG
+> -I/usr/local/include -I/usr/local/include/freetype2 -I/opt/X11/include
+> -I"/Library/Frameworks/R.framework/Versions/3.2/Resources/library/Rcpp/include"
+> -I"/Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include"
+> -I"/Users/mike/Desktop"    -fPIC  -Wall -mtune=core2 -g -O2  -c
+> dmvnrm_arma_mc.cpp -o dmvnrm_arma_mc.o
+> *Error in Rcpp::sourceCpp("dmvnrm_arma_mc.cpp") : *
+> *  Error 1 occurred building shared library.*
+>
+>
+> After installing clang-omp, i can compile the ?dmvnrm_arma_mc.cpp? code
+> without error using clang-omp compiler instead of clang++. But in order to
+> use the compiled code in R environment, i still need to do the sourcing and
+> linking like what sourceCpp automatically accomplishes.
+>
+> So I wonder if it?s possible to either specify c++ compiler in sourceCpp
+> or somehow add the ?-fopenmp? flag
+>
+>
+> Thanks in advance,
+> Yue
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160405/431ee6db/attachment.html>
+
+From gorillayue at gmail.com  Tue Apr  5 19:55:42 2016
+From: gorillayue at gmail.com (Yue Li)
+Date: Tue, 5 Apr 2016 13:55:42 -0400
+Subject: [Rcpp-devel] clang-omp and clang++ -fopenmp compiler (OS X)
+In-Reply-To: <CAJ_LAMD-qGL5N1pbYP67A4tNRU4=s-m_YbNW8t2g90OjurDKUw@mail.gmail.com>
+References: <8C42238B-A1F9-478D-8A1A-CF5E8F75402F@gmail.com>
+ <CAJ_LAMD-qGL5N1pbYP67A4tNRU4=s-m_YbNW8t2g90OjurDKUw@mail.gmail.com>
+Message-ID: <691F4441-1D3D-45B7-8408-96D83D5F4880@gmail.com>
+
+Thank you Qiang! That works.
+
+Yue
+
+> On Apr 5, 2016, at 10:24 AM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> 
+> Hi, Li,
+> 
+> Please create the file "~/.R/Makevars" and put the following content in it
+> 
+> CC=clang-omp
+> CXX=clang-omp++
+> CFLAGS += -O3 -Wall -pipe -pedantic
+> CXXFLAGS += -O3 -Wall -pipe -Wno-unused -pedantic -fopenmp
+> 
+> You can add or change flags in this file.
+> 
+> Best,
+> 
+> KK
+> 
+> On Tue, Apr 5, 2016 at 10:14 AM, Yue Li <gorillayue at gmail.com <mailto:gorillayue at gmail.com>> wrote:
+> Dear List,
+> 
+> I?m new to openmp and wonder if anyone know how to add -fopenmp to clang++ such that it can compile successfully without error using sourceCpp.
+> 
+> Using the dmvnorm_arma as example (http://gallery.rcpp.org/articles/dmvnorm_arma/ <http://gallery.rcpp.org/articles/dmvnorm_arma/>):
+> 
+> I got the following compiling error when do this:
+> 
+> > Rcpp::sourceCpp('dmvnrm_arma_mc.cpp')
+> dmvnrm_arma_mc.cpp:2:10: fatal error: 'omp.h' file not found
+> #include <omp.h>
+>          ^
+> 1 error generated.
+> make: *** [dmvnrm_arma_mc.o] Error 1
+> clang++ -I/Library/Frameworks/R.framework/Resources/include -DNDEBUG  -I/usr/local/include -I/usr/local/include/freetype2 -I/opt/X11/include  -I"/Library/Frameworks/R.framework/Versions/3.2/Resources/library/Rcpp/include" -I"/Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include" -I"/Users/mike/Desktop"    -fPIC  -Wall -mtune=core2 -g -O2  -c dmvnrm_arma_mc.cpp -o dmvnrm_arma_mc.o
+> Error in Rcpp::sourceCpp("dmvnrm_arma_mc.cpp") : 
+>   Error 1 occurred building shared library.
+> 
+> 
+> After installing clang-omp, i can compile the ?dmvnrm_arma_mc.cpp? code without error using clang-omp compiler instead of clang++. But in order to use the compiled code in R environment, i still need to do the sourcing and linking like what sourceCpp automatically accomplishes.
+> 
+> So I wonder if it?s possible to either specify c++ compiler in sourceCpp or somehow add the ?-fopenmp? flag 
+> 
+> 
+> Thanks in advance,
+> Yue
+> 
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+> 
+> 
+> 
+> -- 
+> Qiang Kou
+> qkou at umail.iu.edu <mailto:qkou at umail.iu.edu>
+> School of Informatics and Computing, Indiana University
+> 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160405/bb97e0e4/attachment-0001.html>
+
+From mlysy at uwaterloo.ca  Wed Apr 13 23:15:59 2016
+From: mlysy at uwaterloo.ca (Martin Lysy)
+Date: Wed, 13 Apr 2016 17:15:59 -0400
+Subject: [Rcpp-devel] Shared code in C++ files
+Message-ID: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+
+In the document "Rcpp Attributes: Rcpp version 0.12.3 as of January 10,
+2016", Section 2.10.2 explains how to share code between C++ files.  I am
+obtaining errors when attempting to compile using the outlined steps on
+both Windows and Linux.
+
+Windows:
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Version: Windows 8.1
+R version 3.2.4 Revised (2016-03-16 r70336) -- "Very Secure Dishes"
+Rcpp version 0.12.4
+
+Linux:
+Platform: x86_64-pc-linux-gnu (64-bit)
+Version: CentOS release 6.7 (Final)
+R version: 3.2.2 (2015-08-14) -- "Fire Safety"
+(I do not have admin privileges to update R on this machine)
+Rcpp version: 0.12.4
+
+Sample code is:
+
+#-----------------------------------------------------------------------------------------------
+
+require(Rcpp)
+
+# header file
+header <- "
+#ifndef __UTILITIES__
+#define __UTILITIES__
+double timesTwo(double x);
+#endif // __UTILITIES__
+"
+cat(header, file = "utilities.hpp")
+
+# implementation file
+impl <- "
+#include \"utilities.hpp\"
+double timesTwo(double x) {
+  return x * 2;
+}
+"
+cat(impl, file = "utilities.cpp")
+
+# main file
+main <- "
+#include <Rcpp.h>
+using namespace Rcpp;
+#include \"utilities.hpp\"
+//[[Rcpp::export]]
+double TimesTwo(double x) {
+  return timesTwo(x);
+}
+"
+cat(main, file = "main.cpp")
+
+# works on linux
+sourceCpp(file = "main.cpp")
+
+# does not work on linux
+sourceCpp(code = main)
+
+#-----------------------------------------------------------------------------------------------
+
+Neither of the last two commands works for me on Windows.  Attached below
+is the output of the failed commands for Windows and Linux (first command
+for former, second command for latter).  Can you please indicate what is
+wrong with the steps above?
+
+Best regards,
+
+Martin Lysy
+Assistant Professor of Statistics
+Department of Statistics and Actuarial Science
+University of Waterloo
+
+====================================================
+
+WINDOWS OUTPUT
+
+> sourceCpp(file = "main.cpp", verbose = TRUE)
+
+Generated extern "C" functions
+--------------------------------------------------------
+
+
+#include <Rcpp.h>
+// TimesTwo
+double TimesTwo(double x);
+RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< double >::type x(xSEXP);
+    __result = Rcpp::wrap(TimesTwo(x));
+    return __result;
+END_RCPP
+}
+
+Generated R functions
+-------------------------------------------------------
+
+`.sourceCpp_0_DLLInfo` <-
+dyn.load('C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536/sourceCpp_1.dll')
+
+TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+`.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+
+rm(`.sourceCpp_0_DLLInfo`)
+
+Building shared library
+--------------------------------------------------------
+
+DIR: C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536
+
+c:/PROGRA~1/R/R-32~1.4RE/bin/x64/R CMD SHLIB -o "sourceCpp_1.dll"
+"c:\Users\Jerome\Documents\R\test\utilities.cpp" "main.cpp"
+make: *** No rule to make target
+`c:\Users\Jerome\Documents\R\test\utilities.o', needed by
+`sourceCpp_1.dll'.  Stop.
+Warning message:
+running command 'make -f "c:/PROGRA~1/R/R-32~1.4RE/etc/x64/Makeconf" -f
+"c:/PROGRA~1/R/R-32~1.4RE/share/make/winshlib.mk" -f
+"C:\Users\mlysy\AppData\Roaming/.R/Makevars"
+SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)'
+SHLIB="sourceCpp_1.dll" WIN=64 TCLBIN=64
+OBJECTS="c:\Users\Jerome\Documents\R\test\utilities.o main.o"' had status 2
+Error in sourceCpp(file = "main.cpp", verbose = TRUE) :
+  Error 1 occurred building shared library.
+
+==============================================================
+
+LINUX OUTPUT
+
+> sourceCpp(code = main, verbose = TRUE)
+
+Generated extern "C" functions
+--------------------------------------------------------
+
+
+#include <Rcpp.h>
+// TimesTwo
+double TimesTwo(double x);
+RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject __result;
+    Rcpp::RNGScope __rngScope;
+    Rcpp::traits::input_parameter< double >::type x(xSEXP);
+    __result = Rcpp::wrap(TimesTwo(x));
+    return __result;
+END_RCPP
+}
+
+Generated R functions
+-------------------------------------------------------
+
+`.sourceCpp_0_DLLInfo` <-
+dyn.load('/tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5/sourceCpp_1.so')
+
+TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+`.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+
+rm(`.sourceCpp_0_DLLInfo`)
+
+Building shared library
+--------------------------------------------------------
+
+DIR: /tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5
+
+/software/r-3.2.2-tcl86/distribution/lib64/R/bin/R CMD SHLIB -o
+'sourceCpp_1.so'  'file7c16504c2103.cpp'
+g++ -I/software/r-3.2.2-tcl86/distribution/lib64/R/include -DNDEBUG
+-I/software/readline/include -I/software/gsl-1.15/include
+-I"/fsys1/.software/arch/r-3.2.2-tcl86/distribution/lib64/R-contrib/Rcpp/include"
+-I"/tmp/RtmpEhyQ33"    -fpic  -g -O2  -c file7c16504c2103.cpp -o
+file7c16504c2103.o
+file7c16504c2103.cpp:4:25: error: utilities.hpp: No such file or directory
+file7c16504c2103.cpp: In function 'double TimesTwo(double)':
+file7c16504c2103.cpp:7: error: 'timesTwo' was not declared in this scope
+make: *** [file7c16504c2103.o] Error 1
+Error in sourceCpp(code = main, verbose = TRUE) :
+  Error 1 occurred building shared library.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160413/9dd2a1cb/attachment.html>
+
+From edd at debian.org  Wed Apr 13 23:34:09 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 13 Apr 2016 16:34:09 -0500
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+Message-ID: <22286.47953.168246.481885@max.nulle.part>
+
+
+Martin,
+
+Please please please look into creating a package.
+
+If you use RStudio:  File -> New Project -> (New or Existing) Directory ->
+Package and then select Rcpp.
+
+If not, consider install the (very tiny) pkgKitten package and call
+Rcpp.package.skeleton() from Rcpp itself (but enhanced by pkgKitten if
+present) for a saner package.
+
+Cheers, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mlysy at uwaterloo.ca  Thu Apr 14 06:25:06 2016
+From: mlysy at uwaterloo.ca (Martin Lysy)
+Date: Thu, 14 Apr 2016 00:25:06 -0400
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+Message-ID: <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+
+Hello Dirk,
+
+For my specific purpose I have some reservations about package creation.
+Here is a description of the project I have in mind.
+
+I would like to use Rcpp to create a set of generic MCMC algorithms, into
+which a useR could easily hook their own target distributions written in
+C++ with minimal effort.  For example, I would provide the following files:
+
+--------------------------------------
+GibbsSampler.cpp
+
+//[[Rcpp::export]]
+NumericMatrix GibbsSampler(int nIter, NumericVector xInit, List
+tuningParams) {
+  // run some flavor of the Gibbs sampler
+}
+---------------------------------------
+GibbsSampler.h
+
+double logDensity(NumericVector x);
+---------------------------------------
+
+Then the useR would write MyDensityA.cpp, which contains the definition of
+logDensity, compile the three files, and have a Gibbs sampler for their
+specific density function written in C++ and ready to go in R.  However, a
+useR might wish to use the GibbsSampler for a different density tomorrow.
+They would have a different definition of logDensity in MyDensityB.cpp.
+Ideally, the useR would have access to Gibbs samplers for both densities in
+the same R session.
+
+I can think of two ways of doing this with Rcpp:
+
+1.  Compile with sourceCpp (this is what I'm currently doing).  There's the
+minor issue of giving separate R names to each Gibbs sampler, but there are
+many ways around that.  The major issue is that sourceCpp only accepts a
+single .cpp file (or at least as far as my attempts were unsuccessful in
+the original post).  So I'm stuck text-processing a bunch of .cpp and .h
+files together (the actual project I'm working on has about a dozen of
+each).
+
+2.  Compile an entire R package for each of MyDensityA and MyDensityB.
+However, it seems somewhat cumbersome to have a package loaded for every
+density function in the workspace.  Moreover, naming conflicts are a bit
+more tricky.  Right now (with sourceCpp), I'm using an interface of the form
+
+smpA <- gibbs.sampler(density = MyDensityA, niter = 1e4)
+smpB <- gibbs.sampler(density = MyDensityB, niter = 1e4)
+
+This is to align with things like lm(formula = MyModel).  However, I can't
+quite see how to do this with separate packages loaded.  Rather it seems
+I'd need something like
+
+smpA <- gibbs.sampler.MyDensityA(niter = 1e4)
+smpB <- gibbs.sampler.MyDensityB(niter = 1e4)
+
+However, to do this with packages I feel like I would still have to do some
+text replacement, which I'm already doing with the sourceCpp approach.
+
+In summary, I am not opposed to package creation, but I hope you can see my
+reservations at taking this route.  Perhaps you could please suggest a way
+to achieve what I'm after with separate Rcpp packages for each density
+function.  I take it from your reluctance to answer my original post that
+Rcpp only supports compilation of multiple files through the package
+creation protocol.  I can think of many applications in which the useR
+could supply a minimal amount of C++ code (e.g., a log-likelihood function)
+to hook in with a large amount of code provided by the developer in order
+to speed things up considerably.  So in my opinion it would be worthwhile
+to devise a mechanism to do this correctly.
+
+Best regards,
+
+
+Martin Lysy
+Assistant Professor of Statistics
+Department of Statistics and Actuarial Science
+University of Waterloo
+
+On Wed, Apr 13, 2016 at 5:34 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Martin,
+>
+> Please please please look into creating a package.
+>
+> If you use RStudio:  File -> New Project -> (New or Existing) Directory ->
+> Package and then select Rcpp.
+>
+> If not, consider install the (very tiny) pkgKitten package and call
+> Rcpp.package.skeleton() from Rcpp itself (but enhanced by pkgKitten if
+> present) for a saner package.
+>
+> Cheers, Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/fcf800e5/attachment-0001.html>
+
+From jj.allaire at gmail.com  Thu Apr 14 11:17:29 2016
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Thu, 14 Apr 2016 05:17:29 -0400
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+Message-ID: <CAKw=oCyha5Qx0_sT9M6S--gOnPYR9i=eyaf_6LrjCbPbyo+B_w@mail.gmail.com>
+
+Martin,
+
+The code = variation won't work on either platform (as there is no baseline
+file path from which to compute the location of included files). The file =
+variation that works on Linux should indeed work on Windows, I'll take a
+look and see what's going on there.
+
+J.J.
+
+On Wed, Apr 13, 2016 at 5:15 PM, Martin Lysy <mlysy at uwaterloo.ca> wrote:
+
+> In the document "Rcpp Attributes: Rcpp version 0.12.3 as of January 10,
+> 2016", Section 2.10.2 explains how to share code between C++ files.  I am
+> obtaining errors when attempting to compile using the outlined steps on
+> both Windows and Linux.
+>
+> Windows:
+> Platform: x86_64-w64-mingw32/x64 (64-bit)
+> Version: Windows 8.1
+> R version 3.2.4 Revised (2016-03-16 r70336) -- "Very Secure Dishes"
+> Rcpp version 0.12.4
+>
+> Linux:
+> Platform: x86_64-pc-linux-gnu (64-bit)
+> Version: CentOS release 6.7 (Final)
+> R version: 3.2.2 (2015-08-14) -- "Fire Safety"
+> (I do not have admin privileges to update R on this machine)
+> Rcpp version: 0.12.4
+>
+> Sample code is:
+>
+>
+> #-----------------------------------------------------------------------------------------------
+>
+> require(Rcpp)
+>
+> # header file
+> header <- "
+> #ifndef __UTILITIES__
+> #define __UTILITIES__
+> double timesTwo(double x);
+> #endif // __UTILITIES__
+> "
+> cat(header, file = "utilities.hpp")
+>
+> # implementation file
+> impl <- "
+> #include \"utilities.hpp\"
+> double timesTwo(double x) {
+>   return x * 2;
+> }
+> "
+> cat(impl, file = "utilities.cpp")
+>
+> # main file
+> main <- "
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> #include \"utilities.hpp\"
+> //[[Rcpp::export]]
+> double TimesTwo(double x) {
+>   return timesTwo(x);
+> }
+> "
+> cat(main, file = "main.cpp")
+>
+> # works on linux
+> sourceCpp(file = "main.cpp")
+>
+> # does not work on linux
+> sourceCpp(code = main)
+>
+>
+> #-----------------------------------------------------------------------------------------------
+>
+> Neither of the last two commands works for me on Windows.  Attached below
+> is the output of the failed commands for Windows and Linux (first command
+> for former, second command for latter).  Can you please indicate what is
+> wrong with the steps above?
+>
+> Best regards,
+>
+> Martin Lysy
+> Assistant Professor of Statistics
+> Department of Statistics and Actuarial Science
+> University of Waterloo
+>
+> ====================================================
+>
+> WINDOWS OUTPUT
+>
+> > sourceCpp(file = "main.cpp", verbose = TRUE)
+>
+> Generated extern "C" functions
+> --------------------------------------------------------
+>
+>
+> #include <Rcpp.h>
+> // TimesTwo
+> double TimesTwo(double x);
+> RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+> BEGIN_RCPP
+>     Rcpp::RObject __result;
+>     Rcpp::RNGScope __rngScope;
+>     Rcpp::traits::input_parameter< double >::type x(xSEXP);
+>     __result = Rcpp::wrap(TimesTwo(x));
+>     return __result;
+> END_RCPP
+> }
+>
+> Generated R functions
+> -------------------------------------------------------
+>
+> `.sourceCpp_0_DLLInfo` <-
+> dyn.load('C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536/sourceCpp_1.dll')
+>
+> TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+> `.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+>
+> rm(`.sourceCpp_0_DLLInfo`)
+>
+> Building shared library
+> --------------------------------------------------------
+>
+> DIR: C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536
+>
+> c:/PROGRA~1/R/R-32~1.4RE/bin/x64/R CMD SHLIB -o "sourceCpp_1.dll"
+> "c:\Users\Jerome\Documents\R\test\utilities.cpp" "main.cpp"
+> make: *** No rule to make target
+> `c:\Users\Jerome\Documents\R\test\utilities.o', needed by
+> `sourceCpp_1.dll'.  Stop.
+> Warning message:
+> running command 'make -f "c:/PROGRA~1/R/R-32~1.4RE/etc/x64/Makeconf" -f
+> "c:/PROGRA~1/R/R-32~1.4RE/share/make/winshlib.mk" -f
+> "C:\Users\mlysy\AppData\Roaming/.R/Makevars"
+> SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)'
+> SHLIB="sourceCpp_1.dll" WIN=64 TCLBIN=64
+> OBJECTS="c:\Users\Jerome\Documents\R\test\utilities.o main.o"' had status 2
+> Error in sourceCpp(file = "main.cpp", verbose = TRUE) :
+>   Error 1 occurred building shared library.
+>
+> ==============================================================
+>
+> LINUX OUTPUT
+>
+> > sourceCpp(code = main, verbose = TRUE)
+>
+> Generated extern "C" functions
+> --------------------------------------------------------
+>
+>
+> #include <Rcpp.h>
+> // TimesTwo
+> double TimesTwo(double x);
+> RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+> BEGIN_RCPP
+>     Rcpp::RObject __result;
+>     Rcpp::RNGScope __rngScope;
+>     Rcpp::traits::input_parameter< double >::type x(xSEXP);
+>     __result = Rcpp::wrap(TimesTwo(x));
+>     return __result;
+> END_RCPP
+> }
+>
+> Generated R functions
+> -------------------------------------------------------
+>
+> `.sourceCpp_0_DLLInfo` <-
+> dyn.load('/tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5/sourceCpp_1.so')
+>
+> TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+> `.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+>
+> rm(`.sourceCpp_0_DLLInfo`)
+>
+> Building shared library
+> --------------------------------------------------------
+>
+> DIR: /tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5
+>
+> /software/r-3.2.2-tcl86/distribution/lib64/R/bin/R CMD SHLIB -o
+> 'sourceCpp_1.so'  'file7c16504c2103.cpp'
+> g++ -I/software/r-3.2.2-tcl86/distribution/lib64/R/include -DNDEBUG
+> -I/software/readline/include -I/software/gsl-1.15/include
+> -I"/fsys1/.software/arch/r-3.2.2-tcl86/distribution/lib64/R-contrib/Rcpp/include"
+> -I"/tmp/RtmpEhyQ33"    -fpic  -g -O2  -c file7c16504c2103.cpp -o
+> file7c16504c2103.o
+> file7c16504c2103.cpp:4:25: error: utilities.hpp: No such file or directory
+> file7c16504c2103.cpp: In function 'double TimesTwo(double)':
+> file7c16504c2103.cpp:7: error: 'timesTwo' was not declared in this scope
+> make: *** [file7c16504c2103.o] Error 1
+> Error in sourceCpp(code = main, verbose = TRUE) :
+>   Error 1 occurred building shared library.
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/2f8701a7/attachment.html>
+
+From jj.allaire at gmail.com  Thu Apr 14 11:36:43 2016
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Thu, 14 Apr 2016 05:36:43 -0400
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <CAKw=oCyha5Qx0_sT9M6S--gOnPYR9i=eyaf_6LrjCbPbyo+B_w@mail.gmail.com>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <CAKw=oCyha5Qx0_sT9M6S--gOnPYR9i=eyaf_6LrjCbPbyo+B_w@mail.gmail.com>
+Message-ID: <CAKw=oCxEjsAurxo3nVQAry8V7Yc=XPy+VDZz09AERzW=itkqnA@mail.gmail.com>
+
+Happily it was an easy fix!
+
+https://github.com/RcppCore/Rcpp/commit/3c096d7ae8523222ac8e83d0e15d92af07df1abe
+
+J.J.
+
+On Thu, Apr 14, 2016 at 5:17 AM, JJ Allaire <jj.allaire at gmail.com> wrote:
+
+> Martin,
+>
+> The code = variation won't work on either platform (as there is no
+> baseline file path from which to compute the location of included files).
+> The file = variation that works on Linux should indeed work on Windows,
+> I'll take a look and see what's going on there.
+>
+> J.J.
+>
+> On Wed, Apr 13, 2016 at 5:15 PM, Martin Lysy <mlysy at uwaterloo.ca> wrote:
+>
+>> In the document "Rcpp Attributes: Rcpp version 0.12.3 as of January 10,
+>> 2016", Section 2.10.2 explains how to share code between C++ files.  I am
+>> obtaining errors when attempting to compile using the outlined steps on
+>> both Windows and Linux.
+>>
+>> Windows:
+>> Platform: x86_64-w64-mingw32/x64 (64-bit)
+>> Version: Windows 8.1
+>> R version 3.2.4 Revised (2016-03-16 r70336) -- "Very Secure Dishes"
+>> Rcpp version 0.12.4
+>>
+>> Linux:
+>> Platform: x86_64-pc-linux-gnu (64-bit)
+>> Version: CentOS release 6.7 (Final)
+>> R version: 3.2.2 (2015-08-14) -- "Fire Safety"
+>> (I do not have admin privileges to update R on this machine)
+>> Rcpp version: 0.12.4
+>>
+>> Sample code is:
+>>
+>>
+>> #-----------------------------------------------------------------------------------------------
+>>
+>> require(Rcpp)
+>>
+>> # header file
+>> header <- "
+>> #ifndef __UTILITIES__
+>> #define __UTILITIES__
+>> double timesTwo(double x);
+>> #endif // __UTILITIES__
+>> "
+>> cat(header, file = "utilities.hpp")
+>>
+>> # implementation file
+>> impl <- "
+>> #include \"utilities.hpp\"
+>> double timesTwo(double x) {
+>>   return x * 2;
+>> }
+>> "
+>> cat(impl, file = "utilities.cpp")
+>>
+>> # main file
+>> main <- "
+>> #include <Rcpp.h>
+>> using namespace Rcpp;
+>> #include \"utilities.hpp\"
+>> //[[Rcpp::export]]
+>> double TimesTwo(double x) {
+>>   return timesTwo(x);
+>> }
+>> "
+>> cat(main, file = "main.cpp")
+>>
+>> # works on linux
+>> sourceCpp(file = "main.cpp")
+>>
+>> # does not work on linux
+>> sourceCpp(code = main)
+>>
+>>
+>> #-----------------------------------------------------------------------------------------------
+>>
+>> Neither of the last two commands works for me on Windows.  Attached below
+>> is the output of the failed commands for Windows and Linux (first command
+>> for former, second command for latter).  Can you please indicate what is
+>> wrong with the steps above?
+>>
+>> Best regards,
+>>
+>> Martin Lysy
+>> Assistant Professor of Statistics
+>> Department of Statistics and Actuarial Science
+>> University of Waterloo
+>>
+>> ====================================================
+>>
+>> WINDOWS OUTPUT
+>>
+>> > sourceCpp(file = "main.cpp", verbose = TRUE)
+>>
+>> Generated extern "C" functions
+>> --------------------------------------------------------
+>>
+>>
+>> #include <Rcpp.h>
+>> // TimesTwo
+>> double TimesTwo(double x);
+>> RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+>> BEGIN_RCPP
+>>     Rcpp::RObject __result;
+>>     Rcpp::RNGScope __rngScope;
+>>     Rcpp::traits::input_parameter< double >::type x(xSEXP);
+>>     __result = Rcpp::wrap(TimesTwo(x));
+>>     return __result;
+>> END_RCPP
+>> }
+>>
+>> Generated R functions
+>> -------------------------------------------------------
+>>
+>> `.sourceCpp_0_DLLInfo` <-
+>> dyn.load('C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536/sourceCpp_1.dll')
+>>
+>> TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+>> `.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+>>
+>> rm(`.sourceCpp_0_DLLInfo`)
+>>
+>> Building shared library
+>> --------------------------------------------------------
+>>
+>> DIR: C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536
+>>
+>> c:/PROGRA~1/R/R-32~1.4RE/bin/x64/R CMD SHLIB -o "sourceCpp_1.dll"
+>> "c:\Users\Jerome\Documents\R\test\utilities.cpp" "main.cpp"
+>> make: *** No rule to make target
+>> `c:\Users\Jerome\Documents\R\test\utilities.o', needed by
+>> `sourceCpp_1.dll'.  Stop.
+>> Warning message:
+>> running command 'make -f "c:/PROGRA~1/R/R-32~1.4RE/etc/x64/Makeconf" -f
+>> "c:/PROGRA~1/R/R-32~1.4RE/share/make/winshlib.mk" -f
+>> "C:\Users\mlysy\AppData\Roaming/.R/Makevars"
+>> SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)'
+>> SHLIB="sourceCpp_1.dll" WIN=64 TCLBIN=64
+>> OBJECTS="c:\Users\Jerome\Documents\R\test\utilities.o main.o"' had status 2
+>> Error in sourceCpp(file = "main.cpp", verbose = TRUE) :
+>>   Error 1 occurred building shared library.
+>>
+>> ==============================================================
+>>
+>> LINUX OUTPUT
+>>
+>> > sourceCpp(code = main, verbose = TRUE)
+>>
+>> Generated extern "C" functions
+>> --------------------------------------------------------
+>>
+>>
+>> #include <Rcpp.h>
+>> // TimesTwo
+>> double TimesTwo(double x);
+>> RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+>> BEGIN_RCPP
+>>     Rcpp::RObject __result;
+>>     Rcpp::RNGScope __rngScope;
+>>     Rcpp::traits::input_parameter< double >::type x(xSEXP);
+>>     __result = Rcpp::wrap(TimesTwo(x));
+>>     return __result;
+>> END_RCPP
+>> }
+>>
+>> Generated R functions
+>> -------------------------------------------------------
+>>
+>> `.sourceCpp_0_DLLInfo` <-
+>> dyn.load('/tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5/sourceCpp_1.so')
+>>
+>> TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+>> `.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+>>
+>> rm(`.sourceCpp_0_DLLInfo`)
+>>
+>> Building shared library
+>> --------------------------------------------------------
+>>
+>> DIR: /tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5
+>>
+>> /software/r-3.2.2-tcl86/distribution/lib64/R/bin/R CMD SHLIB -o
+>> 'sourceCpp_1.so'  'file7c16504c2103.cpp'
+>> g++ -I/software/r-3.2.2-tcl86/distribution/lib64/R/include -DNDEBUG
+>> -I/software/readline/include -I/software/gsl-1.15/include
+>> -I"/fsys1/.software/arch/r-3.2.2-tcl86/distribution/lib64/R-contrib/Rcpp/include"
+>> -I"/tmp/RtmpEhyQ33"    -fpic  -g -O2  -c file7c16504c2103.cpp -o
+>> file7c16504c2103.o
+>> file7c16504c2103.cpp:4:25: error: utilities.hpp: No such file or directory
+>> file7c16504c2103.cpp: In function 'double TimesTwo(double)':
+>> file7c16504c2103.cpp:7: error: 'timesTwo' was not declared in this scope
+>> make: *** [file7c16504c2103.o] Error 1
+>> Error in sourceCpp(code = main, verbose = TRUE) :
+>>   Error 1 occurred building shared library.
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/ebccb81d/attachment-0001.html>
+
+From mlysy at uwaterloo.ca  Thu Apr 14 17:33:34 2016
+From: mlysy at uwaterloo.ca (Martin Lysy)
+Date: Thu, 14 Apr 2016 11:33:34 -0400
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <77f09af93f034b84b4cf8f8777a127fd@CONNHUB1.connect.uwaterloo.ca>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <CAKw=oCyha5Qx0_sT9M6S--gOnPYR9i=eyaf_6LrjCbPbyo+B_w@mail.gmail.com>
+ <77f09af93f034b84b4cf8f8777a127fd@CONNHUB1.connect.uwaterloo.ca>
+Message-ID: <CAOtfW7CmFSQjP9cFbL==io6t=VMGW=3A1idFY-8O65cT=R7bVQ@mail.gmail.com>
+
+Dear J.J.,
+
+Thank you very much for the fix.  I can confirm that it works on my
+computer.
+
+Would you or Dirk care to weigh in on the appropriate usage of Rcpp for the
+project I described in my previous post?  I realize you are both busy, and
+thank you both again for the time you've taken to answer my query.
+
+Best regards,
+
+Martin
+
+
+
+Martin Lysy
+Assistant Professor of Statistics
+Department of Statistics and Actuarial Science
+University of Waterloo
+
+On Thu, Apr 14, 2016 at 5:36 AM, JJ Allaire <jj.allaire at gmail.com> wrote:
+
+> Happily it was an easy fix!
+>
+>
+> https://github.com/RcppCore/Rcpp/commit/3c096d7ae8523222ac8e83d0e15d92af07df1abe
+>
+> J.J.
+>
+> On Thu, Apr 14, 2016 at 5:17 AM, JJ Allaire <jj.allaire at gmail.com> wrote:
+>
+>> Martin,
+>>
+>> The code = variation won't work on either platform (as there is no
+>> baseline file path from which to compute the location of included files).
+>> The file = variation that works on Linux should indeed work on Windows,
+>> I'll take a look and see what's going on there.
+>>
+>> J.J.
+>>
+>> On Wed, Apr 13, 2016 at 5:15 PM, Martin Lysy <mlysy at uwaterloo.ca> wrote:
+>>
+>>> In the document "Rcpp Attributes: Rcpp version 0.12.3 as of January 10,
+>>> 2016", Section 2.10.2 explains how to share code between C++ files.  I am
+>>> obtaining errors when attempting to compile using the outlined steps on
+>>> both Windows and Linux.
+>>>
+>>> Windows:
+>>> Platform: x86_64-w64-mingw32/x64 (64-bit)
+>>> Version: Windows 8.1
+>>> R version 3.2.4 Revised (2016-03-16 r70336) -- "Very Secure Dishes"
+>>> Rcpp version 0.12.4
+>>>
+>>> Linux:
+>>> Platform: x86_64-pc-linux-gnu (64-bit)
+>>> Version: CentOS release 6.7 (Final)
+>>> R version: 3.2.2 (2015-08-14) -- "Fire Safety"
+>>> (I do not have admin privileges to update R on this machine)
+>>> Rcpp version: 0.12.4
+>>>
+>>> Sample code is:
+>>>
+>>>
+>>> #-----------------------------------------------------------------------------------------------
+>>>
+>>> require(Rcpp)
+>>>
+>>> # header file
+>>> header <- "
+>>> #ifndef __UTILITIES__
+>>> #define __UTILITIES__
+>>> double timesTwo(double x);
+>>> #endif // __UTILITIES__
+>>> "
+>>> cat(header, file = "utilities.hpp")
+>>>
+>>> # implementation file
+>>> impl <- "
+>>> #include \"utilities.hpp\"
+>>> double timesTwo(double x) {
+>>>   return x * 2;
+>>> }
+>>> "
+>>> cat(impl, file = "utilities.cpp")
+>>>
+>>> # main file
+>>> main <- "
+>>> #include <Rcpp.h>
+>>> using namespace Rcpp;
+>>> #include \"utilities.hpp\"
+>>> //[[Rcpp::export]]
+>>> double TimesTwo(double x) {
+>>>   return timesTwo(x);
+>>> }
+>>> "
+>>> cat(main, file = "main.cpp")
+>>>
+>>> # works on linux
+>>> sourceCpp(file = "main.cpp")
+>>>
+>>> # does not work on linux
+>>> sourceCpp(code = main)
+>>>
+>>>
+>>> #-----------------------------------------------------------------------------------------------
+>>>
+>>> Neither of the last two commands works for me on Windows.  Attached
+>>> below is the output of the failed commands for Windows and Linux (first
+>>> command for former, second command for latter).  Can you please indicate
+>>> what is wrong with the steps above?
+>>>
+>>> Best regards,
+>>>
+>>> Martin Lysy
+>>> Assistant Professor of Statistics
+>>> Department of Statistics and Actuarial Science
+>>> University of Waterloo
+>>>
+>>> ====================================================
+>>>
+>>> WINDOWS OUTPUT
+>>>
+>>> > sourceCpp(file = "main.cpp", verbose = TRUE)
+>>>
+>>> Generated extern "C" functions
+>>> --------------------------------------------------------
+>>>
+>>>
+>>> #include <Rcpp.h>
+>>> // TimesTwo
+>>> double TimesTwo(double x);
+>>> RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+>>> BEGIN_RCPP
+>>>     Rcpp::RObject __result;
+>>>     Rcpp::RNGScope __rngScope;
+>>>     Rcpp::traits::input_parameter< double >::type x(xSEXP);
+>>>     __result = Rcpp::wrap(TimesTwo(x));
+>>>     return __result;
+>>> END_RCPP
+>>> }
+>>>
+>>> Generated R functions
+>>> -------------------------------------------------------
+>>>
+>>> `.sourceCpp_0_DLLInfo` <-
+>>> dyn.load('C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536/sourceCpp_1.dll')
+>>>
+>>> TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+>>> `.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+>>>
+>>> rm(`.sourceCpp_0_DLLInfo`)
+>>>
+>>> Building shared library
+>>> --------------------------------------------------------
+>>>
+>>> DIR: C:/Users/mlysy/AppData/Local/Temp/RtmpclqYkL/sourcecpp_c5c157c5536
+>>>
+>>> c:/PROGRA~1/R/R-32~1.4RE/bin/x64/R CMD SHLIB -o "sourceCpp_1.dll"
+>>> "c:\Users\Jerome\Documents\R\test\utilities.cpp" "main.cpp"
+>>> make: *** No rule to make target
+>>> `c:\Users\Jerome\Documents\R\test\utilities.o', needed by
+>>> `sourceCpp_1.dll'.  Stop.
+>>> Warning message:
+>>> running command 'make -f "c:/PROGRA~1/R/R-32~1.4RE/etc/x64/Makeconf" -f
+>>> "c:/PROGRA~1/R/R-32~1.4RE/share/make/winshlib.mk" -f
+>>> "C:\Users\mlysy\AppData\Roaming/.R/Makevars"
+>>> SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)'
+>>> SHLIB="sourceCpp_1.dll" WIN=64 TCLBIN=64
+>>> OBJECTS="c:\Users\Jerome\Documents\R\test\utilities.o main.o"' had status 2
+>>> Error in sourceCpp(file = "main.cpp", verbose = TRUE) :
+>>>   Error 1 occurred building shared library.
+>>>
+>>> ==============================================================
+>>>
+>>> LINUX OUTPUT
+>>>
+>>> > sourceCpp(code = main, verbose = TRUE)
+>>>
+>>> Generated extern "C" functions
+>>> --------------------------------------------------------
+>>>
+>>>
+>>> #include <Rcpp.h>
+>>> // TimesTwo
+>>> double TimesTwo(double x);
+>>> RcppExport SEXP sourceCpp_0_TimesTwo(SEXP xSEXP) {
+>>> BEGIN_RCPP
+>>>     Rcpp::RObject __result;
+>>>     Rcpp::RNGScope __rngScope;
+>>>     Rcpp::traits::input_parameter< double >::type x(xSEXP);
+>>>     __result = Rcpp::wrap(TimesTwo(x));
+>>>     return __result;
+>>> END_RCPP
+>>> }
+>>>
+>>> Generated R functions
+>>> -------------------------------------------------------
+>>>
+>>> `.sourceCpp_0_DLLInfo` <-
+>>> dyn.load('/tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5/sourceCpp_1.so')
+>>>
+>>> TimesTwo <- Rcpp:::sourceCppFunction(function(x) {}, FALSE,
+>>> `.sourceCpp_0_DLLInfo`, 'sourceCpp_0_TimesTwo')
+>>>
+>>> rm(`.sourceCpp_0_DLLInfo`)
+>>>
+>>> Building shared library
+>>> --------------------------------------------------------
+>>>
+>>> DIR: /tmp/RtmpEhyQ33/sourcecpp_7c167caa37d5
+>>>
+>>> /software/r-3.2.2-tcl86/distribution/lib64/R/bin/R CMD SHLIB -o
+>>> 'sourceCpp_1.so'  'file7c16504c2103.cpp'
+>>> g++ -I/software/r-3.2.2-tcl86/distribution/lib64/R/include -DNDEBUG
+>>> -I/software/readline/include -I/software/gsl-1.15/include
+>>> -I"/fsys1/.software/arch/r-3.2.2-tcl86/distribution/lib64/R-contrib/Rcpp/include"
+>>> -I"/tmp/RtmpEhyQ33"    -fpic  -g -O2  -c file7c16504c2103.cpp -o
+>>> file7c16504c2103.o
+>>> file7c16504c2103.cpp:4:25: error: utilities.hpp: No such file or
+>>> directory
+>>> file7c16504c2103.cpp: In function 'double TimesTwo(double)':
+>>> file7c16504c2103.cpp:7: error: 'timesTwo' was not declared in this scope
+>>> make: *** [file7c16504c2103.o] Error 1
+>>> Error in sourceCpp(code = main, verbose = TRUE) :
+>>>   Error 1 occurred building shared library.
+>>>
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/ccd2719c/attachment.html>
+
+From jj.allaire at gmail.com  Thu Apr 14 17:55:06 2016
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Thu, 14 Apr 2016 11:55:06 -0400
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+ <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+Message-ID: <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+
+I don't know enough about the mechanics of your scenario to comment
+intelligently, but I would in general agree with Dirk that if there is a
+way to put something like this in a package that's the way it ought to be
+done. You could certainly dispatch to different C++ functions within a
+package using a variety of mechanisms including C++ templates, C-style
+function pointers, etc. (the mechanics of doing so for your situation I'm
+unsure of, but it should be possible).
+
+On Thu, Apr 14, 2016 at 12:25 AM, Martin Lysy <mlysy at uwaterloo.ca> wrote:
+
+> Hello Dirk,
+>
+> For my specific purpose I have some reservations about package creation.
+> Here is a description of the project I have in mind.
+>
+> I would like to use Rcpp to create a set of generic MCMC algorithms, into
+> which a useR could easily hook their own target distributions written in
+> C++ with minimal effort.  For example, I would provide the following files:
+>
+> --------------------------------------
+> GibbsSampler.cpp
+>
+> //[[Rcpp::export]]
+> NumericMatrix GibbsSampler(int nIter, NumericVector xInit, List
+> tuningParams) {
+>   // run some flavor of the Gibbs sampler
+> }
+> ---------------------------------------
+> GibbsSampler.h
+>
+> double logDensity(NumericVector x);
+> ---------------------------------------
+>
+> Then the useR would write MyDensityA.cpp, which contains the definition of
+> logDensity, compile the three files, and have a Gibbs sampler for their
+> specific density function written in C++ and ready to go in R.  However, a
+> useR might wish to use the GibbsSampler for a different density tomorrow.
+> They would have a different definition of logDensity in MyDensityB.cpp.
+> Ideally, the useR would have access to Gibbs samplers for both densities in
+> the same R session.
+>
+> I can think of two ways of doing this with Rcpp:
+>
+> 1.  Compile with sourceCpp (this is what I'm currently doing).  There's
+> the minor issue of giving separate R names to each Gibbs sampler, but there
+> are many ways around that.  The major issue is that sourceCpp only accepts
+> a single .cpp file (or at least as far as my attempts were unsuccessful in
+> the original post).  So I'm stuck text-processing a bunch of .cpp and .h
+> files together (the actual project I'm working on has about a dozen of
+> each).
+>
+> 2.  Compile an entire R package for each of MyDensityA and MyDensityB.
+> However, it seems somewhat cumbersome to have a package loaded for every
+> density function in the workspace.  Moreover, naming conflicts are a bit
+> more tricky.  Right now (with sourceCpp), I'm using an interface of the form
+>
+> smpA <- gibbs.sampler(density = MyDensityA, niter = 1e4)
+> smpB <- gibbs.sampler(density = MyDensityB, niter = 1e4)
+>
+> This is to align with things like lm(formula = MyModel).  However, I can't
+> quite see how to do this with separate packages loaded.  Rather it seems
+> I'd need something like
+>
+> smpA <- gibbs.sampler.MyDensityA(niter = 1e4)
+> smpB <- gibbs.sampler.MyDensityB(niter = 1e4)
+>
+> However, to do this with packages I feel like I would still have to do
+> some text replacement, which I'm already doing with the sourceCpp approach.
+>
+> In summary, I am not opposed to package creation, but I hope you can see
+> my reservations at taking this route.  Perhaps you could please suggest a
+> way to achieve what I'm after with separate Rcpp packages for each density
+> function.  I take it from your reluctance to answer my original post that
+> Rcpp only supports compilation of multiple files through the package
+> creation protocol.  I can think of many applications in which the useR
+> could supply a minimal amount of C++ code (e.g., a log-likelihood function)
+> to hook in with a large amount of code provided by the developer in order
+> to speed things up considerably.  So in my opinion it would be worthwhile
+> to devise a mechanism to do this correctly.
+>
+> Best regards,
+>
+>
+> Martin Lysy
+> Assistant Professor of Statistics
+> Department of Statistics and Actuarial Science
+> University of Waterloo
+>
+> On Wed, Apr 13, 2016 at 5:34 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> Martin,
+>>
+>> Please please please look into creating a package.
+>>
+>> If you use RStudio:  File -> New Project -> (New or Existing) Directory ->
+>> Package and then select Rcpp.
+>>
+>> If not, consider install the (very tiny) pkgKitten package and call
+>> Rcpp.package.skeleton() from Rcpp itself (but enhanced by pkgKitten if
+>> present) for a saner package.
+>>
+>> Cheers, Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/f3c02cc9/attachment-0001.html>
+
+From edd at debian.org  Thu Apr 14 18:24:33 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 14 Apr 2016 11:24:33 -0500
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+ <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+ <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+Message-ID: <22287.50241.842306.131959@max.nulle.part>
+
+
+On 14 April 2016 at 11:55, JJ Allaire wrote:
+| I don't know enough about the mechanics of your scenario to comment
+| intelligently, but I would in general agree with Dirk that if there is a way to
+| put something like this in a package that's the way it ought to be done. You
+| could certainly dispatch to different C++ functions within a package using a
+| variety of mechanisms including C++ templates, C-style function pointers, etc.
+| (the mechanics of doing so for your situation I'm unsure of, but it should be
+| possible).
+
+... and even pass user-compiled C++ functions down to compiled code in a
+package as demonstrated on RcppDE.
+
+On 14 April 2016 at 11:33, Martin Lysy wrote:
+| Would you or Dirk care to weigh in on the appropriate usage of Rcpp for the
+| project I described in my previous post?? I realize you are both busy, and
+| thank you both again for the time you've taken to answer my query.
+
+Right. I don't really have time to study the particulars of your proposal but
+maybe you can consider to just 'trust us' when we say that
+
+  -- you really do want a package
+  -- others have done packages for user-facing MCMC / Gibbs (cf Whit's rcppbugs)
+  -- you can still allow the user to putz around ad-hoc with sourceCpp.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kyleb at metrumrg.com  Thu Apr 14 18:33:27 2016
+From: kyleb at metrumrg.com (Kyle Baron)
+Date: Thu, 14 Apr 2016 11:33:27 -0500
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+ <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+ <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+Message-ID: <CAJ2Cw8QXL64JV8uHq4TRMKv+JZVTsqxtyYo9dN0QOywLFJVzjg@mail.gmail.com>
+
+Hi Martin -
+
+I, too, am unsure about the mechanics of what you are wanting to do.  But
+this piece:
+
+ I can think of many applications in which the useR could supply a minimal
+> amount of C++ code (e.g., a log-likelihood function) to hook in with a
+> large amount of code provided by the developer in order to speed things up
+> considerably.
+
+
+looks similar to what I am doing in a package that I maintain:  The user
+writes some C++ code, compiles it via `R CMD SHLIB` and loads the shared
+object into the current R session with `dyn.load()` (actually, I provide an
+R function or ten to help manage that).  This is that "minimal amount of
+C++ code" you were referring to.  The user then hands off  the address of
+those symbols (`?getNativeSymbolInfo`) to the developer-provided code base
+(in an R package), turn that into pointer to the function(s) that can be
+called by the code-base as needed.  My package is written with Rcpp and
+regular old C++;  all of the data that gets handed off to the user-defined
+functions are C++ data types so I don't need to link back to Rcpp.  But
+it's easy enough to link up with Rcpp  (or whatever else) when compiling
+the shared object.
+
+I'm pretty sure Dirk has similar(?) setup in his RcppDE package where users
+can provide a compiled function for DEoptim to call when needed. deSolve is
+another package that does something like this, but no Rcpp involvement.
+
+Of course, this requires some coordination between what is going on in the
+shared object and the main code base, but it's not unreasonably complicated
+to work out.  The flexibility you get is well worth it.   And absolutely no
+problem juggling multiple user-defined functions in the same R session.
+
+Best Regards,
+
+Kyle Baron
+Metrum Research Group
+https://github.com/metrumresearchgroup/mrgsolve
+
+
+On Thu, Apr 14, 2016 at 10:55 AM, JJ Allaire <jj.allaire at gmail.com> wrote:
+
+> I don't know enough about the mechanics of your scenario to comment
+> intelligently, but I would in general agree with Dirk that if there is a
+> way to put something like this in a package that's the way it ought to be
+> done. You could certainly dispatch to different C++ functions within a
+> package using a variety of mechanisms including C++ templates, C-style
+> function pointers, etc. (the mechanics of doing so for your situation I'm
+> unsure of, but it should be possible).
+>
+> On Thu, Apr 14, 2016 at 12:25 AM, Martin Lysy <mlysy at uwaterloo.ca> wrote:
+>
+>> Hello Dirk,
+>>
+>> For my specific purpose I have some reservations about package creation.
+>> Here is a description of the project I have in mind.
+>>
+>> I would like to use Rcpp to create a set of generic MCMC algorithms, into
+>> which a useR could easily hook their own target distributions written in
+>> C++ with minimal effort.  For example, I would provide the following files:
+>>
+>> --------------------------------------
+>> GibbsSampler.cpp
+>>
+>> //[[Rcpp::export]]
+>> NumericMatrix GibbsSampler(int nIter, NumericVector xInit, List
+>> tuningParams) {
+>>   // run some flavor of the Gibbs sampler
+>> }
+>> ---------------------------------------
+>> GibbsSampler.h
+>>
+>> double logDensity(NumericVector x);
+>> ---------------------------------------
+>>
+>> Then the useR would write MyDensityA.cpp, which contains the definition
+>> of logDensity, compile the three files, and have a Gibbs sampler for their
+>> specific density function written in C++ and ready to go in R.  However, a
+>> useR might wish to use the GibbsSampler for a different density tomorrow.
+>> They would have a different definition of logDensity in MyDensityB.cpp.
+>> Ideally, the useR would have access to Gibbs samplers for both densities in
+>> the same R session.
+>>
+>> I can think of two ways of doing this with Rcpp:
+>>
+>> 1.  Compile with sourceCpp (this is what I'm currently doing).  There's
+>> the minor issue of giving separate R names to each Gibbs sampler, but there
+>> are many ways around that.  The major issue is that sourceCpp only accepts
+>> a single .cpp file (or at least as far as my attempts were unsuccessful in
+>> the original post).  So I'm stuck text-processing a bunch of .cpp and .h
+>> files together (the actual project I'm working on has about a dozen of
+>> each).
+>>
+>> 2.  Compile an entire R package for each of MyDensityA and MyDensityB.
+>> However, it seems somewhat cumbersome to have a package loaded for every
+>> density function in the workspace.  Moreover, naming conflicts are a bit
+>> more tricky.  Right now (with sourceCpp), I'm using an interface of the form
+>>
+>> smpA <- gibbs.sampler(density = MyDensityA, niter = 1e4)
+>> smpB <- gibbs.sampler(density = MyDensityB, niter = 1e4)
+>>
+>> This is to align with things like lm(formula = MyModel).  However, I
+>> can't quite see how to do this with separate packages loaded.  Rather it
+>> seems I'd need something like
+>>
+>> smpA <- gibbs.sampler.MyDensityA(niter = 1e4)
+>> smpB <- gibbs.sampler.MyDensityB(niter = 1e4)
+>>
+>> However, to do this with packages I feel like I would still have to do
+>> some text replacement, which I'm already doing with the sourceCpp approach.
+>>
+>> In summary, I am not opposed to package creation, but I hope you can see
+>> my reservations at taking this route.  Perhaps you could please suggest a
+>> way to achieve what I'm after with separate Rcpp packages for each density
+>> function.  I take it from your reluctance to answer my original post that
+>> Rcpp only supports compilation of multiple files through the package
+>> creation protocol.  I can think of many applications in which the useR
+>> could supply a minimal amount of C++ code (e.g., a log-likelihood function)
+>> to hook in with a large amount of code provided by the developer in order
+>> to speed things up considerably.  So in my opinion it would be worthwhile
+>> to devise a mechanism to do this correctly.
+>>
+>> Best regards,
+>>
+>>
+>> Martin Lysy
+>> Assistant Professor of Statistics
+>> Department of Statistics and Actuarial Science
+>> University of Waterloo
+>>
+>> On Wed, Apr 13, 2016 at 5:34 PM, Dirk Eddelbuettel <edd at debian.org>
+>> wrote:
+>>
+>>>
+>>> Martin,
+>>>
+>>> Please please please look into creating a package.
+>>>
+>>> If you use RStudio:  File -> New Project -> (New or Existing) Directory
+>>> ->
+>>> Package and then select Rcpp.
+>>>
+>>> If not, consider install the (very tiny) pkgKitten package and call
+>>> Rcpp.package.skeleton() from Rcpp itself (but enhanced by pkgKitten if
+>>> present) for a saner package.
+>>>
+>>> Cheers, Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Kyle Baron
+Metrum Research Group
+860-735-7043, Ext. 202
+kyleb at metrumrg.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/c35539ff/attachment.html>
+
+From mlysy at uwaterloo.ca  Thu Apr 14 23:28:36 2016
+From: mlysy at uwaterloo.ca (Martin Lysy)
+Date: Thu, 14 Apr 2016 17:28:36 -0400
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <e73b0f8f7ce44f62b24cc1ed8d0da631@CONNHUB2.connect.uwaterloo.ca>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+ <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+ <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+ <e73b0f8f7ce44f62b24cc1ed8d0da631@CONNHUB2.connect.uwaterloo.ca>
+Message-ID: <CAOtfW7CWaOPLxgVG+3nqUKhSeUf7Aunno82s9NhHT4cJzhhqtQ@mail.gmail.com>
+
+Hi All,
+
+I am very grateful for your input/recommendations.  Let me try to wrap my
+head around how to do this with a single package and get your approval on
+an MWE.
+
+Best regards,
+
+
+Martin Lysy
+Assistant Professor of Statistics
+Department of Statistics and Actuarial Science
+University of Waterloo
+
+On Thu, Apr 14, 2016 at 12:33 PM, Kyle Baron <kyleb at metrumrg.com> wrote:
+
+> Hi Martin -
+>
+> I, too, am unsure about the mechanics of what you are wanting to do.  But
+> this piece:
+>
+>  I can think of many applications in which the useR could supply a minimal
+>> amount of C++ code (e.g., a log-likelihood function) to hook in with a
+>> large amount of code provided by the developer in order to speed things up
+>> considerably.
+>
+>
+> looks similar to what I am doing in a package that I maintain:  The user
+> writes some C++ code, compiles it via `R CMD SHLIB` and loads the shared
+> object into the current R session with `dyn.load()` (actually, I provide an
+> R function or ten to help manage that).  This is that "minimal amount of
+> C++ code" you were referring to.  The user then hands off  the address of
+> those symbols (`?getNativeSymbolInfo`) to the developer-provided code base
+> (in an R package), turn that into pointer to the function(s) that can be
+> called by the code-base as needed.  My package is written with Rcpp and
+> regular old C++;  all of the data that gets handed off to the user-defined
+> functions are C++ data types so I don't need to link back to Rcpp.  But
+> it's easy enough to link up with Rcpp  (or whatever else) when compiling
+> the shared object.
+>
+> I'm pretty sure Dirk has similar(?) setup in his RcppDE package where
+> users can provide a compiled function for DEoptim to call when needed.
+> deSolve is another package that does something like this, but no Rcpp
+> involvement.
+>
+> Of course, this requires some coordination between what is going on in the
+> shared object and the main code base, but it's not unreasonably complicated
+> to work out.  The flexibility you get is well worth it.   And absolutely no
+> problem juggling multiple user-defined functions in the same R session.
+>
+> Best Regards,
+>
+> Kyle Baron
+> Metrum Research Group
+> https://github.com/metrumresearchgroup/mrgsolve
+>
+>
+> On Thu, Apr 14, 2016 at 10:55 AM, JJ Allaire <jj.allaire at gmail.com> wrote:
+>
+>> I don't know enough about the mechanics of your scenario to comment
+>> intelligently, but I would in general agree with Dirk that if there is a
+>> way to put something like this in a package that's the way it ought to be
+>> done. You could certainly dispatch to different C++ functions within a
+>> package using a variety of mechanisms including C++ templates, C-style
+>> function pointers, etc. (the mechanics of doing so for your situation I'm
+>> unsure of, but it should be possible).
+>>
+>> On Thu, Apr 14, 2016 at 12:25 AM, Martin Lysy <mlysy at uwaterloo.ca> wrote:
+>>
+>>> Hello Dirk,
+>>>
+>>> For my specific purpose I have some reservations about package
+>>> creation.  Here is a description of the project I have in mind.
+>>>
+>>> I would like to use Rcpp to create a set of generic MCMC algorithms,
+>>> into which a useR could easily hook their own target distributions written
+>>> in C++ with minimal effort.  For example, I would provide the following
+>>> files:
+>>>
+>>> --------------------------------------
+>>> GibbsSampler.cpp
+>>>
+>>> //[[Rcpp::export]]
+>>> NumericMatrix GibbsSampler(int nIter, NumericVector xInit, List
+>>> tuningParams) {
+>>>   // run some flavor of the Gibbs sampler
+>>> }
+>>> ---------------------------------------
+>>> GibbsSampler.h
+>>>
+>>> double logDensity(NumericVector x);
+>>> ---------------------------------------
+>>>
+>>> Then the useR would write MyDensityA.cpp, which contains the definition
+>>> of logDensity, compile the three files, and have a Gibbs sampler for their
+>>> specific density function written in C++ and ready to go in R.  However, a
+>>> useR might wish to use the GibbsSampler for a different density tomorrow.
+>>> They would have a different definition of logDensity in MyDensityB.cpp.
+>>> Ideally, the useR would have access to Gibbs samplers for both densities in
+>>> the same R session.
+>>>
+>>> I can think of two ways of doing this with Rcpp:
+>>>
+>>> 1.  Compile with sourceCpp (this is what I'm currently doing).  There's
+>>> the minor issue of giving separate R names to each Gibbs sampler, but there
+>>> are many ways around that.  The major issue is that sourceCpp only accepts
+>>> a single .cpp file (or at least as far as my attempts were unsuccessful in
+>>> the original post).  So I'm stuck text-processing a bunch of .cpp and .h
+>>> files together (the actual project I'm working on has about a dozen of
+>>> each).
+>>>
+>>> 2.  Compile an entire R package for each of MyDensityA and MyDensityB.
+>>> However, it seems somewhat cumbersome to have a package loaded for every
+>>> density function in the workspace.  Moreover, naming conflicts are a bit
+>>> more tricky.  Right now (with sourceCpp), I'm using an interface of the form
+>>>
+>>> smpA <- gibbs.sampler(density = MyDensityA, niter = 1e4)
+>>> smpB <- gibbs.sampler(density = MyDensityB, niter = 1e4)
+>>>
+>>> This is to align with things like lm(formula = MyModel).  However, I
+>>> can't quite see how to do this with separate packages loaded.  Rather it
+>>> seems I'd need something like
+>>>
+>>> smpA <- gibbs.sampler.MyDensityA(niter = 1e4)
+>>> smpB <- gibbs.sampler.MyDensityB(niter = 1e4)
+>>>
+>>> However, to do this with packages I feel like I would still have to do
+>>> some text replacement, which I'm already doing with the sourceCpp approach.
+>>>
+>>> In summary, I am not opposed to package creation, but I hope you can see
+>>> my reservations at taking this route.  Perhaps you could please suggest a
+>>> way to achieve what I'm after with separate Rcpp packages for each density
+>>> function.  I take it from your reluctance to answer my original post that
+>>> Rcpp only supports compilation of multiple files through the package
+>>> creation protocol.  I can think of many applications in which the useR
+>>> could supply a minimal amount of C++ code (e.g., a log-likelihood function)
+>>> to hook in with a large amount of code provided by the developer in order
+>>> to speed things up considerably.  So in my opinion it would be worthwhile
+>>> to devise a mechanism to do this correctly.
+>>>
+>>> Best regards,
+>>>
+>>>
+>>> Martin Lysy
+>>> Assistant Professor of Statistics
+>>> Department of Statistics and Actuarial Science
+>>> University of Waterloo
+>>>
+>>> On Wed, Apr 13, 2016 at 5:34 PM, Dirk Eddelbuettel <edd at debian.org>
+>>> wrote:
+>>>
+>>>>
+>>>> Martin,
+>>>>
+>>>> Please please please look into creating a package.
+>>>>
+>>>> If you use RStudio:  File -> New Project -> (New or Existing) Directory
+>>>> ->
+>>>> Package and then select Rcpp.
+>>>>
+>>>> If not, consider install the (very tiny) pkgKitten package and call
+>>>> Rcpp.package.skeleton() from Rcpp itself (but enhanced by pkgKitten if
+>>>> present) for a saner package.
+>>>>
+>>>> Cheers, Dirk
+>>>>
+>>>> --
+>>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>>
+>>>
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+>
+> --
+> Kyle Baron
+> Metrum Research Group
+> 860-735-7043, Ext. 202
+> kyleb at metrumrg.com
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/68594805/attachment-0001.html>
+
+From edd at debian.org  Fri Apr 15 00:03:13 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 14 Apr 2016 17:03:13 -0500
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <CAOtfW7CWaOPLxgVG+3nqUKhSeUf7Aunno82s9NhHT4cJzhhqtQ@mail.gmail.com>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+ <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+ <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+ <e73b0f8f7ce44f62b24cc1ed8d0da631@CONNHUB2.connect.uwaterloo.ca>
+ <CAOtfW7CWaOPLxgVG+3nqUKhSeUf7Aunno82s9NhHT4cJzhhqtQ@mail.gmail.com>
+Message-ID: <22288.5025.261650.120985@max.nulle.part>
+
+
+On 14 April 2016 at 17:28, Martin Lysy wrote:
+| I am very grateful for your input/recommendations.? Let me try to wrap my head
+| around how to do this with a single package and get your approval on an MWE.
+
+That's the spirit, and we'll try to help.
+
+I won't claim that this is _trivial_ but it is _very expressive_ and
+powerful.  A worked example is in RcppDE:  user-provided objective function
+as C++ code, passed down to the bowels of the optimizer.  The interface takes
+a little getting used but I think we have both a Rcpp Gallery piece on it,
+and I used it as a running example in a few talks to Google may lead us to
+the right slide deck.
+
+That said, no point in overcomplicating things but ... your initial problem
+was a self-inflicted linking issue just because you wanted to avoid a
+package.
+
+Don't.
+
+Let users work with with sourceCpp() or cppFunction().  What comes out is a
+callable R object to just pass into your code.  That's all you need.
+
+Good luck, Dirk
+
+PS And whatever you do don't listen to your colleage Markus Hofter who has
+really weird coding habits too.  Just kidding.  Tell him I said Hi.
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kyleb at metrumrg.com  Fri Apr 15 06:16:51 2016
+From: kyleb at metrumrg.com (Kyle Baron)
+Date: Thu, 14 Apr 2016 23:16:51 -0500
+Subject: [Rcpp-devel] Shared code in C++ files
+In-Reply-To: <22288.5025.261650.120985@max.nulle.part>
+References: <CAOtfW7DAd_HWCe_zni88jbXwd7mDiHx8ak0kDtRoRwY=24QwOA@mail.gmail.com>
+ <faa0f20e79e44081b58319876ea8f5c0@CONNHUB3.connect.uwaterloo.ca>
+ <CAOtfW7Cp_1wJrn+JqObtet5jmGmCRyOBw-BidjveG9wSwbovnQ@mail.gmail.com>
+ <CAKw=oCwoATBiVqQRUVjDf0BX_yPy8fAEmYpgdY-dTXEw4o62Gw@mail.gmail.com>
+ <e73b0f8f7ce44f62b24cc1ed8d0da631@CONNHUB2.connect.uwaterloo.ca>
+ <CAOtfW7CWaOPLxgVG+3nqUKhSeUf7Aunno82s9NhHT4cJzhhqtQ@mail.gmail.com>
+ <22288.5025.261650.120985@max.nulle.part>
+Message-ID: <CAJ2Cw8SqMALUoApC-jtne8V9im2+nYLwm0=8y32P-yE2QkPTfQ@mail.gmail.com>
+
+Here is a MWE of the workflow I was describing for passing a user-d
+
+https://gist.github.com/kylebmetrum/6b31775702e1b8441a1cff669aeb0f1d
+
+I used sourceCpp() to mimic the code in an R package and used R CMD SHLIB
+to compile the user function.  It would be great to be able to use
+sourceCpp() to compile the user function too, but I wasn't sure how to
+determine the name of the dll (to pass as PACKAGE to getNativeSymbolInfo()).
+
+Anyway ... maybe there is a simpler way to do it.  But this is basically
+what I do in mrgsolve.
+
+Best Regards,
+Kyle
+
+
+
+
+On Thu, Apr 14, 2016 at 5:03 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 14 April 2016 at 17:28, Martin Lysy wrote:
+> | I am very grateful for your input/recommendations.  Let me try to wrap
+> my head
+> | around how to do this with a single package and get your approval on an
+> MWE.
+>
+> That's the spirit, and we'll try to help.
+>
+> I won't claim that this is _trivial_ but it is _very expressive_ and
+> powerful.  A worked example is in RcppDE:  user-provided objective function
+> as C++ code, passed down to the bowels of the optimizer.  The interface
+> takes
+> a little getting used but I think we have both a Rcpp Gallery piece on it,
+> and I used it as a running example in a few talks to Google may lead us to
+> the right slide deck.
+>
+> That said, no point in overcomplicating things but ... your initial problem
+> was a self-inflicted linking issue just because you wanted to avoid a
+> package.
+>
+> Don't.
+>
+> Let users work with with sourceCpp() or cppFunction().  What comes out is a
+> callable R object to just pass into your code.  That's all you need.
+>
+> Good luck, Dirk
+>
+> PS And whatever you do don't listen to your colleage Markus Hofter who has
+> really weird coding habits too.  Just kidding.  Tell him I said Hi.
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+
+-- 
+Kyle Baron
+Metrum Research Group
+860-735-7043, Ext. 202
+kyleb at metrumrg.com
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160414/46621c02/attachment.html>
+
+From todd at turbobyte.net  Fri Apr 15 22:39:05 2016
+From: todd at turbobyte.net (Todd Rudick)
+Date: Fri, 15 Apr 2016 13:39:05 -0700
+Subject: [Rcpp-devel] Rcpp + RInside: Passing a huge matrix from C++ to R
+Message-ID: <CAFL1vHghKkfcbGQ8D9YFNdPeGw-LFO+FAk0gthT7bmBS6K=8-Q@mail.gmail.com>
+
+I've got an existing codebase that has its own huge matrix in shared memory
+(an array of double, column-major), and for part of the computation I want
+to pass it to R.
+
+I've managed to get it working with RInside & Rcpp, but only by copying the
+data into an Rcpp::NumericMatrix. My question is whether there's any way to
+wrap the existing memory such that it's available read-only (enforced by R
+or not). Even better if it's possible to do so with a subset of columns.
+
+I was about to look at the bigmemory package for guidance but wanted to
+check first to see if this isn't easy somehow.
+
+thanks,
+Todd
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160415/4f9bd01c/attachment.html>
+
+From gorillayue at gmail.com  Thu Apr 21 21:44:52 2016
+From: gorillayue at gmail.com (Yue Li)
+Date: Thu, 21 Apr 2016 15:44:52 -0400
+Subject: [Rcpp-devel] deprecated log_max warning
+Message-ID: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+
+Dear List,
+
+Just a super naive (dumb) question: after upgrading to RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4, I receive compilation warning ''log_max' has been explicitly marked deprecated here? on every line of my code that uses ?trunc_exp? or ?trunc_log?.
+
+I wonder how to fix this. The code to reproduce the warning and the log are pasted below. I got the same warning on Linux server as well.
+
+Thanks a lot in advance,
+Yue
+
+Code:
+
+#include <RcppArmadillo.h>
+
+// [[Rcpp::depends("RcppArmadillo")]]
+
+// [[Rcpp::export]]
+double trunc_exp_Rcpp(double x) {
+  
+  return arma::trunc_exp(x);
+}
+
+Outputs log:
+
+> Rcpp::sourceCpp('tmp.cpp')
+In file included from tmp.cpp:1:
+In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadillo.h:31:
+In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadilloForward.h:46:
+In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo:458:
+/Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/fn_trunc_exp.hpp:23:60: warning: 'log_max' is deprecated [-Wdeprecated-declarations]
+  if(std::numeric_limits<eT>::is_iec559 && (x >= Math<eT>::log_max() ))
+                                                           ^
+tmp.cpp:8:16: note: in instantiation of function template specialization 'arma::trunc_exp<double>' requested here
+  return arma::trunc_exp(x);
+               ^
+/Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/constants_old.hpp:50:29: note: 'log_max' has been explicitly marked deprecated here
+  arma_deprecated static eT log_max()   { static const eT out = std::log(std::numeric_limits<eT>::max()); return out; }  // use datum::log_max instead
+                            ^
+1 warning generated.
+> sessionInfo()
+R version 3.2.4 (2016-03-10)
+Platform: x86_64-apple-darwin13.4.0 (64-bit)
+Running under: OS X 10.11.4 (El Capitan)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+loaded via a namespace (and not attached):
+[1] tools_3.2.4               RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4              
+> 
+
+From edd at debian.org  Thu Apr 21 21:51:50 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 21 Apr 2016 14:51:50 -0500
+Subject: [Rcpp-devel] deprecated log_max warning
+In-Reply-To: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+References: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+Message-ID: <22297.12118.903568.727667@max.nulle.part>
+
+
+Hi Yue,
+
+On 21 April 2016 at 15:44, Yue Li wrote:
+| Dear List,
+| 
+| Just a super naive (dumb) question: after upgrading to RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4, I receive compilation warning ''log_max' has been explicitly marked deprecated here? on every line of my code that uses ?trunc_exp? or ?trunc_log?.
+| 
+| I wonder how to fix this. The code to reproduce the warning and the log are pasted below. I got the same warning on Linux server as well.
+
+Many of us use Rcpp and RcppArmadillo daily but I have not seen this.  I
+gather that you use OS X -- so I presume this is clang?  What version?
+
+Do you set particular compiler flags?  I often use --pendantic.
+
+Did you try adding -Wno-deprecated-declarations as suggested?
+
+Did you chase down which header files this is from?
+
+Lastly, did you poke into the Armadillo header?  From the top of my head I
+seem to recall that there is a define to suppress error mesages too.
+
+Dirk
+
+| 
+| Thanks a lot in advance,
+| Yue
+| 
+| Code:
+| 
+| #include <RcppArmadillo.h>
+| 
+| // [[Rcpp::depends("RcppArmadillo")]]
+| 
+| // [[Rcpp::export]]
+| double trunc_exp_Rcpp(double x) {
+|   
+|   return arma::trunc_exp(x);
+| }
+| 
+| Outputs log:
+| 
+| > Rcpp::sourceCpp('tmp.cpp')
+| In file included from tmp.cpp:1:
+| In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadillo.h:31:
+| In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadilloForward.h:46:
+| In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo:458:
+| /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/fn_trunc_exp.hpp:23:60: warning: 'log_max' is deprecated [-Wdeprecated-declarations]
+|   if(std::numeric_limits<eT>::is_iec559 && (x >= Math<eT>::log_max() ))
+|                                                            ^
+| tmp.cpp:8:16: note: in instantiation of function template specialization 'arma::trunc_exp<double>' requested here
+|   return arma::trunc_exp(x);
+|                ^
+| /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/constants_old.hpp:50:29: note: 'log_max' has been explicitly marked deprecated here
+|   arma_deprecated static eT log_max()   { static const eT out = std::log(std::numeric_limits<eT>::max()); return out; }  // use datum::log_max instead
+|                             ^
+| 1 warning generated.
+| > sessionInfo()
+| R version 3.2.4 (2016-03-10)
+| Platform: x86_64-apple-darwin13.4.0 (64-bit)
+| Running under: OS X 10.11.4 (El Capitan)
+| 
+| locale:
+| [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+| 
+| attached base packages:
+| [1] stats     graphics  grDevices utils     datasets  methods   base     
+| 
+| loaded via a namespace (and not attached):
+| [1] tools_3.2.4               RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4              
+| > 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From yixuan.qiu at cos.name  Thu Apr 21 21:58:21 2016
+From: yixuan.qiu at cos.name (Yixuan Qiu)
+Date: Thu, 21 Apr 2016 15:58:21 -0400
+Subject: [Rcpp-devel] deprecated log_max warning
+In-Reply-To: <22297.12118.903568.727667@max.nulle.part>
+References: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+ <22297.12118.903568.727667@max.nulle.part>
+Message-ID: <CAFr_7yFeFkox8c86A6hFLGC+sYC+_q3WxY2FRM9YJh0P_HvpOw@mail.gmail.com>
+
+It looks like a "bug" of Armadillo. In fn_trunc_exp.hpp, trunc_exp()
+calles Math<eT>::log_max() that has already been labeled deprecated.
+
+
+Best,
+Yixuan
+
+2016-04-21 15:51 GMT-04:00 Dirk Eddelbuettel <edd at debian.org>:
+>
+> Hi Yue,
+>
+> On 21 April 2016 at 15:44, Yue Li wrote:
+> | Dear List,
+> |
+> | Just a super naive (dumb) question: after upgrading to RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4, I receive compilation warning ''log_max' has been explicitly marked deprecated here? on every line of my code that uses ?trunc_exp? or ?trunc_log?.
+> |
+> | I wonder how to fix this. The code to reproduce the warning and the log are pasted below. I got the same warning on Linux server as well.
+>
+> Many of us use Rcpp and RcppArmadillo daily but I have not seen this.  I
+> gather that you use OS X -- so I presume this is clang?  What version?
+>
+> Do you set particular compiler flags?  I often use --pendantic.
+>
+> Did you try adding -Wno-deprecated-declarations as suggested?
+>
+> Did you chase down which header files this is from?
+>
+> Lastly, did you poke into the Armadillo header?  From the top of my head I
+> seem to recall that there is a define to suppress error mesages too.
+>
+> Dirk
+>
+> |
+> | Thanks a lot in advance,
+> | Yue
+> |
+> | Code:
+> |
+> | #include <RcppArmadillo.h>
+> |
+> | // [[Rcpp::depends("RcppArmadillo")]]
+> |
+> | // [[Rcpp::export]]
+> | double trunc_exp_Rcpp(double x) {
+> |
+> |   return arma::trunc_exp(x);
+> | }
+> |
+> | Outputs log:
+> |
+> | > Rcpp::sourceCpp('tmp.cpp')
+> | In file included from tmp.cpp:1:
+> | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadillo.h:31:
+> | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadilloForward.h:46:
+> | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo:458:
+> | /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/fn_trunc_exp.hpp:23:60: warning: 'log_max' is deprecated [-Wdeprecated-declarations]
+> |   if(std::numeric_limits<eT>::is_iec559 && (x >= Math<eT>::log_max() ))
+> |                                                            ^
+> | tmp.cpp:8:16: note: in instantiation of function template specialization 'arma::trunc_exp<double>' requested here
+> |   return arma::trunc_exp(x);
+> |                ^
+> | /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/constants_old.hpp:50:29: note: 'log_max' has been explicitly marked deprecated here
+> |   arma_deprecated static eT log_max()   { static const eT out = std::log(std::numeric_limits<eT>::max()); return out; }  // use datum::log_max instead
+> |                             ^
+> | 1 warning generated.
+> | > sessionInfo()
+> | R version 3.2.4 (2016-03-10)
+> | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+> | Running under: OS X 10.11.4 (El Capitan)
+> |
+> | locale:
+> | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> |
+> | attached base packages:
+> | [1] stats     graphics  grDevices utils     datasets  methods   base
+> |
+> | loaded via a namespace (and not attached):
+> | [1] tools_3.2.4               RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4
+> | >
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Yixuan Qiu <yixuan.qiu at cos.name>
+Department of Statistics,
+Purdue University
+
+From edd at debian.org  Thu Apr 21 22:26:00 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 21 Apr 2016 15:26:00 -0500
+Subject: [Rcpp-devel] deprecated log_max warning
+In-Reply-To: <CAFr_7yFeFkox8c86A6hFLGC+sYC+_q3WxY2FRM9YJh0P_HvpOw@mail.gmail.com>
+References: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+ <22297.12118.903568.727667@max.nulle.part>
+ <CAFr_7yFeFkox8c86A6hFLGC+sYC+_q3WxY2FRM9YJh0P_HvpOw@mail.gmail.com>
+Message-ID: <22297.14168.459639.254784@max.nulle.part>
+
+
+On 21 April 2016 at 15:58, Yixuan Qiu wrote:
+| It looks like a "bug" of Armadillo. In fn_trunc_exp.hpp, trunc_exp()
+| calles Math<eT>::log_max() that has already been labeled deprecated.
+
+Good catch. I concur.  CC'ing Conrad.
+
+Dirk
+ 
+ 
+| Best,
+| Yixuan
+| 
+| 2016-04-21 15:51 GMT-04:00 Dirk Eddelbuettel <edd at debian.org>:
+| >
+| > Hi Yue,
+| >
+| > On 21 April 2016 at 15:44, Yue Li wrote:
+| > | Dear List,
+| > |
+| > | Just a super naive (dumb) question: after upgrading to RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4, I receive compilation warning ''log_max' has been explicitly marked deprecated here? on every line of my code that uses ?trunc_exp? or ?trunc_log?.
+| > |
+| > | I wonder how to fix this. The code to reproduce the warning and the log are pasted below. I got the same warning on Linux server as well.
+| >
+| > Many of us use Rcpp and RcppArmadillo daily but I have not seen this.  I
+| > gather that you use OS X -- so I presume this is clang?  What version?
+| >
+| > Do you set particular compiler flags?  I often use --pendantic.
+| >
+| > Did you try adding -Wno-deprecated-declarations as suggested?
+| >
+| > Did you chase down which header files this is from?
+| >
+| > Lastly, did you poke into the Armadillo header?  From the top of my head I
+| > seem to recall that there is a define to suppress error mesages too.
+| >
+| > Dirk
+| >
+| > |
+| > | Thanks a lot in advance,
+| > | Yue
+| > |
+| > | Code:
+| > |
+| > | #include <RcppArmadillo.h>
+| > |
+| > | // [[Rcpp::depends("RcppArmadillo")]]
+| > |
+| > | // [[Rcpp::export]]
+| > | double trunc_exp_Rcpp(double x) {
+| > |
+| > |   return arma::trunc_exp(x);
+| > | }
+| > |
+| > | Outputs log:
+| > |
+| > | > Rcpp::sourceCpp('tmp.cpp')
+| > | In file included from tmp.cpp:1:
+| > | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadillo.h:31:
+| > | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadilloForward.h:46:
+| > | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo:458:
+| > | /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/fn_trunc_exp.hpp:23:60: warning: 'log_max' is deprecated [-Wdeprecated-declarations]
+| > |   if(std::numeric_limits<eT>::is_iec559 && (x >= Math<eT>::log_max() ))
+| > |                                                            ^
+| > | tmp.cpp:8:16: note: in instantiation of function template specialization 'arma::trunc_exp<double>' requested here
+| > |   return arma::trunc_exp(x);
+| > |                ^
+| > | /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/constants_old.hpp:50:29: note: 'log_max' has been explicitly marked deprecated here
+| > |   arma_deprecated static eT log_max()   { static const eT out = std::log(std::numeric_limits<eT>::max()); return out; }  // use datum::log_max instead
+| > |                             ^
+| > | 1 warning generated.
+| > | > sessionInfo()
+| > | R version 3.2.4 (2016-03-10)
+| > | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+| > | Running under: OS X 10.11.4 (El Capitan)
+| > |
+| > | locale:
+| > | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+| > |
+| > | attached base packages:
+| > | [1] stats     graphics  grDevices utils     datasets  methods   base
+| > |
+| > | loaded via a namespace (and not attached):
+| > | [1] tools_3.2.4               RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4
+| > | >
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| > --
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| > _______________________________________________
+| > Rcpp-devel mailing list
+| > Rcpp-devel at lists.r-forge.r-project.org
+| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| 
+| 
+| -- 
+| Yixuan Qiu <yixuan.qiu at cos.name>
+| Department of Statistics,
+| Purdue University
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From gorillayue at gmail.com  Thu Apr 21 22:31:55 2016
+From: gorillayue at gmail.com (Yue Li)
+Date: Thu, 21 Apr 2016 16:31:55 -0400
+Subject: [Rcpp-devel] deprecated log_max warning
+In-Reply-To: <22297.14168.459639.254784@max.nulle.part>
+References: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+ <22297.12118.903568.727667@max.nulle.part>
+ <CAFr_7yFeFkox8c86A6hFLGC+sYC+_q3WxY2FRM9YJh0P_HvpOw@mail.gmail.com>
+ <22297.14168.459639.254784@max.nulle.part>
+Message-ID: <D7DFE009-A179-467F-988C-AFEE64C6379D@gmail.com>
+
+Thank you Dirk and Yixuan! Indeed, '-Wno-deprecated-declarations? suppresses the warning.
+
+Best,
+Yue
+
+> On Apr 21, 2016, at 4:26 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 21 April 2016 at 15:58, Yixuan Qiu wrote:
+> | It looks like a "bug" of Armadillo. In fn_trunc_exp.hpp, trunc_exp()
+> | calles Math<eT>::log_max() that has already been labeled deprecated.
+> 
+> Good catch. I concur.  CC'ing Conrad.
+> 
+> Dirk
+> 
+> 
+> | Best,
+> | Yixuan
+> | 
+> | 2016-04-21 15:51 GMT-04:00 Dirk Eddelbuettel <edd at debian.org <mailto:edd at debian.org>>:
+> | >
+> | > Hi Yue,
+> | >
+> | > On 21 April 2016 at 15:44, Yue Li wrote:
+> | > | Dear List,
+> | > |
+> | > | Just a super naive (dumb) question: after upgrading to RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4, I receive compilation warning ''log_max' has been explicitly marked deprecated here? on every line of my code that uses ?trunc_exp? or ?trunc_log?.
+> | > |
+> | > | I wonder how to fix this. The code to reproduce the warning and the log are pasted below. I got the same warning on Linux server as well.
+> | >
+> | > Many of us use Rcpp and RcppArmadillo daily but I have not seen this.  I
+> | > gather that you use OS X -- so I presume this is clang?  What version?
+> | >
+> | > Do you set particular compiler flags?  I often use --pendantic.
+> | >
+> | > Did you try adding -Wno-deprecated-declarations as suggested?
+> | >
+> | > Did you chase down which header files this is from?
+> | >
+> | > Lastly, did you poke into the Armadillo header?  From the top of my head I
+> | > seem to recall that there is a define to suppress error mesages too.
+> | >
+> | > Dirk
+> | >
+> | > |
+> | > | Thanks a lot in advance,
+> | > | Yue
+> | > |
+> | > | Code:
+> | > |
+> | > | #include <RcppArmadillo.h>
+> | > |
+> | > | // [[Rcpp::depends("RcppArmadillo")]]
+> | > |
+> | > | // [[Rcpp::export]]
+> | > | double trunc_exp_Rcpp(double x) {
+> | > |
+> | > |   return arma::trunc_exp(x);
+> | > | }
+> | > |
+> | > | Outputs log:
+> | > |
+> | > | > Rcpp::sourceCpp('tmp.cpp')
+> | > | In file included from tmp.cpp:1:
+> | > | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadillo.h:31:
+> | > | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/RcppArmadilloForward.h:46:
+> | > | In file included from /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo:458:
+> | > | /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/fn_trunc_exp.hpp:23:60: warning: 'log_max' is deprecated [-Wdeprecated-declarations]
+> | > |   if(std::numeric_limits<eT>::is_iec559 && (x >= Math<eT>::log_max() ))
+> | > |                                                            ^
+> | > | tmp.cpp:8:16: note: in instantiation of function template specialization 'arma::trunc_exp<double>' requested here
+> | > |   return arma::trunc_exp(x);
+> | > |                ^
+> | > | /Library/Frameworks/R.framework/Versions/3.2/Resources/library/RcppArmadillo/include/armadillo_bits/constants_old.hpp:50:29: note: 'log_max' has been explicitly marked deprecated here
+> | > |   arma_deprecated static eT log_max()   { static const eT out = std::log(std::numeric_limits<eT>::max()); return out; }  // use datum::log_max instead
+> | > |                             ^
+> | > | 1 warning generated.
+> | > | > sessionInfo()
+> | > | R version 3.2.4 (2016-03-10)
+> | > | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+> | > | Running under: OS X 10.11.4 (El Capitan)
+> | > |
+> | > | locale:
+> | > | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> | > |
+> | > | attached base packages:
+> | > | [1] stats     graphics  grDevices utils     datasets  methods   base
+> | > |
+> | > | loaded via a namespace (and not attached):
+> | > | [1] tools_3.2.4               RcppArmadillo_0.6.700.3.0 Rcpp_0.12.4
+> | > | >
+> | > | _______________________________________________
+> | > | Rcpp-devel mailing list
+> | > | Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+> | > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+> | > --
+> | > http://dirk.eddelbuettel.com <http://dirk.eddelbuettel.com/> | @eddelbuettel | edd at debian.org <mailto:edd at debian.org>
+> | > _______________________________________________
+> | > Rcpp-devel mailing list
+> | > Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+> | > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+> | 
+> | 
+> | 
+> | -- 
+> | Yixuan Qiu <yixuan.qiu at cos.name <mailto:yixuan.qiu at cos.name>>
+> | Department of Statistics,
+> | Purdue University
+> 
+> -- 
+> http://dirk.eddelbuettel.com <http://dirk.eddelbuettel.com/> | @eddelbuettel | edd at debian.org <mailto:edd at debian.org>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160421/6ad89e54/attachment-0001.html>
+
+From jenschr.johannsen at gmail.com  Tue Apr 26 17:22:17 2016
+From: jenschr.johannsen at gmail.com (Jens Johannsen)
+Date: Tue, 26 Apr 2016 17:22:17 +0200
+Subject: [Rcpp-devel] NLopt linking problem
+Message-ID: <CABdJFs60pwyFpNbKeHwdBZ_PY1_3xLZnNO4diEsiAcdyQtUaQw@mail.gmail.com>
+
+Dear Rcpp-Devels, List,
+
+I'm struggling with building a Rcpp package linking to the NLopt
+library (*http://ab-initio.mit.edu/wiki/index.php/NLopt
+<http://ab-initio.mit.edu/wiki/index.php/NLopt>*).
+
+I'm on Windows and I've the following files in \src:
+
+   - Makevars.in
+   - Makevars.win
+   - Rcpp_project_test.cpp
+   - RcppExports.cpp
+   - nlopt.h
+   - nlopt.hpp
+   - libnlopt-0.lib
+   - libnlopt-0.def
+   - libnlopt-0.a
+   - libnlopt-0.dll
+
+where I've copied the .lib (built using MinGW) and dll files to the src
+folder in the hope that R would compile them itself. That doesn't seem to
+be the case, however, and for that reason I've added a Makevars file where
+I try to link to the library.
+
+When running 'Build&Reload' from RStudio, I get the following error message
+telling me that there is a problem with linking (cf. "undefined reference"):
+
+*Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+algorithms.*
+** installing to library 'C:/Users/g49128/Documents/R/win-library/3.2'*
+** installing *source* package 'NewPackage' ...*
+*g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1
+ -I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include"
+-I"c:/applications/extsoft/include"     -O2 -Wall  -mtune=core2 -c
+RcppExports.cpp -o RcppExports.o*
+*** libs*
+*g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1
+ -I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include"
+-I"c:/applications/extsoft/include"     -O2 -Wall  -mtune=core2 -c
+Rcpp_project_test.cpp -o Rcpp_project_test.o*
+*Rcpp_project_test.cpp:17:0: warning: "PI" redefined [enabled by default]*
+*C:/PROGRA~1/R/R-32~1.2/include/R_ext/Constants.h:32:0: note: this is the
+location of the previous definition*
+*Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+algorithms.*
+*g++ -m64 -shared -s -static-libgcc -o NewPackage.dll tmp.def RcppExports.o
+Rcpp_project_test.o -Lnlopt-2_4/libnlopt-0.a
+-Lc:/applications/extsoft/lib/x64 -Lc:/applications/extsoft/lib
+-LC:/PROGRA~1/R/R-32~1.2/bin/x64 -lR*
+*Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+algorithms.*
+*Rcpp_project_test.o: In function `opt':*
+*C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:274: undefined reference to
+`__imp_nlopt_create'*
+*C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:279: undefined reference to
+`__imp_nlopt_set_munge'*
+*Rcpp_project_test.o: In function `~opt':*
+*C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+`__imp_nlopt_destroy'*
+*C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+`__imp_nlopt_destroy'*
+*collect2: ld returned 1 exit status*
+
+I suspect that I haven't got the Makevars right, not so well versed in
+those. From reading several CRAN packages, in particular nloptr, my current
+best guess on the content of both Makevars files is:
+
+*PKG_CPPFLAGS = -Inlopt-2_4 -g -O1 *
+*PKG_LIBS = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` -Llibnlopt-0.lib*
+
+Could anyone tell me what I'm missing here? Any help would be much
+appreciated, thank you.
+
+ Best Regards,
+Jens Christian
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160426/92ab154b/attachment.html>
+
+From edd at debian.org  Tue Apr 26 17:33:06 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 26 Apr 2016 10:33:06 -0500
+Subject: [Rcpp-devel] deprecated log_max warning
+In-Reply-To: <D7DFE009-A179-467F-988C-AFEE64C6379D@gmail.com>
+References: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+ <22297.12118.903568.727667@max.nulle.part>
+ <CAFr_7yFeFkox8c86A6hFLGC+sYC+_q3WxY2FRM9YJh0P_HvpOw@mail.gmail.com>
+ <22297.14168.459639.254784@max.nulle.part>
+ <D7DFE009-A179-467F-988C-AFEE64C6379D@gmail.com>
+Message-ID: <22303.35378.651193.933725@max.nulle.part>
+
+
+On 21 April 2016 at 16:31, Yue Li wrote:
+| Thank you Dirk and Yixuan! Indeed, '-Wno-deprecated-declarations? suppresses
+| the warning.
+
+And just to follow-up, this has now been fixed upstream in Armadillo too.
+
+Dirk 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Apr 26 17:35:07 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 26 Apr 2016 10:35:07 -0500
+Subject: [Rcpp-devel] NLopt linking problem
+In-Reply-To: <CABdJFs60pwyFpNbKeHwdBZ_PY1_3xLZnNO4diEsiAcdyQtUaQw@mail.gmail.com>
+References: <CABdJFs60pwyFpNbKeHwdBZ_PY1_3xLZnNO4diEsiAcdyQtUaQw@mail.gmail.com>
+Message-ID: <22303.35499.449462.592124@max.nulle.part>
+
+
+Jens,
+
+On 26 April 2016 at 17:22, Jens Johannsen wrote:
+| Dear Rcpp-Devels, List,
+| 
+| I'm struggling with building a Rcpp package linking to the NLopt library (http:
+| //ab-initio.mit.edu/wiki/index.php/NLopt).
+
+Before we get any further, is there a reason you are NOT using the CRAN
+package doing this for you (and where I helped some with the build system):
+
+    https://cloud.r-project.org/web/packages/nloptr/index.html
+
+It provides a Windows binary as well as well-working build recipe as can be
+expected from a CRAN package.
+
+Dirk
+
+| I'm on Windows and I've the following files in \src:
+| 
+|   ? Makevars.in
+|   ? Makevars.win
+|   ? Rcpp_project_test.cpp
+|   ? RcppExports.cpp
+|   ? nlopt.h
+|   ? nlopt.hpp
+|   ? libnlopt-0.lib
+|   ? libnlopt-0.def
+|   ? libnlopt-0.a
+|   ? libnlopt-0.dll
+| 
+| where I've copied the .lib (built using MinGW) and dll files to the src folder
+| in the hope that R would compile them itself. That doesn't seem to be the case,
+| however, and for that reason I've added a Makevars file where I try to link to
+| the library.?
+| 
+| When running 'Build&Reload' from RStudio, I get the following error message
+| telling me that there is a problem with linking (cf. "undefined reference"):
+| 
+| Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+| algorithms.
+| * installing to library 'C:/Users/g49128/Documents/R/win-library/3.2'
+| * installing *source* package 'NewPackage' ...
+| g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1 ?
+| ?-I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include" -I"c:/
+| applications/extsoft/include" ? ? -O2 -Wall ?-mtune=core2 -c RcppExports.cpp -o
+| RcppExports.o
+| ** libs
+| g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1 ?
+| ?-I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include" -I"c:/
+| applications/extsoft/include" ? ? -O2 -Wall ?-mtune=core2 -c
+| Rcpp_project_test.cpp -o Rcpp_project_test.o
+| Rcpp_project_test.cpp:17:0: warning: "PI" redefined [enabled by default]
+| C:/PROGRA~1/R/R-32~1.2/include/R_ext/Constants.h:32:0: note: this is the
+| location of the previous definition
+| Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+| algorithms.
+| g++ -m64 -shared -s -static-libgcc -o NewPackage.dll tmp.def RcppExports.o
+| Rcpp_project_test.o -Lnlopt-2_4/libnlopt-0.a -Lc:/applications/extsoft/lib/x64
+| -Lc:/applications/extsoft/lib -LC:/PROGRA~1/R/R-32~1.2/bin/x64 -lR
+| Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+| algorithms.
+| Rcpp_project_test.o: In function `opt':
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:274: undefined reference to
+| `__imp_nlopt_create'
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:279: undefined reference to
+| `__imp_nlopt_set_munge'
+| Rcpp_project_test.o: In function `~opt':
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+| `__imp_nlopt_destroy'
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+| `__imp_nlopt_destroy'
+| collect2: ld returned 1 exit status
+| 
+| I suspect that I haven't got the Makevars right, not so well versed in those.
+| From reading several CRAN packages, in particular nloptr, my current best guess
+| on the content of both Makevars files is:
+| 
+| PKG_CPPFLAGS = -Inlopt-2_4 -g -O1?
+| PKG_LIBS = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` -Llibnlopt-0.lib
+| 
+| Could anyone tell me what I'm missing here? Any help would be much appreciated,
+| thank you.
+| 
+| ?Best Regards,
+| Jens Christian
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jenschr.johannsen at gmail.com  Tue Apr 26 17:50:42 2016
+From: jenschr.johannsen at gmail.com (Jens Johannsen)
+Date: Tue, 26 Apr 2016 17:50:42 +0200
+Subject: [Rcpp-devel] NLopt linking problem
+In-Reply-To: <22303.35499.449462.592124@max.nulle.part>
+References: <CABdJFs60pwyFpNbKeHwdBZ_PY1_3xLZnNO4diEsiAcdyQtUaQw@mail.gmail.com>
+ <22303.35499.449462.592124@max.nulle.part>
+Message-ID: <CABdJFs4A3o0trfyUFYcHDCnGnjK9P=r_Qo4rQ2ia=68rgoEsRw@mail.gmail.com>
+
+Hi Dirk,
+
+Thanks for the quick reply.
+
+I'm aware of the nloptr CRAN package, but not using that package as the
+objective function (and gradient) being optimized as to be in C++. Defining
+the function in R and then calling back and forth between R  and C++ using
+the nloptr package is too costly time-wise.
+
+Thanks,
+Jens Christian
+
+On Tue, Apr 26, 2016 at 5:35 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Jens,
+>
+> On 26 April 2016 at 17:22, Jens Johannsen wrote:
+> | Dear Rcpp-Devels, List,
+> |
+> | I'm struggling with building a Rcpp package linking to the NLopt library
+> (http:
+> | //ab-initio.mit.edu/wiki/index.php/NLopt).
+>
+> Before we get any further, is there a reason you are NOT using the CRAN
+> package doing this for you (and where I helped some with the build system):
+>
+>     https://cloud.r-project.org/web/packages/nloptr/index.html
+>
+> It provides a Windows binary as well as well-working build recipe as can be
+> expected from a CRAN package.
+>
+> Dirk
+>
+> | I'm on Windows and I've the following files in \src:
+> |
+> |   ? Makevars.in
+> |   ? Makevars.win
+> |   ? Rcpp_project_test.cpp
+> |   ? RcppExports.cpp
+> |   ? nlopt.h
+> |   ? nlopt.hpp
+> |   ? libnlopt-0.lib
+> |   ? libnlopt-0.def
+> |   ? libnlopt-0.a
+> |   ? libnlopt-0.dll
+> |
+> | where I've copied the .lib (built using MinGW) and dll files to the src
+> folder
+> | in the hope that R would compile them itself. That doesn't seem to be
+> the case,
+> | however, and for that reason I've added a Makevars file where I try to
+> link to
+> | the library.
+> |
+> | When running 'Build&Reload' from RStudio, I get the following error
+> message
+> | telling me that there is a problem with linking (cf. "undefined
+> reference"):
+> |
+> | Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+> | algorithms.
+> | * installing to library 'C:/Users/g49128/Documents/R/win-library/3.2'
+> | * installing *source* package 'NewPackage' ...
+> | g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1
+> |  -I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include" -I"c:/
+> | applications/extsoft/include"     -O2 -Wall  -mtune=core2 -c
+> RcppExports.cpp -o
+> | RcppExports.o
+> | ** libs
+> | g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1
+> |  -I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include" -I"c:/
+> | applications/extsoft/include"     -O2 -Wall  -mtune=core2 -c
+> | Rcpp_project_test.cpp -o Rcpp_project_test.o
+> | Rcpp_project_test.cpp:17:0: warning: "PI" redefined [enabled by default]
+> | C:/PROGRA~1/R/R-32~1.2/include/R_ext/Constants.h:32:0: note: this is the
+> | location of the previous definition
+> | Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+> | algorithms.
+> | g++ -m64 -shared -s -static-libgcc -o NewPackage.dll tmp.def
+> RcppExports.o
+> | Rcpp_project_test.o -Lnlopt-2_4/libnlopt-0.a
+> -Lc:/applications/extsoft/lib/x64
+> | -Lc:/applications/extsoft/lib -LC:/PROGRA~1/R/R-32~1.2/bin/x64 -lR
+> | Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+> | algorithms.
+> | Rcpp_project_test.o: In function `opt':
+> | C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:274: undefined reference to
+> | `__imp_nlopt_create'
+> | C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:279: undefined reference to
+> | `__imp_nlopt_set_munge'
+> | Rcpp_project_test.o: In function `~opt':
+> | C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+> | `__imp_nlopt_destroy'
+> | C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+> | `__imp_nlopt_destroy'
+> | collect2: ld returned 1 exit status
+> |
+> | I suspect that I haven't got the Makevars right, not so well versed in
+> those.
+> | From reading several CRAN packages, in particular nloptr, my current
+> best guess
+> | on the content of both Makevars files is:
+> |
+> | PKG_CPPFLAGS = -Inlopt-2_4 -g -O1
+> | PKG_LIBS = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` -Llibnlopt-0.lib
+> |
+> | Could anyone tell me what I'm missing here? Any help would be much
+> appreciated,
+> | thank you.
+> |
+> |  Best Regards,
+> | Jens Christian
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160426/a8c68f63/attachment-0001.html>
+
+From balamut2 at illinois.edu  Tue Apr 26 18:04:08 2016
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Tue, 26 Apr 2016 16:04:08 +0000
+Subject: [Rcpp-devel] NLopt linking problem
+In-Reply-To: <CABdJFs4A3o0trfyUFYcHDCnGnjK9P=r_Qo4rQ2ia=68rgoEsRw@mail.gmail.com>
+References: <CABdJFs60pwyFpNbKeHwdBZ_PY1_3xLZnNO4diEsiAcdyQtUaQw@mail.gmail.com>
+ <22303.35499.449462.592124@max.nulle.part>
+ <CABdJFs4A3o0trfyUFYcHDCnGnjK9P=r_Qo4rQ2ia=68rgoEsRw@mail.gmail.com>
+Message-ID: <5C591F8C0073E544A1330AA751BA3E695D2ADEAE@chimbx4.ad.uillinois.edu>
+
+Greetings and Salutations,
+
+Try setting the environment variable NLOPT_HOME with the location of the NLopt library and then add to the Makevars.win file:
+
+PKG_CFLAGS = -I"$(NLOPT_HOME)$(R_ARCH)/include"
+PKG_LIBS = -L"$(NLOPT_HOME)$(R_ARCH)/lib" -lnlopt_cxx
+
+Sincerely,
+
+JJB
+
+From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of Jens Johannsen
+Sent: Tuesday, April 26, 2016 10:51 AM
+To: Dirk Eddelbuettel <edd at debian.org>
+Cc: rcpp-devel at lists.r-forge.r-project.org
+Subject: Re: [Rcpp-devel] NLopt linking problem
+
+Hi Dirk,
+
+Thanks for the quick reply.
+
+I'm aware of the nloptr CRAN package, but not using that package as the objective function (and gradient) being optimized as to be in C++. Defining the function in R and then calling back and forth between R  and C++ using the nloptr package is too costly time-wise.
+
+Thanks,
+Jens Christian
+
+On Tue, Apr 26, 2016 at 5:35 PM, Dirk Eddelbuettel <edd at debian.org<mailto:edd at debian.org>> wrote:
+
+Jens,
+
+On 26 April 2016 at 17:22, Jens Johannsen wrote:
+| Dear Rcpp-Devels, List,
+|
+| I'm struggling with building a Rcpp package linking to the NLopt library (http:
+| //ab-initio.mit.edu/wiki/index.php/NLopt<https://urldefense.proofpoint.com/v2/url?u=http-3A__ab-2Dinitio.mit.edu_wiki_index.php_NLopt&d=CwMFaQ&c=8hUWFZcy2Z-Za5rBPlktOQ&r=Oj62bnDE1oueLU-seL9f0p1xxu4Hvw2JDuP8BUw91c8&m=Kslm48s_EwLVJBzC5qgoDWO8bTbErDxQIYb_roS6syI&s=Lc-fmqxVj7pwXmSMXykAMQhhfyfRk-r3m-g-TbSZXyg&e=>).
+
+Before we get any further, is there a reason you are NOT using the CRAN
+package doing this for you (and where I helped some with the build system):
+
+    https://cloud.r-project.org/web/packages/nloptr/index.html<https://urldefense.proofpoint.com/v2/url?u=https-3A__cloud.r-2Dproject.org_web_packages_nloptr_index.html&d=CwMFaQ&c=8hUWFZcy2Z-Za5rBPlktOQ&r=Oj62bnDE1oueLU-seL9f0p1xxu4Hvw2JDuP8BUw91c8&m=Kslm48s_EwLVJBzC5qgoDWO8bTbErDxQIYb_roS6syI&s=ojhDBjOhO36RRHphCKdAqG7i7fq5Lf5Oy1O5cIH5W-Y&e=>
+
+It provides a Windows binary as well as well-working build recipe as can be
+expected from a CRAN package.
+
+Dirk
+
+| I'm on Windows and I've the following files in \src:
+|
+|   ? Makevars.in
+|   ? Makevars.win
+|   ? Rcpp_project_test.cpp
+|   ? RcppExports.cpp
+|   ? nlopt.h
+|   ? nlopt.hpp
+|   ? libnlopt-0.lib
+|   ? libnlopt-0.def
+|   ? libnlopt-0.a
+|   ? libnlopt-0.dll
+|
+| where I've copied the .lib (built using MinGW) and dll files to the src folder
+| in the hope that R would compile them itself. That doesn't seem to be the case,
+| however, and for that reason I've added a Makevars file where I try to link to
+| the library.
+|
+| When running 'Build&Reload' from RStudio, I get the following error message
+| telling me that there is a problem with linking (cf. "undefined reference"):
+|
+| Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+| algorithms.
+| * installing to library 'C:/Users/g49128/Documents/R/win-library/3.2'
+| * installing *source* package 'NewPackage' ...
+| g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1
+|  -I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include" -I"c:/
+| applications/extsoft/include"     -O2 -Wall  -mtune=core2 -c RcppExports.cpp -o
+| RcppExports.o
+| ** libs
+| g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG -Inlopt-2_4 -g -O1
+|  -I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include" -I"c:/
+| applications/extsoft/include"     -O2 -Wall  -mtune=core2 -c
+| Rcpp_project_test.cpp -o Rcpp_project_test.o
+| Rcpp_project_test.cpp:17:0: warning: "PI" redefined [enabled by default]
+| C:/PROGRA~1/R/R-32~1.2/include/R_ext/Constants.h:32:0: note: this is the
+| location of the previous definition
+| Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+| algorithms.
+| g++ -m64 -shared -s -static-libgcc -o NewPackage.dll tmp.def RcppExports.o
+| Rcpp_project_test.o -Lnlopt-2_4/libnlopt-0.a -Lc:/applications/extsoft/lib/x64
+| -Lc:/applications/extsoft/lib -LC:/PROGRA~1/R/R-32~1.2/bin/x64 -lR
+| Multithreaded BLAS/LAPACK libraries detected. Using 4 cores for math
+| algorithms.
+| Rcpp_project_test.o: In function `opt':
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:274: undefined reference to
+| `__imp_nlopt_create'
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:279: undefined reference to
+| `__imp_nlopt_set_munge'
+| Rcpp_project_test.o: In function `~opt':
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+| `__imp_nlopt_destroy'
+| C:\Temp\R\Rcpp\NewPackage\src/nlopt.hpp:272: undefined reference to
+| `__imp_nlopt_destroy'
+| collect2: ld returned 1 exit status
+|
+| I suspect that I haven't got the Makevars right, not so well versed in those.
+| From reading several CRAN packages, in particular nloptr, my current best guess
+| on the content of both Makevars files is:
+|
+| PKG_CPPFLAGS = -Inlopt-2_4 -g -O1
+| PKG_LIBS = `$(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()"` -Llibnlopt-0.lib
+|
+| Could anyone tell me what I'm missing here? Any help would be much appreciated,
+| thank you.
+|
+|  Best Regards,
+| Jens Christian
+|
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org<mailto:Rcpp-devel at lists.r-forge.r-project.org>
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel<https://urldefense.proofpoint.com/v2/url?u=https-3A__lists.r-2Dforge.r-2Dproject.org_cgi-2Dbin_mailman_listinfo_rcpp-2Ddevel&d=CwMFaQ&c=8hUWFZcy2Z-Za5rBPlktOQ&r=Oj62bnDE1oueLU-seL9f0p1xxu4Hvw2JDuP8BUw91c8&m=Kslm48s_EwLVJBzC5qgoDWO8bTbErDxQIYb_roS6syI&s=z4lTlL2gRw2LoL-cINeiG-anIdq8yt5iBEa1u6iZZaI&e=>
+
+--
+http://dirk.eddelbuettel.com<https://urldefense.proofpoint.com/v2/url?u=http-3A__dirk.eddelbuettel.com&d=CwMFaQ&c=8hUWFZcy2Z-Za5rBPlktOQ&r=Oj62bnDE1oueLU-seL9f0p1xxu4Hvw2JDuP8BUw91c8&m=Kslm48s_EwLVJBzC5qgoDWO8bTbErDxQIYb_roS6syI&s=VJacNi1uoXc5BugKBCFIMxnfv4q7DrvR5W3W4V_ePH4&e=> | @eddelbuettel | edd at debian.org<mailto:edd at debian.org>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160426/76a0d77c/attachment.html>
+
+From gorillayue at gmail.com  Tue Apr 26 18:13:31 2016
+From: gorillayue at gmail.com (Yue Li)
+Date: Tue, 26 Apr 2016 12:13:31 -0400
+Subject: [Rcpp-devel] deprecated log_max warning
+In-Reply-To: <22303.35378.651193.933725@max.nulle.part>
+References: <40F59894-7023-402A-A7AA-2B7FC67B3115@gmail.com>
+ <22297.12118.903568.727667@max.nulle.part>
+ <CAFr_7yFeFkox8c86A6hFLGC+sYC+_q3WxY2FRM9YJh0P_HvpOw@mail.gmail.com>
+ <22297.14168.459639.254784@max.nulle.part>
+ <D7DFE009-A179-467F-988C-AFEE64C6379D@gmail.com>
+ <22303.35378.651193.933725@max.nulle.part>
+Message-ID: <E73CA215-058F-47CF-99E4-A99BE6A7FEF7@gmail.com>
+
+I see. Thank you Dirk.
+Yue
+
+> On Apr 26, 2016, at 11:33 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 21 April 2016 at 16:31, Yue Li wrote:
+> | Thank you Dirk and Yixuan! Indeed, '-Wno-deprecated-declarations? suppresses
+> | the warning.
+> 
+> And just to follow-up, this has now been fixed upstream in Armadillo too.
+> 
+> Dirk 
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+From edd at debian.org  Tue Apr 26 18:23:12 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 26 Apr 2016 11:23:12 -0500
+Subject: [Rcpp-devel] NLopt linking problem
+In-Reply-To: <CABdJFs4A3o0trfyUFYcHDCnGnjK9P=r_Qo4rQ2ia=68rgoEsRw@mail.gmail.com>
+References: <CABdJFs60pwyFpNbKeHwdBZ_PY1_3xLZnNO4diEsiAcdyQtUaQw@mail.gmail.com>
+ <22303.35499.449462.592124@max.nulle.part>
+ <CABdJFs4A3o0trfyUFYcHDCnGnjK9P=r_Qo4rQ2ia=68rgoEsRw@mail.gmail.com>
+Message-ID: <22303.38384.407588.405005@max.nulle.part>
+
+
+Hi Jens,
+
+On 26 April 2016 at 17:50, Jens Johannsen wrote:
+| I'm aware of the nloptr CRAN package, but not using that package?as the
+| objective function (and gradient)?being optimized?as to be in?C++. Defining the
+| function in R and then calling back and forth between R??and C++ using the
+| nloptr package is too costly time-wise.
+
+That's not the point I was trying to make.  My point was that _the package
+shows how to build on all supported platforms_ and hence provides an
+"existence proof". So you should download _it_ and see if you can build it.
+You should be able too---and then be able to carry what it does over to your
+project. 
+
+And as James said by now too, it may be as simple as setting the required env
+var.
+
+Cheers, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aakremena at aol.com  Tue Apr 26 20:45:59 2016
+From: aakremena at aol.com (aakremena at aol.com)
+Date: Tue, 26 Apr 2016 14:45:59 -0400
+Subject: [Rcpp-devel] List of uniform_int_distribution objects
+Message-ID: <15453e46bbd-5145-1ef0@webprd-a89.mail.aol.com>
+
+Hi everybody,
+
+   1. I am trying to create an Rcpp list, each of whose elements contain an uniform_int_distribution object.
+
+   2. My understanding is that since an uniform_int_distribution object is a non-SEXP one, I need to create a specialization of wrap() first.
+
+   3. To this end, I am using the following (sample) piece of code:
+
+#include <RcppCommon.h>
+#include <random>
+namespace Rcpp {
+  template <> SEXP wrap(const std::uniform_int_distribution<int> &d);
+} 
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+Rcpp::List List_of_Distributions() {
+  Rcpp::List DISTR(2);
+  std::uniform_int_distribution<int> dist_1(0, 5);  std::uniform_int_distribution<int> dist_2(0, 6);
+  DISTR[0] = Rcpp::wrap(dist_1);  DISTR[1] = Rcpp::wrap(dist_2);
+
+  return DISTR;
+}
+
+/*** R
+List_of_Distributions()
+*/
+
+   4. The compilation fails with a message
+
+Error in dyn.load("/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so") : 
+  unable to load shared object '/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so':
+  dlopen(/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so, 6): Symbol not found: __ZN4Rcpp4wrapINSt3__124uniform_int_distributionIiEEEEP7SEXPRECRKT_
+  Referenced from: /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so
+  Expected in: flat namespace
+ in /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so
+
+   5. I am working on OS X Mavericks and use clang-omp compiler
+
+Can somebody possibly direct me to what I may be doing wrong here.  Apologies if the question seems too basic to you.
+
+Thank you in advance.
+
+Anguel
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160426/227171ad/attachment.html>
+
+From aakremena at aol.com  Tue Apr 26 20:51:15 2016
+From: aakremena at aol.com (aakremena at aol.com)
+Date: Tue, 26 Apr 2016 14:51:15 -0400
+Subject: [Rcpp-devel] Fwd: List of uniform_int_distribution objects
+In-Reply-To: <15453e46bbd-5145-1ef0@webprd-a89.mail.aol.com>
+References: <15453e46bbd-5145-1ef0@webprd-a89.mail.aol.com>
+Message-ID: <15453e93e9e-5145-1f7a@webprd-a89.mail.aol.com>
+
+
+ In fact I mightily misspoke (apologies).  
+
+The Rcpp list is of course not meant to be exported out of the Rcpp code but to be used inside another Rcpp function.
+
+But the code fails with a similar message:
+
+Error in dyn.load("/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e77d6b9433/sourceCpp_221.so") : 
+  unable to load shared object '/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e77d6b9433/sourceCpp_221.so':
+  dlopen(/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e77d6b9433/sourceCpp_221.so, 6): Symbol not found: __ZN4Rcpp4wrapINSt3__124uniform_int_distributionIiEEEEP7SEXPRECRKT_
+  Referenced from: /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e77d6b9433/sourceCpp_221.so
+  Expected in: flat namespace
+ in /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e77d6b9433/sourceCpp_221.so
+
+ 
+
+ 
+
+-----Original Message-----
+From: aakremena <aakremena at aol.com>
+To: rcpp-devel <rcpp-devel at lists.r-forge.r-project.org>
+Sent: Tue, Apr 26, 2016 1:45 pm
+Subject: List of uniform_int_distribution objects
+
+
+Hi everybody,
+
+   1. I am trying to create an Rcpp list, each of whose elements contain an uniform_int_distribution object.
+
+   2. My understanding is that since an uniform_int_distribution object is a non-SEXP one, I need to create a specialization of wrap() first.
+
+   3. To this end, I am using the following (sample) piece of code:
+
+#include <RcppCommon.h>
+#include <random>
+namespace Rcpp {
+  template <> SEXP wrap(const std::uniform_int_distribution<int> &d);
+} 
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+Rcpp::List List_of_Distributions() {
+  Rcpp::List DISTR(2);
+  std::uniform_int_distribution<int> dist_1(0, 5);  std::uniform_int_distribution<int> dist_2(0, 6);
+  DISTR[0] = Rcpp::wrap(dist_1);  DISTR[1] = Rcpp::wrap(dist_2);
+
+  return DISTR;
+}
+
+/*** R
+List_of_Distributions()
+*/
+
+   4. The compilation fails with a message
+
+Error in dyn.load("/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so") : 
+  unable to load shared object '/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so':
+  dlopen(/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so, 6): Symbol not found: __ZN4Rcpp4wrapINSt3__124uniform_int_distributionIiEEEEP7SEXPRECRKT_
+  Referenced from: /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so
+  Expected in: flat namespace
+ in /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so
+
+   5. I am working on OS X Mavericks and use clang-omp compiler
+
+Can somebody possibly direct me to what I may be doing wrong here.  Apologies if the question seems too basic to you.
+
+Thank you in advance.
+
+Anguel
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160426/88403c03/attachment.html>
+
+From edd at debian.org  Tue Apr 26 20:52:01 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 26 Apr 2016 13:52:01 -0500
+Subject: [Rcpp-devel] List of uniform_int_distribution objects
+In-Reply-To: <15453e46bbd-5145-1ef0@webprd-a89.mail.aol.com>
+References: <15453e46bbd-5145-1ef0@webprd-a89.mail.aol.com>
+Message-ID: <22303.47313.744662.830924@max.nulle.part>
+
+
+On 26 April 2016 at 14:45, aakremena at aol.com wrote:
+| Hi everybody,
+| 
+|    1. I am trying to create an Rcpp list, each of whose elements contain an
+| uniform_int_distribution object.
+| 
+|    2. My understanding is that since an uniform_int_distribution object is a
+| non-SEXP one, I need to create a specialization of wrap() first.
+| 
+|    3. To this end, I am using the following (sample) piece of code:
+| 
+| #include <RcppCommon.h>
+| #include <random>
+| namespace Rcpp {
+|   template <> SEXP wrap(const std::uniform_int_distribution<int> &d);
+| }
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| // [[Rcpp::export]]
+| Rcpp::List List_of_Distributions() {
+|   Rcpp::List DISTR(2);
+|   std::uniform_int_distribution<int> dist_1(0, 5); 
+| std::uniform_int_distribution<int> dist_2(0, 6);
+|   DISTR[0] = Rcpp::wrap(dist_1);  DISTR[1] = Rcpp::wrap(dist_2);
+| 
+|   return DISTR;
+| }
+| 
+| /*** R
+| List_of_Distributions()
+| */
+| 
+|    4. The compilation fails with a message
+| 
+| Error in dyn.load("/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx
+| /sourcecpp_f9e75ec42b87/sourceCpp_220.so") :
+|   unable to load shared object '/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/
+| T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so':
+|   dlopen(/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/
+| sourcecpp_f9e75ec42b87/sourceCpp_220.so, 6): Symbol not found:
+| __ZN4Rcpp4wrapINSt3__124uniform_int_distributionIiEEEEP7SEXPRECRKT_
+|   Referenced from: /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx
+| /sourcecpp_f9e75ec42b87/sourceCpp_220.so
+|   Expected in: flat namespace
+|  in /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/
+| sourcecpp_f9e75ec42b87/sourceCpp_220.so
+| 
+|    5. I am working on OS X Mavericks and use clang-omp compiler
+| 
+| Can somebody possibly direct me to what I may be doing wrong here.  Apologies
+| if the question seems too basic to you.
+
+We attempt to stress in our presentations that _everything_ really happens
+within the confines of
+
+   SEXP .Call("somefunc", SEXP a, SEXP b, SEXP c, ...)
+
+as this is the _only_ interface that R offers.
+
+We have vignettes expanding on this -- but in short you failed to convert a
+type only you and the compiler know to one which R and Rcpp know too.  There
+are means to do this.  But a faster and easier way may just be to copy into a
+standard STL container (std::vector<double>, say).
+
+Dirk
+
+| 
+| Thank you in advance.
+| 
+| Anguel
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aakremena at aol.com  Wed Apr 27 00:07:03 2016
+From: aakremena at aol.com (aakremena at aol.com)
+Date: Tue, 26 Apr 2016 18:07:03 -0400
+Subject: [Rcpp-devel] Fwd:  List of uniform_int_distribution objects
+In-Reply-To: <22303.47313.744662.830924@max.nulle.part>
+Message-ID: <154549c7ec6-5145-2a4a@webprd-a89.mail.aol.com>
+
+
+ Hi all,
+
+I have decided to follow Dirk's advice and use more classical STL containers rather than Rcpp::List one.
+
+It works for me but I admit that I am still in the dark as to why the Rcpp::List way doesn't work.
+
+Thus, I consider this topic closed.
+
+Thanks.
+
+Anguel
+
+ 
+
+ 
+
+-----Original Message-----
+From: Dirk Eddelbuettel <edd at debian.org>
+To: aakremena <aakremena at aol.com>
+Cc: rcpp-devel <rcpp-devel at lists.r-forge.r-project.org>
+Sent: Tue, Apr 26, 2016 1:52 pm
+Subject: Re: [Rcpp-devel] List of uniform_int_distribution objects
+
+
+On 26 April 2016 at 14:45, aakremena at aol.com wrote:
+| Hi everybody,
+| 
+|    1. I am trying to create an Rcpp list, each of whose elements contain an
+| uniform_int_distribution object.
+| 
+|    2. My understanding is that since an uniform_int_distribution object is a
+| non-SEXP one, I need to create a specialization of wrap() first.
+| 
+|    3. To this end, I am using the following (sample) piece of code:
+| 
+| #include <RcppCommon.h>
+| #include <random>
+| namespace Rcpp {
+|   template <> SEXP wrap(const std::uniform_int_distribution<int> &d);
+| }
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| // [[Rcpp::export]]
+| Rcpp::List List_of_Distributions() {
+|   Rcpp::List DISTR(2);
+|   std::uniform_int_distribution<int> dist_1(0, 5); 
+| std::uniform_int_distribution<int> dist_2(0, 6);
+|   DISTR[0] = Rcpp::wrap(dist_1);  DISTR[1] = Rcpp::wrap(dist_2);
+| 
+|   return DISTR;
+| }
+| 
+| /*** R
+| List_of_Distributions()
+| */
+| 
+|    4. The compilation fails with a message
+| 
+| Error in dyn.load("/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx
+| /sourcecpp_f9e75ec42b87/sourceCpp_220.so") :
+|   unable to load shared object '/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/
+| T//Rtmpm2tVkx/sourcecpp_f9e75ec42b87/sourceCpp_220.so':
+|   dlopen(/var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/
+| sourcecpp_f9e75ec42b87/sourceCpp_220.so, 6): Symbol not found:
+| __ZN4Rcpp4wrapINSt3__124uniform_int_distributionIiEEEEP7SEXPRECRKT_
+|   Referenced from: /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx
+| /sourcecpp_f9e75ec42b87/sourceCpp_220.so
+|   Expected in: flat namespace
+|  in /var/folders/12/bqytpkx93w97r3s3_h9q9k_00000gn/T//Rtmpm2tVkx/
+| sourcecpp_f9e75ec42b87/sourceCpp_220.so
+| 
+|    5. I am working on OS X Mavericks and use clang-omp compiler
+| 
+| Can somebody possibly direct me to what I may be doing wrong here.  Apologies
+| if the question seems too basic to you.
+
+We attempt to stress in our presentations that _everything_ really happens
+within the confines of
+
+   SEXP .Call("somefunc", SEXP a, SEXP b, SEXP c, ...)
+
+as this is the _only_ interface that R offers.
+
+We have vignettes expanding on this -- but in short you failed to convert a
+type only you and the compiler know to one which R and Rcpp know too.  There
+are means to do this.  But a faster and easier way may just be to copy into a
+standard STL container (std::vector<double>, say).
+
+Dirk
+
+| 
+| Thank you in advance.
+| 
+| Anguel
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160426/6a9ba7c9/attachment-0001.html>
+
+From jenschr.johannsen at gmail.com  Wed Apr 27 17:25:54 2016
+From: jenschr.johannsen at gmail.com (Jens Johannsen)
+Date: Wed, 27 Apr 2016 17:25:54 +0200
+Subject: [Rcpp-devel] NLopt linking problem
+In-Reply-To: <22303.38384.407588.405005@max.nulle.part>
+References: <CABdJFs60pwyFpNbKeHwdBZ_PY1_3xLZnNO4diEsiAcdyQtUaQw@mail.gmail.com>
+ <22303.35499.449462.592124@max.nulle.part>
+ <CABdJFs4A3o0trfyUFYcHDCnGnjK9P=r_Qo4rQ2ia=68rgoEsRw@mail.gmail.com>
+ <22303.38384.407588.405005@max.nulle.part>
+Message-ID: <CABdJFs7cb-yX+bdgZ=ts0X7dwOJ6KwTTg6MDT37i+-Z5c0doCA@mail.gmail.com>
+
+Many thanks for your comments.
+
+I have now set the value of the system environment variable NLOPT_HOME to
+the location of the NLopt library (this location is the /src folder of my
+package directory), and changed the Makevars.win (guess this is the only
+relevant Makevars file as the package will only be used on Windows) file to:
+
+*PKG_CFLAGS = -I"$(NLOPT_HOME)"*
+*PKG_LIBS = -L"$(NLOPT_HOME)/libnlopt.a"*
+
+as James suggested, and which is also how it is done in the nloptr package
+that I'm able to build on my machine.
+
+*[ Note that the name of the library is 'libnlopt.a' and not 'lnlopt_cxx'.
+Furthermore, if I do this:*
+
+*PKG_LIBS = -L"$(NLOPT_HOME)" -libnlopt.a*
+
+*the R compiler immediately complains that it cannot find -libnlopt.a:*
+
+*g++ -m64 -I"C:/PROGRA~1/R/R-32~1.2/include" -DNDEBUG
+ -I"C:/Users/g49128/Documents/R/win-library/3.2/Rcpp/include"
+-I"c:/applications/extsoft/include"     -O2 -Wall  -mtune=core2 -c
+Rcpp_project_test.cpp -o Rcpp_project_test.o*
+*g++ -m64 -shared -s -static-libgcc -o NewPackage.dll tmp.def RcppExports.o
+Rcpp_project_test.o -Lc:/Temp/R/Rcpp/NewPackage/src -libnlopt.a
+-Lc:/applications/extsoft/lib/x64 -Lc:/applications/extsoft/lib
+-LC:/PROGRA~1/R/R-32~1.2/bin/x64 -lR*
+*c:/program
+files/rtools/gcc-4.6.3/bin/../lib/gcc/i686-w64-mingw32/4.6.3/../../../../i686-w64-mingw32/bin/ld.exe:
+cannot find -libnlopt.a ]*
+
+In Rcpp_project_test.cpp, I remember to include the headers nlopt.hpp and
+nlopt.h. And the .cpp file runs fine when using it with the Visual Studio
+tools.
+
+Despite this, however, I still cannot link to the library. I get the
+following error:
+
+*g++ -m64 -shared -s -static-libgcc -o NewPackage.dll tmp.def RcppExports.o
+Rcpp_project_test.o -Lc:/Temp/R/Rcpp/NewPackage/src/libnlopt.a
+-Lc:/applications/extsoft/lib/x64 -Lc:/applications/extsoft/lib
+-LC:/PROGRA~1/R/R-32~1.2/bin/x64 -lR*
+*Rcpp_project_test.o:Rcpp_project_test.cpp:(.text+0x73c): undefined
+reference to `__imp_nlopt_create'*
+
+Thus, the linking to the static library nlopt that I created (using the
+instructions given here:
+http://ab-initio.mit.edu/wiki/index.php/NLopt_on_Windows) still does not
+work.
+I have a feeling that this is something quite simple to do, but I just
+cannot figure it out.
+
+Any further suggestion to what I can do to fix this issue?
+
+Thanks,
+Best Regards,
+
+Jens Christian
+
+On Tue, Apr 26, 2016 at 6:23 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Jens,
+>
+> On 26 April 2016 at 17:50, Jens Johannsen wrote:
+> | I'm aware of the nloptr CRAN package, but not using that package as the
+> | objective function (and gradient) being optimized as to be in C++.
+> Defining the
+> | function in R and then calling back and forth between R  and C++ using
+> the
+> | nloptr package is too costly time-wise.
+>
+> That's not the point I was trying to make.  My point was that _the package
+> shows how to build on all supported platforms_ and hence provides an
+> "existence proof". So you should download _it_ and see if you can build it.
+> You should be able too---and then be able to carry what it does over to
+> your
+> project.
+>
+> And as James said by now too, it may be as simple as setting the required
+> env
+> var.
+>
+> Cheers, Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160427/e6ff0738/attachment.html>
+
+From shoebodh at gmail.com  Thu Apr 28 05:10:56 2016
+From: shoebodh at gmail.com (Subodh Acharya)
+Date: Thu, 28 Apr 2016 03:10:56 +0000
+Subject: [Rcpp-devel] RcppArmadillo::sample() multiple definition error
+Message-ID: <CAFu8PBK=AEj+1it2es89koTZqW5=G8U70Jj2XnVSQ_2M9XYuZw@mail.gmail.com>
+
+Hello,
+I know this was once fixed in the RcppArmadillo,
+As discussed here
+
+http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2013-August/006364.html
+
+But when I tried to compile my package today, that error showed up again. I
+appreciate any insight/suggestion on solving this.
+
+Thanks
+
+Subodh
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160428/d049e806/attachment.html>
+
+From edd at debian.org  Thu Apr 28 13:35:15 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 28 Apr 2016 06:35:15 -0500
+Subject: [Rcpp-devel] RcppArmadillo::sample() multiple definition error
+In-Reply-To: <CAFu8PBK=AEj+1it2es89koTZqW5=G8U70Jj2XnVSQ_2M9XYuZw@mail.gmail.com>
+References: <CAFu8PBK=AEj+1it2es89koTZqW5=G8U70Jj2XnVSQ_2M9XYuZw@mail.gmail.com>
+Message-ID: <22305.62835.352940.164222@max.nulle.part>
+
+
+On 28 April 2016 at 03:10, Subodh Acharya wrote:
+| Hello,?
+| I know this was once fixed in the RcppArmadillo,
+| As discussed here
+| 
+| http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2013-August/006364.html
+| 
+| But when I tried to compile my package today, that error showed up again.?I
+| appreciate any insight/suggestion on solving this.
+
+It should work if you include it only once, not multiple times, to avoid the
+multiple definition.
+
+We do build against during regression tests; the code itself works just fine.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From g.vegayon at gmail.com  Fri Apr 29 03:07:34 2016
+From: g.vegayon at gmail.com (George Vega Yon)
+Date: Thu, 28 Apr 2016 18:07:34 -0700
+Subject: [Rcpp-devel] Overriding 'ARMA_64BIT_WORD 1' in RcppArmadillo
+In-Reply-To: <22269.31874.951055.621935@max.nulle.part>
+References: <CAPJUxXXCHZhY7VYFMNn=-cMWs8N+SPRn3iA8kTwcUw_ZoqCZKQ@mail.gmail.com>
+ <22269.31874.951055.621935@max.nulle.part>
+Message-ID: <CAPJUxXUZeeezAyG-Ot9AM3S4x_k-2TrGxjvpkYBcA+z7wVjLWw@mail.gmail.com>
+
+Hey!
+
+Since it seems to be the case that we don't know much about what happens,
+I'm making an experiment which consists on an R package to stress
+RcppArmadillo here: https://github.com/gvegayon/arma64bit. Following Dirk's
+advice, I've included the #define ARMA_64BIT_WORD before #include
+<RcppArmadillo.h> (as seen here
+https://github.com/gvegayon/arma64bit/blob/c10b5d4a80b93088da730e45ee8c583feeff2ab6/src/misc.cpp#L2-L3)
+and included CXX_STD = CXX11 in Makevars. After compiling the package and
+asking for a matrix of size 1e5 x 1e5 I get an error, here (so it doesn't
+seem to be working):
+
+> x <- sp_runif(1e5,1e5,.01)
+
+error: SpMat::init(): requested size is too large
+Error: SpMat::init(): requested size is too large
+
+My guess is that #define ARMA_32BIT_WORD is overriding #define
+ARMA_64BIT_WORD. I'm an R user that jumped to Rcpp a while ago so I still
+don't fully understand how things work under the hood with R + Rcpp. Any
+clues?
+
+Best,
+
+sessionInfo()
+
+R version 3.2.5 (2016-04-14)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 14.04.4 LTS
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+LC_TIME=en_US.UTF-8
+ [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8
+ LC_MESSAGES=en_US.UTF-8
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C
+
+[10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8
+LC_IDENTIFICATION=C
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] arma64bit_0.1.0.9000 Matrix_1.2-5
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.4     lattice_0.20-33 digest_0.6.9    withr_1.0.1
+grid_3.2.5
+ [6] covr_2.0.1      git2r_0.14.0    magrittr_1.5    lazyeval_0.1.10
+rstudioapi_0.5
+[11] whisker_0.3-2   rex_1.1.1       rmarkdown_0.9.5 devtools_1.11.1
+tools_3.2.5
+[16] yaml_2.1.13     htmltools_0.3.5 memoise_1.0.0
+
+George G. Vega Yon
++1 (626) 381 8171
+http://www.its.caltech.edu/~gvegayon/
+
+On Thu, Mar 31, 2016 at 12:37 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 29 March 2016 at 15:55, George Vega Yon wrote:
+> | Hi there,
+> |
+> | A couple of days ago I included this comment on a Stackoverflow question
+> about
+> | "too large" matrices in RcppArmadillo
+> | I wonder if we can use this in a package. After trying to compile the
+> package
+> | with and without PKG_CXXFLAGS=-DARMA_64BIT_WORD I'm still not able to
+> create
+> | sparse matrices bigger than 65,535 x 65,535. I've realized that the
+> | RcppArmadilloConfig.h (version 0.6.600.4.0) file has ARMA_32BIT_WORD 1
+> so it
+> | actually prevents using ARMA_64BIT_WORD (I think?). Any way I can solve
+> this,
+> | or I just have to deal with R (3.2.4 Revised (2016-03-16 r70336)) not
+> been able
+> | to handle 64INT?
+> |
+> | http://stackoverflow.com/questions/16159174/
+> | large-spmat-object-with-rcpparmadillo
+> |
+> | For which Dirk answered:
+> |
+> | Try locally setting ARMA_64BIT_WORD (check how) -- I can't at the
+> package level
+> | as it breaks existing code. It will likely help you. If you set it
+> before the #
+> | include <RcppArmadillo.h> things may just work. That at least is the
+> pln. (And
+> | you should have asked on rcpp-devel to get more than two eyeballs on
+> this...)
+> | And yes the other answer basically says the same thing. ? Dirk
+> Eddelbuettel 2
+> | days ago
+> |
+> | Now I'm asking again but on rcpp-devel =). The issue is that I'm
+> concerned on
+> | the part that Dirk says that "things may just work". I was reading about
+> R not
+> | been able to handle int64 and its implications for big matrices, and so
+> I'm a
+> | little concerned that if passing ARMA_64BIT_WORD works I may loose some
+> | information on the way. For example, if I allow a users creating and
+> | manipulating 1e6 x 1e6 sparse matrices, is there any chance for them to
+> loose
+> | information?
+>
+> It is entirely possibly that nobody stresses RcppArmadillo this way and
+> that
+> setting ARMA_64BIT_WORD gets unset.   I only know that I cannot set it
+> globally now as some packages (still) depend on ARMA_32BIT_WORD.
+>
+> So I encourage you to experiment and to try locally.  Maybe something can
+> (and even should) be improved.
+>
+> Dirk
+>
+>
+> |
+> | Thanks,
+> |
+> | George G. Vega Yon
+> | +1 (626) 381 8171
+> | http://www.its.caltech.edu/~gvegayon/
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160428/8543a09b/attachment.html>
+

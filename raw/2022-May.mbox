@@ -1,0 +1,312 @@
+From roberto at spadim.com.br  Sun May  1 06:38:49 2022
+From: roberto at spadim.com.br (Roberto Spadim)
+Date: Sun, 1 May 2022 01:38:49 -0300
+Subject: [Rcpp-devel] Doubt about best pratices
+In-Reply-To: <CA19E100-F308-40C3-8A16-415D85250E3C@dcn.davis.ca.us>
+References: <CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>
+ <CA19E100-F308-40C3-8A16-415D85250E3C@dcn.davis.ca.us>
+Message-ID: <CAH3kUhHGHKMTW_A_3q_7mtjQpuDx3WzmkSgTJZ1SgHN3sJ6e2Q@mail.gmail.com>
+
+Uhm
+Converting from one to other copy data? From dataframe to matrix at least?
+
+Em sáb., 30 de abr. de 2022 às 14:26, Jeff Newmiller <
+jdnewmil at dcn.davis.ca.us> escreveu:
+
+> A data frame is designed to represent different types in different
+> columns. A matrix is designed so that all elements are the same.
+>
+> It sounds like you need matrices for your algorithm. I would simply
+> require that... or attempt to convert it immediately and stop if the result
+> is not numeric.
+>
+> On April 30, 2022 10:16:04 AM PDT, Roberto Spadim <roberto at spadim.com.br>
+> wrote:
+> >Hi folks!
+> >
+> >What's the best pratices to accept a dataframe and numericmatrix in a
+> function?
+> >
+> >Should I have two different methods to deal with NumericMatrix and
+> DataFrame?
+> >Could I convert DataFrame to matrix? What's the impact of doing this,
+> >i.e. does the as.matrix copy dataframe data?
+> >
+> >Thanks in advance!
+> >
+> >---
+> >Today I'm doing something like this:
+> >
+> >void RCPP_function(const RObject &vec, const RObject &mat) {
+> >  if(mat.isNULL())
+> >    Rcpp::stop("mat can't be null");
+> >  NumericMatrix variable_matrix;
+> >  if (is<NumericMatrix>(mat))
+> >    variable_matrix = as<NumericMatrix>(mat);
+> >  else
+> >    variable_matrix = Rcpp::internal::convert_using_rfunction(mat,
+> "as.matrix");
+> >
+> >  NumericVector variable_vector;
+> >  if((is<NumericVector>(target) || is<DataFrame>(target)) &&
+> !target.isNULL()){
+> >      variable_vector=as<NumericVector>(target);
+> >  }else{
+> >      variable_vector=colMeans(variable_matrix);
+> >  }
+> >
+> >  ...
+> >  do something with data
+> >  but here it's sure to be:
+> >   NumericVector (variable_vector)
+> >   NumericMatrix (variable_matrix)
+> >  ...
+> >}
+> >
+> >
+> >--
+> >Roberto Spadim
+> >_______________________________________________
+> >Rcpp-devel mailing list
+> >Rcpp-devel at lists.r-forge.r-project.org
+> >https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> Sent from my phone. Please excuse my brevity.
+>
+-- 
+Roberto Spadim
+SPAEmpresarial - Software ERP/Scada
+Eng. Automação e Controle, Eng. Financeira
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220501/bc84a269/attachment.html>
+
+From jdnewmil at dcn.davis.ca.us  Sun May  1 07:36:03 2022
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Sat, 30 Apr 2022 22:36:03 -0700
+Subject: [Rcpp-devel] Doubt about best pratices
+In-Reply-To: <CAH3kUhHGHKMTW_A_3q_7mtjQpuDx3WzmkSgTJZ1SgHN3sJ6e2Q@mail.gmail.com>
+References: <CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>
+ <CA19E100-F308-40C3-8A16-415D85250E3C@dcn.davis.ca.us>
+ <CAH3kUhHGHKMTW_A_3q_7mtjQpuDx3WzmkSgTJZ1SgHN3sJ6e2Q@mail.gmail.com>
+Message-ID: <8E548406-7E7C-41B8-8743-FFD88DF53E79@dcn.davis.ca.us>
+
+It is not possible to convert a data frame to a matrix without copying data.
+
+But normally algorithms that need a matrix become noticeably less efficient when applied to data frames. If this is your case, I would simply encourage the user to pass a matrix into your function in the first place. The sooner the right data structure is used, the less gratuitous conversion needs to happen.
+
+I think there is no one answer to this though... what is your algorithm? Would it work well on column vectors?
+
+On April 30, 2022 9:38:49 PM PDT, Roberto Spadim <roberto at spadim.com.br> wrote:
+>Uhm
+>Converting from one to other copy data? From dataframe to matrix at least?
+>
+>Em sáb., 30 de abr. de 2022 às 14:26, Jeff Newmiller <
+>jdnewmil at dcn.davis.ca.us> escreveu:
+>
+>> A data frame is designed to represent different types in different
+>> columns. A matrix is designed so that all elements are the same.
+>>
+>> It sounds like you need matrices for your algorithm. I would simply
+>> require that... or attempt to convert it immediately and stop if the result
+>> is not numeric.
+>>
+>> On April 30, 2022 10:16:04 AM PDT, Roberto Spadim <roberto at spadim.com.br>
+>> wrote:
+>> >Hi folks!
+>> >
+>> >What's the best pratices to accept a dataframe and numericmatrix in a
+>> function?
+>> >
+>> >Should I have two different methods to deal with NumericMatrix and
+>> DataFrame?
+>> >Could I convert DataFrame to matrix? What's the impact of doing this,
+>> >i.e. does the as.matrix copy dataframe data?
+>> >
+>> >Thanks in advance!
+>> >
+>> >---
+>> >Today I'm doing something like this:
+>> >
+>> >void RCPP_function(const RObject &vec, const RObject &mat) {
+>> >  if(mat.isNULL())
+>> >    Rcpp::stop("mat can't be null");
+>> >  NumericMatrix variable_matrix;
+>> >  if (is<NumericMatrix>(mat))
+>> >    variable_matrix = as<NumericMatrix>(mat);
+>> >  else
+>> >    variable_matrix = Rcpp::internal::convert_using_rfunction(mat,
+>> "as.matrix");
+>> >
+>> >  NumericVector variable_vector;
+>> >  if((is<NumericVector>(target) || is<DataFrame>(target)) &&
+>> !target.isNULL()){
+>> >      variable_vector=as<NumericVector>(target);
+>> >  }else{
+>> >      variable_vector=colMeans(variable_matrix);
+>> >  }
+>> >
+>> >  ...
+>> >  do something with data
+>> >  but here it's sure to be:
+>> >   NumericVector (variable_vector)
+>> >   NumericMatrix (variable_matrix)
+>> >  ...
+>> >}
+>> >
+>> >
+>> >--
+>> >Roberto Spadim
+>> >_______________________________________________
+>> >Rcpp-devel mailing list
+>> >Rcpp-devel at lists.r-forge.r-project.org
+>> >https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> --
+>> Sent from my phone. Please excuse my brevity.
+>>
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From edd at debian.org  Sun May  1 08:05:23 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 1 May 2022 01:05:23 -0500
+Subject: [Rcpp-devel] Doubt about best pratices
+In-Reply-To: <8E548406-7E7C-41B8-8743-FFD88DF53E79@dcn.davis.ca.us>
+References: <CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>
+ <CA19E100-F308-40C3-8A16-415D85250E3C@dcn.davis.ca.us>
+ <CAH3kUhHGHKMTW_A_3q_7mtjQpuDx3WzmkSgTJZ1SgHN3sJ6e2Q@mail.gmail.com>
+ <8E548406-7E7C-41B8-8743-FFD88DF53E79@dcn.davis.ca.us>
+Message-ID: <25198.8995.535225.240899@rob.eddelbuettel.com>
+
+
+This is not a well-posed Rcpp question as
+
+- matrix and data.frame are _fundamentally_ two different data types
+
+- matrix being _one_ and only one storage type, or class, stored
+  as one vector with dimension attribute of size two for rows and cols;
+  this makes it _efficient_ and you will see a matrix type used quite a bit
+  in internal R functions
+
+- data.frame being a special case of the catch-all type list with each
+  column being of same length but possibly different types -- and for that
+  reason we do not have too much tooling for this 'list of vectors' in Rcpp
+  besides the basics
+
+So in short you may want to work out first what you want you algorithm to be
+and maybe use higher-level converters in R to accomodate.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From roberto at spadim.com.br  Sun May  1 20:17:11 2022
+From: roberto at spadim.com.br (Roberto Spadim)
+Date: Sun, 1 May 2022 15:17:11 -0300
+Subject: [Rcpp-devel] Doubt about best pratices
+In-Reply-To: <25198.8995.535225.240899@rob.eddelbuettel.com>
+References: <CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>
+ <CA19E100-F308-40C3-8A16-415D85250E3C@dcn.davis.ca.us>
+ <CAH3kUhHGHKMTW_A_3q_7mtjQpuDx3WzmkSgTJZ1SgHN3sJ6e2Q@mail.gmail.com>
+ <8E548406-7E7C-41B8-8743-FFD88DF53E79@dcn.davis.ca.us>
+ <25198.8995.535225.240899@rob.eddelbuettel.com>
+Message-ID: <CAH3kUhFExpCSte59N8Y7UUqy8o66+Pht1Yun=x2sEf=S0vqwUQ@mail.gmail.com>
+
+Very nice, thanks Dirk and Jeff
+
+Well i think i will accept a RObject and if it's a DataFrame I convert
+to Matrix and it continue working
+
+I will benchmark the differences to understand it better.
+
+---
+
+Other two doubt and I think that's all:
+
+1) If dataset is too big (size is bigger than ram) is there a standard
+lib to use it, or should i consider that using dataframe/matrix types
+will work?
+2) I never used GPU in R, I used keras with python, dash and others
+python libs that handle bigdata / gpu math. Is there something related
+to GPU and RCpp/R? Any standard to consider?
+
+Thanks again!
+
+Em dom., 1 de mai. de 2022 às 03:05, Dirk Eddelbuettel
+<edd at debian.org> escreveu:
+>
+>
+> This is not a well-posed Rcpp question as
+>
+> - matrix and data.frame are _fundamentally_ two different data types
+>
+> - matrix being _one_ and only one storage type, or class, stored
+>   as one vector with dimension attribute of size two for rows and cols;
+>   this makes it _efficient_ and you will see a matrix type used quite a bit
+>   in internal R functions
+>
+> - data.frame being a special case of the catch-all type list with each
+>   column being of same length but possibly different types -- and for that
+>   reason we do not have too much tooling for this 'list of vectors' in Rcpp
+>   besides the basics
+>
+> So in short you may want to work out first what you want you algorithm to be
+> and maybe use higher-level converters in R to accomodate.
+>
+> Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+
+-- 
+Roberto Spadim
+SPAEmpresarial - Software ERP/Scada
+Eng. Automação e Controle, Eng. Financeira
+
+From roberto at spadim.com.br  Fri May 20 03:04:01 2022
+From: roberto at spadim.com.br (Roberto Spadim)
+Date: Thu, 19 May 2022 22:04:01 -0300
+Subject: [Rcpp-devel] IDE
+Message-ID: <CAH3kUhHHZzT3gbz6Ru82DHbyiTE8n1J4VYFjZqEooRzrmsUUHQ@mail.gmail.com>
+
+Hi folks!
+
+Is there any way to use CLion ide to code RCpp? Have anyone tried?
+
+-- 
+Roberto Spadim
+
+From jdnewmil at dcn.davis.ca.us  Fri May 20 17:56:45 2022
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Fri, 20 May 2022 08:56:45 -0700
+Subject: [Rcpp-devel] IDE
+In-Reply-To: <CAH3kUhHHZzT3gbz6Ru82DHbyiTE8n1J4VYFjZqEooRzrmsUUHQ@mail.gmail.com>
+References: <CAH3kUhHHZzT3gbz6Ru82DHbyiTE8n1J4VYFjZqEooRzrmsUUHQ@mail.gmail.com>
+Message-ID: <B2A27F72-0095-45AA-ABB3-9F6512287F04@dcn.davis.ca.us>
+
+Not I. But your question is weird.
+
+a) Rcpp is an R package. Unless you are modifying that package, you are not "coding Rcpp". You are either "coding R" or 'coding C++".
+
+b) Clion evidently supports C++. I don't see mentions online that it supports R. Which is not a showstopper... lots of people use dumb editors to program in R... if the advantages for C++ are significant enough to you then you can probably fill in the R side with a terminal running R.
+
+c) Perhaps you might consider VSCode? https://www.reddit.com/r/cpp/comments/md0nxr/visual_studio_or_clion/.
+
+On May 19, 2022 6:04:01 PM PDT, Roberto Spadim <roberto at spadim.com.br> wrote:
+>Hi folks!
+>
+>Is there any way to use CLion ide to code RCpp? Have anyone tried?
+>
+>-- 
+>Roberto Spadim
+>_______________________________________________
+>Rcpp-devel mailing list
+>Rcpp-devel at lists.r-forge.r-project.org
+>https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+Sent from my phone. Please excuse my brevity.
+

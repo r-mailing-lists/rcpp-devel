@@ -1,0 +1,2548 @@
+From akhilakollasrinu424jf at gmail.com  Tue Jun  9 07:04:56 2020
+From: akhilakollasrinu424jf at gmail.com (Akhila Chowdary Kolla)
+Date: Mon, 8 Jun 2020 22:04:56 -0700
+Subject: [Rcpp-devel] Zero length vectors in R
+Message-ID: <CAM0Afv0MOpBKCW6aT0=Bgd5OrWAvw86OZZe_njpggLpL0zrA9w@mail.gmail.com>
+
+Hello everyone,
+
+I am trying to test a package binsegRcpp. I pass the size of max_segments
+vector as zero it doesn't throw any segfault when I am trying to access the
+zeroth index element. Instead gives a garbage value or error like negative
+length vectors not allowed.
+Rcpp::List rcpp_binseg_normal
+(const Rcpp::NumericVector data_vec,
+const Rcpp::IntegerVector max_segments) {
+int kmax = max_segments[0];
+ }
+Link to the package:
+https://github.com/tdhock/binsegRcpp/blob/master/src/rcpp_interface.cpp
+
+How is a zero-length vector represented in R? Does it still store a pointer
+to some location?
+If so Is there a way to get this segfault detected. I tried using
+rhub::check it doesn't give any error. I tried using sanitizers as well
+still no luck.
+Can someone please suggest a way to detect this in R.
+
+Thanks
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200608/43df7d4f/attachment.html>
+
+From lsilvestri at ztsdb.org  Tue Jun  9 08:52:43 2020
+From: lsilvestri at ztsdb.org (Leonardo Silvestri)
+Date: Tue, 9 Jun 2020 02:52:43 -0400
+Subject: [Rcpp-devel] Zero length vectors in R
+In-Reply-To: <CAM0Afv0MOpBKCW6aT0=Bgd5OrWAvw86OZZe_njpggLpL0zrA9w@mail.gmail.com>
+References: <CAM0Afv0MOpBKCW6aT0=Bgd5OrWAvw86OZZe_njpggLpL0zrA9w@mail.gmail.com>
+Message-ID: <cb530a6e-b0ab-b251-ac56-1b64f26864eb@ztsdb.org>
+
+﻿Yes, there is an underlying pointer. You can simply test 
+'max_segments.size()' to see if you are allowed to dereference that 
+first element or not.
+
+If you're interested in the exact R representation of vectors at 
+C-level, read R Internals 
+(https://cran.r-project.org/doc/manuals/r-release/R-ints.pdf).
+
+If you are interested in the Rcpp wrappers around these vectors look at 
+the Rcpp header file 'vector.h' in the Rcpp package 
+(inst/include/Rcpp/vector/Vector.h).
+
+
+On 6/9/20 1:04 AM, Akhila Chowdary Kolla wrote:
+> Hello everyone,
+> 
+> I am trying to test a package binsegRcpp. I pass the size of 
+> max_segments vector as zero it doesn't throw any segfault when I am 
+> trying to access the zeroth index element. Instead gives a garbage value 
+> or error like negative length vectors not allowed.
+> Rcpp::List rcpp_binseg_normal
+> 	(const Rcpp::NumericVector data_vec,
+> 	const Rcpp::IntegerVector max_segments) {
+> 	int kmax = max_segments[0];
+> 
+>   }
+> Link to the package: 
+> https://github.com/tdhock/binsegRcpp/blob/master/src/rcpp_interface.cpp
+> 
+> How is a zero-length vector represented in R? Does it still store a 
+> pointer to some location?
+> If so Is there a way to get this segfault detected. I tried using 
+> rhub::check it doesn't give any error. I tried using sanitizers as well 
+> still no luck.
+> Can someone please suggest a way to detect this in R.
+> 
+> Thanks
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From darkjone0143 at gmail.com  Tue Jun  9 13:33:41 2020
+From: darkjone0143 at gmail.com (Kiros Lo)
+Date: Tue, 9 Jun 2020 04:33:41 -0700
+Subject: [Rcpp-devel] Problem with Rcpp and RcppArmadillo
+Message-ID: <CAM4HAayq0HC2bv0+ypTN4rsW4VrChc5E-nwzTJhbpuScNmtZgQ@mail.gmail.com>
+
+Hi there,
+      I am trying to use RcppArmadillo to rewrite a weighted linear
+regression function. But when I try to use devtools::document() to compile
+the code, an error has occurred:
+
+----------------------------------------------------------------------------------------------------------------
+** byte-compile and prepare package for lazy loading
+Error: object 'RcppArmadillo' is not exported by 'namespace:Rcpp'
+Execution halted
+ERROR: lazy loading failed for package 'fast'
+----------------------------------------------------------------------------------------------------------------
+
+
+This is the head of my function
+----------------------------------------------------------------------------------------------------------------
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
+//' estimate the regression estimates based on given the number of
+repetitions
+//'
+//' @param x a Matrix
+//' @export
+// [[Rcpp::export]]
+Rcpp::List fastLmX_impl(const arma::mat& X) {
+  ... something like this
+}
+----------------------------------------------------------------------------------------------------------------
+
+
+And I have already include Rcpp and RcppArmadillo in my DESCRIPTION file :
+----------------------------------------------------------------------------------------------------------------
+LinkingTo:
+    Rcpp,
+    RcppArmadillo
+Imports:
+    Rcpp (>= 0.11.0)
+----------------------------------------------------------------------------------------------------------------
+
+
+Any help will be appreciated!
+
+Yours faithfully,
+Wing Lo
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200609/eee4d16b/attachment.html>
+
+From edd at debian.org  Tue Jun  9 14:01:26 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 9 Jun 2020 07:01:26 -0500
+Subject: [Rcpp-devel] Problem with Rcpp and RcppArmadillo
+In-Reply-To: <CAM4HAayq0HC2bv0+ypTN4rsW4VrChc5E-nwzTJhbpuScNmtZgQ@mail.gmail.com>
+References: <CAM4HAayq0HC2bv0+ypTN4rsW4VrChc5E-nwzTJhbpuScNmtZgQ@mail.gmail.com>
+Message-ID: <24287.31254.715832.627132@rob.eddelbuettel.com>
+
+
+On 9 June 2020 at 04:33, Kiros Lo wrote:
+| Hi there,
+|       I am trying to use RcppArmadillo to rewrite a weighted linear
+| regression function. But when I try to use devtools::document() to compile
+
+Wrong mailing list?  We don't mention devtools::document() so can't help.
+
+You could try RcppArmadillo.package.skeleton() instead (but be aware of an
+issue between R 4.0.0 and Rcpp which is fixed in Rcpp 1.0.4.12 which you can
+install from the Rcpp drat).
+
+| the code, an error has occurred:
+| 
+| ----------------------------------------------------------------------------------------------------------------
+| ** byte-compile and prepare package for lazy loading
+| Error: object 'RcppArmadillo' is not exported by 'namespace:Rcpp'
+
+You may have gotten carried away with roxygen2 which is another tool our
+documentation hardly or not at all talks about.
+
+Dirk
+
+| Execution halted
+| ERROR: lazy loading failed for package 'fast'
+| ----------------------------------------------------------------------------------------------------------------
+| 
+| 
+| This is the head of my function
+| ----------------------------------------------------------------------------------------------------------------
+| #include <RcppArmadillo.h>
+| // [[Rcpp::depends(RcppArmadillo)]]
+| 
+| //' estimate the regression estimates based on given the number of
+| repetitions
+| //'
+| //' @param x a Matrix
+| //' @export
+| // [[Rcpp::export]]
+| Rcpp::List fastLmX_impl(const arma::mat& X) {
+|   ... something like this
+| }
+| ----------------------------------------------------------------------------------------------------------------
+| 
+| 
+| And I have already include Rcpp and RcppArmadillo in my DESCRIPTION file :
+| ----------------------------------------------------------------------------------------------------------------
+| LinkingTo:
+|     Rcpp,
+|     RcppArmadillo
+| Imports:
+|     Rcpp (>= 0.11.0)
+| ----------------------------------------------------------------------------------------------------------------
+| 
+| 
+| Any help will be appreciated!
+| 
+| Yours faithfully,
+| Wing Lo
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From darkjone0143 at gmail.com  Tue Jun  9 14:02:44 2020
+From: darkjone0143 at gmail.com (Kiros Lo)
+Date: Tue, 9 Jun 2020 05:02:44 -0700
+Subject: [Rcpp-devel] Problem with Rcpp and RcppArmadillo
+In-Reply-To: <24287.31254.715832.627132@rob.eddelbuettel.com>
+References: <CAM4HAayq0HC2bv0+ypTN4rsW4VrChc5E-nwzTJhbpuScNmtZgQ@mail.gmail.com>
+ <24287.31254.715832.627132@rob.eddelbuettel.com>
+Message-ID: <CAM4HAawBp8GKFmcjQgd03tfTD9QkY-wQrrdD9PPLh697onCUQA@mail.gmail.com>
+
+Thanks, I'll take a look.
+
+On Tue, Jun 9, 2020 at 5:01 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 9 June 2020 at 04:33, Kiros Lo wrote:
+> | Hi there,
+> |       I am trying to use RcppArmadillo to rewrite a weighted linear
+> | regression function. But when I try to use devtools::document() to
+> compile
+>
+> Wrong mailing list?  We don't mention devtools::document() so can't help.
+>
+> You could try RcppArmadillo.package.skeleton() instead (but be aware of an
+> issue between R 4.0.0 and Rcpp which is fixed in Rcpp 1.0.4.12 which you
+> can
+> install from the Rcpp drat).
+>
+> | the code, an error has occurred:
+> |
+> |
+> ----------------------------------------------------------------------------------------------------------------
+> | ** byte-compile and prepare package for lazy loading
+> | Error: object 'RcppArmadillo' is not exported by 'namespace:Rcpp'
+>
+> You may have gotten carried away with roxygen2 which is another tool our
+> documentation hardly or not at all talks about.
+>
+> Dirk
+>
+> | Execution halted
+> | ERROR: lazy loading failed for package 'fast'
+> |
+> ----------------------------------------------------------------------------------------------------------------
+> |
+> |
+> | This is the head of my function
+> |
+> ----------------------------------------------------------------------------------------------------------------
+> | #include <RcppArmadillo.h>
+> | // [[Rcpp::depends(RcppArmadillo)]]
+> |
+> | //' estimate the regression estimates based on given the number of
+> | repetitions
+> | //'
+> | //' @param x a Matrix
+> | //' @export
+> | // [[Rcpp::export]]
+> | Rcpp::List fastLmX_impl(const arma::mat& X) {
+> |   ... something like this
+> | }
+> |
+> ----------------------------------------------------------------------------------------------------------------
+> |
+> |
+> | And I have already include Rcpp and RcppArmadillo in my DESCRIPTION file
+> :
+> |
+> ----------------------------------------------------------------------------------------------------------------
+> | LinkingTo:
+> |     Rcpp,
+> |     RcppArmadillo
+> | Imports:
+> |     Rcpp (>= 0.11.0)
+> |
+> ----------------------------------------------------------------------------------------------------------------
+> |
+> |
+> | Any help will be appreciated!
+> |
+> | Yours faithfully,
+> | Wing Lo
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200609/82f0facb/attachment.html>
+
+From edd at debian.org  Tue Jun  9 14:12:30 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 9 Jun 2020 07:12:30 -0500
+Subject: [Rcpp-devel] Problem with Rcpp and RcppArmadillo
+In-Reply-To: <CAM4HAawBp8GKFmcjQgd03tfTD9QkY-wQrrdD9PPLh697onCUQA@mail.gmail.com>
+References: <CAM4HAayq0HC2bv0+ypTN4rsW4VrChc5E-nwzTJhbpuScNmtZgQ@mail.gmail.com>
+ <24287.31254.715832.627132@rob.eddelbuettel.com>
+ <CAM4HAawBp8GKFmcjQgd03tfTD9QkY-wQrrdD9PPLh697onCUQA@mail.gmail.com>
+Message-ID: <24287.31918.277123.510326@rob.eddelbuettel.com>
+
+
+On 9 June 2020 at 05:02, Kiros Lo wrote:
+| Thanks, I'll take a look.
+
+Is the code in a repo I could access? It is probably something I can fix for
+you in two minutes which will be quicker than going back and forth by email.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Jun  9 17:04:04 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 9 Jun 2020 10:04:04 -0500
+Subject: [Rcpp-devel] Problem with Rcpp and RcppArmadillo
+In-Reply-To: <24287.31918.277123.510326@rob.eddelbuettel.com>
+References: <CAM4HAayq0HC2bv0+ypTN4rsW4VrChc5E-nwzTJhbpuScNmtZgQ@mail.gmail.com>
+ <24287.31254.715832.627132@rob.eddelbuettel.com>
+ <CAM4HAawBp8GKFmcjQgd03tfTD9QkY-wQrrdD9PPLh697onCUQA@mail.gmail.com>
+ <24287.31918.277123.510326@rob.eddelbuettel.com>
+Message-ID: <24287.42212.789571.990284@rob.eddelbuettel.com>
+
+
+On 9 June 2020 at 07:12, Dirk Eddelbuettel wrote:
+| 
+| On 9 June 2020 at 05:02, Kiros Lo wrote:
+| | Thanks, I'll take a look.
+| 
+| Is the code in a repo I could access? It is probably something I can fix for
+| you in two minutes which will be quicker than going back and forth by email.
+
+Also: the new RcppArmadillo 0.9.900.1.0 just got on CRAN. Try to get hold of
+it; it has a fix for RcppArmadillo.package.skeleton() we needed to make after
+the R 4.0.0 release.
+
+With it, try the _simple stuff_:  create a dummy package (by calling that
+function).  Build that package.  Install it from the tarball.  Test it.
+Ideally do all that with base R commands so that you get an understanding of
+them and demonstrate (to yourself) that your machine is set up right.
+
+Then add your preferred tooling or editors or whatnot.  Add things slowly,
+one at a time. By doing this carefully you should arrive at where you
+(current inoperational via your toolchain) package is and you should also get
+a handle and where the "infelicity" was introduced.
+
+There is not other (general) shortcut (I am aware of).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tdhock5 at gmail.com  Wed Jun 10 06:45:33 2020
+From: tdhock5 at gmail.com (Toby Hocking)
+Date: Tue, 9 Jun 2020 21:45:33 -0700
+Subject: [Rcpp-devel] Zero length vectors in R
+In-Reply-To: <cb530a6e-b0ab-b251-ac56-1b64f26864eb@ztsdb.org>
+References: <CAM0Afv0MOpBKCW6aT0=Bgd5OrWAvw86OZZe_njpggLpL0zrA9w@mail.gmail.com>
+ <cb530a6e-b0ab-b251-ac56-1b64f26864eb@ztsdb.org>
+Message-ID: <CALK03d0aE-OxOxvA5=S=KM_X5q9aDeLJRkiPy_u-PYCHmT6Q=w@mail.gmail.com>
+
+Hi Leonardo thanks for the help.
+For context, we are trying to fuzz test Rcpp packages, so we are
+throwing random sized vectors at Rcpp functions which have been
+written by others. We want to be able to detect when these Rcpp
+functions have memory read/write issues (e.g. reading the first
+element of a zero-length vector).
+I have been doing some tests
+https://github.com/akhikolla/RcppDeepState/issues/4 and I have
+observed that valgrind notices an invalid read if I do
+pointer_to_array_of_size_zero_from_new_or_malloc[0] but it does not
+give me any invalid read for integer_vector_of_size_zero[0]. For
+concreteness here are the functions I used for testing,
+
+// [[Rcpp::export]]
+int read_vector(int i){
+  Rcpp::IntegerVector x(0);
+  return x[i];
+}
+
+// [[Rcpp::export]]
+int read_new(int i){
+  int* ptr = new int[0];
+  int x = ptr[i];
+  delete[] ptr;
+  return x;
+}
+
+So in other words doing read_new(0) in R results in a valgrind Invalid
+read message, but doing read_vector(0) does not. Is that normal? Are
+there any other tools we could use to detect the
+read-past-the-end-of-array problem that happens when we do
+read_vector(0) ? Or is this an inherent issue in the way that R
+allocates vectors?
+
+BTW there seems to be some relevant discussion in
+https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-valgrind
+"Next is a description of the memory that was accessed. It is inside a
+block allocated by malloc, called from GetNewPage, that is, in the
+internal R heap. Since this memory all belongs to R, valgrind would
+not (and did not) detect the problem in an uninstrumented build of R."
+I'm using R-4.0.0 compiled from source
+--with-valgrind-instrumentation=2. Are Rcpp IntegerVectors allocated
+using malloc/GetNewPage as in this example, or is the memory
+allocation different?
+
+Thanks for any help / ideas / clarification you can provide
+Toby
+
+
+On Mon, Jun 8, 2020 at 11:53 PM Leonardo Silvestri <lsilvestri at ztsdb.org> wrote:
+>
+> Yes, there is an underlying pointer. You can simply test
+> 'max_segments.size()' to see if you are allowed to dereference that
+> first element or not.
+>
+> If you're interested in the exact R representation of vectors at
+> C-level, read R Internals
+> (https://cran.r-project.org/doc/manuals/r-release/R-ints.pdf).
+>
+> If you are interested in the Rcpp wrappers around these vectors look at
+> the Rcpp header file 'vector.h' in the Rcpp package
+> (inst/include/Rcpp/vector/Vector.h).
+>
+>
+> On 6/9/20 1:04 AM, Akhila Chowdary Kolla wrote:
+> > Hello everyone,
+> >
+> > I am trying to test a package binsegRcpp. I pass the size of
+> > max_segments vector as zero it doesn't throw any segfault when I am
+> > trying to access the zeroth index element. Instead gives a garbage value
+> > or error like negative length vectors not allowed.
+> > Rcpp::List rcpp_binseg_normal
+> >       (const Rcpp::NumericVector data_vec,
+> >       const Rcpp::IntegerVector max_segments) {
+> >       int kmax = max_segments[0];
+> >
+> >   }
+> > Link to the package:
+> > https://github.com/tdhock/binsegRcpp/blob/master/src/rcpp_interface.cpp
+> >
+> > How is a zero-length vector represented in R? Does it still store a
+> > pointer to some location?
+> > If so Is there a way to get this segfault detected. I tried using
+> > rhub::check it doesn't give any error. I tried using sanitizers as well
+> > still no luck.
+> > Can someone please suggest a way to detect this in R.
+> >
+> > Thanks
+> >
+> >
+> >
+> >
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From lsilvestri at ztsdb.org  Wed Jun 10 07:21:49 2020
+From: lsilvestri at ztsdb.org (Leonardo Silvestri)
+Date: Wed, 10 Jun 2020 01:21:49 -0400
+Subject: [Rcpp-devel] Zero length vectors in R
+In-Reply-To: <CALK03d0aE-OxOxvA5=S=KM_X5q9aDeLJRkiPy_u-PYCHmT6Q=w@mail.gmail.com>
+References: <CAM0Afv0MOpBKCW6aT0=Bgd5OrWAvw86OZZe_njpggLpL0zrA9w@mail.gmail.com>
+ <cb530a6e-b0ab-b251-ac56-1b64f26864eb@ztsdb.org>
+ <CALK03d0aE-OxOxvA5=S=KM_X5q9aDeLJRkiPy_u-PYCHmT6Q=w@mail.gmail.com>
+Message-ID: <227bc293-9c30-11b4-0c09-5c949addfbe1@ztsdb.org>
+
+Hi Toby,
+
+OK, I see better now what you are trying to do.
+
+The discussion you mention is most likely relevant here - other people 
+more versed than me in valgrind and R's memory allocation could probably 
+attest to that.
+
+Another idea to detect these errors would be to create a modified Rcpp 
+package where the C++ subscript operator [] is modified to check for 
+size and report an incorrect dereferencing.
+
+Leo
+
+
+
+On 6/10/20 12:45 AM, Toby Hocking wrote:
+> Hi Leonardo thanks for the help.
+> For context, we are trying to fuzz test Rcpp packages, so we are
+> throwing random sized vectors at Rcpp functions which have been
+> written by others. We want to be able to detect when these Rcpp
+> functions have memory read/write issues (e.g. reading the first
+> element of a zero-length vector).
+> I have been doing some tests
+> https://github.com/akhikolla/RcppDeepState/issues/4 and I have
+> observed that valgrind notices an invalid read if I do
+> pointer_to_array_of_size_zero_from_new_or_malloc[0] but it does not
+> give me any invalid read for integer_vector_of_size_zero[0]. For
+> concreteness here are the functions I used for testing,
+> 
+> // [[Rcpp::export]]
+> int read_vector(int i){
+>    Rcpp::IntegerVector x(0);
+>    return x[i];
+> }
+> 
+> // [[Rcpp::export]]
+> int read_new(int i){
+>    int* ptr = new int[0];
+>    int x = ptr[i];
+>    delete[] ptr;
+>    return x;
+> }
+> 
+> So in other words doing read_new(0) in R results in a valgrind Invalid
+> read message, but doing read_vector(0) does not. Is that normal? Are
+> there any other tools we could use to detect the
+> read-past-the-end-of-array problem that happens when we do
+> read_vector(0) ? Or is this an inherent issue in the way that R
+> allocates vectors?
+> 
+> BTW there seems to be some relevant discussion in
+> https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-valgrind
+> "Next is a description of the memory that was accessed. It is inside a
+> block allocated by malloc, called from GetNewPage, that is, in the
+> internal R heap. Since this memory all belongs to R, valgrind would
+> not (and did not) detect the problem in an uninstrumented build of R."
+> I'm using R-4.0.0 compiled from source
+> --with-valgrind-instrumentation=2. Are Rcpp IntegerVectors allocated
+> using malloc/GetNewPage as in this example, or is the memory
+> allocation different?
+> 
+> Thanks for any help / ideas / clarification you can provide
+> Toby
+> 
+> 
+> On Mon, Jun 8, 2020 at 11:53 PM Leonardo Silvestri <lsilvestri at ztsdb.org> wrote:
+>>
+>> Yes, there is an underlying pointer. You can simply test
+>> 'max_segments.size()' to see if you are allowed to dereference that
+>> first element or not.
+>>
+>> If you're interested in the exact R representation of vectors at
+>> C-level, read R Internals
+>> (https://cran.r-project.org/doc/manuals/r-release/R-ints.pdf).
+>>
+>> If you are interested in the Rcpp wrappers around these vectors look at
+>> the Rcpp header file 'vector.h' in the Rcpp package
+>> (inst/include/Rcpp/vector/Vector.h).
+>>
+>>
+>> On 6/9/20 1:04 AM, Akhila Chowdary Kolla wrote:
+>>> Hello everyone,
+>>>
+>>> I am trying to test a package binsegRcpp. I pass the size of
+>>> max_segments vector as zero it doesn't throw any segfault when I am
+>>> trying to access the zeroth index element. Instead gives a garbage value
+>>> or error like negative length vectors not allowed.
+>>> Rcpp::List rcpp_binseg_normal
+>>>        (const Rcpp::NumericVector data_vec,
+>>>        const Rcpp::IntegerVector max_segments) {
+>>>        int kmax = max_segments[0];
+>>>
+>>>    }
+>>> Link to the package:
+>>> https://github.com/tdhock/binsegRcpp/blob/master/src/rcpp_interface.cpp
+>>>
+>>> How is a zero-length vector represented in R? Does it still store a
+>>> pointer to some location?
+>>> If so Is there a way to get this segfault detected. I tried using
+>>> rhub::check it doesn't give any error. I tried using sanitizers as well
+>>> still no luck.
+>>> Can someone please suggest a way to detect this in R.
+>>>
+>>> Thanks
+>>>
+>>>
+>>>
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From simon.urbanek at R-project.org  Wed Jun 10 12:39:27 2020
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Wed, 10 Jun 2020 22:39:27 +1200
+Subject: [Rcpp-devel] Zero length vectors in R
+In-Reply-To: <CALK03d0aE-OxOxvA5=S=KM_X5q9aDeLJRkiPy_u-PYCHmT6Q=w@mail.gmail.com>
+References: <CAM0Afv0MOpBKCW6aT0=Bgd5OrWAvw86OZZe_njpggLpL0zrA9w@mail.gmail.com>
+ <cb530a6e-b0ab-b251-ac56-1b64f26864eb@ztsdb.org>
+ <CALK03d0aE-OxOxvA5=S=KM_X5q9aDeLJRkiPy_u-PYCHmT6Q=w@mail.gmail.com>
+Message-ID: <C37FD226-C85F-4572-AC97-EED7FE5043DB@R-project.org>
+
+Toby,
+
+Rcpp simply calls allocVector() so regular R rules apply. R's SEXP can hold vectors up to length 1 inside without additional allocations*, therefore from memory management perspective writes to the first element of a 0-length vector are not invalid. The valgrind instrumentation of R doesn't guard against that case, i.e., it doesn't mark those 8 bytes as NOACCESS, it only marks additional allocated memory accordingly (not relevant in this case).
+
+Cheers,
+Simon
+
+* - see also R-ints 1.1.4 for details on allocator classes
+
+
+> On Jun 10, 2020, at 4:45 PM, Toby Hocking <tdhock5 at gmail.com> wrote:
+> 
+> Hi Leonardo thanks for the help.
+> For context, we are trying to fuzz test Rcpp packages, so we are
+> throwing random sized vectors at Rcpp functions which have been
+> written by others. We want to be able to detect when these Rcpp
+> functions have memory read/write issues (e.g. reading the first
+> element of a zero-length vector).
+> I have been doing some tests
+> https://github.com/akhikolla/RcppDeepState/issues/4 and I have
+> observed that valgrind notices an invalid read if I do
+> pointer_to_array_of_size_zero_from_new_or_malloc[0] but it does not
+> give me any invalid read for integer_vector_of_size_zero[0]. For
+> concreteness here are the functions I used for testing,
+> 
+> // [[Rcpp::export]]
+> int read_vector(int i){
+>  Rcpp::IntegerVector x(0);
+>  return x[i];
+> }
+> 
+> // [[Rcpp::export]]
+> int read_new(int i){
+>  int* ptr = new int[0];
+>  int x = ptr[i];
+>  delete[] ptr;
+>  return x;
+> }
+> 
+> So in other words doing read_new(0) in R results in a valgrind Invalid
+> read message, but doing read_vector(0) does not. Is that normal? Are
+> there any other tools we could use to detect the
+> read-past-the-end-of-array problem that happens when we do
+> read_vector(0) ? Or is this an inherent issue in the way that R
+> allocates vectors?
+> 
+> BTW there seems to be some relevant discussion in
+> https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-valgrind
+> "Next is a description of the memory that was accessed. It is inside a
+> block allocated by malloc, called from GetNewPage, that is, in the
+> internal R heap. Since this memory all belongs to R, valgrind would
+> not (and did not) detect the problem in an uninstrumented build of R."
+> I'm using R-4.0.0 compiled from source
+> --with-valgrind-instrumentation=2. Are Rcpp IntegerVectors allocated
+> using malloc/GetNewPage as in this example, or is the memory
+> allocation different?
+> 
+> Thanks for any help / ideas / clarification you can provide
+> Toby
+> 
+> 
+> On Mon, Jun 8, 2020 at 11:53 PM Leonardo Silvestri <lsilvestri at ztsdb.org> wrote:
+>> 
+>> Yes, there is an underlying pointer. You can simply test
+>> 'max_segments.size()' to see if you are allowed to dereference that
+>> first element or not.
+>> 
+>> If you're interested in the exact R representation of vectors at
+>> C-level, read R Internals
+>> (https://cran.r-project.org/doc/manuals/r-release/R-ints.pdf).
+>> 
+>> If you are interested in the Rcpp wrappers around these vectors look at
+>> the Rcpp header file 'vector.h' in the Rcpp package
+>> (inst/include/Rcpp/vector/Vector.h).
+>> 
+>> 
+>> On 6/9/20 1:04 AM, Akhila Chowdary Kolla wrote:
+>>> Hello everyone,
+>>> 
+>>> I am trying to test a package binsegRcpp. I pass the size of
+>>> max_segments vector as zero it doesn't throw any segfault when I am
+>>> trying to access the zeroth index element. Instead gives a garbage value
+>>> or error like negative length vectors not allowed.
+>>> Rcpp::List rcpp_binseg_normal
+>>>      (const Rcpp::NumericVector data_vec,
+>>>      const Rcpp::IntegerVector max_segments) {
+>>>      int kmax = max_segments[0];
+>>> 
+>>>  }
+>>> Link to the package:
+>>> https://github.com/tdhock/binsegRcpp/blob/master/src/rcpp_interface.cpp
+>>> 
+>>> How is a zero-length vector represented in R? Does it still store a
+>>> pointer to some location?
+>>> If so Is there a way to get this segfault detected. I tried using
+>>> rhub::check it doesn't give any error. I tried using sanitizers as well
+>>> still no luck.
+>>> Can someone please suggest a way to detect this in R.
+>>> 
+>>> Thanks
+>>> 
+>>> 
+>>> 
+>>> 
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> 
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From edd at debian.org  Wed Jun 10 13:52:21 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 10 Jun 2020 06:52:21 -0500
+Subject: [Rcpp-devel] Zero length vectors in R
+In-Reply-To: <227bc293-9c30-11b4-0c09-5c949addfbe1@ztsdb.org>
+References: <CAM0Afv0MOpBKCW6aT0=Bgd5OrWAvw86OZZe_njpggLpL0zrA9w@mail.gmail.com>
+ <cb530a6e-b0ab-b251-ac56-1b64f26864eb@ztsdb.org>
+ <CALK03d0aE-OxOxvA5=S=KM_X5q9aDeLJRkiPy_u-PYCHmT6Q=w@mail.gmail.com>
+ <227bc293-9c30-11b4-0c09-5c949addfbe1@ztsdb.org>
+Message-ID: <24288.51573.970782.251273@rob.eddelbuettel.com>
+
+
+On 10 June 2020 at 01:21, Leonardo Silvestri wrote:
+| The discussion you mention is most likely relevant here - other people 
+| more versed than me in valgrind and R's memory allocation could probably 
+| attest to that.
+| 
+| Another idea to detect these errors would be to create a modified Rcpp 
+| package where the C++ subscript operator [] is modified to check for 
+| size and report an incorrect dereferencing.
+
+There is a very cute and less-than-a-dozen-lines class Vec in Stroustrup's "A
+Tour of C++" (2nd ed, 2018, section 11.2). The std::Vec inherits "everything"
+from std::vector but then redefines 'T& operator[](int i)' and 'const R&
+operator[](int i) const' to use .at(i) and provide range checking.
+
+The discussion there is brief, but good. Range checking introduces about 10%
+overhead. Quoting: "However, experience shows that such overhead can lead
+people to prefer the far more unsafe builtin arrays.". Well put. He also
+notes that "some implementations" offer this via a compile-time option.
+
+Seems like an opportunity for someone to get famous and add a #define to Rcpp
+to support this too.  Well written PRs, ideally supported by more than merely
+superficial testing, are always welcome.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From nate.fuhriman at ngc.com  Thu Jun 11 17:40:08 2020
+From: nate.fuhriman at ngc.com (Fuhriman, Nathanael [US] (IS) (Contr))
+Date: Thu, 11 Jun 2020 15:40:08 +0000
+Subject: [Rcpp-devel] Install failure undefined symbol
+Message-ID: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+
+I'm trying to install on a Centos6.10 system. I am using an updated gcc9.2 compiler that was installed on the system. I've searched the forum and the web and can't seem to find a solution to this. I did find one recommendation to use static compile but I don't know how to do that with R. Here is what I get when I try to install it:
+R CMD INSTALL -d /share/apps/R/4.0.0/plugin/miniCRAN/src/contrib/Rcpp_1.0.4.6.tar.gz
+processing '/share/apps/R/4.0.0/plugin/miniCRAN/src/contrib/Rcpp_1.0.4.6.tar.gz'
+a file
+
+  *   installing to library '/share/apps/R/4.0.0/plugin'
+  *   build_help_types=
+  *   DBG: 'R CMD INSTALL' now doing do_install()
+  *   created lock directory '/share/apps/R/4.0.0/plugin/00LOCK-Rcpp'
+  *   installing source package 'Rcpp' ...
+** package 'Rcpp' successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+about to run R CMD SHLIB -o Rcpp.so api.cpp attributes.cpp barrier.cpp date.cpp module.cpp rcpp_init.cpp
+/share/apps/gcc/9.2.0/bin/gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/ -I/usr/local/include -fpic -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic -c api.cpp -o api.o
+/share/apps/gcc/9.2.0/bin/gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/ -I/usr/local/include -fpic -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic -c attributes.cpp -o attributes.o
+/share/apps/gcc/9.2.0/bin/gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/ -I/usr/local/include -fpic -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic -c barrier.cpp -o barrier.o
+/share/apps/gcc/9.2.0/bin/gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/ -I/usr/local/include -fpic -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic -c date.cpp -o date.o
+/share/apps/gcc/9.2.0/bin/gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/ -I/usr/local/include -fpic -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic -c module.cpp -o module.o
+/share/apps/gcc/9.2.0/bin/gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/ -I/usr/local/include -fpic -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic -c rcpp_init.cpp -o rcpp_init.o
+/share/apps/gcc/9.2.0/bin/gcc -m64 -shared -L/share/apps/update/lib -o Rcpp.so api.o attributes.o barrier.o date.o module.o rcpp_init.o
+installing to /share/apps/R/4.0.0/plugin/00LOCK-Rcpp/00new/Rcpp/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+Error: package or namespace load failed for 'Rcpp' in dyn.load(file, DLLpath = DLLpath, ...):
+unable to load shared object '/share/apps/R/4.0.0/plugin/00LOCK-Rcpp/00new/Rcpp/libs/Rcpp.so':
+/share/apps/R/4.0.0/plugin/00LOCK-Rcpp/00new/Rcpp/libs/Rcpp.so: undefined symbol: _ZTVN10__cxxabiv120__si_class_type_infoE
+Error: loading failed
+Execution halted
+ERROR: loading failed
+  *   removing '/share/apps/R/4.0.0/plugin/Rcpp'
+Also here is my Makevars file
+CXX = /share/apps/gcc/9.2.0/bin/gcc -m64
+CXXCPP = $(CXX) -E
+CXXFLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic $(LTO)
+CXXPICFLAGS = -fpic
+CXX98 = /share/apps/gcc/9.2.0/bin/g++ -m64
+CXX98FLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector-strong --param=ssp-buffer-size=4 -grecord-gcc-switches -m64 -mtune=generic
+CXX98PICFLAGS = -fpic
+CXX98STD =
+CXX11 = /share/apps/gcc/9.2.0/bin/g++ -m64
+CXX11FLAGS = -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions --param=ssp-buffer-size=4 -m64 -mtune=generic -std=gnu++0x
+CXX11PICFLAGS = -fpic
+CXX11STD =
+LD_LIBRARY_PATH=/share/apps/gcc/9.2.0/lib:/share/apps/gcc/9.2.0/lib64:/opt/openmpi/lib:/share/apps/update/lib:/opt/python/lib
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200611/60d0fc6f/attachment.html>
+
+From edd at debian.org  Thu Jun 11 18:06:12 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 11 Jun 2020 11:06:12 -0500
+Subject: [Rcpp-devel] Install failure undefined symbol
+In-Reply-To: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+References: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+Message-ID: <24290.22132.126275.682257@rob.eddelbuettel.com>
+
+
+With the caveat that I am not expert on RHEL/CentOS and tend to share the
+general view of most developers that these seem to be a systems ... made for
+administrators first, rather than developers.
+
+I did for a while work on such a system but it also had a set of 'red hat
+developer tools' (I may have the name wrong) to get a recent compiler into
+/opt.  You need to make sure you also have the full C++ libraries etc along
+with it.
+
+Rcpp has no special needs besides a sane setup. It has been on CRAN for 12+
+years, and built with every then-current g++ or clang++ version so there is
+no constraint coming from our side.  We think it still builds with versions
+as old as g++ 4.9.*, possibly older.  But the setup needs to be right.
+
+Your best source of help may be a RHEL/CentOS/Fedora expert. Some are here,
+you may find more at r-sig-fedora.
+
+If/when a "teachable moment" comes out of this, please report back. We can
+always add something to the Rcpp FAQ.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Thu Jun 11 19:29:14 2020
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 11 Jun 2020 10:29:14 -0700
+Subject: [Rcpp-devel] Install failure undefined symbol
+In-Reply-To: <24290.22132.126275.682257@rob.eddelbuettel.com>
+References: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+ <24290.22132.126275.682257@rob.eddelbuettel.com>
+Message-ID: <CAJXgQP0nXh45O8R=3=RHUo4nyqaVbAx1GkEctyPYSrH=JkcdEA@mail.gmail.com>
+
+The most likely cause here is that, even though Rcpp is being compiled
+with gcc 9.2.0, an older version of libstdc++ is being found and used
+at runtime, and that version of the libstdc++ library doesn't provide
+the requested symbol (_ZTVN10__cxxabiv120__si_class_type_infoE).
+
+Best guess: LD_LIBRARY_PATH should normally be set as an environment
+variable, not a Make variable, so setting this:
+
+LD_LIBRARY_PATH=/share/apps/gcc/9.2.0/lib:/share/apps/gcc/9.2.0/lib64:/opt/openmpi/lib:/share/apps/update/lib:/opt/python/lib
+
+in your Makeconf won't help to ensure that the correct version of
+libstdc++ is loaded at runtime.
+
+(It should also be possible to tell gcc to enforce the usage of an
+alternate C++ standard library, but I can't recall exactly how that's
+done and have thus far failed to re-divine it from a quick skim of the
+gcc documentation.)
+
+Best,
+Kevin
+
+
+
+On Thu, Jun 11, 2020 at 9:06 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> With the caveat that I am not expert on RHEL/CentOS and tend to share the
+> general view of most developers that these seem to be a systems ... made for
+> administrators first, rather than developers.
+>
+> I did for a while work on such a system but it also had a set of 'red hat
+> developer tools' (I may have the name wrong) to get a recent compiler into
+> /opt.  You need to make sure you also have the full C++ libraries etc along
+> with it.
+>
+> Rcpp has no special needs besides a sane setup. It has been on CRAN for 12+
+> years, and built with every then-current g++ or clang++ version so there is
+> no constraint coming from our side.  We think it still builds with versions
+> as old as g++ 4.9.*, possibly older.  But the setup needs to be right.
+>
+> Your best source of help may be a RHEL/CentOS/Fedora expert. Some are here,
+> you may find more at r-sig-fedora.
+>
+> If/when a "teachable moment" comes out of this, please report back. We can
+> always add something to the Rcpp FAQ.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Thu Jun 11 20:01:32 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 11 Jun 2020 13:01:32 -0500
+Subject: [Rcpp-devel] Install failure undefined symbol
+In-Reply-To: <CAJXgQP0nXh45O8R=3=RHUo4nyqaVbAx1GkEctyPYSrH=JkcdEA@mail.gmail.com>
+References: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+ <24290.22132.126275.682257@rob.eddelbuettel.com>
+ <CAJXgQP0nXh45O8R=3=RHUo4nyqaVbAx1GkEctyPYSrH=JkcdEA@mail.gmail.com>
+Message-ID: <24290.29052.457527.367564@rob.eddelbuettel.com>
+
+
+On 11 June 2020 at 10:29, Kevin Ushey wrote:
+| The most likely cause here is that, even though Rcpp is being compiled
+| with gcc 9.2.0, an older version of libstdc++ is being found and used
+| at runtime, and that version of the libstdc++ library doesn't provide
+| the requested symbol (_ZTVN10__cxxabiv120__si_class_type_infoE).
+| 
+| Best guess: LD_LIBRARY_PATH should normally be set as an environment
+| variable, not a Make variable, so setting this:
+| 
+| LD_LIBRARY_PATH=/share/apps/gcc/9.2.0/lib:/share/apps/gcc/9.2.0/lib64:/opt/openmpi/lib:/share/apps/update/lib:/opt/python/lib
+| 
+| in your Makeconf won't help to ensure that the correct version of
+| libstdc++ is loaded at runtime.
+| 
+| (It should also be possible to tell gcc to enforce the usage of an
+| alternate C++ standard library, but I can't recall exactly how that's
+| done and have thus far failed to re-divine it from a quick skim of the
+| gcc documentation.)
+
+Spot on. And while it's been a while, the _particular_ wisdom of that RH
+supplied compiler setup also _required_ sourcing of a shell snippet to set
+all appropriate values: PATH, LD_LIBRARY_PATH, ...
+
+(Astonishing, to say the least, to me that a distribution vendor cannot
+integrate the very toolkit it provides so that it is already turned on when
+you open a shaell.  But as I said, I suspect the target market are sysadmins
+and CTOs not people trying to get work done ...)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From peter.crowther at melandra.com  Thu Jun 11 20:13:51 2020
+From: peter.crowther at melandra.com (Peter Crowther)
+Date: Thu, 11 Jun 2020 19:13:51 +0100
+Subject: [Rcpp-devel] Install failure undefined symbol
+In-Reply-To: <24290.29052.457527.367564@rob.eddelbuettel.com>
+References: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+ <24290.22132.126275.682257@rob.eddelbuettel.com>
+ <CAJXgQP0nXh45O8R=3=RHUo4nyqaVbAx1GkEctyPYSrH=JkcdEA@mail.gmail.com>
+ <24290.29052.457527.367564@rob.eddelbuettel.com>
+Message-ID: <CALhdq6t+JAek7hNpn9TdnHj-DnosOajM1uZJKyCNNdcnWk1Kmg@mail.gmail.com>
+
+On Thu, 11 Jun 2020 at 19:01, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+> Spot on. And while it's been a while, the _particular_ wisdom of that RH
+> supplied compiler setup also _required_ sourcing of a shell snippet to set
+> all appropriate values: PATH, LD_LIBRARY_PATH, ...
+>
+> (Astonishing, to say the least, to me that a distribution vendor cannot
+> integrate the very toolkit it provides so that it is already turned on when
+> you open a shaell.  But as I said, I suspect the target market are
+> sysadmins
+> and CTOs not people trying to get work done ...)
+
+
+It's done so that you can have multiple versions of the tools installed
+side-by-side rather than being blindsided by upgrades breaking your
+toolchain.  This is rather the same justification that the Python community
+uses for its similarly weird way of selecting from side-by-side Python
+installations.
+
+As someone working to produce regulated environments (to ICH-GxP), this
+makes sense to me.  As someone who has to use both day-to-day, it's a royal
+pain in the neck!
+
+Cheers,
+
+- Peter
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200611/3569c9d4/attachment.html>
+
+From nate.fuhriman at ngc.com  Thu Jun 11 22:26:59 2020
+From: nate.fuhriman at ngc.com (Fuhriman, Nathanael [US] (IS) (Contr))
+Date: Thu, 11 Jun 2020 20:26:59 +0000
+Subject: [Rcpp-devel] EXT :Re:  Install failure undefined symbol
+In-Reply-To: <24290.29052.457527.367564@rob.eddelbuettel.com>
+References: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+ <24290.22132.126275.682257@rob.eddelbuettel.com>
+ <CAJXgQP0nXh45O8R=3=RHUo4nyqaVbAx1GkEctyPYSrH=JkcdEA@mail.gmail.com>
+ <24290.29052.457527.367564@rob.eddelbuettel.com>
+Message-ID: <c18922c16e7a4941ac41b50ba8f6f2c0@ngc.com>
+
+I've tried compiling with the stand gcc that comes with centos6.10 and this is what I get. Similar error.
+
+R CMD INSTALL -d /share/apps/R/4.0.0/plugin/miniCRAN/src/contrib/Rcpp_1.0.4.6.tar.gz
+processing '/share/apps/R/4.0.0/plugin/miniCRAN/src/contrib/Rcpp_1.0.4.6.tar.gz'
+a file
+* installing to library '/share/apps/R/4.0.0/plugin'
+* build_help_types=
+* DBG: 'R CMD INSTALL' now doing do_install()
+* created lock directory '/share/apps/R/4.0.0/plugin/00LOCK-Rcpp'
+* installing *source* package 'Rcpp' ...
+** package 'Rcpp' successfully unpacked and MD5 sums checked
+** backing up earlier installation
+** using staged installation
+** libs
+about to run R CMD SHLIB -o Rcpp.so api.cpp attributes.cpp barrier.cpp date.cpp module.cpp rcpp_init.cpp
+gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include   -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions  --param=ssp-buffer-size=4    -m64 -mtune=generic  -c api.cpp -o api.o
+gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include   -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions  --param=ssp-buffer-size=4    -m64 -mtune=generic  -c attributes.cpp -o attributes.o
+gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include   -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions  --param=ssp-buffer-size=4    -m64 -mtune=generic  -c barrier.cpp -o barrier.o
+gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include   -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions  --param=ssp-buffer-size=4    -m64 -mtune=generic  -c date.cpp -o date.o
+gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include   -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions  --param=ssp-buffer-size=4    -m64 -mtune=generic  -c module.cpp -o module.o
+gcc -m64 -I"/share/apps/R/4.0.0/lib64/R/include" -DNDEBUG -I../inst/include/  -I/usr/local/include   -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions  --param=ssp-buffer-size=4    -m64 -mtune=generic  -c rcpp_init.cpp -o rcpp_init.o
+gcc -m64 -shared -L/share/apps/update/lib -o Rcpp.so api.o attributes.o barrier.o date.o module.o rcpp_init.o
+installing to /share/apps/R/4.0.0/plugin/00LOCK-Rcpp/00new/Rcpp/libs
+** R
+** inst
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** installing vignettes
+** testing if installed package can be loaded from temporary location
+Error: package or namespace load failed for 'Rcpp' in dyn.load(file, DLLpath = DLLpath, ...):
+ unable to load shared object '/share/apps/R/4.0.0/plugin/00LOCK-Rcpp/00new/Rcpp/libs/Rcpp.so':
+  /share/apps/R/4.0.0/plugin/00LOCK-Rcpp/00new/Rcpp/libs/Rcpp.so: undefined symbol: _ZTISo
+Error: loading failed
+Execution halted
+ERROR: loading failed
+* removing '/share/apps/R/4.0.0/plugin/Rcpp'
+* restoring previous '/share/apps/R/4.0.0/plugin/Rcpp'
+
+-----Original Message-----
+From: Dirk Eddelbuettel [mailto:edd at debian.org] 
+Sent: Thursday, June 11, 2020 12:02 PM
+To: Kevin Ushey <kevinushey at gmail.com>
+Cc: Dirk Eddelbuettel <edd at debian.org>; Fuhriman, Nathanael [US] (IS) (Contr) <nate.fuhriman at ngc.com>; rcpp-devel at lists.r-forge.r-project.org
+Subject: EXT :Re: [Rcpp-devel] Install failure undefined symbol
+
+
+On 11 June 2020 at 10:29, Kevin Ushey wrote:
+| The most likely cause here is that, even though Rcpp is being compiled 
+| with gcc 9.2.0, an older version of libstdc++ is being found and used 
+| at runtime, and that version of the libstdc++ library doesn't provide 
+| the requested symbol (_ZTVN10__cxxabiv120__si_class_type_infoE).
+| 
+| Best guess: LD_LIBRARY_PATH should normally be set as an environment 
+| variable, not a Make variable, so setting this:
+| 
+| LD_LIBRARY_PATH=/share/apps/gcc/9.2.0/lib:/share/apps/gcc/9.2.0/lib64:
+| /opt/openmpi/lib:/share/apps/update/lib:/opt/python/lib
+| 
+| in your Makeconf won't help to ensure that the correct version of
+| libstdc++ is loaded at runtime.
+| 
+| (It should also be possible to tell gcc to enforce the usage of an 
+| alternate C++ standard library, but I can't recall exactly how that's 
+| done and have thus far failed to re-divine it from a quick skim of the 
+| gcc documentation.)
+
+Spot on. And while it's been a while, the _particular_ wisdom of that RH supplied compiler setup also _required_ sourcing of a shell snippet to set all appropriate values: PATH, LD_LIBRARY_PATH, ...
+
+(Astonishing, to say the least, to me that a distribution vendor cannot integrate the very toolkit it provides so that it is already turned on when you open a shaell.  But as I said, I suspect the target market are sysadmins and CTOs not people trying to get work done ...)
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Jun 11 22:33:14 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 11 Jun 2020 15:33:14 -0500
+Subject: [Rcpp-devel] Install failure undefined symbol
+In-Reply-To: <CALhdq6t+JAek7hNpn9TdnHj-DnosOajM1uZJKyCNNdcnWk1Kmg@mail.gmail.com>
+References: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+ <24290.22132.126275.682257@rob.eddelbuettel.com>
+ <CAJXgQP0nXh45O8R=3=RHUo4nyqaVbAx1GkEctyPYSrH=JkcdEA@mail.gmail.com>
+ <24290.29052.457527.367564@rob.eddelbuettel.com>
+ <CALhdq6t+JAek7hNpn9TdnHj-DnosOajM1uZJKyCNNdcnWk1Kmg@mail.gmail.com>
+Message-ID: <24290.38154.997342.625781@rob.eddelbuettel.com>
+
+
+On 11 June 2020 at 19:13, Peter Crowther wrote:
+| It's done so that you can have multiple versions of the tools installed
+| side-by-side rather than being blindsided by upgrades breaking your
+| toolchain.  This is rather the same justification that the Python community
+| uses for its similarly weird way of selecting from side-by-side Python
+| installations.
+| 
+| As someone working to produce regulated environments (to ICH-GxP), this
+| makes sense to me.  As someone who has to use both day-to-day, it's a royal
+| pain in the neck!
+
+Well:
+
+edd at rob:~$ ls -ltr /usr/bin/g++-* /usr/bin/clang++-*
+lrwxrwxrwx 1 root root 27 May  3  2018 /usr/bin/clang++-4.0 -> ../lib/llvm-4.0/bin/clang++
+lrwxrwxrwx 1 root root 25 Mar 19 03:50 /usr/bin/clang++-8 -> ../lib/llvm-8/bin/clang++
+lrwxrwxrwx 1 root root 27 Mar 23 05:59 /usr/bin/clang++-6.0 -> ../lib/llvm-6.0/bin/clang++
+lrwxrwxrwx 1 root root 25 Mar 23 05:59 /usr/bin/clang++-7 -> ../lib/llvm-7/bin/clang++
+lrwxrwxrwx 1 root root 22 Mar 26 07:55 /usr/bin/g++-7 -> x86_64-linux-gnu-g++-7
+lrwxrwxrwx 1 root root 25 Apr  1 10:23 /usr/bin/clang++-9 -> ../lib/llvm-9/bin/clang++
+lrwxrwxrwx 1 root root 22 Apr  2 08:45 /usr/bin/g++-8 -> x86_64-linux-gnu-g++-8
+lrwxrwxrwx 1 root root 22 Apr  9 05:38 /usr/bin/g++-9 -> x86_64-linux-gnu-g++-9
+lrwxrwxrwx 1 root root 26 Apr 20 00:12 /usr/bin/clang++-10 -> ../lib/llvm-10/bin/clang++
+edd at rob:~$ 
+
+To use it I just switch a version variable in ~/.R/Makevars 
+
+edd at rob:~$ grep VER .R/Makevars 
+#VER=-4.9
+VER=
+CC=$(CCACHE) gcc$(VER)
+CXX=$(CCACHE) g++$(VER)
+CXX11=$(CCACHE) g++$(VER) #-std=c++11
+CXX14=$(CCACHE) g++$(VER) #-std=c++14
+CXX17=$(CCACHE) g++$(VER) #-std=c++17
+SHLIB_CXXLD=$(CCACHE) g++$(VER)
+edd at rob:~$ 
+
+and and otherwise go with the default, currently g++-9.3.  But hey, doesn't
+have "enterprise" in the name or "scientific" or ...  But works.  And is free.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Thu Jun 11 23:33:18 2020
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Thu, 11 Jun 2020 23:33:18 +0200
+Subject: [Rcpp-devel] Install failure undefined symbol
+In-Reply-To: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+References: <06622d03b7df40bba0ec6fc3b100e6af@ngc.com>
+Message-ID: <CALEXWq01bYUhm=N_Vpo-c1bAtT1uwLK0nKDj-Ki52bzxsYsT+Q@mail.gmail.com>
+
+On Thu, 11 Jun 2020 at 17:41, Fuhriman, Nathanael [US] (IS) (Contr)
+<nate.fuhriman at ngc.com> wrote:
+>
+> /share/apps/gcc/9.2.0/bin/gcc -m64 -shared -L/share/apps/update/lib -o Rcpp.so api.o attributes.o barrier.o date.o module.o rcpp_init.o
+
+Note that line. It's probably picking up whatever it's in there
+instead of /share/apps/gcc/9.2.0/lib.
+
+Things would be probably easier using scl's devtoolset-8, with gcc
+8.3.1. And if you need something newer, CentOS 6 is not the right
+environment. It's almost EOL, with so many issues; so please, consider
+an upgrade.
+
+-- 
+Iñaki Úcar
+
+From edd at debian.org  Tue Jun 16 15:47:22 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 16 Jun 2020 08:47:22 -0500
+Subject: [Rcpp-devel] Please help in testing what will be Rcpp 1.0.5
+Message-ID: <24296.52586.363353.750602@rob.eddelbuettel.com>
+
+
+Hi all,
+
+Below is an ascii version of what I blogged yesterday, proper URL links are
+at   http://dirk.eddelbuettel.com/blog/2020/06/15#rcpp_1.0.5_testing
+
+Help in testing, particular on unusual hardware or compiler choices, or
+particularly old releases of OS, compiler, R, ... would be welcome. I am
+quite confident the release will be fine on CRAN and standard systems.
+
+But for use on less standard setups, the time to test is now. If you are a
+user of Rcpp under such circumstance, please help now in testing and
+reporting issues, if any are seen.
+
+Thanks,  Dirk
+
+
+  Mon, 15 Jun 2020
+
+  Rcpp 1.0.5 in two+ weeks: Please help test
+
+   rcpp logo
+
+   With the current four-month release cycle, the next Rcpp release is due in
+   July following the 1.0.4 release in March. Just prior to the 1.0.4 release
+   I had asked this:
+
+     It would be particularly beneficial if those with “unsual” build
+     dependencies tested it as we would increase overall coverage beyond what
+     I get from testing against 1800+ CRAN packages. BioConductor would also
+     be welcome.
+
+   but only on the rcpp-devel list, and only about a good week prior to the
+   release.
+
+   I remain rather disappointed and disillusioned about what happened after
+   1.0.4 was released. Two PRs in that release were soon seen to have side
+   effects on more ‘marginal’ test systems, precisely what added testing
+   could have revealed. An additional issue arose from changes in R’s make
+   system, which is harder to anticipate or test. Each and every infelicity
+   was fixed within a day or so, and we always make candidate releases
+   available—the current Rcpp as of this writing is 1.0.4.12 meaning twelve
+   microreleases were made since 1.0.4. And those microreleases are always
+   available for normal download and install.packages use via the Rcpp drat
+   repository accessible to all. So it was truly troubling to see some,
+   especially those with experience in setting up or running testing / ci
+   platforms, pretend to be unable to access, install, and provide these for
+   their own tests, or the tests of their users. It just doesn’t pass a basic
+   logic test: it takes a single call to install.packages(), or, even more
+   easily, a single assignment of an auxiliary repo. All told this was a
+   rather sad experience.
+
+   So let’s try to not repeat this. If you, or maybe users of a build or ci
+   system you maintain, rely on Rcpp, and especially if you do so on systems
+   outside the standard CRAN grid of three OSs and the triplet of “previous,
+   current, next” releases of R, then please help by testing. I maitain these
+   release as a volunteer, unpaid at that, and I simply cannot expand to more
+   systesm. We take reverse dependency check seriously (and I just run two
+   taking about a day each) but if you insist on building on stranger
+   hardware or much older releases it will be up to you to ensure Rcpp
+   passes. We prep for CRAN, and try our best to pass at CRAN. For nearly a
+   dozen years.
+
+   To install the current microrelease from the Rcpp drat repository, just do
+
+ install.packages("Rcpp", repos="https://rcppcore.github.io/drat")
+
+   That is all there is to it. You could even add the Rcpp drat repository to
+   your repository list.
+
+   Rcpp has become successful because so many people help with suggestions,
+   documentation, and code. It is used by (as of today) 1958 CRAN packages,
+   205 BioConductor packages, and downloaded around a million times per
+   month. So if you can, please help now with some more testing.
+
+   If you like this or other open-source work I do, you can now sponsor me at
+   GitHub. For the first year, GitHub will match your contributions.
+
+   This post by Dirk Eddelbuettel originated on his Thinking inside the box
+   blog. Please report excessive re-aggregation in third-party for-profit
+   settings.
+
+                                                  /code/rcpp | permanent link
+
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tbfowler4 at gmail.com  Tue Jun 16 21:38:36 2020
+From: tbfowler4 at gmail.com (Thell Fowler)
+Date: Tue, 16 Jun 2020 14:38:36 -0500
+Subject: [Rcpp-devel] Please help in testing what will be Rcpp 1.0.5
+In-Reply-To: <24296.52586.363353.750602@rob.eddelbuettel.com>
+References: <24296.52586.363353.750602@rob.eddelbuettel.com>
+Message-ID: <CAAJPTXiVrcm5xZW37VivizqM1N7s6axe4uRdopXrrmjG9WFQkQ@mail.gmail.com>
+
+Windows 10 Pro  2004    19041.329
+WSL Version 2
+Linux DESKTOP-K8EN726 4.19.104-microsoft-standard #1 SMP Wed Feb 19
+06:37:35 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
+
+Distributor ID: Ubuntu
+Description:    Ubuntu 20.04 LTS
+Release:        20.04
+Codename:       focal
+
+Sys.setenv("RunAllRcppTests"="yes")
+Sys.setenv("RunVerboseRcppTests"="yes")
+tinytest::test_package("Rcpp")
+
+-------------------------------------------
+
+using:  gcc (Ubuntu 9.3.0-10ubuntu2) 9.3.0
+*[1] "All ok, 1541 results"*
+
+-------------------------------------------
+
+using: Ubuntu clang version
+10.0.1-++20200529022935+a634a80615b-1~exp1~20200529003545.39
+with Makevars.site containing:
+
+CC = clang
+CXX = clang++
+CFLAGS = -g -O2
+CXXFLAGS = -g -O2
+CXX11 = $CXX
+CXX14 = $CXX
+CXX17 = $CXX
+CXX20 = $CXX
+CXX1X = $CXX
+
+
+Halted with:
+Running test_stack.R..................    0 tests    /bin/bash: XX: command
+not found
+make: *** [/usr/lib/R/etc/Makeconf:176: stack.o] Error 127
+XX -std=gnu++11 -I"/usr/share/R/include" -DNDEBUG -DRCPP_USE_UNWIND_PROTECT
+ -I"/usr/local/lib/R/site-library/Rcpp/include"
+-I"/usr/local/lib/R/site-library/Rcpp/tinytest/cpp"    -fpic  -g -O2
+-fdebug-prefix-map=/build/r-base-Do_dS_/r-base-4.0.0=.
+-fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+-D_FORTIFY_SOURCE=2 -g  -c stack.cpp -o stack.o
+Error in Rcpp::sourceCpp("cpp/stack.cpp") :
+  Error 1 occurred building shared library.
+
+I'm fairly sure the issue is on my setup but not quite sure what it is from
+a quick glance.
+
+-------------------------------------------
+> R.version
+platform       x86_64-pc-linux-gnu
+arch           x86_64
+os             linux-gnu
+system         x86_64, linux-gnu
+status
+major          4
+minor          0.0
+year           2020
+month          04
+day            24
+svn rev        78286
+language       R
+version.string R version 4.0.0 (2020-04-24)
+nickname       Arbor Day
+
+
+On Tue, Jun 16, 2020 at 8:47 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi all,
+>
+> Below is an ascii version of what I blogged yesterday, proper URL links are
+> at   http://dirk.eddelbuettel.com/blog/2020/06/15#rcpp_1.0.5_testing
+>
+> Help in testing, particular on unusual hardware or compiler choices, or
+> particularly old releases of OS, compiler, R, ... would be welcome. I am
+> quite confident the release will be fine on CRAN and standard systems.
+>
+> But for use on less standard setups, the time to test is now. If you are a
+> user of Rcpp under such circumstance, please help now in testing and
+> reporting issues, if any are seen.
+>
+> Thanks,  Dirk
+>
+>
+>   Mon, 15 Jun 2020
+>
+>   Rcpp 1.0.5 in two+ weeks: Please help test
+>
+>    rcpp logo
+>
+>    With the current four-month release cycle, the next Rcpp release is due
+> in
+>    July following the 1.0.4 release in March. Just prior to the 1.0.4
+> release
+>    I had asked this:
+>
+>      It would be particularly beneficial if those with “unsual” build
+>      dependencies tested it as we would increase overall coverage beyond
+> what
+>      I get from testing against 1800+ CRAN packages. BioConductor would
+> also
+>      be welcome.
+>
+>    but only on the rcpp-devel list, and only about a good week prior to the
+>    release.
+>
+>    I remain rather disappointed and disillusioned about what happened after
+>    1.0.4 was released. Two PRs in that release were soon seen to have side
+>    effects on more ‘marginal’ test systems, precisely what added testing
+>    could have revealed. An additional issue arose from changes in R’s make
+>    system, which is harder to anticipate or test. Each and every infelicity
+>    was fixed within a day or so, and we always make candidate releases
+>    available—the current Rcpp as of this writing is 1.0.4.12 meaning twelve
+>    microreleases were made since 1.0.4. And those microreleases are always
+>    available for normal download and install.packages use via the Rcpp drat
+>    repository accessible to all. So it was truly troubling to see some,
+>    especially those with experience in setting up or running testing / ci
+>    platforms, pretend to be unable to access, install, and provide these
+> for
+>    their own tests, or the tests of their users. It just doesn’t pass a
+> basic
+>    logic test: it takes a single call to install.packages(), or, even more
+>    easily, a single assignment of an auxiliary repo. All told this was a
+>    rather sad experience.
+>
+>    So let’s try to not repeat this. If you, or maybe users of a build or ci
+>    system you maintain, rely on Rcpp, and especially if you do so on
+> systems
+>    outside the standard CRAN grid of three OSs and the triplet of
+> “previous,
+>    current, next” releases of R, then please help by testing. I maitain
+> these
+>    release as a volunteer, unpaid at that, and I simply cannot expand to
+> more
+>    systesm. We take reverse dependency check seriously (and I just run two
+>    taking about a day each) but if you insist on building on stranger
+>    hardware or much older releases it will be up to you to ensure Rcpp
+>    passes. We prep for CRAN, and try our best to pass at CRAN. For nearly a
+>    dozen years.
+>
+>    To install the current microrelease from the Rcpp drat repository, just
+> do
+>
+>  install.packages("Rcpp", repos="https://rcppcore.github.io/drat")
+>
+>    That is all there is to it. You could even add the Rcpp drat repository
+> to
+>    your repository list.
+>
+>    Rcpp has become successful because so many people help with suggestions,
+>    documentation, and code. It is used by (as of today) 1958 CRAN packages,
+>    205 BioConductor packages, and downloaded around a million times per
+>    month. So if you can, please help now with some more testing.
+>
+>    If you like this or other open-source work I do, you can now sponsor me
+> at
+>    GitHub. For the first year, GitHub will match your contributions.
+>
+>    This post by Dirk Eddelbuettel originated on his Thinking inside the box
+>    blog. Please report excessive re-aggregation in third-party for-profit
+>    settings.
+>
+>                                                   /code/rcpp | permanent
+> link
+>
+>
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Sincerely,
+Thell
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200616/6cd338cd/attachment.html>
+
+From wdunlap at tibco.com  Tue Jun 16 21:55:46 2020
+From: wdunlap at tibco.com (William Dunlap)
+Date: Tue, 16 Jun 2020 12:55:46 -0700
+Subject: [Rcpp-devel] Please help in testing what will be Rcpp 1.0.5
+In-Reply-To: <CAAJPTXiVrcm5xZW37VivizqM1N7s6axe4uRdopXrrmjG9WFQkQ@mail.gmail.com>
+References: <24296.52586.363353.750602@rob.eddelbuettel.com>
+ <CAAJPTXiVrcm5xZW37VivizqM1N7s6axe4uRdopXrrmjG9WFQkQ@mail.gmail.com>
+Message-ID: <CAF8bMcbrz79s8WkrE2kyhTGsOAMeY5ZYOxPj_XMF_O0fGC9rfw@mail.gmail.com>
+
+Your Makevar.site is incorrect.  Replace
+  CXX11 = $CXX
+with
+  CXX11 = $(CXX)
+
+$CXX only expands the macro 'C', not 'CXX'.  Since C is not defined $CXX
+expands to XX.
+
+Bill Dunlap
+TIBCO Software
+wdunlap tibco.com
+
+
+On Tue, Jun 16, 2020 at 12:39 PM Thell Fowler <tbfowler4 at gmail.com> wrote:
+
+> Windows 10 Pro  2004    19041.329
+> WSL Version 2
+> Linux DESKTOP-K8EN726 4.19.104-microsoft-standard #1 SMP Wed Feb 19
+> 06:37:35 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
+>
+> Distributor ID: Ubuntu
+> Description:    Ubuntu 20.04 LTS
+> Release:        20.04
+> Codename:       focal
+>
+> Sys.setenv("RunAllRcppTests"="yes")
+> Sys.setenv("RunVerboseRcppTests"="yes")
+> tinytest::test_package("Rcpp")
+>
+> -------------------------------------------
+>
+> using:  gcc (Ubuntu 9.3.0-10ubuntu2) 9.3.0
+> *[1] "All ok, 1541 results"*
+>
+> -------------------------------------------
+>
+> using: Ubuntu clang version
+> 10.0.1-++20200529022935+a634a80615b-1~exp1~20200529003545.39
+> with Makevars.site containing:
+>
+> CC = clang
+> CXX = clang++
+> CFLAGS = -g -O2
+> CXXFLAGS = -g -O2
+> CXX11 = $CXX
+> CXX14 = $CXX
+> CXX17 = $CXX
+> CXX20 = $CXX
+> CXX1X = $CXX
+>
+>
+> Halted with:
+> Running test_stack.R..................    0 tests    /bin/bash: XX:
+> command not found
+> make: *** [/usr/lib/R/etc/Makeconf:176: stack.o] Error 127
+> XX -std=gnu++11 -I"/usr/share/R/include" -DNDEBUG
+> -DRCPP_USE_UNWIND_PROTECT  -I"/usr/local/lib/R/site-library/Rcpp/include"
+> -I"/usr/local/lib/R/site-library/Rcpp/tinytest/cpp"    -fpic  -g -O2
+> -fdebug-prefix-map=/build/r-base-Do_dS_/r-base-4.0.0=.
+> -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+> -D_FORTIFY_SOURCE=2 -g  -c stack.cpp -o stack.o
+> Error in Rcpp::sourceCpp("cpp/stack.cpp") :
+>   Error 1 occurred building shared library.
+>
+> I'm fairly sure the issue is on my setup but not quite sure what it is
+> from a quick glance.
+>
+> -------------------------------------------
+> > R.version
+> platform       x86_64-pc-linux-gnu
+> arch           x86_64
+> os             linux-gnu
+> system         x86_64, linux-gnu
+> status
+> major          4
+> minor          0.0
+> year           2020
+> month          04
+> day            24
+> svn rev        78286
+> language       R
+> version.string R version 4.0.0 (2020-04-24)
+> nickname       Arbor Day
+>
+>
+> On Tue, Jun 16, 2020 at 8:47 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> Hi all,
+>>
+>> Below is an ascii version of what I blogged yesterday, proper URL links
+>> are
+>> at   http://dirk.eddelbuettel.com/blog/2020/06/15#rcpp_1.0.5_testing
+>>
+>> Help in testing, particular on unusual hardware or compiler choices, or
+>> particularly old releases of OS, compiler, R, ... would be welcome. I am
+>> quite confident the release will be fine on CRAN and standard systems.
+>>
+>> But for use on less standard setups, the time to test is now. If you are a
+>> user of Rcpp under such circumstance, please help now in testing and
+>> reporting issues, if any are seen.
+>>
+>> Thanks,  Dirk
+>>
+>>
+>>   Mon, 15 Jun 2020
+>>
+>>   Rcpp 1.0.5 in two+ weeks: Please help test
+>>
+>>    rcpp logo
+>>
+>>    With the current four-month release cycle, the next Rcpp release is
+>> due in
+>>    July following the 1.0.4 release in March. Just prior to the 1.0.4
+>> release
+>>    I had asked this:
+>>
+>>      It would be particularly beneficial if those with “unsual” build
+>>      dependencies tested it as we would increase overall coverage beyond
+>> what
+>>      I get from testing against 1800+ CRAN packages. BioConductor would
+>> also
+>>      be welcome.
+>>
+>>    but only on the rcpp-devel list, and only about a good week prior to
+>> the
+>>    release.
+>>
+>>    I remain rather disappointed and disillusioned about what happened
+>> after
+>>    1.0.4 was released. Two PRs in that release were soon seen to have side
+>>    effects on more ‘marginal’ test systems, precisely what added testing
+>>    could have revealed. An additional issue arose from changes in R’s make
+>>    system, which is harder to anticipate or test. Each and every
+>> infelicity
+>>    was fixed within a day or so, and we always make candidate releases
+>>    available—the current Rcpp as of this writing is 1.0.4.12 meaning
+>> twelve
+>>    microreleases were made since 1.0.4. And those microreleases are always
+>>    available for normal download and install.packages use via the Rcpp
+>> drat
+>>    repository accessible to all. So it was truly troubling to see some,
+>>    especially those with experience in setting up or running testing / ci
+>>    platforms, pretend to be unable to access, install, and provide these
+>> for
+>>    their own tests, or the tests of their users. It just doesn’t pass a
+>> basic
+>>    logic test: it takes a single call to install.packages(), or, even more
+>>    easily, a single assignment of an auxiliary repo. All told this was a
+>>    rather sad experience.
+>>
+>>    So let’s try to not repeat this. If you, or maybe users of a build or
+>> ci
+>>    system you maintain, rely on Rcpp, and especially if you do so on
+>> systems
+>>    outside the standard CRAN grid of three OSs and the triplet of
+>> “previous,
+>>    current, next” releases of R, then please help by testing. I maitain
+>> these
+>>    release as a volunteer, unpaid at that, and I simply cannot expand to
+>> more
+>>    systesm. We take reverse dependency check seriously (and I just run two
+>>    taking about a day each) but if you insist on building on stranger
+>>    hardware or much older releases it will be up to you to ensure Rcpp
+>>    passes. We prep for CRAN, and try our best to pass at CRAN. For nearly
+>> a
+>>    dozen years.
+>>
+>>    To install the current microrelease from the Rcpp drat repository,
+>> just do
+>>
+>>  install.packages("Rcpp", repos="https://rcppcore.github.io/drat")
+>>
+>>    That is all there is to it. You could even add the Rcpp drat
+>> repository to
+>>    your repository list.
+>>
+>>    Rcpp has become successful because so many people help with
+>> suggestions,
+>>    documentation, and code. It is used by (as of today) 1958 CRAN
+>> packages,
+>>    205 BioConductor packages, and downloaded around a million times per
+>>    month. So if you can, please help now with some more testing.
+>>
+>>    If you like this or other open-source work I do, you can now sponsor
+>> me at
+>>    GitHub. For the first year, GitHub will match your contributions.
+>>
+>>    This post by Dirk Eddelbuettel originated on his Thinking inside the
+>> box
+>>    blog. Please report excessive re-aggregation in third-party for-profit
+>>    settings.
+>>
+>>                                                   /code/rcpp | permanent
+>> link
+>>
+>>
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+> --
+> Sincerely,
+> Thell
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200616/57f6284f/attachment-0001.html>
+
+From tbfowler4 at gmail.com  Tue Jun 16 22:21:50 2020
+From: tbfowler4 at gmail.com (Thell Fowler)
+Date: Tue, 16 Jun 2020 15:21:50 -0500
+Subject: [Rcpp-devel] Please help in testing what will be Rcpp 1.0.5
+In-Reply-To: <CAF8bMcbrz79s8WkrE2kyhTGsOAMeY5ZYOxPj_XMF_O0fGC9rfw@mail.gmail.com>
+References: <24296.52586.363353.750602@rob.eddelbuettel.com>
+ <CAAJPTXiVrcm5xZW37VivizqM1N7s6axe4uRdopXrrmjG9WFQkQ@mail.gmail.com>
+ <CAF8bMcbrz79s8WkrE2kyhTGsOAMeY5ZYOxPj_XMF_O0fGC9rfw@mail.gmail.com>
+Message-ID: <CAAJPTXh2vG8CD926vFA9sAq7fzPHi8tXWrzTjNqXr2RE5+hPPQ@mail.gmail.com>
+
+Thanks! While changing the definitions to $(CXX) did not work and resulted
+in:
+
+Running test_stack.R..................    0 tests
+ /usr/lib/R/etc/Makevars.site:5: *** Recursive variable 'CXX' references
+itself (eventually).  Stop.
+
+It did make me just say "be verbose", so I explicitly set each CXXNN
+variable to clang++ as well as stating each one's explicit CXXNNSTD to be
+the appropriate -std=c++NN and the result is:
+
+[1] "All ok, 1541 results"
+
+Woohoo! All tests using clang and gcc on WSL :thumbsup:
+
+
+On Tue, Jun 16, 2020 at 2:55 PM William Dunlap <wdunlap at tibco.com> wrote:
+
+> Your Makevar.site is incorrect.  Replace
+>   CXX11 = $CXX
+> with
+>   CXX11 = $(CXX)
+>
+> $CXX only expands the macro 'C', not 'CXX'.  Since C is not defined $CXX
+> expands to XX.
+>
+> Bill Dunlap
+> TIBCO Software
+> wdunlap tibco.com
+>
+>
+> On Tue, Jun 16, 2020 at 12:39 PM Thell Fowler <tbfowler4 at gmail.com> wrote:
+>
+>> Windows 10 Pro  2004    19041.329
+>> WSL Version 2
+>> Linux DESKTOP-K8EN726 4.19.104-microsoft-standard #1 SMP Wed Feb 19
+>> 06:37:35 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux
+>>
+>> Distributor ID: Ubuntu
+>> Description:    Ubuntu 20.04 LTS
+>> Release:        20.04
+>> Codename:       focal
+>>
+>> Sys.setenv("RunAllRcppTests"="yes")
+>> Sys.setenv("RunVerboseRcppTests"="yes")
+>> tinytest::test_package("Rcpp")
+>>
+>> -------------------------------------------
+>>
+>> using:  gcc (Ubuntu 9.3.0-10ubuntu2) 9.3.0
+>> *[1] "All ok, 1541 results"*
+>>
+>> -------------------------------------------
+>>
+>> using: Ubuntu clang version
+>> 10.0.1-++20200529022935+a634a80615b-1~exp1~20200529003545.39
+>> with Makevars.site containing:
+>>
+>> CC = clang
+>> CXX = clang++
+>> CFLAGS = -g -O2
+>> CXXFLAGS = -g -O2
+>> CXX11 = $CXX
+>> CXX14 = $CXX
+>> CXX17 = $CXX
+>> CXX20 = $CXX
+>> CXX1X = $CXX
+>>
+>>
+>> Halted with:
+>> Running test_stack.R..................    0 tests    /bin/bash: XX:
+>> command not found
+>> make: *** [/usr/lib/R/etc/Makeconf:176: stack.o] Error 127
+>> XX -std=gnu++11 -I"/usr/share/R/include" -DNDEBUG
+>> -DRCPP_USE_UNWIND_PROTECT  -I"/usr/local/lib/R/site-library/Rcpp/include"
+>> -I"/usr/local/lib/R/site-library/Rcpp/tinytest/cpp"    -fpic  -g -O2
+>> -fdebug-prefix-map=/build/r-base-Do_dS_/r-base-4.0.0=.
+>> -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+>> -D_FORTIFY_SOURCE=2 -g  -c stack.cpp -o stack.o
+>> Error in Rcpp::sourceCpp("cpp/stack.cpp") :
+>>   Error 1 occurred building shared library.
+>>
+>> I'm fairly sure the issue is on my setup but not quite sure what it is
+>> from a quick glance.
+>>
+>> -------------------------------------------
+>> > R.version
+>> platform       x86_64-pc-linux-gnu
+>> arch           x86_64
+>> os             linux-gnu
+>> system         x86_64, linux-gnu
+>> status
+>> major          4
+>> minor          0.0
+>> year           2020
+>> month          04
+>> day            24
+>> svn rev        78286
+>> language       R
+>> version.string R version 4.0.0 (2020-04-24)
+>> nickname       Arbor Day
+>>
+>>
+>> On Tue, Jun 16, 2020 at 8:47 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>>>
+>>> Hi all,
+>>>
+>>> Below is an ascii version of what I blogged yesterday, proper URL links
+>>> are
+>>> at   http://dirk.eddelbuettel.com/blog/2020/06/15#rcpp_1.0.5_testing
+>>>
+>>> Help in testing, particular on unusual hardware or compiler choices, or
+>>> particularly old releases of OS, compiler, R, ... would be welcome. I am
+>>> quite confident the release will be fine on CRAN and standard systems.
+>>>
+>>> But for use on less standard setups, the time to test is now. If you are
+>>> a
+>>> user of Rcpp under such circumstance, please help now in testing and
+>>> reporting issues, if any are seen.
+>>>
+>>> Thanks,  Dirk
+>>>
+>>>
+>>>   Mon, 15 Jun 2020
+>>>
+>>>   Rcpp 1.0.5 in two+ weeks: Please help test
+>>>
+>>>    rcpp logo
+>>>
+>>>    With the current four-month release cycle, the next Rcpp release is
+>>> due in
+>>>    July following the 1.0.4 release in March. Just prior to the 1.0.4
+>>> release
+>>>    I had asked this:
+>>>
+>>>      It would be particularly beneficial if those with “unsual” build
+>>>      dependencies tested it as we would increase overall coverage beyond
+>>> what
+>>>      I get from testing against 1800+ CRAN packages. BioConductor would
+>>> also
+>>>      be welcome.
+>>>
+>>>    but only on the rcpp-devel list, and only about a good week prior to
+>>> the
+>>>    release.
+>>>
+>>>    I remain rather disappointed and disillusioned about what happened
+>>> after
+>>>    1.0.4 was released. Two PRs in that release were soon seen to have
+>>> side
+>>>    effects on more ‘marginal’ test systems, precisely what added testing
+>>>    could have revealed. An additional issue arose from changes in R’s
+>>> make
+>>>    system, which is harder to anticipate or test. Each and every
+>>> infelicity
+>>>    was fixed within a day or so, and we always make candidate releases
+>>>    available—the current Rcpp as of this writing is 1.0.4.12 meaning
+>>> twelve
+>>>    microreleases were made since 1.0.4. And those microreleases are
+>>> always
+>>>    available for normal download and install.packages use via the Rcpp
+>>> drat
+>>>    repository accessible to all. So it was truly troubling to see some,
+>>>    especially those with experience in setting up or running testing / ci
+>>>    platforms, pretend to be unable to access, install, and provide these
+>>> for
+>>>    their own tests, or the tests of their users. It just doesn’t pass a
+>>> basic
+>>>    logic test: it takes a single call to install.packages(), or, even
+>>> more
+>>>    easily, a single assignment of an auxiliary repo. All told this was a
+>>>    rather sad experience.
+>>>
+>>>    So let’s try to not repeat this. If you, or maybe users of a build or
+>>> ci
+>>>    system you maintain, rely on Rcpp, and especially if you do so on
+>>> systems
+>>>    outside the standard CRAN grid of three OSs and the triplet of
+>>> “previous,
+>>>    current, next” releases of R, then please help by testing. I maitain
+>>> these
+>>>    release as a volunteer, unpaid at that, and I simply cannot expand to
+>>> more
+>>>    systesm. We take reverse dependency check seriously (and I just run
+>>> two
+>>>    taking about a day each) but if you insist on building on stranger
+>>>    hardware or much older releases it will be up to you to ensure Rcpp
+>>>    passes. We prep for CRAN, and try our best to pass at CRAN. For
+>>> nearly a
+>>>    dozen years.
+>>>
+>>>    To install the current microrelease from the Rcpp drat repository,
+>>> just do
+>>>
+>>>  install.packages("Rcpp", repos="https://rcppcore.github.io/drat")
+>>>
+>>>    That is all there is to it. You could even add the Rcpp drat
+>>> repository to
+>>>    your repository list.
+>>>
+>>>    Rcpp has become successful because so many people help with
+>>> suggestions,
+>>>    documentation, and code. It is used by (as of today) 1958 CRAN
+>>> packages,
+>>>    205 BioConductor packages, and downloaded around a million times per
+>>>    month. So if you can, please help now with some more testing.
+>>>
+>>>    If you like this or other open-source work I do, you can now sponsor
+>>> me at
+>>>    GitHub. For the first year, GitHub will match your contributions.
+>>>
+>>>    This post by Dirk Eddelbuettel originated on his Thinking inside the
+>>> box
+>>>    blog. Please report excessive re-aggregation in third-party for-profit
+>>>    settings.
+>>>
+>>>                                                   /code/rcpp | permanent
+>>> link
+>>>
+>>>
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+>>
+>> --
+>> Sincerely,
+>> Thell
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+
+-- 
+Sincerely,
+Thell
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200616/c48713f1/attachment.html>
+
+From avraham.adler at gmail.com  Tue Jun 16 23:20:06 2020
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Tue, 16 Jun 2020 21:20:06 +0000
+Subject: [Rcpp-devel] Please help in testing what will be Rcpp 1.0.5
+In-Reply-To: <24296.52586.363353.750602@rob.eddelbuettel.com>
+References: <24296.52586.363353.750602@rob.eddelbuettel.com>
+Message-ID: <CAL6gwnJWNKGbCRqyV-0CidZY22rLArCd=CxOuuHG-FnO==3d7Q@mail.gmail.com>
+
+R Under development (unstable) (2020-06-07 r78653)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+Running under: Windows 10 x64 (build 18362)
+
+It's R 4.0.1 using Jeroen rtools40 scripts on Win 10 64bit.
+
+1513 OK, not sure why sessionInfo() went nuts though per below. Restarting
+R worked to provide the session info above.
+
+
+[1] "All ok, 1513 results"
+Warning message:
+In dir.create("templib") : 'templib' already exists
+> sessionInfo()
+Error: $ operator is invalid for atomic vectors
+In addition: Warning messages:
+1: In FUN(X[[i]], ...) :
+  DESCRIPTION file of package 'foo' is missing or broken
+2: In FUN(X[[i]], ...) :
+  DESCRIPTION file of package 'fooModule' is missing or broken
+
+On Tue, Jun 16, 2020 at 1:47 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi all,
+>
+> Below is an ascii version of what I blogged yesterday, proper URL links are
+> at   http://dirk.eddelbuettel.com/blog/2020/06/15#rcpp_1.0.5_testing
+>
+> Help in testing, particular on unusual hardware or compiler choices, or
+> particularly old releases of OS, compiler, R, ... would be welcome. I am
+> quite confident the release will be fine on CRAN and standard systems.
+>
+> But for use on less standard setups, the time to test is now. If you are a
+> user of Rcpp under such circumstance, please help now in testing and
+> reporting issues, if any are seen.
+>
+> Thanks,  Dirk
+>
+>
+>   Mon, 15 Jun 2020
+>
+>   Rcpp 1.0.5 in two+ weeks: Please help test
+>
+>    rcpp logo
+>
+>    With the current four-month release cycle, the next Rcpp release is due
+> in
+>    July following the 1.0.4 release in March. Just prior to the 1.0.4
+> release
+>    I had asked this:
+>
+>      It would be particularly beneficial if those with “unsual” build
+>      dependencies tested it as we would increase overall coverage beyond
+> what
+>      I get from testing against 1800+ CRAN packages. BioConductor would
+> also
+>      be welcome.
+>
+>    but only on the rcpp-devel list, and only about a good week prior to the
+>    release.
+>
+>    I remain rather disappointed and disillusioned about what happened after
+>    1.0.4 was released. Two PRs in that release were soon seen to have side
+>    effects on more ‘marginal’ test systems, precisely what added testing
+>    could have revealed. An additional issue arose from changes in R’s make
+>    system, which is harder to anticipate or test. Each and every infelicity
+>    was fixed within a day or so, and we always make candidate releases
+>    available—the current Rcpp as of this writing is 1.0.4.12 meaning twelve
+>    microreleases were made since 1.0.4. And those microreleases are always
+>    available for normal download and install.packages use via the Rcpp drat
+>    repository accessible to all. So it was truly troubling to see some,
+>    especially those with experience in setting up or running testing / ci
+>    platforms, pretend to be unable to access, install, and provide these
+> for
+>    their own tests, or the tests of their users. It just doesn’t pass a
+> basic
+>    logic test: it takes a single call to install.packages(), or, even more
+>    easily, a single assignment of an auxiliary repo. All told this was a
+>    rather sad experience.
+>
+>    So let’s try to not repeat this. If you, or maybe users of a build or ci
+>    system you maintain, rely on Rcpp, and especially if you do so on
+> systems
+>    outside the standard CRAN grid of three OSs and the triplet of
+> “previous,
+>    current, next” releases of R, then please help by testing. I maitain
+> these
+>    release as a volunteer, unpaid at that, and I simply cannot expand to
+> more
+>    systesm. We take reverse dependency check seriously (and I just run two
+>    taking about a day each) but if you insist on building on stranger
+>    hardware or much older releases it will be up to you to ensure Rcpp
+>    passes. We prep for CRAN, and try our best to pass at CRAN. For nearly a
+>    dozen years.
+>
+>    To install the current microrelease from the Rcpp drat repository, just
+> do
+>
+>  install.packages("Rcpp", repos="https://rcppcore.github.io/drat")
+>
+>    That is all there is to it. You could even add the Rcpp drat repository
+> to
+>    your repository list.
+>
+>    Rcpp has become successful because so many people help with suggestions,
+>    documentation, and code. It is used by (as of today) 1958 CRAN packages,
+>    205 BioConductor packages, and downloaded around a million times per
+>    month. So if you can, please help now with some more testing.
+>
+>    If you like this or other open-source work I do, you can now sponsor me
+> at
+>    GitHub. For the first year, GitHub will match your contributions.
+>
+>    This post by Dirk Eddelbuettel originated on his Thinking inside the box
+>    blog. Please report excessive re-aggregation in third-party for-profit
+>    settings.
+>
+>                                                   /code/rcpp | permanent
+> link
+>
+>
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200616/e734310b/attachment-0001.html>
+
+From akhilakollasrinu424jf at gmail.com  Sat Jun 27 00:55:46 2020
+From: akhilakollasrinu424jf at gmail.com (Akhila Chowdary Kolla)
+Date: Fri, 26 Jun 2020 15:55:46 -0700
+Subject: [Rcpp-devel] Issues creating static library using Makevars
+Message-ID: <CAM0Afv2OkR_ZF9kPr1_fO5O-9hyv7SOTkve9t5wqvkohdcXc5w@mail.gmail.com>
+
+Hello Everyone,
+
+I am trying to generate a C static library(libdeepstate.a) in an
+Rcpp(inst/include/lib) package using Makevars similar to RInside(generating
+RInside.so and RInside.a)
+My static library libdeepstate.a  has four compiled c programs
+[image: image.png]
+
+I saved those files DeepState.c, Log.c,Option.c,Stream.c in inst/include
+folder and using src/Makevars to compile those *.c files and link the
+respective object files with the static library as follows:
+src/Makevars:
+USERLIBST=libdeepstate.a
+USERDIR=../inst/lib
+PKG_CPPFLAGS =-I. -I../inst/include/
+PKG_LIBS =
+all: $(SHLIB) userLibrary
+SOURCES= ../inst/include/DeepState.c ../inst/include/Log.c
+../inst/include/Option.c ../inst/include/Stream.c
+OBJECTS= $(SOURCES:.c=.o)
+userLibrary: $(USERLIBST)
+- at if test ! -e $(USERDIR)$(R_ARCH); then mkdir -p $(USERDIR)$(R_ARCH); fi
+cp $(USERLIBST) $(USERDIR)$(R_ARCH)
+rm $(USERLIBST)
+
+*$(USERLIBST): $(OBJECTS)$(AR) qc $(USERLIBST) $^*
+@if test -n "$(RANLIB)"; then $(RANLIB) $(USERLIBST); fi
+
+When I install the package I get something like this :
+
+
+
+
+
+
+
+*gcc -I"/home/akhila/lib/R/include" -DNDEBUG -I. -I../inst/include/
+-I/usr/local/include  -fpic  -g -O2  -c ../inst/include/DeepState.c -o
+../inst/include/DeepState.ogcc -I"/home/akhila/lib/R/include" -DNDEBUG -I.
+-I../inst/include/   -I/usr/local/include  -fpic  -g -O2  -c
+../inst/include/Log.c -o ../inst/include/Log.ogcc
+-I"/home/akhila/lib/R/include" -DNDEBUG -I. -I../inst/include/
+-I/usr/local/include  -fpic  -g -O2  -c ../inst/include/Option.c -o
+../inst/include/Option.ogcc -I"/home/akhila/lib/R/include" -DNDEBUG -I.
+-I../inst/include/   -I/usr/local/include  -fpic  -g -O2  -c
+../inst/include/Stream.c -o ../inst/include/Stream.ogcc -shared
+-L/home/akhila/lib/R/lib -L/usr/local/lib -o testproject.so
+../inst/include/DeepState.o ../inst/include/Log.o ../inst/include/Option.o
+../inst/include/Stream.o -L/home/akhila/lib/R/lib -lRar qc libdeepstate.a
+../inst/include/DeepState.o ../inst/include/Log.o ../inst/include/Option.o
+../inst/include/Stream.ocp libdeepstate.a ../inst/lib*
+*rm libdeepstate.a*
+
+The code can be found in GitHub:https://github.com/akhikolla/RcppDeepState/
+This Travis build has the complete details of the warnings:
+https://travis-ci.org/github/akhikolla/RcppDeepState/builds/702470420
+But when I check the package I get the following warnings: using
+devtools::check()
+*W  checking pragmas in C/C++ headers and code ... WARNING*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*   File which contains non-portable pragma(s)     ‘inst/include/Log.c’
+ File which contains pragma(s) suppressing diagnostics:
+ ‘inst/include/Log.c’✓  checking compilation flags used ...W  checking
+compiled code ...   File ‘testproject/libs/testproject.so’:     Found
+‘__assert_fail’, possibly from ‘assert’ (C)       Object:
+‘../inst/include/DeepState.o’     Found ‘__printf_chk’, possibly from
+‘printf’ (C)       Objects: ‘../inst/include/DeepState.o’,
+‘../inst/include/Log.o’     Found ‘abort’, possibly from ‘abort’ (C)
+ Object: ‘../inst/include/DeepState.o’     Found ‘exit’, possibly from
+‘exit’ (C)       Objects: ‘../inst/include/DeepState.o’,
+‘../inst/include/Option.o’     Found ‘printf’, possibly from ‘printf’ (C)
+     Object: ‘../inst/include/Log.o’     Found ‘puts’, possibly from
+‘printf’ (C), ‘puts’ (C)       Objects: ‘../inst/include/DeepState.o’,
+‘../inst/include/Log.o’     Found ‘rand’, possibly from ‘rand’ (C)
+ Object: ‘../inst/include/DeepState.o’     Found ‘srand’, possibly from
+‘srand’ (C)       Object: ‘../inst/include/DeepState.o’     Found ‘stderr’,
+possibly from ‘stderr’ (C)       Object: ‘../inst/include/Log.o’     Found
+‘stdout’, possibly from ‘stdout’ (C)       Object: ‘../inst/include/Log.o’
+   Found ‘vprintf’, possibly from ‘vprintf’ (C)       Object:
+‘../inst/include/Log.o’   File ‘testproject/libs/testproject.so’:     Found
+no calls to: ‘R_registerRoutines’, ‘R_useDynamicSymbols’    Compiled code
+should not call entry points which might terminate R nor write to
+stdout/stderr instead of to the console, nor use Fortran I/O nor system
+RNGs. It is good practice to register native routines and to disable
+symbol search.*
+
+  *Found no calls to: ‘R_registerRoutines’, ‘R_useDynamicSymbols’  - why is
+this necessary as I am trying to compile some external C
+files(inst/include/DeepState.c) which are not in src folder*
+   *Compiled code should not call entry points which might terminate R
+nor write to stdout/stderr instead of to the console, nor use Fortran
+I/O nor system RNGs. - what does this mean?*
+how can I solve this issue and get rid of the warning in the R CMD check?
+Can someone please suggest a way to resolve this?
+
+
+Regards,
+Akhila Chowdary Kolla
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200626/85505235/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: image.png
+Type: image/png
+Size: 19482 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200626/85505235/attachment-0001.png>
+
+From edd at debian.org  Sat Jun 27 05:07:34 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 26 Jun 2020 22:07:34 -0500
+Subject: [Rcpp-devel] Issues creating static library using Makevars
+In-Reply-To: <CAM0Afv2OkR_ZF9kPr1_fO5O-9hyv7SOTkve9t5wqvkohdcXc5w@mail.gmail.com>
+References: <CAM0Afv2OkR_ZF9kPr1_fO5O-9hyv7SOTkve9t5wqvkohdcXc5w@mail.gmail.com>
+Message-ID: <24310.47094.943987.277584@rob.eddelbuettel.com>
+
+
+On 26 June 2020 at 15:55, Akhila Chowdary Kolla wrote:
+| But when I check the package I get the following warnings: using
+| devtools::check()
+| ‘../inst/include/Log.o’   File ‘testproject/libs/testproject.so’:     Found
+| no calls to: ‘R_registerRoutines’, ‘R_useDynamicSymbols’    Compiled code
+| should not call entry points which might terminate R nor write to
+| stdout/stderr instead of to the console, nor use Fortran I/O nor system
+| RNGs. It is good practice to register native routines and to disable
+| symbol search.*
+
+See "Writing R Extensions"
+ 
+|   *Found no calls to: ‘R_registerRoutines’, ‘R_useDynamicSymbols’  - why is
+
+See "Writing R Extensions"
+
+| this necessary as I am trying to compile some external C
+| files(inst/include/DeepState.c) which are not in src folder*
+|    *Compiled code should not call entry points which might terminate R
+| nor write to stdout/stderr instead of to the console, nor use Fortran
+| I/O nor system RNGs. - what does this mean?*
+
+See "Writing R Extensions"
+
+| how can I solve this issue and get rid of the warning in the R CMD check?
+| Can someone please suggest a way to resolve this?
+
+See "Writing R Extensions" -- nobody here on the list "makes the rules". Only
+R Core / CRAN do. We all just try live by them.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tdhock5 at gmail.com  Sun Jun 28 00:02:20 2020
+From: tdhock5 at gmail.com (Toby Hocking)
+Date: Sat, 27 Jun 2020 15:02:20 -0700
+Subject: [Rcpp-devel] Issues creating static library using Makevars
+In-Reply-To: <24310.47094.943987.277584@rob.eddelbuettel.com>
+References: <CAM0Afv2OkR_ZF9kPr1_fO5O-9hyv7SOTkve9t5wqvkohdcXc5w@mail.gmail.com>
+ <24310.47094.943987.277584@rob.eddelbuettel.com>
+Message-ID: <CALK03d3AiLYgaUO2RciZVYqCu7tL9_W9pJxE0iUVdsOSf_iFCg@mail.gmail.com>
+
+Right, Writing R Extensions is a great reference.
+To clarify the question, we are developing a package like RInside, which
+contains some compiled C++ code that is not meant to be used from R main.
+We would like to distribute the C++ source code in an R package (like
+RInside), so we are trying to figure out how RInside managed to do this and
+satisfy CRAN checks.
+Looking at current CRAN checks for RInside
+https://cloud.r-project.org/web/checks/check_results_RInside.html I see
+some similar NOTE / WARNING ... are these new in the last few months, or
+were they there when you submitted to CRAN? i.e. did CRAN accept the
+submission even with such NOTE / WARNING? Just trying to figure out the
+best way to package this compiled code so that CRAN will accept it.
+Any tips/tricks you have discovered from your experience with RInside would
+be appreciated.
+Toby
+
+On Fri, Jun 26, 2020 at 8:08 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 26 June 2020 at 15:55, Akhila Chowdary Kolla wrote:
+> | But when I check the package I get the following warnings: using
+> | devtools::check()
+> | ‘../inst/include/Log.o’   File ‘testproject/libs/testproject.so’:
+>  Found
+> | no calls to: ‘R_registerRoutines’, ‘R_useDynamicSymbols’    Compiled code
+> | should not call entry points which might terminate R nor write to
+> | stdout/stderr instead of to the console, nor use Fortran I/O nor system
+> | RNGs. It is good practice to register native routines and to disable
+> | symbol search.*
+>
+> See "Writing R Extensions"
+>
+> |   *Found no calls to: ‘R_registerRoutines’, ‘R_useDynamicSymbols’  - why
+> is
+>
+> See "Writing R Extensions"
+>
+> | this necessary as I am trying to compile some external C
+> | files(inst/include/DeepState.c) which are not in src folder*
+> |    *Compiled code should not call entry points which might terminate R
+> | nor write to stdout/stderr instead of to the console, nor use Fortran
+> | I/O nor system RNGs. - what does this mean?*
+>
+> See "Writing R Extensions"
+>
+> | how can I solve this issue and get rid of the warning in the R CMD check?
+> | Can someone please suggest a way to resolve this?
+>
+> See "Writing R Extensions" -- nobody here on the list "makes the rules".
+> Only
+> R Core / CRAN do. We all just try live by them.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200627/ee9e3382/attachment.html>
+
+From edd at debian.org  Sun Jun 28 01:14:12 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 27 Jun 2020 18:14:12 -0500
+Subject: [Rcpp-devel] Issues creating static library using Makevars
+In-Reply-To: <CALK03d3AiLYgaUO2RciZVYqCu7tL9_W9pJxE0iUVdsOSf_iFCg@mail.gmail.com>
+References: <CAM0Afv2OkR_ZF9kPr1_fO5O-9hyv7SOTkve9t5wqvkohdcXc5w@mail.gmail.com>
+ <24310.47094.943987.277584@rob.eddelbuettel.com>
+ <CALK03d3AiLYgaUO2RciZVYqCu7tL9_W9pJxE0iUVdsOSf_iFCg@mail.gmail.com>
+Message-ID: <24311.53956.344632.982614@rob.eddelbuettel.com>
+
+
+Toby,
+
+Well but not one of the questions raised by Akhila had anything to do with an
+static library.  The questions were, in turn, about
+
+ - not calling exit() and like
+
+ - need to call ‘R_registerRoutines’, ‘R_useDynamicSymbols’
+
+ - not use system RNGs
+
+all of which are standard packaging issues, unrelated to Rcpp or to the
+creation of a static library.
+
+I fear you need to get that code in order before you have to worry about how
+you ship, static or shared library.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sun Jun 28 01:43:00 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 27 Jun 2020 18:43:00 -0500
+Subject: [Rcpp-devel] Issues creating static library using Makevars
+In-Reply-To: <24311.53956.344632.982614@rob.eddelbuettel.com>
+References: <CAM0Afv2OkR_ZF9kPr1_fO5O-9hyv7SOTkve9t5wqvkohdcXc5w@mail.gmail.com>
+ <24310.47094.943987.277584@rob.eddelbuettel.com>
+ <CALK03d3AiLYgaUO2RciZVYqCu7tL9_W9pJxE0iUVdsOSf_iFCg@mail.gmail.com>
+ <24311.53956.344632.982614@rob.eddelbuettel.com>
+Message-ID: <24311.55684.626480.836504@rob.eddelbuettel.com>
+
+
+Toby, Akhila,
+
+My bad, I'm sorry!
+
+So I went back glancing at
+
+  https://cloud.r-project.org/web/checks/check_results_RInside.html
+
+and the only clear suggestion is that one would probably no longer get a
+package like that admitted. That is potentially bad news for your project.
+
+Sorry to be bearer of bad news, but I do not make or impose these rules.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tkeitt at gmail.com  Sun Jun 28 22:50:02 2020
+From: tkeitt at gmail.com (Tim Keitt)
+Date: Sun, 28 Jun 2020 15:50:02 -0500
+Subject: [Rcpp-devel] Attempt at amortized constant push_back for Vector
+Message-ID: <CANnL8go9vSeeVR+zRkbm9tQ9H90SUzvEbR2nNek-+Y2WdwTTOA@mail.gmail.com>
+
+Hi All,
+
+I've taken a quick shot at making push_back amortized constant in Rcpp. As
+I've had to make some guesses about R/Rcpp internals, I am wondering what
+is the best way to test my fork. (I see something in tests but I'm used to
+testthat.)
+
+THK
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200628/964397a3/attachment.html>
+
+From edd at debian.org  Mon Jun 29 00:23:52 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 28 Jun 2020 17:23:52 -0500
+Subject: [Rcpp-devel] Attempt at amortized constant push_back for Vector
+In-Reply-To: <CANnL8go9vSeeVR+zRkbm9tQ9H90SUzvEbR2nNek-+Y2WdwTTOA@mail.gmail.com>
+References: <CANnL8go9vSeeVR+zRkbm9tQ9H90SUzvEbR2nNek-+Y2WdwTTOA@mail.gmail.com>
+Message-ID: <24313.6264.816988.383708@rob.eddelbuettel.com>
+
+
+On 28 June 2020 at 15:50, Tim Keitt wrote:
+| I've taken a quick shot at making push_back amortized constant in Rcpp. As
+| I've had to make some guesses about R/Rcpp internals, I am wondering what
+| is the best way to test my fork. (I see something in tests but I'm used to
+| testthat.)
+
+Please don't crosspost. If you decided to start here, it would be polite to
+wait here for a reply instead of also posting at GitHub.
+
+*Maybe* crosspost if you have no answer in 24 to 48 hours. And even then it's
+still loud.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tdhock5 at gmail.com  Mon Jun 29 22:40:07 2020
+From: tdhock5 at gmail.com (Toby Hocking)
+Date: Mon, 29 Jun 2020 13:40:07 -0700
+Subject: [Rcpp-devel] Issues creating static library using Makevars
+In-Reply-To: <24311.55684.626480.836504@rob.eddelbuettel.com>
+References: <CAM0Afv2OkR_ZF9kPr1_fO5O-9hyv7SOTkve9t5wqvkohdcXc5w@mail.gmail.com>
+ <24310.47094.943987.277584@rob.eddelbuettel.com>
+ <CALK03d3AiLYgaUO2RciZVYqCu7tL9_W9pJxE0iUVdsOSf_iFCg@mail.gmail.com>
+ <24311.53956.344632.982614@rob.eddelbuettel.com>
+ <24311.55684.626480.836504@rob.eddelbuettel.com>
+Message-ID: <CALK03d1s6RRpfiO26jgbqMp5EH9LdGR4o9oR-O4SXMxnRNUjFA@mail.gmail.com>
+
+Hi Dirk thanks for the feedback. So I guess that means those are new
+WARNING messages on CRAN that were not there at the time RInside was
+accepted on CRAN, right?
+I would suggest moving the discussion to R-pkg-devel to see if CRAN could
+recommend a way to support install-time compilation of the static library
+that we need.
+If CRAN is not willing/able to accommodate that, we could just put the C++
+source code somewhere other than pkg/src, and then compile it AFTER the
+package has been installed, when the user requests that we fuzz their Rcpp
+package. That won't be much of a drawback / portability issue, because
+anyways the main functionality of our package requires a compiler on the
+user's system.
+
+On Sat, Jun 27, 2020 at 4:51 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Toby, Akhila,
+>
+> My bad, I'm sorry!
+>
+> So I went back glancing at
+>
+>   https://cloud.r-project.org/web/checks/check_results_RInside.html
+>
+> and the only clear suggestion is that one would probably no longer get a
+> package like that admitted. That is potentially bad news for your project.
+>
+> Sorry to be bearer of bad news, but I do not make or impose these rules.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200629/862d72fb/attachment.html>
+

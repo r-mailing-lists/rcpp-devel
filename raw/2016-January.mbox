@@ -1,0 +1,5506 @@
+From lafaye at dms.umontreal.ca  Sun Jan  3 21:36:03 2016
+From: lafaye at dms.umontreal.ca (Pierre Lafaye de Micheaux)
+Date: Sun, 3 Jan 2016 21:36:03 +0100
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+Message-ID: <56898633.7010308@dms.umontreal.ca>
+
+Dear all,
+
+This email comes after a discussion on the R-pkg-devel mailing list:
+https://stat.ethz.ch/pipermail/r-package-devel/2016q1/000627.html
+
+My purpose was to be able, in two of my packages, to use complex numbers 
+(create some, addition, multiplication, division, modulus, etc)
+directly in a C code that is called from R (using the .C interface).
+Note that these complex numbers might not come from R but could be 
+created and used directly in my C code, that will then output (via 
+pointers)
+real (I mean double) values back to R (via the .C interface). I could 
+also send from R these complex numbers via the .C interface.
+
+A very simple example of such a function called from R via the .C 
+interface could be the following:
+
+#include <R.h>
+#include "Rmath.h"
+extern "C" {
+void Cfunc(complex double *var) {
+     double _Complex z = 1.0 + 2.0 * _Complex_I;
+     var[0] = z + exp(var[0]);
+return;
+}}
+
+I could call this function from R as follows:
+.C(1i)
+
+No problem so far when I use such a function in a package that is 
+compiled under Linux. But this will not work under windows (see the 
+discussion
+on the R-pkg-devel list). So what I did to make everything work under 
+Windows also was to include in the src/ directory of my package the 
+source files
+from the RcppFaddeeva package. Then I would modify the function above as 
+follows:
+
+#include <R.h>
+#include "Rmath.h"
+#include "libraries/callFaddeeva.cpp"
+#include "libraries/Faddeeva.cpp"
+#include "libraries/RcppExports.cpp"
+extern "C" {
+void Cfunc(complex double *var) {
+     cmplx z = C(1.0, 2.0);
+     var[0] = z + cexp(var[0]);
+return;
+}}
+
+Maybe there is a way not to include all the Faddeeva source files in my 
+packages? But I do not know how to do it.
+
+Best regards,
+
+Pierre L.
+
+
+
+-- 
+Pierre Lafaye de Micheaux
+
+Adresse courrier:
+Universit? de Montr?al
+Pavillon Andr?-Aisenstadt
+D?partement de Math?matiques et Statistique
+CP 6128 Succursale Centre-ville
+Montr?al Qc H3C 3J7
+CANADA
+
+Adresse physique:
+D?partement de Math?matiques et Statistique
+Bureau 4249, Pavillon Andr?-Aisenstadt
+2920, chemin de la Tour
+Montr?al, Qu?bec H3T 1J4
+CANADA
+
+T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+lafaye at dms.umontreal.ca
+http://www.biostatisticien.eu
+
+
+From baptiste.auguie at gmail.com  Sun Jan  3 21:50:19 2016
+From: baptiste.auguie at gmail.com (Baptiste Auguie)
+Date: Mon, 4 Jan 2016 09:50:19 +1300
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+In-Reply-To: <56898633.7010308@dms.umontreal.ca>
+References: <56898633.7010308@dms.umontreal.ca>
+Message-ID: <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+
+Hi,
+
+Just to clarify: did you include files from RcppFaddeeva because you need
+some of its functionality (special complex error functions), or was it only
+a workaround to get access to complex numbers? In the latter case, I
+recommend you try making a minimal Rcpp package to see how easy it is to
+interface with C+ functions, and that way you will only have relevant
+header files included.
+
+Best,
+
+baptiste
+
+
+
+On 4 January 2016 at 09:36, Pierre Lafaye de Micheaux <
+lafaye at dms.umontreal.ca> wrote:
+
+> Dear all,
+>
+> This email comes after a discussion on the R-pkg-devel mailing list:
+> https://stat.ethz.ch/pipermail/r-package-devel/2016q1/000627.html
+>
+> My purpose was to be able, in two of my packages, to use complex numbers
+> (create some, addition, multiplication, division, modulus, etc)
+> directly in a C code that is called from R (using the .C interface).
+> Note that these complex numbers might not come from R but could be created
+> and used directly in my C code, that will then output (via pointers)
+> real (I mean double) values back to R (via the .C interface). I could also
+> send from R these complex numbers via the .C interface.
+>
+> A very simple example of such a function called from R via the .C
+> interface could be the following:
+>
+> #include <R.h>
+> #include "Rmath.h"
+> extern "C" {
+> void Cfunc(complex double *var) {
+>     double _Complex z = 1.0 + 2.0 * _Complex_I;
+>     var[0] = z + exp(var[0]);
+> return;
+> }}
+>
+> I could call this function from R as follows:
+> .C(1i)
+>
+> No problem so far when I use such a function in a package that is compiled
+> under Linux. But this will not work under windows (see the discussion
+> on the R-pkg-devel list). So what I did to make everything work under
+> Windows also was to include in the src/ directory of my package the source
+> files
+> from the RcppFaddeeva package. Then I would modify the function above as
+> follows:
+>
+> #include <R.h>
+> #include "Rmath.h"
+> #include "libraries/callFaddeeva.cpp"
+> #include "libraries/Faddeeva.cpp"
+> #include "libraries/RcppExports.cpp"
+> extern "C" {
+> void Cfunc(complex double *var) {
+>     cmplx z = C(1.0, 2.0);
+>     var[0] = z + cexp(var[0]);
+> return;
+> }}
+>
+> Maybe there is a way not to include all the Faddeeva source files in my
+> packages? But I do not know how to do it.
+>
+> Best regards,
+>
+> Pierre L.
+>
+>
+>
+> --
+> Pierre Lafaye de Micheaux
+>
+> Adresse courrier:
+> Universit? de Montr?al
+> Pavillon Andr?-Aisenstadt
+> D?partement de Math?matiques et Statistique
+> CP 6128 Succursale Centre-ville
+> Montr?al Qc H3C 3J7
+> CANADA
+>
+> Adresse physique:
+> D?partement de Math?matiques et Statistique
+> Bureau 4249, Pavillon Andr?-Aisenstadt
+> 2920, chemin de la Tour
+> Montr?al, Qu?bec H3T 1J4
+> CANADA
+>
+> T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+> lafaye at dms.umontreal.ca
+> http://www.biostatisticien.eu
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160104/f6e8d0f4/attachment.html>
+
+From edd at debian.org  Sun Jan  3 22:14:13 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 3 Jan 2016 15:14:13 -0600
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+In-Reply-To: <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+References: <56898633.7010308@dms.umontreal.ca>
+ <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+Message-ID: <22153.36645.209296.498689@max.nulle.part>
+
+
+On 4 January 2016 at 09:50, Baptiste Auguie wrote:
+| Hi,
+| 
+| Just to clarify: did you include files from RcppFaddeeva because you need some
+| of its functionality (special complex error functions), or was it only a
+| workaround to get access to complex numbers? In the latter case, I recommend
+| you try making a minimal Rcpp package to see how easy it is to interface with
+| C++ functions, and that way you will only have relevant header files included.
+
++1
+
+I already responded to Pierre's initial emails in November and tried then to
+explain to him that that .C() is a _really bad idea at this point in time.
+
+It is two months later and nothing has changed.
+
+So here is a quick illustration of what Baptiste meant. All it takes is
+
+   library(Rcpp)    # no other depends
+
+and then (and I even got this right on first try):
+
+   R> cppFunction("Rcomplex addTwo(Rcomplex x, Rcomplex y) {return x + y; }")
+   R> addTwo(2+2i, 3+3i)
+   [1] 5+5i
+   R> 
+
+With one invocation of cppFunction() I created an ad-hoc compiled function
+(technically compiled as C++ but you can call this C as well) which adds two
+complex number -- one of Pierre's request as per the email below.  And low
+and behold is just does that.
+
+So yes -- maybe time to learn some Rcpp, maybe forget about .C() and simply
+get on with this and other other things.
+
+Dirk
+
+| 
+| Best,
+| 
+| baptiste
+| 
+| 
+| 
+| On 4 January 2016 at 09:36, Pierre Lafaye de Micheaux <lafaye at dms.umontreal.ca>
+| wrote:
+| 
+|     Dear all,
+| 
+|     This email comes after a discussion on the R-pkg-devel mailing list:
+|     https://stat.ethz.ch/pipermail/r-package-devel/2016q1/000627.html
+| 
+|     My purpose was to be able, in two of my packages, to use complex numbers
+|     (create some, addition, multiplication, division, modulus, etc)
+|     directly in a C code that is called from R (using the .C interface).
+|     Note that these complex numbers might not come from R but could be created
+|     and used directly in my C code, that will then output (via pointers)
+|     real (I mean double) values back to R (via the .C interface). I could also
+|     send from R these complex numbers via the .C interface.
+| 
+|     A very simple example of such a function called from R via the .C interface
+|     could be the following:
+| 
+|     #include <R.h>
+|     #include "Rmath.h"
+|     extern "C" {
+|     void Cfunc(complex double *var) {
+|     ? ? double _Complex z = 1.0 + 2.0 * _Complex_I;
+|     ? ? var[0] = z + exp(var[0]);
+|     return;
+|     }}
+| 
+|     I could call this function from R as follows:
+|     .C(1i)
+| 
+|     No problem so far when I use such a function in a package that is compiled
+|     under Linux. But this will not work under windows (see the discussion
+|     on the R-pkg-devel list). So what I did to make everything work under
+|     Windows also was to include in the src/ directory of my package the source
+|     files
+|     from the RcppFaddeeva package. Then I would modify the function above as
+|     follows:
+| 
+|     #include <R.h>
+|     #include "Rmath.h"
+|     #include "libraries/callFaddeeva.cpp"
+|     #include "libraries/Faddeeva.cpp"
+|     #include "libraries/RcppExports.cpp"
+|     extern "C" {
+|     void Cfunc(complex double *var) {
+|     ? ? cmplx z = C(1.0, 2.0);
+|     ? ? var[0] = z + cexp(var[0]);
+|     return;
+|     }}
+| 
+|     Maybe there is a way not to include all the Faddeeva source files in my
+|     packages? But I do not know how to do it.
+| 
+|     Best regards,
+| 
+|     Pierre L.
+| 
+| 
+| 
+|     --
+|     Pierre Lafaye de Micheaux
+| 
+|     Adresse courrier:
+|     Universit? de Montr?al
+|     Pavillon Andr?-Aisenstadt
+|     D?partement de Math?matiques et Statistique
+|     CP 6128 Succursale Centre-ville
+|     Montr?al Qc H3C 3J7
+|     CANADA
+| 
+|     Adresse physique:
+|     D?partement de Math?matiques et Statistique
+|     Bureau 4249, Pavillon Andr?-Aisenstadt
+|     2920, chemin de la Tour
+|     Montr?al, Qu?bec H3T 1J4
+|     CANADA
+| 
+|     T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+|     lafaye at dms.umontreal.ca
+|     http://www.biostatisticien.eu
+| 
+|     _______________________________________________
+|     Rcpp-devel mailing list
+|     Rcpp-devel at lists.r-forge.r-project.org
+|     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From lafaye at dms.umontreal.ca  Mon Jan  4 09:14:10 2016
+From: lafaye at dms.umontreal.ca (Pierre Lafaye de Micheaux)
+Date: Mon, 4 Jan 2016 09:14:10 +0100
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+In-Reply-To: <22153.36645.209296.498689@max.nulle.part>
+References: <56898633.7010308@dms.umontreal.ca>
+ <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+ <22153.36645.209296.498689@max.nulle.part>
+Message-ID: <568A29D2.8030806@dms.umontreal.ca>
+
+Dear all,
+
+Thanks again for your answers.
+
+For one of my project, I indeed need the special complex error 
+functions. This is why I used the RcppFaddeeva source files in the first 
+time.
+This being said, it was ALSO a workaround to get access to complex 
+numbers operations (and so that the package compile under Windows
+without errors).
+
+I know that using .C() is now discouraged by R core group. This being 
+said, I am a bit reluctant, at least for some projects, to use .Call().
+I like the idea to be able to use old FORTRAN77 codes and/or C codes 
+written by others. Usually, using these codes is quite straightforward
+thanks to the .Fortran() interface. As for the C codes, it is only 
+necessary to modify the arguments of the C function to make them 
+pointers in
+order to then call it through the .C() function.
+
+My understanding, but maybe I am not good enough, is that to be able to 
+call a C/C++ function using .Call() and/or involving Rcpp needs
+a lot more modifications to the original C source file.
+
+I think this is bad for reproducibility. For example, if one would like 
+to call this same C code from Matlab and if this C code is full of Rcpp, 
+then
+I guess there will be some trouble. Am I right?
+
+Note that I "learned" a bit of Rcpp. I am the author and maintainer of 
+package PoweR:
+https://cran.r-project.org/web/packages/PoweR/index.html
+I wrote in this package the file calcpuissRcpp.cpp that contains some 
+Rcpp features (maybe you can have a quick look to see my low? level
+of knowledge of Rcpp). And I agree that this is cool stuff when you want 
+to be able to access high level
+R functions from C. But as said above, you loose some reproducibility 
+(in the sense explained above) and maybe also some speed (and this is why I
+have two "parallel" versions in my PoweR package: calcpuiss.cpp and 
+calcpuissRcpp.cpp).
+
+So, with all this in mind, my "request" is still the same. Namely being 
+able to manipulate (and create) complex numbers at the (pure) C level in 
+an R package so that it could compile properly (without errors) under 
+Microsoft Windows. I found this workaround by copying these RcppFaddeeva 
+source files
+(.cpp and .h files) in the src/ directory of my package(s) but this is 
+not really clean. Probably I could try to remove all "unnecessary" stuff 
+from these source
+files in order to keep only what is really needed to play with complex 
+numbers at the (pure) C level, but maybe there would be something more
+clever to do? Like adding RcppFaddeeva to the LinkingTo/Depends/Export 
+fields? Or creating a very simple package (by removing all special 
+complex error
+functions from RcppFaddeeva) and call the resulting package EnableC and 
+then add this to LinkingTo/Depends/Export fields?
+
+I hope I made myself clear ...
+
+Thank you again for your time.
+
+Best regards,
+
+Pierre L.
+
+Le 03/01/2016 22:14, Dirk Eddelbuettel a ?crit :
+> On 4 January 2016 at 09:50, Baptiste Auguie wrote:
+> | Hi,
+> |
+> | Just to clarify: did you include files from RcppFaddeeva because you need some
+> | of its functionality (special complex error functions), or was it only a
+> | workaround to get access to complex numbers? In the latter case, I recommend
+> | you try making a minimal Rcpp package to see how easy it is to interface with
+> | C++ functions, and that way you will only have relevant header files included.
+>
+> +1
+>
+> I already responded to Pierre's initial emails in November and tried then to
+> explain to him that that .C() is a _really bad idea at this point in time.
+>
+> It is two months later and nothing has changed.
+>
+> So here is a quick illustration of what Baptiste meant. All it takes is
+>
+>     library(Rcpp)    # no other depends
+>
+> and then (and I even got this right on first try):
+>
+>     R> cppFunction("Rcomplex addTwo(Rcomplex x, Rcomplex y) {return x + y; }")
+>     R> addTwo(2+2i, 3+3i)
+>     [1] 5+5i
+>     R>
+>
+> With one invocation of cppFunction() I created an ad-hoc compiled function
+> (technically compiled as C++ but you can call this C as well) which adds two
+> complex number -- one of Pierre's request as per the email below.  And low
+> and behold is just does that.
+>
+> So yes -- maybe time to learn some Rcpp, maybe forget about .C() and simply
+> get on with this and other other things.
+>
+> Dirk
+>
+> |
+> | Best,
+> |
+> | baptiste
+> |
+> |
+> |
+> | On 4 January 2016 at 09:36, Pierre Lafaye de Micheaux <lafaye at dms.umontreal.ca>
+> | wrote:
+> |
+> |     Dear all,
+> |
+> |     This email comes after a discussion on the R-pkg-devel mailing list:
+> |     https://stat.ethz.ch/pipermail/r-package-devel/2016q1/000627.html
+> |
+> |     My purpose was to be able, in two of my packages, to use complex numbers
+> |     (create some, addition, multiplication, division, modulus, etc)
+> |     directly in a C code that is called from R (using the .C interface).
+> |     Note that these complex numbers might not come from R but could be created
+> |     and used directly in my C code, that will then output (via pointers)
+> |     real (I mean double) values back to R (via the .C interface). I could also
+> |     send from R these complex numbers via the .C interface.
+> |
+> |     A very simple example of such a function called from R via the .C interface
+> |     could be the following:
+> |
+> |     #include <R.h>
+> |     #include "Rmath.h"
+> |     extern "C" {
+> |     void Cfunc(complex double *var) {
+> |         double _Complex z = 1.0 + 2.0 * _Complex_I;
+> |         var[0] = z + exp(var[0]);
+> |     return;
+> |     }}
+> |
+> |     I could call this function from R as follows:
+> |     .C(1i)
+> |
+> |     No problem so far when I use such a function in a package that is compiled
+> |     under Linux. But this will not work under windows (see the discussion
+> |     on the R-pkg-devel list). So what I did to make everything work under
+> |     Windows also was to include in the src/ directory of my package the source
+> |     files
+> |     from the RcppFaddeeva package. Then I would modify the function above as
+> |     follows:
+> |
+> |     #include <R.h>
+> |     #include "Rmath.h"
+> |     #include "libraries/callFaddeeva.cpp"
+> |     #include "libraries/Faddeeva.cpp"
+> |     #include "libraries/RcppExports.cpp"
+> |     extern "C" {
+> |     void Cfunc(complex double *var) {
+> |         cmplx z = C(1.0, 2.0);
+> |         var[0] = z + cexp(var[0]);
+> |     return;
+> |     }}
+> |
+> |     Maybe there is a way not to include all the Faddeeva source files in my
+> |     packages? But I do not know how to do it.
+> |
+> |     Best regards,
+> |
+> |     Pierre L.
+> |
+> |
+> |
+> |     --
+> |     Pierre Lafaye de Micheaux
+> |
+> |     Adresse courrier:
+> |     Universit? de Montr?al
+> |     Pavillon Andr?-Aisenstadt
+> |     D?partement de Math?matiques et Statistique
+> |     CP 6128 Succursale Centre-ville
+> |     Montr?al Qc H3C 3J7
+> |     CANADA
+> |
+> |     Adresse physique:
+> |     D?partement de Math?matiques et Statistique
+> |     Bureau 4249, Pavillon Andr?-Aisenstadt
+> |     2920, chemin de la Tour
+> |     Montr?al, Qu?bec H3T 1J4
+> |     CANADA
+> |
+> |     T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+> |     lafaye at dms.umontreal.ca
+> |     http://www.biostatisticien.eu
+> |
+> |     _______________________________________________
+> |     Rcpp-devel mailing list
+> |     Rcpp-devel at lists.r-forge.r-project.org
+> |     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> |
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+-- 
+Pierre Lafaye de Micheaux
+
+Adresse courrier:
+Universit? de Montr?al
+Pavillon Andr?-Aisenstadt
+D?partement de Math?matiques et Statistique
+CP 6128 Succursale Centre-ville
+Montr?al Qc H3C 3J7
+CANADA
+
+Adresse physique:
+D?partement de Math?matiques et Statistique
+Bureau 4249, Pavillon Andr?-Aisenstadt
+2920, chemin de la Tour
+Montr?al, Qu?bec H3T 1J4
+CANADA
+
+T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+lafaye at dms.umontreal.ca
+http://www.biostatisticien.eu
+
+
+From baptiste.auguie at gmail.com  Mon Jan  4 10:04:19 2016
+From: baptiste.auguie at gmail.com (Baptiste Auguie)
+Date: Mon, 4 Jan 2016 22:04:19 +1300
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+In-Reply-To: <568A29D2.8030806@dms.umontreal.ca>
+References: <56898633.7010308@dms.umontreal.ca>
+ <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+ <22153.36645.209296.498689@max.nulle.part> <568A29D2.8030806@dms.umontreal.ca>
+Message-ID: <CANLFJPoC=g36Z0hsgSck7Hq0Ey+CPzb19GDPXW3174Uweyb3Xw@mail.gmail.com>
+
+On 4 January 2016 at 21:14, Pierre Lafaye de Micheaux <
+lafaye at dms.umontreal.ca> wrote:
+
+> Dear all,
+>
+> Thanks again for your answers.
+>
+> For one of my project, I indeed need the special complex error functions.
+> This is why I used the RcppFaddeeva source files in the first time.
+>
+
+That's useful to know. In that case, I believe something could be done but
+I'd need some help from Dirk to make sure the package export the right
+things.
+https://github.com/baptiste/rcppfaddeeva/pull/2#issuecomment-109682706
+
+
+> This being said, it was ALSO a workaround to get access to complex numbers
+> operations (and so that the package compile under Windows
+> without errors).
+>
+
+This workaround is clearly suboptimal and needs to be sorted first IMHO.
+I'm guessing that's a magic side-effect of the Rcpp.h include in one of the
+files.
+
+
+> I know that using .C() is now discouraged by R core group. This being
+> said, I am a bit reluctant, at least for some projects, to use .Call().
+> I like the idea to be able to use old FORTRAN77 codes and/or C codes
+> written by others. Usually, using these codes is quite straightforward
+> thanks to the .Fortran() interface. As for the C codes, it is only
+> necessary to modify the arguments of the C function to make them pointers in
+> order to then call it through the .C() function.
+>
+> My understanding, but maybe I am not good enough, is that to be able to
+> call a C/C++ function using .Call() and/or involving Rcpp needs
+> a lot more modifications to the original C source file.
+>
+
+If you look at RcppFaddeeva, you'll find that the original C+ library is
+pretty much untouched, and the c++ wrappers are quite minimal. And with
+Rcpp attributes, you don't even have to write R wrappers.
+
+I think this is bad for reproducibility. For example, if one would like to
+> call this same C code from Matlab and if this C code is full of Rcpp, then
+> I guess there will be some trouble. Am I right?
+
+
+> Note that I "learned" a bit of Rcpp. I am the author and maintainer of
+> package PoweR:
+> https://cran.r-project.org/web/packages/PoweR/index.html
+> I wrote in this package the file calcpuissRcpp.cpp that contains some Rcpp
+> features (maybe you can have a quick look to see my low? level
+> of knowledge of Rcpp). And I agree that this is cool stuff when you want
+> to be able to access high level
+> R functions from C. But as said above, you loose some reproducibility (in
+> the sense explained above) and maybe also some speed (and this is why I
+> have two "parallel" versions in my PoweR package: calcpuiss.cpp and
+> calcpuissRcpp.cpp).
+>
+> So, with all this in mind, my "request" is still the same. Namely being
+> able to manipulate (and create) complex numbers at the (pure) C level in an
+> R package so that it could compile properly (without errors) under
+> Microsoft Windows. I found this workaround by copying these RcppFaddeeva
+> source files
+> (.cpp and .h files) in the src/ directory of my package(s) but this is not
+> really clean. Probably I could try to remove all "unnecessary" stuff from
+> these source
+> files in order to keep only what is really needed to play with complex
+> numbers at the (pure) C level, but maybe there would be something more
+> clever to do? Like adding RcppFaddeeva to the LinkingTo/Depends/Export
+> fields?
+
+
+I believe this step (to use some of Faddeeva's functions) needs some work
+in RcppFaddeeva, which I'd be happy to discuss with you and hopefully Dirk,
+but that's a different issue altogether.
+
+Or creating a very simple package (by removing all special complex error
+> functions from RcppFaddeeva)
+
+
+Sounds like a good idea to me. And if you put it on github, say, people
+could look at it if you get stuck. As I remember, Dirk fixed my
+RcppFaddeeva package faster than I was committing to it.
+
+HTH,
+
+baptiste
+
+and call the resulting package EnableC and then add this to
+> LinkingTo/Depends/Export fields?
+
+
+> I hope I made myself clear ...
+>
+> Thank you again for your time.
+>
+> Best regards,
+>
+> Pierre L.
+>
+>
+
+> Le 03/01/2016 22:14, Dirk Eddelbuettel a ?crit :
+>
+>> On 4 January 2016 at 09:50, Baptiste Auguie wrote:
+>> | Hi,
+>> |
+>> | Just to clarify: did you include files from RcppFaddeeva because you
+>> need some
+>> | of its functionality (special complex error functions), or was it only a
+>> | workaround to get access to complex numbers? In the latter case, I
+>> recommend
+>> | you try making a minimal Rcpp package to see how easy it is to
+>> interface with
+>> | C++ functions, and that way you will only have relevant header files
+>> included.
+>>
+>> +1
+>>
+>> I already responded to Pierre's initial emails in November and tried then
+>> to
+>> explain to him that that .C() is a _really bad idea at this point in time.
+>>
+>> It is two months later and nothing has changed.
+>>
+>> So here is a quick illustration of what Baptiste meant. All it takes is
+>>
+>>     library(Rcpp)    # no other depends
+>>
+>> and then (and I even got this right on first try):
+>>
+>>     R> cppFunction("Rcomplex addTwo(Rcomplex x, Rcomplex y) {return x +
+>> y; }")
+>>     R> addTwo(2+2i, 3+3i)
+>>     [1] 5+5i
+>>     R>
+>>
+>> With one invocation of cppFunction() I created an ad-hoc compiled function
+>> (technically compiled as C++ but you can call this C as well) which adds
+>> two
+>> complex number -- one of Pierre's request as per the email below.  And low
+>> and behold is just does that.
+>>
+>> So yes -- maybe time to learn some Rcpp, maybe forget about .C() and
+>> simply
+>> get on with this and other other things.
+>>
+>> Dirk
+>>
+>> |
+>> | Best,
+>> |
+>> | baptiste
+>> |
+>> |
+>> |
+>> | On 4 January 2016 at 09:36, Pierre Lafaye de Micheaux <
+>> lafaye at dms.umontreal.ca>
+>> | wrote:
+>> |
+>> |     Dear all,
+>> |
+>> |     This email comes after a discussion on the R-pkg-devel mailing list:
+>> |     https://stat.ethz.ch/pipermail/r-package-devel/2016q1/000627.html
+>> |
+>> |     My purpose was to be able, in two of my packages, to use complex
+>> numbers
+>> |     (create some, addition, multiplication, division, modulus, etc)
+>> |     directly in a C code that is called from R (using the .C interface).
+>> |     Note that these complex numbers might not come from R but could be
+>> created
+>> |     and used directly in my C code, that will then output (via pointers)
+>> |     real (I mean double) values back to R (via the .C interface). I
+>> could also
+>> |     send from R these complex numbers via the .C interface.
+>> |
+>> |     A very simple example of such a function called from R via the .C
+>> interface
+>> |     could be the following:
+>> |
+>> |     #include <R.h>
+>> |     #include "Rmath.h"
+>> |     extern "C" {
+>> |     void Cfunc(complex double *var) {
+>> |         double _Complex z = 1.0 + 2.0 * _Complex_I;
+>> |         var[0] = z + exp(var[0]);
+>> |     return;
+>> |     }}
+>> |
+>> |     I could call this function from R as follows:
+>> |     .C(1i)
+>> |
+>> |     No problem so far when I use such a function in a package that is
+>> compiled
+>> |     under Linux. But this will not work under windows (see the
+>> discussion
+>> |     on the R-pkg-devel list). So what I did to make everything work
+>> under
+>> |     Windows also was to include in the src/ directory of my package the
+>> source
+>> |     files
+>> |     from the RcppFaddeeva package. Then I would modify the function
+>> above as
+>> |     follows:
+>> |
+>> |     #include <R.h>
+>> |     #include "Rmath.h"
+>> |     #include "libraries/callFaddeeva.cpp"
+>> |     #include "libraries/Faddeeva.cpp"
+>> |     #include "libraries/RcppExports.cpp"
+>> |     extern "C" {
+>> |     void Cfunc(complex double *var) {
+>> |         cmplx z = C(1.0, 2.0);
+>> |         var[0] = z + cexp(var[0]);
+>> |     return;
+>> |     }}
+>> |
+>> |     Maybe there is a way not to include all the Faddeeva source files
+>> in my
+>> |     packages? But I do not know how to do it.
+>> |
+>> |     Best regards,
+>> |
+>> |     Pierre L.
+>> |
+>> |
+>> |
+>> |     --
+>> |     Pierre Lafaye de Micheaux
+>> |
+>> |     Adresse courrier:
+>> |     Universit? de Montr?al
+>> |     Pavillon Andr?-Aisenstadt
+>> |     D?partement de Math?matiques et Statistique
+>> |     CP 6128 Succursale Centre-ville
+>> |     Montr?al Qc H3C 3J7
+>> |     CANADA
+>> |
+>> |     Adresse physique:
+>> |     D?partement de Math?matiques et Statistique
+>> |     Bureau 4249, Pavillon Andr?-Aisenstadt
+>> |     2920, chemin de la Tour
+>> |     Montr?al, Qu?bec H3T 1J4
+>> |     CANADA
+>> |
+>> |     T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+>> |     lafaye at dms.umontreal.ca
+>> |     http://www.biostatisticien.eu
+>> |
+>> |     _______________________________________________
+>> |     Rcpp-devel mailing list
+>> |     Rcpp-devel at lists.r-forge.r-project.org
+>> |
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> |
+>> |
+>> | _______________________________________________
+>> | Rcpp-devel mailing list
+>> | Rcpp-devel at lists.r-forge.r-project.org
+>> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+> --
+> Pierre Lafaye de Micheaux
+>
+> Adresse courrier:
+> Universit? de Montr?al
+> Pavillon Andr?-Aisenstadt
+> D?partement de Math?matiques et Statistique
+> CP 6128 Succursale Centre-ville
+> Montr?al Qc H3C 3J7
+> CANADA
+>
+> Adresse physique:
+> D?partement de Math?matiques et Statistique
+> Bureau 4249, Pavillon Andr?-Aisenstadt
+> 2920, chemin de la Tour
+> Montr?al, Qu?bec H3T 1J4
+> CANADA
+>
+> T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+> lafaye at dms.umontreal.ca
+> http://www.biostatisticien.eu
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160104/a6a1056b/attachment.html>
+
+From edd at debian.org  Mon Jan  4 13:25:24 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 4 Jan 2016 06:25:24 -0600
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+In-Reply-To: <CANLFJPoC=g36Z0hsgSck7Hq0Ey+CPzb19GDPXW3174Uweyb3Xw@mail.gmail.com>
+References: <56898633.7010308@dms.umontreal.ca>
+ <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+ <22153.36645.209296.498689@max.nulle.part>
+ <568A29D2.8030806@dms.umontreal.ca>
+ <CANLFJPoC=g36Z0hsgSck7Hq0Ey+CPzb19GDPXW3174Uweyb3Xw@mail.gmail.com>
+Message-ID: <22154.25780.355395.694342@max.nulle.part>
+
+
+Baptiste,
+
+You and I started RcppFaddeeva following this thread of yours on SO
+   http://stackoverflow.com/a/30677939/143305
+where you had basic troubles creating an R package.  So that got solved, and
+RcppFaddeeva is on CRAN etc.
+
+We never set it up to export headers. Doing so is trivial, but that is work
+at your end. I can't commit to this now due to other obligations. Minimally
+this involves simply creating inst/include/ to contain the headers, and
+telling your src/Makevars{,.win} about it via PKG_CXXFLAGS=-I../inst/include
+
+Then other packages can use LnkingTo: to get the headers.  Now, getting C(++)
+code that needs linking is another ball game but I also cover that in a few
+pairs of packages.  RApiSerialize and RcppRedis is one.
+
+If and when you (or Pierre) identify an actual reproducible bug in Rcpp.h let
+me know, and I'll take it on.  Otherwise I stay out of this. From what I can
+tell Pierre is simply stuck in ways that are discouraged but insists on them
+anyway.  Which is his choice, but it also not something I need to spend my
+time helping him on.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From lafaye at dms.umontreal.ca  Mon Jan  4 14:21:53 2016
+From: lafaye at dms.umontreal.ca (Pierre Lafaye de Micheaux)
+Date: Mon, 4 Jan 2016 14:21:53 +0100
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+In-Reply-To: <22154.25780.355395.694342@max.nulle.part>
+References: <56898633.7010308@dms.umontreal.ca>
+ <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+ <22153.36645.209296.498689@max.nulle.part>
+ <568A29D2.8030806@dms.umontreal.ca>
+ <CANLFJPoC=g36Z0hsgSck7Hq0Ey+CPzb19GDPXW3174Uweyb3Xw@mail.gmail.com>
+ <22154.25780.355395.694342@max.nulle.part>
+Message-ID: <568A71F1.8030707@dms.umontreal.ca>
+
+Dear Dirk,
+
+I understand that you do not want to spend too much time on this.
+And I thank you for the time you already spent fr this specific 
+question, and also on others in the past.
+
+As far as I am concerned, I was just trying, spending as less time as 
+possible, to make two of my packages work (i.e., compile)
+for Microsoft Windows (I work under Ubuntu or Debian). I found a (not 
+clean) workaround to it using the RcppFaddeeva source files.
+When I will have time (and I also have tons of other obligations), I 
+will try to simplify my approach. But for now, it is working, so it 
+satisfies me.
+At this point, my time is better employed in developing the statistical 
+tools and theory than on R/C technicalities.
+
+My comment about reproducibility was not to mention a bug in Rcpp, which 
+is really a great tool. It was more about the fact that I tried to make 
+(parts of) my code as reusable as possible.
+And I feel (with what I know about Rcpp now and how it can interact with 
+R, or with what I know about .Call()) that this is possible in a simple 
+way with .C().
+
+Have a nice day and a happy new year.
+
+Pierre L.
+
+Le 04/01/2016 13:25, Dirk Eddelbuettel a ?crit :
+> Baptiste,
+>
+> You and I started RcppFaddeeva following this thread of yours on SO
+>     http://stackoverflow.com/a/30677939/143305
+> where you had basic troubles creating an R package.  So that got solved, and
+> RcppFaddeeva is on CRAN etc.
+>
+> We never set it up to export headers. Doing so is trivial, but that is work
+> at your end. I can't commit to this now due to other obligations. Minimally
+> this involves simply creating inst/include/ to contain the headers, and
+> telling your src/Makevars{,.win} about it via PKG_CXXFLAGS=-I../inst/include
+>
+> Then other packages can use LnkingTo: to get the headers.  Now, getting C(++)
+> code that needs linking is another ball game but I also cover that in a few
+> pairs of packages.  RApiSerialize and RcppRedis is one.
+>
+> If and when you (or Pierre) identify an actual reproducible bug in Rcpp.h let
+> me know, and I'll take it on.  Otherwise I stay out of this. From what I can
+> tell Pierre is simply stuck in ways that are discouraged but insists on them
+> anyway.  Which is his choice, but it also not something I need to spend my
+> time helping him on.
+>
+> Dirk
+>
+
+-- 
+Pierre Lafaye de Micheaux
+
+Adresse courrier:
+Universit? de Montr?al
+Pavillon Andr?-Aisenstadt
+D?partement de Math?matiques et Statistique
+CP 6128 Succursale Centre-ville
+Montr?al Qc H3C 3J7
+CANADA
+
+Adresse physique:
+D?partement de Math?matiques et Statistique
+Bureau 4249, Pavillon Andr?-Aisenstadt
+2920, chemin de la Tour
+Montr?al, Qu?bec H3T 1J4
+CANADA
+
+T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+lafaye at dms.umontreal.ca
+http://www.biostatisticien.eu
+
+
+From edd at debian.org  Mon Jan  4 14:36:30 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 4 Jan 2016 07:36:30 -0600
+Subject: [Rcpp-devel] Using complex numbers in a C program called by R
+In-Reply-To: <568A71F1.8030707@dms.umontreal.ca>
+References: <56898633.7010308@dms.umontreal.ca>
+ <CANLFJPoEbLzX0Fza-6tJee8EF3dSEt9UTFXkgcfcwTtkGXcmhA@mail.gmail.com>
+ <22153.36645.209296.498689@max.nulle.part>
+ <568A29D2.8030806@dms.umontreal.ca>
+ <CANLFJPoC=g36Z0hsgSck7Hq0Ey+CPzb19GDPXW3174Uweyb3Xw@mail.gmail.com>
+ <22154.25780.355395.694342@max.nulle.part>
+ <568A71F1.8030707@dms.umontreal.ca>
+Message-ID: <22154.30046.994433.161489@max.nulle.part>
+
+
+On 4 January 2016 at 14:21, Pierre Lafaye de Micheaux wrote:
+| R, or with what I know about .Call()) that this is possible in a simple 
+| way with .C().
+
+Please stop abusing this Rcpp mailing list a platform for youe .C() gospel.
+
+Every single developer whose opinion I value has come out swinging on this:
+
+      DO NOT USE .C() IN NEW CODE.
+
+So that is the ground rule here.
+
+If you have Rcpp questions, or even something reproducible, we'd be all ears.
+For what it is worth there are other packages uses complex data types on all
+platforms (yes, including Windows) so I still think your wounds are
+self-inflecting by your own choosing.  But we have a big tent approach:
+please do feel free to use whatever tools you like.  But please do no waste
+our time her with whatever you think you have to say about .C() or other
+non-Rcpp topics.  Maybe r-devel, maybe r-package-devel though both will
+probably tell you to smarten up.  Maybe time to create your own list.
+
+Sorry to sound harsh but there is only so much time in each day. And a
+minuute spent on .C() is a minute wasted.
+
+Cheers, and good luck.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From lafaye at dms.umontreal.ca  Sat Jan  9 19:18:22 2016
+From: lafaye at dms.umontreal.ca (Pierre Lafaye de Micheaux)
+Date: Sat, 9 Jan 2016 19:18:22 +0100
+Subject: [Rcpp-devel] Problem installing Rcpp version 0.12.2 on Ubuntu 12.04
+	LTS
+Message-ID: <56914EEE.9070902@dms.umontreal.ca>
+
+Dear all,
+
+I tried to install roxygen2 and got an error at compilation time. So I 
+tried first to install the last version of Rcpp but it failed (see below).
+
+lafaye at XPS13UdeM:~$ R --version
+R version 3.2.0 (2015-04-16) -- "Full of Ingredients"
+Copyright (C) 2015 The R Foundation for Statistical Computing
+Platform: x86_64-unknown-linux-gnu (64-bit)
+
+
+lafaye at XPS13UdeM:~$ g++ --version
+g++ (Ubuntu 4.9.2-0ubuntu1~12.04) 4.9.2
+
+
+
+lafaye at XPS13UdeM:~$ sudo R CMD INSTALL Rcpp_0.12.2.tar.gz
+* installing to library ?/home/lafaye/R/x86_64-pc-linux-gnu-library/3.2?
+* installing *source* package ?Rcpp? ...
+** package ?Rcpp? correctement d?compress? et sommes MD5 v?rifi?es
+** libs
+g++ -I/usr/share/R/include -DNDEBUG -I../inst/include/     -fpic  -g -O2 
+-fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security 
+-Werror=format-security -D_FORTIFY_SOURCE=2 -g  -c Date.cpp -o Date.o
+g++ -I/usr/share/R/include -DNDEBUG -I../inst/include/     -fpic  -g -O2 
+-fstack-protector --param=ssp-buffer-size=4 -Wformat -Wformat-security 
+-Werror=format-security -D_FORTIFY_SOURCE=2 -g  -c Module.cpp -o Module.o
+Module.cpp:29:20: error: ?CppFunctionBase? is not a member of ?Rcpp?
+  typedef Rcpp::XPtr<Rcpp::CppFunctionBase> XP_Function;
+                     ^
+Module.cpp:29:20: error: ?CppFunctionBase? is not a member of ?Rcpp?
+Module.cpp:29:41: error: template argument 1 is invalid
+  typedef Rcpp::XPtr<Rcpp::CppFunctionBase> XP_Function;
+                                          ^
+Module.cpp:29:41: error: template argument 3 is invalid
+Module.cpp:29:54: error: invalid type in declaration before ?;? token
+  typedef Rcpp::XPtr<Rcpp::CppFunctionBase> XP_Function;
+                                                       ^
+Module.cpp: In function ?SEXPREC* InternalFunction_invoke(SEXP)?:
+Module.cpp:120:23: error: invalid conversion from ?SEXP? to ?XP_Function 
+{aka int}? [-fpermissive]
+   XP_Function fun(CAR(p)); p = CDR(p);
+                        ^
+Module.cpp:122:12: error: base operand of ?->? is not a pointer
+   return fun->operator()(cargs);
+             ^
+make: *** [Module.o] Erreur 1
+ERROR: compilation failed for package ?Rcpp?
+* removing ?/home/lafaye/R/x86_64-pc-linux-gnu-library/3.2/Rcpp?
+
+I have no idea on what goes wrong but I hope you could give some clue on 
+what I could do?
+
+Many thanks in advance.
+
+Best regards,
+
+Pierre L.
+
+
+-- 
+Pierre Lafaye de Micheaux
+
+Adresse courrier:
+Universit? de Montr?al
+Pavillon Andr?-Aisenstadt
+D?partement de Math?matiques et Statistique
+CP 6128 Succursale Centre-ville
+Montr?al Qc H3C 3J7
+CANADA
+
+Adresse physique:
+D?partement de Math?matiques et Statistique
+Bureau 4249, Pavillon Andr?-Aisenstadt
+2920, chemin de la Tour
+Montr?al, Qu?bec H3T 1J4
+CANADA
+
+T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+lafaye at dms.umontreal.ca
+http://www.biostatisticien.eu
+
+
+From edd at debian.org  Sat Jan  9 19:30:40 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 9 Jan 2016 12:30:40 -0600
+Subject: [Rcpp-devel] Problem installing Rcpp version 0.12.2 on Ubuntu
+	12.04	LTS
+In-Reply-To: <56914EEE.9070902@dms.umontreal.ca>
+References: <56914EEE.9070902@dms.umontreal.ca>
+Message-ID: <22161.20944.559490.414125@max.nulle.part>
+
+
+On 9 January 2016 at 19:18, Pierre Lafaye de Micheaux wrote:
+| I have no idea on what goes wrong but I hope you could give some clue on 
+| what I could do?
+
+I would start by reading the README here (or on any other CRAN mirror)
+
+  http://cran.rstudio.com/bin/linux/ubuntu/
+
+and then upgrade to R 3.2.3.  After everything is peachy.  We, and CRAN,
+release for current R.  We even test for it on Travis.  If you're on an older
+system you are by yourself.  So I'd upgrade.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Jan  9 19:36:44 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 9 Jan 2016 12:36:44 -0600
+Subject: [Rcpp-devel] Problem installing Rcpp version 0.12.2 on Ubuntu
+	12.04	LTS
+In-Reply-To: <56914EEE.9070902@dms.umontreal.ca>
+References: <56914EEE.9070902@dms.umontreal.ca>
+Message-ID: <22161.21308.911260.5069@max.nulle.part>
+
+
+PS If you fail to compile Rcpp from source you can even get it prebuilt for
+you. What you need is to add the marutter c2d4u PPA from
+
+    https://launchpad.net/~marutter/+archive/ubuntu/c2d4u
+
+Where is an 'apt-cache policy r-cran-rcpp' run in a dedicated Docker
+container which knows about this PPA and the other marutter PPA, and is set
+to Ubuntu precise aka 12.04:
+
+edd at max:~$ docker run --rm -ti rocker/r-apt:precise apt-cache policy r-cran-rcpp
+r-cran-rcpp:
+  Installed: (none)
+  Candidate: 0.12.2-1ppa0precise0
+  Version table:
+     0.12.2-1ppa0precise0 0
+        500 http://ppa.launchpad.net/marutter/c2d4u/ubuntu/ precise/main amd64 Packages
+     0.10.3-2precise0 0
+        500 http://ppa.launchpad.net/marutter/rrutter/ubuntu/ precise/main amd64 Packages
+     0.9.9-1 0
+        500 http://archive.ubuntu.com/ubuntu/ precise/universe amd64 Packages
+edd at max:~$ 
+
+You get roxygen2 and some other 2500+ plus packages from there too.
+
+Very useful service -- while I don't use ancient Ubuntu versions on my
+machines, I rely on this for Travis quite a bit.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From lafaye at dms.umontreal.ca  Sat Jan  9 19:41:44 2016
+From: lafaye at dms.umontreal.ca (Pierre Lafaye de Micheaux)
+Date: Sat, 9 Jan 2016 19:41:44 +0100
+Subject: [Rcpp-devel] Problem installing Rcpp version 0.12.2 on Ubuntu
+ 12.04 LTS
+In-Reply-To: <22161.21308.911260.5069@max.nulle.part>
+References: <56914EEE.9070902@dms.umontreal.ca>
+ <22161.21308.911260.5069@max.nulle.part>
+Message-ID: <56915468.80907@dms.umontreal.ca>
+
+Thank you again. Indeed I failed to compile Rccp from source (even with 
+R version 3.2.3).
+But I will definitely look at what you propose. I was happy with my DELL 
+XPS13 Developer Edition Ubuntu laptop but I will really need to upgrade 
+at least to 14.04 ...
+
+Best wishes
+
+Pierre
+
+Le 09/01/2016 19:36, Dirk Eddelbuettel a ?crit :
+> PS If you fail to compile Rcpp from source you can even get it prebuilt for
+> you. What you need is to add the marutter c2d4u PPA from
+>
+>      https://launchpad.net/~marutter/+archive/ubuntu/c2d4u
+>
+> Where is an 'apt-cache policy r-cran-rcpp' run in a dedicated Docker
+> container which knows about this PPA and the other marutter PPA, and is set
+> to Ubuntu precise aka 12.04:
+>
+> edd at max:~$ docker run --rm -ti rocker/r-apt:precise apt-cache policy r-cran-rcpp
+> r-cran-rcpp:
+>    Installed: (none)
+>    Candidate: 0.12.2-1ppa0precise0
+>    Version table:
+>       0.12.2-1ppa0precise0 0
+>          500 http://ppa.launchpad.net/marutter/c2d4u/ubuntu/ precise/main amd64 Packages
+>       0.10.3-2precise0 0
+>          500 http://ppa.launchpad.net/marutter/rrutter/ubuntu/ precise/main amd64 Packages
+>       0.9.9-1 0
+>          500 http://archive.ubuntu.com/ubuntu/ precise/universe amd64 Packages
+> edd at max:~$
+>
+> You get roxygen2 and some other 2500+ plus packages from there too.
+>
+> Very useful service -- while I don't use ancient Ubuntu versions on my
+> machines, I rely on this for Travis quite a bit.
+>
+> Dirk
+>
+
+-- 
+Pierre Lafaye de Micheaux
+
+Adresse courrier:
+Universit? de Montr?al
+Pavillon Andr?-Aisenstadt
+D?partement de Math?matiques et Statistique
+CP 6128 Succursale Centre-ville
+Montr?al Qc H3C 3J7
+CANADA
+
+Adresse physique:
+D?partement de Math?matiques et Statistique
+Bureau 4249, Pavillon Andr?-Aisenstadt
+2920, chemin de la Tour
+Montr?al, Qu?bec H3T 1J4
+CANADA
+
+T?l.: (00-1) 514-343-6607 / Fax: (00-1) 514-343-5700
+lafaye at dms.umontreal.ca
+http://www.biostatisticien.eu
+
+
+From edd at debian.org  Sat Jan  9 19:51:48 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 9 Jan 2016 12:51:48 -0600
+Subject: [Rcpp-devel] Problem installing Rcpp version 0.12.2 on Ubuntu
+ 12.04 LTS
+In-Reply-To: <56915468.80907@dms.umontreal.ca>
+References: <56914EEE.9070902@dms.umontreal.ca>
+ <22161.21308.911260.5069@max.nulle.part>
+ <56915468.80907@dms.umontreal.ca>
+Message-ID: <22161.22212.630935.917269@max.nulle.part>
+
+
+On 9 January 2016 at 19:41, Pierre Lafaye de Micheaux wrote:
+| Thank you again. Indeed I failed to compile Rccp from source (even with 
+| R version 3.2.3).
+| But I will definitely look at what you propose. I was happy with my DELL 
+| XPS13 Developer Edition Ubuntu laptop but I will really need to upgrade 
+| at least to 14.04 ...
+
+i)  Yes. Absolutely. And don;t stop there.
+
+    I just update a bunch of machines at work to 15.10.
+
+ii) Your compilation error __makes no sense whatsoever__ as Rcpp gets rebuilt
+    on many different Debian, Ubuntu and whatnot flavours. I could now load a
+    plain Docker 12.04 container and built it.
+
+So I suspect we need to consider that you may have done something else to
+your local setup as the _really_ does work for thousands of other users. On
+various system combinations.  But until you come up with something
+reproducible I cannot help you.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Rainer at krugs.de  Wed Jan 13 11:17:41 2016
+From: Rainer at krugs.de (Rainer M Krug)
+Date: Wed, 13 Jan 2016 11:17:41 +0100
+Subject: [Rcpp-devel] Debugging an C++ code in package using Rcpp package ?
+Message-ID: <m2fuy1n5q2.fsf@krugs.de>
+
+Hi
+
+What is te easiest way of debugging a package using Rcpp which gives a
+segfault in the C++ code?
+
+What is the up-to-date procedure?
+
+I am on OS X and use usually emacs and ess.
+
+Any suggestions?
+
+Thanks,
+
+Raner
+
+-- 
+Rainer M. Krug, PhD (Conservation Ecology, SUN), MSc (Conservation Biology, UCT), Dipl. Phys. (Germany)
+
+Centre of Excellence for Invasion Biology
+Stellenbosch University
+South Africa
+
+Tel :       +33 - (0)9 53 10 27 44
+Cell:       +33 - (0)6 85 62 59 98
+Fax :       +33 - (0)9 58 10 27 44
+
+Fax (D):    +49 - (0)3 21 21 25 22 44
+
+email:      Rainer at krugs.de
+
+Skype:      RMkrug
+
+PGP: 0x0F52F982
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 454 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160113/f3ff22fa/attachment.sig>
+
+From rich.fitzjohn at gmail.com  Wed Jan 13 11:21:18 2016
+From: rich.fitzjohn at gmail.com (Rich FitzJohn)
+Date: Wed, 13 Jan 2016 10:21:18 +0000
+Subject: [Rcpp-devel] Debugging an C++ code in package using Rcpp
+	package ?
+In-Reply-To: <m2fuy1n5q2.fsf@krugs.de>
+References: <m2fuy1n5q2.fsf@krugs.de>
+Message-ID: <CAAVomJuWfPTV20YGyzSZQDjEiyW+DYvwbAV15C8bUZQK5ayixw@mail.gmail.com>
+
+On a mac, lldb passed to R as `R -d lldb` usually does the trick.  Kevin
+Ushey has written a nice article on this here:
+  http://kevinushey.github.io/blog/2015/04/13/debugging-with-lldb/
+which complements the information in R-exts
+
+https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Debugging-compiled-code
+
+Cheers,
+Rich
+
+On Wed, Jan 13, 2016 at 10:17 AM Rainer M Krug <Rainer at krugs.de> wrote:
+
+> Hi
+>
+> What is te easiest way of debugging a package using Rcpp which gives a
+> segfault in the C++ code?
+>
+> What is the up-to-date procedure?
+>
+> I am on OS X and use usually emacs and ess.
+>
+> Any suggestions?
+>
+> Thanks,
+>
+> Raner
+>
+> --
+> Rainer M. Krug, PhD (Conservation Ecology, SUN), MSc (Conservation
+> Biology, UCT), Dipl. Phys. (Germany)
+>
+> Centre of Excellence for Invasion Biology
+> Stellenbosch University
+> South Africa
+>
+> Tel :       +33 - (0)9 53 10 27 44
+> Cell:       +33 - (0)6 85 62 59 98
+> Fax :       +33 - (0)9 58 10 27 44
+>
+> Fax (D):    +49 - (0)3 21 21 25 22 44
+>
+> email:      Rainer at krugs.de
+>
+> Skype:      RMkrug
+>
+> PGP: 0x0F52F982
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160113/e1e519d4/attachment.html>
+
+From qkou at umail.iu.edu  Wed Jan 13 16:17:19 2016
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Wed, 13 Jan 2016 10:17:19 -0500
+Subject: [Rcpp-devel] Debugging an C++ code in package using Rcpp
+	package ?
+In-Reply-To: <CAAVomJuWfPTV20YGyzSZQDjEiyW+DYvwbAV15C8bUZQK5ayixw@mail.gmail.com>
+References: <m2fuy1n5q2.fsf@krugs.de>
+ <CAAVomJuWfPTV20YGyzSZQDjEiyW+DYvwbAV15C8bUZQK5ayixw@mail.gmail.com>
+Message-ID: <CAJ_LAMDO8GpNRBrpf7A9vcfzGuWQNuQqw-=5izDdkwVbEJAm4g@mail.gmail.com>
+
+Hi, Rainer,
+
+Personally I think the video below provides a very nice example to debug in
+R package.
+
+https://vimeo.com/11937905
+
+Hope it helps.
+
+Best,
+
+KK
+
+On Wed, Jan 13, 2016 at 5:21 AM, Rich FitzJohn <rich.fitzjohn at gmail.com>
+wrote:
+
+> On a mac, lldb passed to R as `R -d lldb` usually does the trick.  Kevin
+> Ushey has written a nice article on this here:
+>   http://kevinushey.github.io/blog/2015/04/13/debugging-with-lldb/
+> which complements the information in R-exts
+>
+> https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Debugging-compiled-code
+>
+> Cheers,
+> Rich
+>
+> On Wed, Jan 13, 2016 at 10:17 AM Rainer M Krug <Rainer at krugs.de> wrote:
+>
+>> Hi
+>>
+>> What is te easiest way of debugging a package using Rcpp which gives a
+>> segfault in the C++ code?
+>>
+>> What is the up-to-date procedure?
+>>
+>> I am on OS X and use usually emacs and ess.
+>>
+>> Any suggestions?
+>>
+>> Thanks,
+>>
+>> Raner
+>>
+>> --
+>> Rainer M. Krug, PhD (Conservation Ecology, SUN), MSc (Conservation
+>> Biology, UCT), Dipl. Phys. (Germany)
+>>
+>> Centre of Excellence for Invasion Biology
+>> Stellenbosch University
+>> South Africa
+>>
+>> Tel :       +33 - (0)9 53 10 27 44
+>> Cell:       +33 - (0)6 85 62 59 98
+>> Fax :       +33 - (0)9 58 10 27 44
+>>
+>> Fax (D):    +49 - (0)3 21 21 25 22 44
+>>
+>> email:      Rainer at krugs.de
+>>
+>> Skype:      RMkrug
+>>
+>> PGP: 0x0F52F982
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160113/8151a9fb/attachment.html>
+
+From edd at debian.org  Wed Jan 13 16:40:26 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 13 Jan 2016 09:40:26 -0600
+Subject: [Rcpp-devel] Debugging an C++ code in package using
+	Rcpp	package ?
+In-Reply-To: <CAJ_LAMDO8GpNRBrpf7A9vcfzGuWQNuQqw-=5izDdkwVbEJAm4g@mail.gmail.com>
+References: <m2fuy1n5q2.fsf@krugs.de>
+ <CAAVomJuWfPTV20YGyzSZQDjEiyW+DYvwbAV15C8bUZQK5ayixw@mail.gmail.com>
+ <CAJ_LAMDO8GpNRBrpf7A9vcfzGuWQNuQqw-=5izDdkwVbEJAm4g@mail.gmail.com>
+Message-ID: <22166.28650.380465.510955@max.nulle.part>
+
+
+Rainer,
+
+The old BioC video is very good, albeit somewhat low-level (which you cannot
+avoid with compiled code).
+
+Kevin's write-up is also very nice.
+
+There is also this older post by Doug Bates somewhere but all I find right
+now is this:
+  http://comments.gmane.org/gmane.emacs.ess.general/4188
+which is not what I recall.
+
+These days 'just' using valgrind and the ASAN/UBSAN instrumented R versions
+can help too.  I have two blog posts on that as well as some Docker
+containers. It probably requires a little bit of familiarity with Docker.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From lafaye at dms.umontreal.ca  Wed Jan 13 16:41:13 2016
+From: lafaye at dms.umontreal.ca (Lafaye de Micheaux Pierre)
+Date: Wed, 13 Jan 2016 16:41:13 +0100
+Subject: [Rcpp-devel] How to give default value with Rcpp and roxygen2
+	involving seq_len
+Message-ID: <1452699673.18248.8.camel@dms.umontreal.ca>
+
+Hello everybody,
+
+Let's consider the simple function:
+
+f <- function(x = 1:10) {return(x)}
+
+where the argument 'x' could take non integer values.
+
+I would like to create such a function using Rcpp and roxygen2. If I try
+something like:
+
+//' @param x Vector of real values
+NumericVector f(NumericVector x) {return(x);}
+
+then after creation using devtools, I will obtain a function like this
+one:
+f <- function(x) {return(x)}
+
+How can I write things in my C++ code so that I will obtain 
+the x = 1:10 default values?
+
+I tried something like:
+ //' @param x Vector of real values
+NumericVector f(NumericVector x = NumericVector::create(seq_len(10))
+{return(x);}
+
+but it failed completely ...
+
+I am quite new to Rcpp, so I apologize if my question is too naive. If
+this is the case, feel free to send me a web link to some documentation
+that I could learn to try to solve this problem by myself.
+
+Best regards,
+
+Pierre
+
+
+From jj.allaire at gmail.com  Wed Jan 13 16:49:36 2016
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Wed, 13 Jan 2016 10:49:36 -0500
+Subject: [Rcpp-devel] How to give default value with Rcpp and roxygen2
+ involving seq_len
+In-Reply-To: <1452699673.18248.8.camel@dms.umontreal.ca>
+References: <1452699673.18248.8.camel@dms.umontreal.ca>
+Message-ID: <CAKw=oCxFM_H-7+W6ZAV97SGg2Nsgy6vKB6hT1Dmrm93vCFajqg@mail.gmail.com>
+
+The parsing of default values for attributes has some significant
+limitations (it's mostly just use for literals and empty vectors).
+This is what is currently supported:
+
+? String literals delimited by quotes (e.g. "foo")
+? Decimal numeric values (e.g. 10 or 4.5)
+? Pre-defined constants including true, false, R_NilValue, NA_STRING,
+NA_INTEGER, NA_REAL, and NA_LOGICAL.
+? Selected vector types (CharacterVector, IntegerVector, and
+NumericVector) instantiated using the empty form of the ::create
+static member function.
+? Matrix types instantiated using the rows, cols constructor.
+
+
+On Wed, Jan 13, 2016 at 10:41 AM, Lafaye de Micheaux Pierre
+<lafaye at dms.umontreal.ca> wrote:
+> Hello everybody,
+>
+> Let's consider the simple function:
+>
+> f <- function(x = 1:10) {return(x)}
+>
+> where the argument 'x' could take non integer values.
+>
+> I would like to create such a function using Rcpp and roxygen2. If I try
+> something like:
+>
+> //' @param x Vector of real values
+> NumericVector f(NumericVector x) {return(x);}
+>
+> then after creation using devtools, I will obtain a function like this
+> one:
+> f <- function(x) {return(x)}
+>
+> How can I write things in my C++ code so that I will obtain
+> the x = 1:10 default values?
+>
+> I tried something like:
+>  //' @param x Vector of real values
+> NumericVector f(NumericVector x = NumericVector::create(seq_len(10))
+> {return(x);}
+>
+> but it failed completely ...
+>
+> I am quite new to Rcpp, so I apologize if my question is too naive. If
+> this is the case, feel free to send me a web link to some documentation
+> that I could learn to try to solve this problem by myself.
+>
+> Best regards,
+>
+> Pierre
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Wed Jan 13 17:04:41 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 13 Jan 2016 10:04:41 -0600
+Subject: [Rcpp-devel] How to give default value with Rcpp and
+	roxygen2	involving seq_len
+In-Reply-To: <1452699673.18248.8.camel@dms.umontreal.ca>
+References: <1452699673.18248.8.camel@dms.umontreal.ca>
+Message-ID: <22166.30105.402079.613754@max.nulle.part>
+
+
+On 13 January 2016 at 16:41, Lafaye de Micheaux Pierre wrote:
+| Hello everybody,
+| 
+| Let's consider the simple function:
+| 
+| f <- function(x = 1:10) {return(x)}
+| 
+| where the argument 'x' could take non integer values.
+| 
+| I would like to create such a function using Rcpp and roxygen2. If I try
+| something like:
+| 
+| //' @param x Vector of real values
+| NumericVector f(NumericVector x) {return(x);}
+| 
+| then after creation using devtools, I will obtain a function like this
+| one:
+| f <- function(x) {return(x)}
+| 
+| How can I write things in my C++ code so that I will obtain 
+| the x = 1:10 default values?
+| 
+| I tried something like:
+|  //' @param x Vector of real values
+| NumericVector f(NumericVector x = NumericVector::create(seq_len(10))
+| {return(x);}
+| 
+| but it failed completely ...
+| 
+| I am quite new to Rcpp, so I apologize if my question is too naive. If
+| this is the case, feel free to send me a web link to some documentation
+| that I could learn to try to solve this problem by myself.
+
+I am sure I have more examples by one quick check lead to RcppApt where I do
+
+   //' The APT Package Management system uses a data-rich caching 
+   //' structure. This accessor function returns the names of installable
+   //' packages for a given regular expression.
+   //'
+   //' @title Retrieve Names of All Installable Packages
+   //' @param regexp Regular expression for package name
+   //' @return A data frame with columns containing the 
+   //' package name, the installed version (or NA if not installed)  
+   //' and the section it is installed in (or NA).
+   //' @author Dirk Eddelbuettel
+   //' @examples 
+   //' getPackages("^r-(base|doc)-")
+   // [[Rcpp::export]]
+   Rcpp::DataFrame getPackages(const std::string regexp = ".") {
+
+   ...
+
+See https://github.com/eddelbuettel/rcppapt
+
+
+What you have above is one-level tricker as it uses Rcpp constructs. I am not
+sure I tried that.  I most just initialized standard C++ types: bool, string, ...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Rainer at krugs.de  Thu Jan 14 11:10:38 2016
+From: Rainer at krugs.de (Rainer M Krug)
+Date: Thu, 14 Jan 2016 11:10:38 +0100
+Subject: [Rcpp-devel] Debugging an C++ code in package using
+	Rcpp	package ?
+In-Reply-To: <22166.28650.380465.510955@max.nulle.part> (Dirk Eddelbuettel's
+ message of "Wed, 13 Jan 2016 09:40:26 -0600")
+References: <m2fuy1n5q2.fsf@krugs.de>
+ <CAAVomJuWfPTV20YGyzSZQDjEiyW+DYvwbAV15C8bUZQK5ayixw@mail.gmail.com>
+ <CAJ_LAMDO8GpNRBrpf7A9vcfzGuWQNuQqw-=5izDdkwVbEJAm4g@mail.gmail.com>
+ <22166.28650.380465.510955@max.nulle.part>
+Message-ID: <m2a8o8mpy9.fsf@krugs.de>
+
+Dirk Eddelbuettel <edd at debian.org> writes:
+
+> Rainer,
+>
+> The old BioC video is very good, albeit somewhat low-level (which you cannot
+> avoid with compiled code).
+>
+> Kevin's write-up is also very nice.
+>
+> There is also this older post by Doug Bates somewhere but all I find right
+> now is this:
+>   http://comments.gmane.org/gmane.emacs.ess.general/4188
+> which is not what I recall.
+>
+> These days 'just' using valgrind and the ASAN/UBSAN instrumented R Versions
+> can help too.  I have two blog posts on that as well as some Docker
+> containers. It probably requires a little bit of familiarity with Docker.
+>
+> Dirk
+
+Thanks everybody for your input - I will look at it later today after I
+did some clearing up of the code in the hope that I see what is wrong.
+
+The links and videos look very interesting.
+
+@Dirk: I wanted to look at Docker anyway for reproducible research (and
+the ease of installing some programs under Linux instead of OS X), so I
+will look at this as well.
+
+Do you know of a nice intro to docker and how to use R under docker
+(including installation of additional software and packages)? I have the
+Docker book and read your Rocker intro - so please feel free to pint me there.
+
+Thanks,
+
+Rainer
+
+
+-- 
+Rainer M. Krug
+email: Rainer<at>krugs<dot>de
+PGP: 0x0F52F982
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 454 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160114/4f6da1e9/attachment-0001.sig>
+
+From jj at rstudio.com  Wed Jan 20 13:50:10 2016
+From: jj at rstudio.com (JJ Allaire)
+Date: Wed, 20 Jan 2016 07:50:10 -0500
+Subject: [Rcpp-devel] [ANN] RcppParallel 4.3.15
+Message-ID: <CAKw=oCxjjtW5ob2sv_4qbLtjeetEsmAv4_t+vx7yjXqna3RGLw@mail.gmail.com>
+
+RcppParallel v4.3.15 was recently released to CRAN. RcppParallel has
+been on CRAN for a while but more recently added full support for
+using Intel TBB (Thread Building Blocks) on both Windows and Solaris
+x86. The package website is here:
+
+http://rcppcore.github.io/RcppParallel/
+
+A presentation Dirk and I prepared for the Workshop for Distributed
+Computing in R is here (note that the provisos to TBB not working on
+Windows or Solaris no longer apply!):
+
+http://dirk.eddelbuettel.com/papers/rcpp_parallel_talk_jan2015.pdf
+
+Note that there is some overlap between OpenMP and Intel TBB.
+Advantages of Intel TBB over OpenMP are more flexibility/tunability
+(at the cost of moderate additional complexity) as well as broader
+platform support (works on Windows, OS X, Linux, and Solaris).
+
+I think most Rcpp packages that implement custom algorithms could
+benefit from the use of RcppParallel. Some important qualifiers
+though:
+
+1. If your Rcpp code makes substantial use of R math or other R
+internal functions you might not see much benefit (as those functions
+with rare exception need to be called from the main thread).
+
+2. If you are already taking advantage of parallelism another way (e.g
+RcppArmadillo may already be using multiple threads for many
+operations via it's interface to the system BLAS/LAPACK) then you
+might actually lose performance by layering more thread scheduling on
+top of what you've already got.
+
+RcppParallel currently only deals with thread parallelism, however
+we're currently exploring adding Boost.SIMD to the package
+(https://meetingcpp.com/tl_files/mcpp/slides/12/simd.pdf).
+
+Finally, we have a number of articles on the RcppGallery which provide
+example uses of RcppParallel, but they are (save for one) pretty
+straightforward toy examples. If folks do find success with the
+package we'd love to see a few more articles written about more
+sophisticated use cases.
+
+J.J.
+
+From tds151 at gmail.com  Thu Jan 21 22:40:01 2016
+From: tds151 at gmail.com (terrance savitsky)
+Date: Thu, 21 Jan 2016 16:40:01 -0500
+Subject: [Rcpp-devel] (no subject)
+Message-ID: <CAL6JAJY2G_0-iuLL1et5P3sDzQPUqCzHz+vDidsE8AA_h++N-w@mail.gmail.com>
+
+Hi Rcpp experts, The CRAN maintainers inform me that when testing one of my
+packages under
+
+g++ -std=gnu++14 (logs with gcc 5.3)
+
+that the following code snippet,
+
+IntegerVector dpr = diff(pr); /* pr is an Rcpp::IntegerVector */
+icolvec diffpersons(dpr.begin(), nc - 1, false);
+
+generates the following error:
+
+error: no matching function for call to ???arma::Col<long long
+int>::Col(Rcpp::Vector<13>::iterator, int, bool)???
+     icolvec diffpersons(dpr.begin(), nc - 1, false);
+
+where I'm writing (the memory for) an Rcpp:: IntegerVector to an
+arma::icolvec. The default width for an Armadillo signed integer under
+C++11 and C++14 is 64-bit (long long).  I'd appreciate your insight on
+whether there is an alternate approach to casting an arma::icolvec
+from an Rcpp::IntegerVector that can deal with a 64-bit integer; for
+example, will as<icolvec>() work?
+
+
+Thank you for your help,
+
+
+Terrance
+
+
+
+-- 
+Thank you, Terrance Savitsky
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160121/d5994c45/attachment.html>
+
+From tds151 at gmail.com  Thu Jan 21 22:44:22 2016
+From: tds151 at gmail.com (terrance savitsky)
+Date: Thu, 21 Jan 2016 16:44:22 -0500
+Subject: [Rcpp-devel] Casting error from chhecking package on CRAN under
+	C++14, g++
+Message-ID: <CAL6JAJa8c42rGtOm4zXkua579mN_anpVpJVoXVeChJ=3_xc1Gg@mail.gmail.com>
+
+Hi Rcpp experts, The CRAN maintainers inform me that when testing one of my
+packages under
+
+g++ -std=gnu++14 (logs with gcc 5.3)
+
+that the following code snippet,
+
+IntegerVector dpr = diff(pr); /* pr is an Rcpp::IntegerVector */
+icolvec diffpersons(dpr.begin(), nc - 1, false);
+
+generates the following error:
+
+error: no matching function for call to ???arma::Col<long long
+int>::Col(Rcpp::Vector<13>::iterator, int, bool)???
+     icolvec diffpersons(dpr.begin(), nc - 1, false);
+
+where I'm writing (the memory for) an Rcpp:: IntegerVector to an
+arma::icolvec. The default width for an Armadillo signed integer under
+C++11 and C++14 is 64-bit (long long).  I'd appreciate your insight on
+whether there is an alternate approach to casting an arma::icolvec
+from an Rcpp::IntegerVector that can deal with a 64-bit integer; for
+example, will as<icolvec>() work?
+
+
+Thank you for your help,
+
+
+Terrance
+
+
+
+-- 
+Thank you, Terrance Savitsky
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Thank you, Terrance Savitsky
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160121/cdf128fe/attachment.html>
+
+From edd at debian.org  Fri Jan 22 04:46:06 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 21 Jan 2016 21:46:06 -0600
+Subject: [Rcpp-devel] Casting error from checking package on CRAN under
+	C++14, g++
+In-Reply-To: <CAL6JAJa8c42rGtOm4zXkua579mN_anpVpJVoXVeChJ=3_xc1Gg@mail.gmail.com>
+References: <CAL6JAJa8c42rGtOm4zXkua579mN_anpVpJVoXVeChJ=3_xc1Gg@mail.gmail.com>
+Message-ID: <22177.42494.653988.335703@max.nulle.part>
+
+
+Hi Terrance,
+
+On 21 January 2016 at 16:44, terrance savitsky wrote:
+| Hi Rcpp experts, The CRAN maintainers inform me that when testing one of my
+| packages under?
+| 
+| g++ -std=gnu++14 (logs with gcc 5.3)
+| 
+| that the following code snippet,
+| 
+| IntegerVector dpr = diff(pr); /* pr is an Rcpp::IntegerVector */
+| icolvec diffpersons(dpr.begin(), nc - 1, false);
+| 
+| generates the following error:
+| 
+| error: no matching function for call to ???arma::Col<long long int>::Col(Rcpp::Vector<13>::iterator, int, bool)???
+|      icolvec diffpersons(dpr.begin(), nc - 1, false);
+| 
+| where I'm writing (the memory for) an Rcpp:: IntegerVector to an arma::icolvec.?The default width for an Armadillo signed integer under C++11 and C++14 is 64-bit (long long).? I'd appreciate your insight on whether there is an alternate approach to casting an arma::icolvec from an Rcpp::IntegerVector that can deal with a 64-bit integer; for example, will as<icolvec>() work?
+
+As you probably noticed, you were not the only one receiving this email.
+
+To give you some background, the author of that very email insisted for many
+years that the only actual C++ standard that mattered for R was C++98 (and
+yes, it is referenced in the email) meaning that the interim C++03 changes
+'never existed'.  This meant in particular that 'long long' was not
+allowed. We have numerous #ifdef's around it because of that. Huge pain.
+
+And so did Armadillo which you use.  Now if you check the Armadillo docs (as
+I just had to as I had a very similar issue an older package of mine in the
+same email), I saw in Conrad's docs (at http://arma.sourceforge.net/docs.html#Col)
+
+  uword, sword
+  uword is a typedef for an unsigned integer type; it is used for matrix
+  indices as well as all internal counters and loops 
+
+  sword is a typedef for a signed integer type
+
+  The minimum width of both uword and sword is either 32 or 64 bits:
+    when using the old C++98 / C++03 standards, the default width is 32 bits
+    when using the new C++11 / C++14 standards, the default width is 64 bits on
+       64-bit platforms (as of Armadillo 5.000) 
+
+and that is key. Conrad now uses 64 bit (== long long) when C++11 or C++14 is
+used.  So where you used to use the 'icolvec' before, you may now need
+Col<int32_t> -- or else you will get a 'long long' when R wants an
+'int'. Won't fly.
+
+I just made that change in three spots in the package in question, and the
+very error reported against my package goes away.  I started from a basic
+Docker container providing on debian:unstable -- which I knew had g++-5.3 as
+in the report we got -- and install R, Rcpp and RcppArmadillo after which
+this was easy to test.
+
+To be explicit, my diff was
+
+diff --git a/src/devol.cpp b/src/devol.cpp
+index 7b1ea80..ca4d063 100644
+--- a/src/devol.cpp
++++ b/src/devol.cpp
+@@ -32,13 +32,13 @@ void devol(double VTR, double f_weight, double f_cross, int i_bs_flag,
+     }
+     const int urn_depth = 5;                    // 4 + one index to avoid 
+     Rcpp::NumericVector par(i_D);               // initialize parameter vector to pass to evaluate function 
+-    arma::icolvec::fixed<urn_depth> ia_urn2;    // fixed-size vector for urn draws
+-    arma::icolvec ia_urntmp(i_NP);              // so that we don't need to re-allocated each time in permute
++    arma::Col<int32_t>::fixed<urn_depth> ia_urn2;    // fixed-size vector for urn draws
++    arma::Col<int32_t> ia_urntmp(i_NP);              // so that we don't need to re-allocated each time in permute
+     arma::mat initialpop(i_D, i_NP); 
+     int i_nstorepop = static_cast<int>(ceil(static_cast<double>((i_itermax - i_storepopfrom) / i_storepopfreq)));
+     int p_NP = round(i_pPct * i_NP);            // choose at least two best solutions 
+     p_NP = p_NP < 2 ? 2 : p_NP;
+-    arma::icolvec sortIndex(i_NP);              // sorted values of ta_oldC 
++    arma::Col<int32_t> sortIndex(i_NP);         // sorted values of ta_oldC 
+     if (i_strategy == 6) {
+         for (int i = 0; i < i_NP; i++) 
+             sortIndex[i] = i; 
+edd at max:~/git/rcppde(feature/c++14)$ 
+
+
+Hope this helps.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sun Jan 24 16:33:54 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 24 Jan 2016 09:33:54 -0600
+Subject: [Rcpp-devel] Casting error from checking package on CRAN
+	under	C++14, g++
+In-Reply-To: <22177.42494.653988.335703@max.nulle.part>
+References: <CAL6JAJa8c42rGtOm4zXkua579mN_anpVpJVoXVeChJ=3_xc1Gg@mail.gmail.com>
+ <22177.42494.653988.335703@max.nulle.part>
+Message-ID: <22180.61154.276349.442540@max.nulle.part>
+
+
+Terrance,
+
+On 21 January 2016 at 21:46, Dirk Eddelbuettel wrote:
+| 
+| Hi Terrance,
+| 
+| On 21 January 2016 at 16:44, terrance savitsky wrote:
+| | Hi Rcpp experts, The CRAN maintainers inform me that when testing one of my
+| | packages under?
+| | 
+| | g++ -std=gnu++14 (logs with gcc 5.3)
+| | 
+| | that the following code snippet,
+| | 
+| | IntegerVector dpr = diff(pr); /* pr is an Rcpp::IntegerVector */
+| | icolvec diffpersons(dpr.begin(), nc - 1, false);
+| | 
+| | generates the following error:
+| | 
+| | error: no matching function for call to ???arma::Col<long long int>::Col(Rcpp::Vector<13>::iterator, int, bool)???
+| |      icolvec diffpersons(dpr.begin(), nc - 1, false);
+| | 
+| | where I'm writing (the memory for) an Rcpp:: IntegerVector to an arma::icolvec.?The default width for an Armadillo signed integer under C++11 and C++14 is 64-bit (long long).? I'd appreciate your insight on whether there is an alternate approach to casting an arma::icolvec from an Rcpp::IntegerVector that can deal with a 64-bit integer; for example, will as<icolvec>() work?
+| 
+| As you probably noticed, you were not the only one receiving this email.
+| 
+| To give you some background, the author of that very email insisted for many
+| years that the only actual C++ standard that mattered for R was C++98 (and
+| yes, it is referenced in the email) meaning that the interim C++03 changes
+| 'never existed'.  This meant in particular that 'long long' was not
+| allowed. We have numerous #ifdef's around it because of that. Huge pain.
+| 
+| And so did Armadillo which you use.  Now if you check the Armadillo docs (as
+| I just had to as I had a very similar issue an older package of mine in the
+| same email), I saw in Conrad's docs (at http://arma.sourceforge.net/docs.html#Col)
+| 
+|   uword, sword
+|   uword is a typedef for an unsigned integer type; it is used for matrix
+|   indices as well as all internal counters and loops 
+| 
+|   sword is a typedef for a signed integer type
+| 
+|   The minimum width of both uword and sword is either 32 or 64 bits:
+|     when using the old C++98 / C++03 standards, the default width is 32 bits
+|     when using the new C++11 / C++14 standards, the default width is 64 bits on
+|        64-bit platforms (as of Armadillo 5.000) 
+| 
+| and that is key. Conrad now uses 64 bit (== long long) when C++11 or C++14 is
+| used.  So where you used to use the 'icolvec' before, you may now need
+| Col<int32_t> -- or else you will get a 'long long' when R wants an
+| 'int'. Won't fly.
+| 
+| I just made that change in three spots in the package in question, and the
+| very error reported against my package goes away.  I started from a basic
+| Docker container providing on debian:unstable -- which I knew had g++-5.3 as
+| in the report we got -- and install R, Rcpp and RcppArmadillo after which
+| this was easy to test.
+| 
+| To be explicit, my diff was
+| 
+| diff --git a/src/devol.cpp b/src/devol.cpp
+| index 7b1ea80..ca4d063 100644
+| --- a/src/devol.cpp
+| +++ b/src/devol.cpp
+| @@ -32,13 +32,13 @@ void devol(double VTR, double f_weight, double f_cross, int i_bs_flag,
+|      }
+|      const int urn_depth = 5;                    // 4 + one index to avoid 
+|      Rcpp::NumericVector par(i_D);               // initialize parameter vector to pass to evaluate function 
+| -    arma::icolvec::fixed<urn_depth> ia_urn2;    // fixed-size vector for urn draws
+| -    arma::icolvec ia_urntmp(i_NP);              // so that we don't need to re-allocated each time in permute
+| +    arma::Col<int32_t>::fixed<urn_depth> ia_urn2;    // fixed-size vector for urn draws
+| +    arma::Col<int32_t> ia_urntmp(i_NP);              // so that we don't need to re-allocated each time in permute
+|      arma::mat initialpop(i_D, i_NP); 
+|      int i_nstorepop = static_cast<int>(ceil(static_cast<double>((i_itermax - i_storepopfrom) / i_storepopfreq)));
+|      int p_NP = round(i_pPct * i_NP);            // choose at least two best solutions 
+|      p_NP = p_NP < 2 ? 2 : p_NP;
+| -    arma::icolvec sortIndex(i_NP);              // sorted values of ta_oldC 
+| +    arma::Col<int32_t> sortIndex(i_NP);         // sorted values of ta_oldC 
+|      if (i_strategy == 6) {
+|          for (int i = 0; i < i_NP; i++) 
+|              sortIndex[i] = i; 
+| edd at max:~/git/rcppde(feature/c++14)$ 
+
+A simpler fix might be to use this construct from the Armadillo header:
+
+  #if defined(ARMA_32BIT_WORD)
+    #undef ARMA_64BIT_WORD
+  #endif
+
+I think that if you define ARMA_32BIT_WORD, but conditional on being in
+C++11/C++14 contexts, then the Armadillo should continue to use 32-bit
+integers which you can pass to R as before.  That may be worth testing.
+
+Hope this helps,  Dirk
+ 
+| Hope this helps.
+| 
+| Dirk
+| 
+| -- 
+| http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From retep.meissner at gmail.com  Wed Jan 27 11:35:25 2016
+From: retep.meissner at gmail.com (Peter Meissner)
+Date: Wed, 27 Jan 2016 11:35:25 +0100
+Subject: [Rcpp-devel] Rcpp C++11 on Windows
+Message-ID: <op.ybv7pfco3euttn@zukd208>
+
+Hey Listeners,
+
+I am quite solid in R but a complete noob to C++ and Rcpp so please excuse  
+if do not get it right ...
+
+My problem is that I would like to have a package using Rcpp AND using  
+C++11 features AND working on both Linux (Debian derivates) and Windows.  
+For Linux I seem to be on the right track and features like 'auto' and  
+'iterators' do work. On Windows however it will not compile.
+
+As far as I understand it, the main problem is that Rtools comes with a  
+compiler that simply does not support those features (g++ version 4.6.3).  
+Furthermore, I found that C++11 features are not CRAN compatible - right?
+
+Do I get it right so far? Can you give guidance on how best to proceed?  
+Should I get a newer g++/or-other compiler and make it the system default?  
+What are best or good working practices? Windows/Linux is a must and  
+system tweaks for other Windows users installing/building the package  
+should be minimal, though CRAN compliance would be only a minor extra.
+
+I hope I did not miss some obvious documentation or already existing  
+I-take-you-by-the-hand-blog-post.
+
+
+Best, Peter
+
+
+
+
+Compilation error:
+
+   * installing to library 'C:/Users/Admin/Documents/R/win-library/3.2'
+   * installing *source* package 'spanmatcher' ...
+   g++ -m64 -std=c++0x -I"C:/PROGRA~1/R/R-32~1.3/include" -DNDEBUG     
+-I"C:/Users/Admin/Documents/R/win-library/3.2/Rcpp/include"  
+-I"d:/RCompile/r-compiling/local/local323/include"     -O2 -Wall   
+-mtune=core2 -c span_matcher_worker.cpp -o span_matcher_worker.o
+   ** libs
+   g++ -m64 -shared -s -static-libgcc -o spanmatcher.dll tmp.def  
+RcppExports.o span_matcher_worker.o  
+-Ld:/RCompile/r-compiling/local/local323/lib/x64  
+-Ld:/RCompile/r-compiling/local/local323/lib  
+-LC:/PROGRA~1/R/R-32~1.3/bin/x64 -lR
+   collect2: ld returned 148 exit status
+   no DLL was created
+   ERROR: compilation failed for package 'spanmatcher'
+
+
+My system:
+
+   R version 3.2.3 (2015-12-10)
+   Platform: x86_64-w64-mingw32/x64 (64-bit)
+   Running under: Windows >= 8 x64 (build 9200)
+
+   locale:
+   [1] LC_COLLATE=German_Germany.1252  LC_CTYPE=German_Germany.1252
+   [3] LC_MONETARY=German_Germany.1252 LC_NUMERIC=C
+   [5] LC_TIME=German_Germany.1252
+
+   attached base packages:
+   [1] stats     graphics  grDevices utils     datasets  methods   base
+
+   other attached packages:
+   [1] devtools_1.9.1 Rcpp_0.12.2
+
+   loaded via a namespace (and not attached):
+   [1] tools_3.2.3
+
+
+-- 
+Erstellt mit Operas E-Mail-Modul: http://www.opera.com/mail/
+
+From plummerm at iarc.fr  Wed Jan 27 12:13:25 2016
+From: plummerm at iarc.fr (Martyn Plummer)
+Date: Wed, 27 Jan 2016 11:13:25 +0000
+Subject: [Rcpp-devel] Rcpp C++11 on Windows
+In-Reply-To: <op.ybv7pfco3euttn@zukd208>
+References: <op.ybv7pfco3euttn@zukd208>
+Message-ID: <1453893204.10275.110.camel@iarc.fr>
+
+On Wed, 2016-01-27 at 11:35 +0100, Peter Meissner wrote:
+> Hey Listeners,
+> 
+> I am quite solid in R but a complete noob to C++ and Rcpp so please excuse  
+> if do not get it right ...
+> 
+> My problem is that I would like to have a package using Rcpp AND using  
+> C++11 features AND working on both Linux (Debian derivates) and Windows.  
+> For Linux I seem to be on the right track and features like 'auto' and  
+> 'iterators' do work. On Windows however it will not compile.
+> 
+> As far as I understand it, the main problem is that Rtools comes with a  
+> compiler that simply does not support those features (g++ version 4.6.3).  
+> Furthermore, I found that C++11 features are not CRAN compatible - right?
+
+OK There are two issues here
+
+Q1: Does CRAN accept C++11 code?
+A1: Yes but you have to indicate that you are using C++11 rather than C
+++98, which is still the default standard for CRAN packages. This is
+described in the "Writing R Extensions" manual in section 1.2.4.
+
+Q2: Are C++11 features available on Windows?
+A2: Not yet. Release 4.6.3 includes limited support for C++11 features.
+Again, the "Writing R Extensions" manual will give you more details,
+with a link to a page describing what features are available. There are
+plans to update the toolchain on Windows to 4.9.2. This will improve C
+++11 support on windows but it will not be complete. The first
+fully-compliant gcc release is 5.1. However, it is not sufficiently
+stable on Windows.
+
+Martyn
+
+> Do I get it right so far? Can you give guidance on how best to proceed?  
+> Should I get a newer g++/or-other compiler and make it the system default?  
+> What are best or good working practices? Windows/Linux is a must and  
+> system tweaks for other Windows users installing/building the package  
+> should be minimal, though CRAN compliance would be only a minor extra.
+
+
+> I hope I did not miss some obvious documentation or already existing  
+> I-take-you-by-the-hand-blog-post.
+> 
+> 
+> Best, Peter
+> 
+> 
+> 
+> 
+> Compilation error:
+> 
+>    * installing to library 'C:/Users/Admin/Documents/R/win-library/3.2'
+>    * installing *source* package 'spanmatcher' ...
+>    g++ -m64 -std=c++0x -I"C:/PROGRA~1/R/R-32~1.3/include" -DNDEBUG     
+> -I"C:/Users/Admin/Documents/R/win-library/3.2/Rcpp/include"  
+> -I"d:/RCompile/r-compiling/local/local323/include"     -O2 -Wall   
+> -mtune=core2 -c span_matcher_worker.cpp -o span_matcher_worker.o
+>    ** libs
+>    g++ -m64 -shared -s -static-libgcc -o spanmatcher.dll tmp.def  
+> RcppExports.o span_matcher_worker.o  
+> -Ld:/RCompile/r-compiling/local/local323/lib/x64  
+> -Ld:/RCompile/r-compiling/local/local323/lib  
+> -LC:/PROGRA~1/R/R-32~1.3/bin/x64 -lR
+>    collect2: ld returned 148 exit status
+>    no DLL was created
+>    ERROR: compilation failed for package 'spanmatcher'
+> 
+> 
+> My system:
+> 
+>    R version 3.2.3 (2015-12-10)
+>    Platform: x86_64-w64-mingw32/x64 (64-bit)
+>    Running under: Windows >= 8 x64 (build 9200)
+> 
+>    locale:
+>    [1] LC_COLLATE=German_Germany.1252  LC_CTYPE=German_Germany.1252
+>    [3] LC_MONETARY=German_Germany.1252 LC_NUMERIC=C
+>    [5] LC_TIME=German_Germany.1252
+> 
+>    attached base packages:
+>    [1] stats     graphics  grDevices utils     datasets  methods   base
+> 
+>    other attached packages:
+>    [1] devtools_1.9.1 Rcpp_0.12.2
+> 
+>    loaded via a namespace (and not attached):
+>    [1] tools_3.2.3
+> 
+> 
+
+-----------------------------------------------------------------------
+This message and its attachments are strictly confidential. If you are
+not the intended recipient of this message, please immediately notify 
+the sender and delete it. Since its integrity cannot be guaranteed, 
+its content cannot involve the sender's responsibility. Any misuse, 
+any disclosure or publication of its content, either whole or partial, 
+is prohibited, exception made of formally approved use
+-----------------------------------------------------------------------
+
+From edd at debian.org  Wed Jan 27 13:57:30 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 27 Jan 2016 06:57:30 -0600
+Subject: [Rcpp-devel] Rcpp C++11 on Windows
+In-Reply-To: <1453893204.10275.110.camel@iarc.fr>
+References: <op.ybv7pfco3euttn@zukd208>
+	<1453893204.10275.110.camel@iarc.fr>
+Message-ID: <22184.48826.232134.477242@max.nulle.part>
+
+
+On 27 January 2016 at 11:13, Martyn Plummer wrote:
+| Q1: Does CRAN accept C++11 code?
+| A1: Yes but you have to indicate that you are using C++11 rather than C
+| ++98, which is still the default standard for CRAN packages. This is
+| described in the "Writing R Extensions" manual in section 1.2.4.
+
+Yup. Declaring it is easy. And the consequence _can_ (for now) be that you
+may not be able to build on Windows. The g++ 4.6.* compilers supports a
+subset of C++11 only.
+
+I declare 'CXX_STD = CXX11' in packages RcppAnnoy, RcppBDT, RcppCCTZ,
+RcppCNPy, RcppTOML -- and of these RcppAnnoy, RcppBDT and RcppCNPy *do*
+create Windows binaries. Whereas RcppCCTZ and RcppTOML use 'real' C++11 with
+features not supported by this old compiler so they exist on Linux and OS X
+only.
+ 
+| Q2: Are C++11 features available on Windows?
+| A2: Not yet. Release 4.6.3 includes limited support for C++11 features.
+| Again, the "Writing R Extensions" manual will give you more details,
+| with a link to a page describing what features are available. There are
+| plans to update the toolchain on Windows to 4.9.2. This will improve C
+| ++11 support on windows but it will not be complete. The first
+| fully-compliant gcc release is 5.1. However, it is not sufficiently
+| stable on Windows.
+
+It depends. It is not black/white even if some people insist on portraying it
+as such.  Many features were added incrementally.
+
+g++-4.6.* has C++0x with some things, g++-4.9 adds quite a lot more and works
+for all I do.  At work we sometimes rely on C++14 already and use g++-5.2.
+
+So you need to tell us what it is you want to do, or just try it, and the
+compiler _currently in use_ may fail.  With some luck we may get g++-4.9.* on
+Windows with R 3.3.0.
+
+The error you showed from spanmatcher appeared to be a _linker_ error not a
+compiler error so something else may be going on there.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From retep.meissner at gmail.com  Thu Jan 28 00:32:00 2016
+From: retep.meissner at gmail.com (Peter Meissner)
+Date: Wed, 27 Jan 2016 23:33:00 +0001
+Subject: [Rcpp-devel] Rcpp C++11 on Windows
+In-Reply-To: <22184.48826.232134.477242@max.nulle.part>
+References: <op.ybv7pfco3euttn@zukd208> <1453893204.10275.110.camel@iarc.fr>
+ <22184.48826.232134.477242@max.nulle.part>
+Message-ID: <1453937520.2349.0@smtp.gmail.com>
+
+Thank you all so much for your suggestions.
+
+What features I needed to get working where auto type in combination
+with cycling through multimap.equal_range() results. It seems like
+this was not actually a problem with Windows / Rtools / compiler /
+c++0x / c++11 but with not cleaning up before recompiling - now I feel
+stupid, thanks again for clearifications and pointing in the right
+direction. It works.
+
+Best, Peter
+
+
+PS.:
+
+To be complete here is what I attempt to do, that actually works even
+with the g++4.6.3 compiler and c++0x standard under Windows (i.e.
+merging two data.frames via time span information by expanding time
+spans to days and than cycling through the days and looking up matches
+in multimaps to build a new data.frame with day, id1, and id2 that can
+ultimatly be re-aggregated to spans):
+
+#include <iostream>
+#include <vector>
+#include <Rcpp.h>
+using namespace Rcpp;
+using namespace std;
+
+// [[Rcpp::plugins(cpp11)]]
+// [[Rcpp::export]]
+
+DataFrame span_matcher_worker(DataFrame df1, DataFrame df2) {
+
+  // put info in neat litle vectors
+  CharacterVector id_one_in = df1[0];
+  IntegerVector start_one_in = df1[1];
+  IntegerVector end_one_in = df1[2];
+
+
+  CharacterVector id_two_in = df2[0];
+  IntegerVector start_two_in = df2[1];
+  IntegerVector end_two_in = df2[2];
+
+  // determine span length
+  int min_start_one = min(start_one_in);
+  int min_start_two = min(start_two_in);
+
+  int max_end_one = max(end_one_in);
+  int max_end_two = max(end_two_in);
+
+  int min_span = min(min_start_one, min_start_two) ;
+  int max_span = max(max_end_one, max_end_two);
+
+  // put days:ids into multimap
+  multimap<int, string> days_id_one;
+  multimap<int, string> days_id_two;
+
+  for( int i = 0; i < id_one_in.size(); i++ ){
+    for (int day = start_one_in[i]; day <= end_one_in[i]; day++ ){
+      days_id_one.insert(pair<int, string>(day, 
+as<string>(id_one_in[i]) ));
+    }
+  }
+
+  for( int i = 0; i < id_two_in.size(); i++ ){
+    for (int day = start_two_in[i]; day <= end_two_in[i]; day++ ){
+      days_id_two.insert(pair<int, string>(day, 
+as<string>(id_two_in[i])));
+    }
+  }
+
+
+  // access the columns
+  IntegerVector days;
+  CharacterVector id_one ;
+  CharacterVector id_two ;
+
+  for (int i = min_span; i <= max_span; i++) {
+    // no matches
+    if( days_id_one.count(i)==0 && days_id_two.count(i)==0 ){
+      days.push_back(i);
+      id_one.push_back(NA_STRING);
+      id_two.push_back(NA_STRING);
+      continue;
+    }
+    // matches for one but not for two
+    if( days_id_one.count(i)>0 && days_id_two.count(i)==0 ){
+      auto range = days_id_one.equal_range(i);
+      for (auto iterate = range.first; iterate != range.second; 
+++iterate) {
+        days.push_back(i);
+        id_one.push_back(iterate->second);
+        id_two.push_back(NA_STRING);
+      }
+      continue;
+    }
+    // matches for two but not for one
+    if( days_id_one.count(i)==0 && days_id_two.count(i)>0 ){
+      auto range = days_id_two.equal_range(i);
+      for (auto iterate = range.first; iterate != range.second; 
+++iterate) {
+        days.push_back(i);
+        id_one.push_back(NA_STRING);
+        id_two.push_back(iterate->second);
+      }
+      continue;
+    }
+    // matches in both
+    if( days_id_one.count(i)>0 && days_id_two.count(i)>0 ){
+      auto range = days_id_one.equal_range(i);
+      for (auto it = range.first; it != range.second; it++) {
+        auto range_two = days_id_two.equal_range(i);
+        for (auto it_two = range_two.first; it_two !=
+range_two.second; it_two++) {
+          days.push_back(i);
+          id_one.push_back(it->second);
+          id_two.push_back(it_two->second);
+        }
+      }
+    }
+  };
+
+  // return a new data frame
+  return DataFrame::create(
+    _["days"]=days,
+    _["id_one"]=id_one,
+    _["id_two"]=id_two)
+    ;
+}
+
+
+
+
+
+
+Am Mi, 27. Jan, 2016 um 1:57 schrieb Dirk Eddelbuettel <edd at debian.org>:
+> 
+> On 27 January 2016 at 11:13, Martyn Plummer wrote:
+> | Q1: Does CRAN accept C++11 code?
+> | A1: Yes but you have to indicate that you are using C++11 rather 
+> than C
+> | ++98, which is still the default standard for CRAN packages. This is
+> | described in the "Writing R Extensions" manual in section 1.2.4.
+> 
+> Yup. Declaring it is easy. And the consequence _can_ (for now) be 
+> that you
+> may not be able to build on Windows. The g++ 4.6.* compilers supports 
+> a
+> subset of C++11 only.
+> 
+> I declare 'CXX_STD = CXX11' in packages RcppAnnoy, RcppBDT, RcppCCTZ,
+> RcppCNPy, RcppTOML -- and of these RcppAnnoy, RcppBDT and RcppCNPy 
+> *do*
+> create Windows binaries. Whereas RcppCCTZ and RcppTOML use 'real' 
+> C++11 with
+> features not supported by this old compiler so they exist on Linux 
+> and OS X
+> only.
+>  
+> | Q2: Are C++11 features available on Windows?
+> | A2: Not yet. Release 4.6.3 includes limited support for C++11 
+> features.
+> | Again, the "Writing R Extensions" manual will give you more details,
+> | with a link to a page describing what features are available. There 
+> are
+> | plans to update the toolchain on Windows to 4.9.2. This will 
+> improve C
+> | ++11 support on windows but it will not be complete. The first
+> | fully-compliant gcc release is 5.1. However, it is not sufficiently
+> | stable on Windows.
+> 
+> It depends. It is not black/white even if some people insist on 
+> portraying it
+> as such.  Many features were added incrementally.
+> 
+> g++-4.6.* has C++0x with some things, g++-4.9 adds quite a lot more 
+> and works
+> for all I do.  At work we sometimes rely on C++14 already and use 
+> g++-5.2.
+> 
+> So you need to tell us what it is you want to do, or just try it, and 
+> the
+> compiler _currently in use_ may fail.  With some luck we may get 
+> g++-4.9.* on
+> Windows with R 3.3.0.
+> 
+> The error you showed from spanmatcher appeared to be a _linker_ error 
+> not a
+> compiler error so something else may be going on there.
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+From hye at ucsd.edu  Thu Jan 28 02:14:32 2016
+From: hye at ucsd.edu (Hao Ye)
+Date: Wed, 27 Jan 2016 17:14:32 -0800
+Subject: [Rcpp-devel] Rcpp C++11 on Windows
+In-Reply-To: <80b3038c5e25458db0a8d03679df12ad@XCORE-CUB2.AD.UCSD.EDU>
+References: <op.ybv7pfco3euttn@zukd208> <1453893204.10275.110.camel@iarc.fr>
+ <22184.48826.232134.477242@max.nulle.part>
+ <80b3038c5e25458db0a8d03679df12ad@XCORE-CUB2.AD.UCSD.EDU>
+Message-ID: <2E2A1FD5-7CBA-4E48-9E25-BFF5CDB3D6B4@ucsd.edu>
+
+Peter,
+
+You can refer to https://gcc.gnu.org/gcc-4.6/cxx0x_status.html to see what features are supported in gcc4.6.
+
+Best,
+--
+Hao Ye
+hye at ucsd.edu
+
+> On Jan 27, 2016, at 3:32 PM, Peter Meissner <retep.meissner at gmail.com> wrote:
+> 
+> Thank you all so much for your suggestions.
+> 
+> What features I needed to get working where auto type in combination
+> with cycling through multimap.equal_range() results. It seems like
+> this was not actually a problem with Windows / Rtools / compiler /
+> c++0x / c++11 but with not cleaning up before recompiling - now I feel
+> stupid, thanks again for clearifications and pointing in the right
+> direction. It works.
+> 
+> Best, Peter
+> 
+> 
+> PS.:
+> 
+> To be complete here is what I attempt to do, that actually works even
+> with the g++4.6.3 compiler and c++0x standard under Windows (i.e.
+> merging two data.frames via time span information by expanding time
+> spans to days and than cycling through the days and looking up matches
+> in multimaps to build a new data.frame with day, id1, and id2 that can
+> ultimatly be re-aggregated to spans):
+> 
+> #include <iostream>
+> #include <vector>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> using namespace std;
+> 
+> // [[Rcpp::plugins(cpp11)]]
+> // [[Rcpp::export]]
+> 
+> DataFrame span_matcher_worker(DataFrame df1, DataFrame df2) {
+> 
+>  // put info in neat litle vectors
+>  CharacterVector id_one_in = df1[0];
+>  IntegerVector start_one_in = df1[1];
+>  IntegerVector end_one_in = df1[2];
+> 
+> 
+>  CharacterVector id_two_in = df2[0];
+>  IntegerVector start_two_in = df2[1];
+>  IntegerVector end_two_in = df2[2];
+> 
+>  // determine span length
+>  int min_start_one = min(start_one_in);
+>  int min_start_two = min(start_two_in);
+> 
+>  int max_end_one = max(end_one_in);
+>  int max_end_two = max(end_two_in);
+> 
+>  int min_span = min(min_start_one, min_start_two) ;
+>  int max_span = max(max_end_one, max_end_two);
+> 
+>  // put days:ids into multimap
+>  multimap<int, string> days_id_one;
+>  multimap<int, string> days_id_two;
+> 
+>  for( int i = 0; i < id_one_in.size(); i++ ){
+>    for (int day = start_one_in[i]; day <= end_one_in[i]; day++ ){
+>      days_id_one.insert(pair<int, string>(day, 
+> as<string>(id_one_in[i]) ));
+>    }
+>  }
+> 
+>  for( int i = 0; i < id_two_in.size(); i++ ){
+>    for (int day = start_two_in[i]; day <= end_two_in[i]; day++ ){
+>      days_id_two.insert(pair<int, string>(day, 
+> as<string>(id_two_in[i])));
+>    }
+>  }
+> 
+> 
+>  // access the columns
+>  IntegerVector days;
+>  CharacterVector id_one ;
+>  CharacterVector id_two ;
+> 
+>  for (int i = min_span; i <= max_span; i++) {
+>    // no matches
+>    if( days_id_one.count(i)==0 && days_id_two.count(i)==0 ){
+>      days.push_back(i);
+>      id_one.push_back(NA_STRING);
+>      id_two.push_back(NA_STRING);
+>      continue;
+>    }
+>    // matches for one but not for two
+>    if( days_id_one.count(i)>0 && days_id_two.count(i)==0 ){
+>      auto range = days_id_one.equal_range(i);
+>      for (auto iterate = range.first; iterate != range.second; 
+> ++iterate) {
+>        days.push_back(i);
+>        id_one.push_back(iterate->second);
+>        id_two.push_back(NA_STRING);
+>      }
+>      continue;
+>    }
+>    // matches for two but not for one
+>    if( days_id_one.count(i)==0 && days_id_two.count(i)>0 ){
+>      auto range = days_id_two.equal_range(i);
+>      for (auto iterate = range.first; iterate != range.second; 
+> ++iterate) {
+>        days.push_back(i);
+>        id_one.push_back(NA_STRING);
+>        id_two.push_back(iterate->second);
+>      }
+>      continue;
+>    }
+>    // matches in both
+>    if( days_id_one.count(i)>0 && days_id_two.count(i)>0 ){
+>      auto range = days_id_one.equal_range(i);
+>      for (auto it = range.first; it != range.second; it++) {
+>        auto range_two = days_id_two.equal_range(i);
+>        for (auto it_two = range_two.first; it_two !=
+> range_two.second; it_two++) {
+>          days.push_back(i);
+>          id_one.push_back(it->second);
+>          id_two.push_back(it_two->second);
+>        }
+>      }
+>    }
+>  };
+> 
+>  // return a new data frame
+>  return DataFrame::create(
+>    _["days"]=days,
+>    _["id_one"]=id_one,
+>    _["id_two"]=id_two)
+>    ;
+> }
+> 
+> 
+> 
+> 
+> 
+> 
+> Am Mi, 27. Jan, 2016 um 1:57 schrieb Dirk Eddelbuettel <edd at debian.org>:
+>> 
+>> On 27 January 2016 at 11:13, Martyn Plummer wrote:
+>> | Q1: Does CRAN accept C++11 code?
+>> | A1: Yes but you have to indicate that you are using C++11 rather 
+>> than C
+>> | ++98, which is still the default standard for CRAN packages. This is
+>> | described in the "Writing R Extensions" manual in section 1.2.4.
+>> 
+>> Yup. Declaring it is easy. And the consequence _can_ (for now) be 
+>> that you
+>> may not be able to build on Windows. The g++ 4.6.* compilers supports 
+>> a
+>> subset of C++11 only.
+>> 
+>> I declare 'CXX_STD = CXX11' in packages RcppAnnoy, RcppBDT, RcppCCTZ,
+>> RcppCNPy, RcppTOML -- and of these RcppAnnoy, RcppBDT and RcppCNPy 
+>> *do*
+>> create Windows binaries. Whereas RcppCCTZ and RcppTOML use 'real' 
+>> C++11 with
+>> features not supported by this old compiler so they exist on Linux 
+>> and OS X
+>> only.
+>> 
+>> | Q2: Are C++11 features available on Windows?
+>> | A2: Not yet. Release 4.6.3 includes limited support for C++11 
+>> features.
+>> | Again, the "Writing R Extensions" manual will give you more details,
+>> | with a link to a page describing what features are available. There 
+>> are
+>> | plans to update the toolchain on Windows to 4.9.2. This will 
+>> improve C
+>> | ++11 support on windows but it will not be complete. The first
+>> | fully-compliant gcc release is 5.1. However, it is not sufficiently
+>> | stable on Windows.
+>> 
+>> It depends. It is not black/white even if some people insist on 
+>> portraying it
+>> as such.  Many features were added incrementally.
+>> 
+>> g++-4.6.* has C++0x with some things, g++-4.9 adds quite a lot more 
+>> and works
+>> for all I do.  At work we sometimes rely on C++14 already and use 
+>> g++-5.2.
+>> 
+>> So you need to tell us what it is you want to do, or just try it, and 
+>> the
+>> compiler _currently in use_ may fail.  With some luck we may get 
+>> g++-4.9.* on
+>> Windows with R 3.3.0.
+>> 
+>> The error you showed from spanmatcher appeared to be a _linker_ error 
+>> not a
+>> compiler error so something else may be going on there.
+>> 
+>> Dirk
+>> 
+>> -- 
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From retep.meissner at gmail.com  Thu Jan 28 10:13:30 2016
+From: retep.meissner at gmail.com (Peter Meissner)
+Date: Thu, 28 Jan 2016 10:13:30 +0100
+Subject: [Rcpp-devel] Rcpp C++11 on Windows
+In-Reply-To: <2E2A1FD5-7CBA-4E48-9E25-BFF5CDB3D6B4@ucsd.edu>
+References: <op.ybv7pfco3euttn@zukd208> <1453893204.10275.110.camel@iarc.fr>
+ <22184.48826.232134.477242@max.nulle.part>
+ <80b3038c5e25458db0a8d03679df12ad@XCORE-CUB2.AD.UCSD.EDU>
+ <2E2A1FD5-7CBA-4E48-9E25-BFF5CDB3D6B4@ucsd.edu>
+Message-ID: <op.ybxykwe93euttn@zukd208>
+
+Ah, great.
+
+Best, Peter
+
+
+Am .01.2016, 02:14 Uhr, schrieb Hao Ye <hye at ucsd.edu>:
+
+> Peter,
+>
+> You can refer to https://gcc.gnu.org/gcc-4.6/cxx0x_status.html to see  
+> what features are supported in gcc4.6.
+>
+> Best,
+> --
+> Hao Ye
+> hye at ucsd.edu
+>
+>> On Jan 27, 2016, at 3:32 PM, Peter Meissner <retep.meissner at gmail.com>  
+>> wrote:
+>>
+>> Thank you all so much for your suggestions.
+>>
+>> What features I needed to get working where auto type in combination
+>> with cycling through multimap.equal_range() results. It seems like
+>> this was not actually a problem with Windows / Rtools / compiler /
+>> c++0x / c++11 but with not cleaning up before recompiling - now I feel
+>> stupid, thanks again for clearifications and pointing in the right
+>> direction. It works.
+>>
+>> Best, Peter
+>>
+>>
+>> PS.:
+>>
+>> To be complete here is what I attempt to do, that actually works even
+>> with the g++4.6.3 compiler and c++0x standard under Windows (i.e.
+>> merging two data.frames via time span information by expanding time
+>> spans to days and than cycling through the days and looking up matches
+>> in multimaps to build a new data.frame with day, id1, and id2 that can
+>> ultimatly be re-aggregated to spans):
+>>
+>> #include <iostream>
+>> #include <vector>
+>> #include <Rcpp.h>
+>> using namespace Rcpp;
+>> using namespace std;
+>>
+>> // [[Rcpp::plugins(cpp11)]]
+>> // [[Rcpp::export]]
+>>
+>> DataFrame span_matcher_worker(DataFrame df1, DataFrame df2) {
+>>
+>>  // put info in neat litle vectors
+>>  CharacterVector id_one_in = df1[0];
+>>  IntegerVector start_one_in = df1[1];
+>>  IntegerVector end_one_in = df1[2];
+>>
+>>
+>>  CharacterVector id_two_in = df2[0];
+>>  IntegerVector start_two_in = df2[1];
+>>  IntegerVector end_two_in = df2[2];
+>>
+>>  // determine span length
+>>  int min_start_one = min(start_one_in);
+>>  int min_start_two = min(start_two_in);
+>>
+>>  int max_end_one = max(end_one_in);
+>>  int max_end_two = max(end_two_in);
+>>
+>>  int min_span = min(min_start_one, min_start_two) ;
+>>  int max_span = max(max_end_one, max_end_two);
+>>
+>>  // put days:ids into multimap
+>>  multimap<int, string> days_id_one;
+>>  multimap<int, string> days_id_two;
+>>
+>>  for( int i = 0; i < id_one_in.size(); i++ ){
+>>    for (int day = start_one_in[i]; day <= end_one_in[i]; day++ ){
+>>      days_id_one.insert(pair<int, string>(day,
+>> as<string>(id_one_in[i]) ));
+>>    }
+>>  }
+>>
+>>  for( int i = 0; i < id_two_in.size(); i++ ){
+>>    for (int day = start_two_in[i]; day <= end_two_in[i]; day++ ){
+>>      days_id_two.insert(pair<int, string>(day,
+>> as<string>(id_two_in[i])));
+>>    }
+>>  }
+>>
+>>
+>>  // access the columns
+>>  IntegerVector days;
+>>  CharacterVector id_one ;
+>>  CharacterVector id_two ;
+>>
+>>  for (int i = min_span; i <= max_span; i++) {
+>>    // no matches
+>>    if( days_id_one.count(i)==0 && days_id_two.count(i)==0 ){
+>>      days.push_back(i);
+>>      id_one.push_back(NA_STRING);
+>>      id_two.push_back(NA_STRING);
+>>      continue;
+>>    }
+>>    // matches for one but not for two
+>>    if( days_id_one.count(i)>0 && days_id_two.count(i)==0 ){
+>>      auto range = days_id_one.equal_range(i);
+>>      for (auto iterate = range.first; iterate != range.second;
+>> ++iterate) {
+>>        days.push_back(i);
+>>        id_one.push_back(iterate->second);
+>>        id_two.push_back(NA_STRING);
+>>      }
+>>      continue;
+>>    }
+>>    // matches for two but not for one
+>>    if( days_id_one.count(i)==0 && days_id_two.count(i)>0 ){
+>>      auto range = days_id_two.equal_range(i);
+>>      for (auto iterate = range.first; iterate != range.second;
+>> ++iterate) {
+>>        days.push_back(i);
+>>        id_one.push_back(NA_STRING);
+>>        id_two.push_back(iterate->second);
+>>      }
+>>      continue;
+>>    }
+>>    // matches in both
+>>    if( days_id_one.count(i)>0 && days_id_two.count(i)>0 ){
+>>      auto range = days_id_one.equal_range(i);
+>>      for (auto it = range.first; it != range.second; it++) {
+>>        auto range_two = days_id_two.equal_range(i);
+>>        for (auto it_two = range_two.first; it_two !=
+>> range_two.second; it_two++) {
+>>          days.push_back(i);
+>>          id_one.push_back(it->second);
+>>          id_two.push_back(it_two->second);
+>>        }
+>>      }
+>>    }
+>>  };
+>>
+>>  // return a new data frame
+>>  return DataFrame::create(
+>>    _["days"]=days,
+>>    _["id_one"]=id_one,
+>>    _["id_two"]=id_two)
+>>    ;
+>> }
+>>
+>>
+>>
+>>
+>>
+>>
+>> Am Mi, 27. Jan, 2016 um 1:57 schrieb Dirk Eddelbuettel <edd at debian.org>:
+>>>
+>>> On 27 January 2016 at 11:13, Martyn Plummer wrote:
+>>> | Q1: Does CRAN accept C++11 code?
+>>> | A1: Yes but you have to indicate that you are using C++11 rather
+>>> than C
+>>> | ++98, which is still the default standard for CRAN packages. This is
+>>> | described in the "Writing R Extensions" manual in section 1.2.4.
+>>>
+>>> Yup. Declaring it is easy. And the consequence _can_ (for now) be
+>>> that you
+>>> may not be able to build on Windows. The g++ 4.6.* compilers supports
+>>> a
+>>> subset of C++11 only.
+>>>
+>>> I declare 'CXX_STD = CXX11' in packages RcppAnnoy, RcppBDT, RcppCCTZ,
+>>> RcppCNPy, RcppTOML -- and of these RcppAnnoy, RcppBDT and RcppCNPy
+>>> *do*
+>>> create Windows binaries. Whereas RcppCCTZ and RcppTOML use 'real'
+>>> C++11 with
+>>> features not supported by this old compiler so they exist on Linux
+>>> and OS X
+>>> only.
+>>>
+>>> | Q2: Are C++11 features available on Windows?
+>>> | A2: Not yet. Release 4.6.3 includes limited support for C++11
+>>> features.
+>>> | Again, the "Writing R Extensions" manual will give you more details,
+>>> | with a link to a page describing what features are available. There
+>>> are
+>>> | plans to update the toolchain on Windows to 4.9.2. This will
+>>> improve C
+>>> | ++11 support on windows but it will not be complete. The first
+>>> | fully-compliant gcc release is 5.1. However, it is not sufficiently
+>>> | stable on Windows.
+>>>
+>>> It depends. It is not black/white even if some people insist on
+>>> portraying it
+>>> as such.  Many features were added incrementally.
+>>>
+>>> g++-4.6.* has C++0x with some things, g++-4.9 adds quite a lot more
+>>> and works
+>>> for all I do.  At work we sometimes rely on C++14 already and use
+>>> g++-5.2.
+>>>
+>>> So you need to tell us what it is you want to do, or just try it, and
+>>> the
+>>> compiler _currently in use_ may fail.  With some luck we may get
+>>> g++-4.9.* on
+>>> Windows with R 3.3.0.
+>>>
+>>> The error you showed from spanmatcher appeared to be a _linker_ error
+>>> not a
+>>> compiler error so something else may be going on there.
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+-- 
+Erstellt mit Operas E-Mail-Modul: http://www.opera.com/mail/
+
+From pauljohn32 at gmail.com  Thu Jan 28 20:19:18 2016
+From: pauljohn32 at gmail.com (Paul Johnson)
+Date: Thu, 28 Jan 2016 13:19:18 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+Message-ID: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+
+Hello
+
+Could I ask for some fresh eyes on this problem?
+
+I need to diagnose a segmentation fault that started appearing this
+week after we updated to R-3.2.3 and also Rcpp updated to 0.12.3 at
+same time.
+
+>
+> library(openxlsx)
+>
+> sessionInfo()
+R version 3.2.3 (2015-12-10)
+Platform: x86_64-redhat-linux-gnu (64-bit)
+Running under: CentOS Linux 7 (Core)
+
+locale:
+ [1] LC_CTYPE=en_US.utf8       LC_NUMERIC=C
+ [3] LC_TIME=en_US.utf8        LC_COLLATE=en_US.utf8
+ [5] LC_MONETARY=en_US.utf8    LC_MESSAGES=en_US.utf8
+ [7] LC_PAPER=en_US.utf8       LC_NAME=C
+ [9] LC_ADDRESS=C              LC_TELEPHONE=C
+[11] LC_MEASUREMENT=en_US.utf8 LC_IDENTIFICATION=C
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] openxlsx_3.0.0
+
+loaded via a namespace (and not attached):
+[1] Rcpp_0.11.3
+>
+> dat <- read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+
+ *** caught segfault ***
+address 0x35117000, cause 'memory not mapped'
+
+Traceback:
+ 1: .Call("openxlsx_readWorkbook", v, r, string_refs, isDate, nRows,
+  colNames, skipEmptyRows, origin, clean_names, PACKAGE = "openxlsx")
+ 2: read.xlsx.default("Failure_to_Import.xlsx", colNames = TRUE)
+ 3: read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+aborting ...
+
+I have a fullly reproducible example:
+
+http://pj.freefaculty.org/scraps/openxlsx_failure.zip
+
+This failure surfaced on the Centos 7 linux systems yesterday, but I
+did not see it in Ubuntu until I updated Rcpp to version 0.12.3.  We
+were comparing versions, that was the only difference I could see.
+But then I removed Rcpp and installed from source 0.12.2 but the error
+now happens with Rcpp 0.12.2.
+
+I have got too many balls in the air to know where to start on this one.
+
+One thing I wonder if it is necessary to completely erase and
+reinstall all packages that depend on Rcpp in order to get a clean run
+at this.
+
+I thought the issue was Centos updates and possibly a funny GCC setup
+there, but now same problem is happening in Ubuntu.
+
+We've written to the openxlsx author to see if he has ideas,  but I
+note that his package did not update during this process.
+
+I am going to see about downgrading R to previous version, see if
+problem disappears.
+
+pj
+
+-- 
+Paul E. Johnson
+Professor, Political Science        Director
+1541 Lilac Lane, Room 504      Center for Research Methods
+University of Kansas                 University of Kansas
+http://pj.freefaculty.org              http://crmda.ku.edu
+
+From edd at debian.org  Thu Jan 28 20:33:52 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 28 Jan 2016 13:33:52 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+Message-ID: <22186.27936.873041.463903@max.nulle.part>
+
+
+Paul,
+
+Advice is always the same: fresh compilation of all dependent packages.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Thu Jan 28 20:40:22 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 28 Jan 2016 11:40:22 -0800
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22186.27936.873041.463903@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+Message-ID: <CAJXgQP1BzTEW8krtYJXJghQ_YDsOnuEMvtCDh1ApLU_eZY-hPA@mail.gmail.com>
+
+A C++ stack trace would be very helpful. Can you try running R with gdb, e.g.
+
+    R -d gdb -f example.R
+
+where 'example.R' is the path to your script that reproduces the
+segfault? Hopefully, 'gdb' can provide more context on where the error
+is occurring.
+
+For what it's worth, the file did open successfully for me, using R
+3.2.3 patched (r69960) + Rcpp 0.12.3, openxlsx_3.0.0, on OS X.
+
+Thanks,
+Kevin
+
+On Thu, Jan 28, 2016 at 11:33 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> Paul,
+>
+> Advice is always the same: fresh compilation of all dependent packages.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From pauljohn32 at gmail.com  Thu Jan 28 20:54:13 2016
+From: pauljohn32 at gmail.com (Paul Johnson)
+Date: Thu, 28 Jan 2016 13:54:13 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJXgQP1BzTEW8krtYJXJghQ_YDsOnuEMvtCDh1ApLU_eZY-hPA@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <CAJXgQP1BzTEW8krtYJXJghQ_YDsOnuEMvtCDh1ApLU_eZY-hPA@mail.gmail.com>
+Message-ID: <CAErODj9A4QFswq_hi5oTjLkZ3EKBmkLJwtoFhCXZBakv1p4WPw@mail.gmail.com>
+
+Thanks. It has been a while since I used gdb, and I can't recall doing
+it with R.
+
+It looks discouraging to me because I see "<optimized out>" in the
+symbols.  I have to re-learn what symbols are and where to get them.
+
+I deleted openxlsx and got clean re-install before trying this.
+
+What's this one mean?
+
+warning: Source file is more recent than executable.
+
+Anywhere, here it is:
+
+$ R -d gdb -f Reproducible_openxlsx_failure.R
+GNU gdb (Ubuntu 7.10-1ubuntu2) 7.10
+Copyright (C) 2015 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+<http://www.gnu.org/software/gdb/documentation/>.
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from /usr/lib/R/bin/exec/R...(no debugging symbols
+found)...done.
+(gdb) run
+Starting program: /usr/lib/R/bin/exec/R -f Reproducible_openxlsx_failure.R
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+R version 3.2.3 (2015-12-10) -- "Wooden Christmas-Tree"
+Copyright (C) 2015 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+>
+> library(openxlsx)
+>
+> sessionInfo()
+R version 3.2.3 (2015-12-10)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 15.10
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+ [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8
+ [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C
+[11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] openxlsx_3.0.0
+
+loaded via a namespace (and not attached):
+[1] Rcpp_0.12.3
+>
+> dat <- read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+
+Program received signal SIGSEGV, Segmentation fault.
+Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+    at /home/pauljohn/R/x86_64-pc-linux-gnu-library/3.2/Rcpp/include/Rcpp/vector/Subsetter.h:199
+warning: Source file is more recent than executable.
+199                 output[i] = lhs[ indices[i] ];
+(gdb) backtrace
+#0  Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+    at /home/pauljohn/R/x86_64-pc-linux-gnu-library/3.2/Rcpp/include/Rcpp/vector/Subsetter.h:199
+#1  Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+Rcpp::PreserveStorage> > >::operator Rcpp::Vector<13,
+Rcpp::PreserveStorage> (this=<optimized out>)
+    at /home/pauljohn/R/x86_64-pc-linux-gnu-library/3.2/Rcpp/include/Rcpp/vector/Subsetter.h:125
+#2  readWorkbook (v=..., r=..., string_refs=..., is_date=...,
+nRows=34999, nRows at entry=35000,
+    hasColNames=hasColNames at entry=true, skipEmptyRows=true,
+originAdj=25569, clean_names=...) at cppFunctions.cpp:2448
+#3  0x00007ffff2e607c0 in openxlsx_readWorkbook (vSEXP=<optimized
+out>, rSEXP=0x7fffee37e010,
+    string_refsSEXP=0x7fffaf0a9010, is_dateSEXP=0x214d7e8,
+nRowsSEXP=<optimized out>, hasColNamesSEXP=<optimized out>,
+    skipEmptyRowsSEXP=0x212e6f8, originAdjSEXP=0x2145428,
+clean_namesSEXP=0x22f92f0) at RcppExports.cpp:580
+#4  0x00007ffff78f0550 in ?? () from /usr/lib/R/lib/libR.so
+#5  0x00007ffff78f0948 in ?? () from /usr/lib/R/lib/libR.so
+#6  0x00007ffff792c108 in Rf_eval () from /usr/lib/R/lib/libR.so
+#7  0x00007ffff792f52e in ?? () from /usr/lib/R/lib/libR.so
+#8  0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+#9  0x00007ffff792de88 in ?? () from /usr/lib/R/lib/libR.so
+#10 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+#11 0x00007ffff7931909 in Rf_applyClosure () from /usr/lib/R/lib/libR.so
+#12 0x00007ffff79612b8 in ?? () from /usr/lib/R/lib/libR.so
+#13 0x00007ffff796171f in ?? () from /usr/lib/R/lib/libR.so
+#14 0x00007ffff7961986 in ?? () from /usr/lib/R/lib/libR.so
+#15 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+#16 0x00007ffff792de88 in ?? () from /usr/lib/R/lib/libR.so
+#17 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+#18 0x00007ffff7931909 in Rf_applyClosure () from /usr/lib/R/lib/libR.so
+#19 0x00007ffff792bcef in Rf_eval () from /usr/lib/R/lib/libR.so
+#20 0x00007ffff792f52e in ?? () from /usr/lib/R/lib/libR.so
+#21 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+#22 0x00007ffff795422a in Rf_ReplIteration () from /usr/lib/R/lib/libR.so
+#23 0x00007ffff7954591 in ?? () from /usr/lib/R/lib/libR.so
+#24 0x00007ffff7954af4 in run_Rmainloop () from /usr/lib/R/lib/libR.so
+#25 0x00000000004007eb in main ()
+#26 0x00007ffff7257a40 in __libc_start_main (main=0x4007d0 <main>,
+argc=3, argv=0x7fffffffde88, init=<optimized out>,
+    fini=<optimized out>, rtld_fini=<optimized out>,
+stack_end=0x7fffffffde78) at libc-start.c:289
+#27 0x0000000000400829 in _start ()
+
+pj
+
+
+
+On Thu, Jan 28, 2016 at 1:40 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+> A C++ stack trace would be very helpful. Can you try running R with gdb, e.g.
+>
+>     R -d gdb -f example.R
+>
+> where 'example.R' is the path to your script that reproduces the
+> segfault? Hopefully, 'gdb' can provide more context on where the error
+> is occurring.
+>
+> For what it's worth, the file did open successfully for me, using R
+> 3.2.3 patched (r69960) + Rcpp 0.12.3, openxlsx_3.0.0, on OS X.
+>
+> Thanks,
+> Kevin
+>
+> On Thu, Jan 28, 2016 at 11:33 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>> Paul,
+>>
+>> Advice is always the same: fresh compilation of all dependent packages.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Paul E. Johnson
+Professor, Political Science        Director
+1541 Lilac Lane, Room 504      Center for Research Methods
+University of Kansas                 University of Kansas
+http://pj.freefaculty.org              http://crmda.ku.edu
+
+From kevinushey at gmail.com  Thu Jan 28 21:10:34 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 28 Jan 2016 12:10:34 -0800
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAErODj9A4QFswq_hi5oTjLkZ3EKBmkLJwtoFhCXZBakv1p4WPw@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <CAJXgQP1BzTEW8krtYJXJghQ_YDsOnuEMvtCDh1ApLU_eZY-hPA@mail.gmail.com>
+ <CAErODj9A4QFswq_hi5oTjLkZ3EKBmkLJwtoFhCXZBakv1p4WPw@mail.gmail.com>
+Message-ID: <CAJXgQP0uWrWmvve3wLAJVytCjv1sYNpcMZFfhJFzOcv3oW_wtQ@mail.gmail.com>
+
+Thanks -- this is helpful. Based on the stack trace, it looks like the
+error is coming out of here:
+
+https://github.com/awalker89/openxlsx/blob/b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608
+
+Whether this is an error in the Rcpp SubsetProxy class, or the vectors
+the package authors are using, or, some strange local system issue,
+remains to be seen.
+
+Can you try installing the development of both Rcpp and openxlsx just
+to see if you can reproduce? You can install the corresponding
+versions from GitHub, using e.g.
+
+    devtools::install_github("RcppCore/Rcpp")
+    devtools::install_github("awalker89/openxlsx")
+
+I'll see if I can reproduce on an Ubuntu machine later as well.
+
+Thanks,
+Kevin
+
+On Thu, Jan 28, 2016 at 11:54 AM, Paul Johnson <pauljohn32 at gmail.com> wrote:
+> Thanks. It has been a while since I used gdb, and I can't recall doing
+> it with R.
+>
+> It looks discouraging to me because I see "<optimized out>" in the
+> symbols.  I have to re-learn what symbols are and where to get them.
+>
+> I deleted openxlsx and got clean re-install before trying this.
+>
+> What's this one mean?
+>
+> warning: Source file is more recent than executable.
+>
+> Anywhere, here it is:
+>
+> $ R -d gdb -f Reproducible_openxlsx_failure.R
+> GNU gdb (Ubuntu 7.10-1ubuntu2) 7.10
+> Copyright (C) 2015 Free Software Foundation, Inc.
+> License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+> This is free software: you are free to change and redistribute it.
+> There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+> and "show warranty" for details.
+> This GDB was configured as "x86_64-linux-gnu".
+> Type "show configuration" for configuration details.
+> For bug reporting instructions, please see:
+> <http://www.gnu.org/software/gdb/bugs/>.
+> Find the GDB manual and other documentation resources online at:
+> <http://www.gnu.org/software/gdb/documentation/>.
+> For help, type "help".
+> Type "apropos word" to search for commands related to "word"...
+> Reading symbols from /usr/lib/R/bin/exec/R...(no debugging symbols
+> found)...done.
+> (gdb) run
+> Starting program: /usr/lib/R/bin/exec/R -f Reproducible_openxlsx_failure.R
+> [Thread debugging using libthread_db enabled]
+> Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+>
+> R version 3.2.3 (2015-12-10) -- "Wooden Christmas-Tree"
+> Copyright (C) 2015 The R Foundation for Statistical Computing
+> Platform: x86_64-pc-linux-gnu (64-bit)
+>
+> R is free software and comes with ABSOLUTELY NO WARRANTY.
+> You are welcome to redistribute it under certain conditions.
+> Type 'license()' or 'licence()' for distribution details.
+>
+>   Natural language support but running in an English locale
+>
+> R is a collaborative project with many contributors.
+> Type 'contributors()' for more information and
+> 'citation()' on how to cite R or R packages in publications.
+>
+> Type 'demo()' for some demos, 'help()' for on-line help, or
+> 'help.start()' for an HTML browser interface to help.
+> Type 'q()' to quit R.
+>
+>>
+>> library(openxlsx)
+>>
+>> sessionInfo()
+> R version 3.2.3 (2015-12-10)
+> Platform: x86_64-pc-linux-gnu (64-bit)
+> Running under: Ubuntu 15.10
+>
+> locale:
+>  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+>  [3] LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8
+>  [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8
+>  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C
+>  [9] LC_ADDRESS=C               LC_TELEPHONE=C
+> [11] LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+>
+> attached base packages:
+> [1] stats     graphics  grDevices utils     datasets  methods   base
+>
+> other attached packages:
+> [1] openxlsx_3.0.0
+>
+> loaded via a namespace (and not attached):
+> [1] Rcpp_0.12.3
+>>
+>> dat <- read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+>
+> Program received signal SIGSEGV, Segmentation fault.
+> Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+> Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+> Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+>     at /home/pauljohn/R/x86_64-pc-linux-gnu-library/3.2/Rcpp/include/Rcpp/vector/Subsetter.h:199
+> warning: Source file is more recent than executable.
+> 199                 output[i] = lhs[ indices[i] ];
+> (gdb) backtrace
+> #0  Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+> Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+> Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+>     at /home/pauljohn/R/x86_64-pc-linux-gnu-library/3.2/Rcpp/include/Rcpp/vector/Subsetter.h:199
+> #1  Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+> Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+> Rcpp::PreserveStorage> > >::operator Rcpp::Vector<13,
+> Rcpp::PreserveStorage> (this=<optimized out>)
+>     at /home/pauljohn/R/x86_64-pc-linux-gnu-library/3.2/Rcpp/include/Rcpp/vector/Subsetter.h:125
+> #2  readWorkbook (v=..., r=..., string_refs=..., is_date=...,
+> nRows=34999, nRows at entry=35000,
+>     hasColNames=hasColNames at entry=true, skipEmptyRows=true,
+> originAdj=25569, clean_names=...) at cppFunctions.cpp:2448
+> #3  0x00007ffff2e607c0 in openxlsx_readWorkbook (vSEXP=<optimized
+> out>, rSEXP=0x7fffee37e010,
+>     string_refsSEXP=0x7fffaf0a9010, is_dateSEXP=0x214d7e8,
+> nRowsSEXP=<optimized out>, hasColNamesSEXP=<optimized out>,
+>     skipEmptyRowsSEXP=0x212e6f8, originAdjSEXP=0x2145428,
+> clean_namesSEXP=0x22f92f0) at RcppExports.cpp:580
+> #4  0x00007ffff78f0550 in ?? () from /usr/lib/R/lib/libR.so
+> #5  0x00007ffff78f0948 in ?? () from /usr/lib/R/lib/libR.so
+> #6  0x00007ffff792c108 in Rf_eval () from /usr/lib/R/lib/libR.so
+> #7  0x00007ffff792f52e in ?? () from /usr/lib/R/lib/libR.so
+> #8  0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+> #9  0x00007ffff792de88 in ?? () from /usr/lib/R/lib/libR.so
+> #10 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+> #11 0x00007ffff7931909 in Rf_applyClosure () from /usr/lib/R/lib/libR.so
+> #12 0x00007ffff79612b8 in ?? () from /usr/lib/R/lib/libR.so
+> #13 0x00007ffff796171f in ?? () from /usr/lib/R/lib/libR.so
+> #14 0x00007ffff7961986 in ?? () from /usr/lib/R/lib/libR.so
+> #15 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+> #16 0x00007ffff792de88 in ?? () from /usr/lib/R/lib/libR.so
+> #17 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+> #18 0x00007ffff7931909 in Rf_applyClosure () from /usr/lib/R/lib/libR.so
+> #19 0x00007ffff792bcef in Rf_eval () from /usr/lib/R/lib/libR.so
+> #20 0x00007ffff792f52e in ?? () from /usr/lib/R/lib/libR.so
+> #21 0x00007ffff792bf0d in Rf_eval () from /usr/lib/R/lib/libR.so
+> #22 0x00007ffff795422a in Rf_ReplIteration () from /usr/lib/R/lib/libR.so
+> #23 0x00007ffff7954591 in ?? () from /usr/lib/R/lib/libR.so
+> #24 0x00007ffff7954af4 in run_Rmainloop () from /usr/lib/R/lib/libR.so
+> #25 0x00000000004007eb in main ()
+> #26 0x00007ffff7257a40 in __libc_start_main (main=0x4007d0 <main>,
+> argc=3, argv=0x7fffffffde88, init=<optimized out>,
+>     fini=<optimized out>, rtld_fini=<optimized out>,
+> stack_end=0x7fffffffde78) at libc-start.c:289
+> #27 0x0000000000400829 in _start ()
+>
+> pj
+>
+>
+>
+> On Thu, Jan 28, 2016 at 1:40 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+>> A C++ stack trace would be very helpful. Can you try running R with gdb, e.g.
+>>
+>>     R -d gdb -f example.R
+>>
+>> where 'example.R' is the path to your script that reproduces the
+>> segfault? Hopefully, 'gdb' can provide more context on where the error
+>> is occurring.
+>>
+>> For what it's worth, the file did open successfully for me, using R
+>> 3.2.3 patched (r69960) + Rcpp 0.12.3, openxlsx_3.0.0, on OS X.
+>>
+>> Thanks,
+>> Kevin
+>>
+>> On Thu, Jan 28, 2016 at 11:33 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>>>
+>>> Paul,
+>>>
+>>> Advice is always the same: fresh compilation of all dependent packages.
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+> --
+> Paul E. Johnson
+> Professor, Political Science        Director
+> 1541 Lilac Lane, Room 504      Center for Research Methods
+> University of Kansas                 University of Kansas
+> http://pj.freefaculty.org              http://crmda.ku.edu
+
+From edd at debian.org  Thu Jan 28 21:42:14 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 28 Jan 2016 14:42:14 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22186.27936.873041.463903@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+Message-ID: <22186.32038.428726.91533@max.nulle.part>
+
+
+Paul,
+
+I can reproduce the segfault on Ubuntu 15.10, "everything current".
+Definitely a valid bug report, though a 30mb xlsx may not qualify as
+minimal.
+
+I won't have time to look at this for a while though so if you find that
+downgrading helps that may be your best bet.
+
+Thanks for the report.  I am so used to simple segfaults from ABI mixings
+(g++-5.* will do that for you...) that I called this wrongly at first. 
+
+Dirk
+
+/tmp/pj/openxlsx_failure$ Rscript
+Reproducible_openxlsx_failure.R
+R version 3.2.3 (2015-12-10)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 15.10
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+ LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8
+ LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8    LC_PAPER=en_US.UTF-8
+  [8] LC_NAME=C                  LC_ADDRESS=C               LC_TELEPHONE=C
+ LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  base
+
+other attached packages:
+[1] openxlsx_3.0.0
+
+loaded via a namespace (and not attached):
+[1] Rcpp_0.12.3.1 methods_3.2.3
+
+ *** caught segfault ***
+ address 0x7fd5b83d8038, cause 'memory not mapped'
+
+Traceback:
+ 1: .Call("openxlsx_readWorkbook", v, r, string_refs, isDate, nRows,
+ colNames, skipEmptyRows, origin, clean_names, PACKAGE = "openxlsx")
+ 2: read.xlsx.default("Failure_to_Import.xlsx", colNames = TRUE)
+ 3: read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+aborting ...
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Jan 28 22:59:25 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 28 Jan 2016 15:59:25 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22186.32038.428726.91533@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+Message-ID: <22186.36669.170404.94560@max.nulle.part>
+
+
+Paul,
+
+It does not appear to be a new bug. As this was easily scriptable, I tested
+Rcpp 0.12.3, 0.12.2, 0.12.1, 0.12.0, 0.11.6, 0.11.5 and 0.11.4 -- all by
+getting the tarball off CRAN, installing, re-installing openxlsx and then
+running your script. They all died by segfault.
+
+It may be an old bug masked by the C++ library, or a new misfeature tickled
+by it.  It could also 'just' be something with the xlsx sheet.  If someone
+has the appetite for a debugging session it would be interesting to see what
+happens.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Thu Jan 28 23:42:42 2016
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Thu, 28 Jan 2016 17:42:42 -0500
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22186.36669.170404.94560@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <22186.36669.170404.94560@max.nulle.part>
+Message-ID: <CAJ_LAMAK8hhqVYBvuGkJxiFsFYpXbh5KVye7eZX3CG9NrVK5sg@mail.gmail.com>
+
+No errors on OSX with R 3.2.2.
+
+Rcpp and openxlsx are installed from CRAN with type = "source".
+
+KK
+
+On Thu, Jan 28, 2016 at 4:59 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Paul,
+>
+> It does not appear to be a new bug. As this was easily scriptable, I tested
+> Rcpp 0.12.3, 0.12.2, 0.12.1, 0.12.0, 0.11.6, 0.11.5 and 0.11.4 -- all by
+> getting the tarball off CRAN, installing, re-installing openxlsx and then
+> running your script. They all died by segfault.
+>
+> It may be an old bug masked by the C++ library, or a new misfeature tickled
+> by it.  It could also 'just' be something with the xlsx sheet.  If someone
+> has the appetite for a debugging session it would be interesting to see
+> what
+> happens.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160128/78a4d870/attachment.html>
+
+From edd at debian.org  Fri Jan 29 00:04:24 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 28 Jan 2016 17:04:24 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJ_LAMAK8hhqVYBvuGkJxiFsFYpXbh5KVye7eZX3CG9NrVK5sg@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <22186.36669.170404.94560@max.nulle.part>
+ <CAJ_LAMAK8hhqVYBvuGkJxiFsFYpXbh5KVye7eZX3CG9NrVK5sg@mail.gmail.com>
+Message-ID: <22186.40568.547832.278998@max.nulle.part>
+
+
+On 28 January 2016 at 17:42, Qiang Kou wrote:
+| No errors on OSX with R 3.2.2.
+| 
+| Rcpp and openxlsx are installed from CRAN with type = "source".
+
+Very helpful -- thank you!
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From pauljohn32 at gmail.com  Fri Jan 29 04:47:35 2016
+From: pauljohn32 at gmail.com (Paul Johnson)
+Date: Thu, 28 Jan 2016 21:47:35 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22186.32038.428726.91533@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+Message-ID: <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+
+Thanks.
+
+On Thu, Jan 28, 2016 at 2:42 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> Paul,
+>
+> I can reproduce the segfault on Ubuntu 15.10, "everything current".
+> Definitely a valid bug report, though a 30mb xlsx may not qualify as
+> minimal.
+>
+I'm glad I did not attach it to an email, then :)
+
+The data xlsx provided by the client is about 2 times as big, I had a
+GRA whittled it down for your entertainment.
+
+If we whittle xlsx file down to a few lines, it does not seg fault, apparently.
+
+I'm going crazy trying to downgrade R in Ubuntu see where that leads.
+I was using 3.2.2 until a couple of days ago and I never saw a hint of
+trouble from Rcpp or openxlsx.
+
+> I won't have time to look at this for a while though so if you find that
+> downgrading helps that may be your best bet.
+>
+> Thanks for the report.  I am so used to simple segfaults from ABI mixings
+> (g++-5.* will do that for you...) that I called this wrongly at first.
+>
+> Dirk
+>
+> /tmp/pj/openxlsx_failure$ Rscript
+> Reproducible_openxlsx_failure.R
+> R version 3.2.3 (2015-12-10)
+> Platform: x86_64-pc-linux-gnu (64-bit)
+> Running under: Ubuntu 15.10
+>
+> locale:
+>  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+>  LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8
+>  LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8    LC_PAPER=en_US.UTF-8
+>   [8] LC_NAME=C                  LC_ADDRESS=C               LC_TELEPHONE=C
+>  LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+>
+> attached base packages:
+> [1] stats     graphics  grDevices utils     datasets  base
+>
+> other attached packages:
+> [1] openxlsx_3.0.0
+>
+> loaded via a namespace (and not attached):
+> [1] Rcpp_0.12.3.1 methods_3.2.3
+>
+>  *** caught segfault ***
+>  address 0x7fd5b83d8038, cause 'memory not mapped'
+>
+> Traceback:
+>  1: .Call("openxlsx_readWorkbook", v, r, string_refs, isDate, nRows,
+>  colNames, skipEmptyRows, origin, clean_names, PACKAGE = "openxlsx")
+>  2: read.xlsx.default("Failure_to_Import.xlsx", colNames = TRUE)
+>  3: read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+> aborting ...
+>
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+
+-- 
+Paul E. Johnson
+Professor, Political Science        Director
+1541 Lilac Lane, Room 504      Center for Research Methods
+University of Kansas                 University of Kansas
+http://pj.freefaculty.org              http://crmda.ku.edu
+
+From edd at debian.org  Fri Jan 29 13:52:00 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 29 Jan 2016 06:52:00 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+Message-ID: <22187.24688.645710.208594@max.nulle.part>
+
+
+On 28 January 2016 at 21:47, Paul Johnson wrote:
+| Thanks.
+| 
+| On Thu, Jan 28, 2016 at 2:42 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| >
+| > Paul,
+| >
+| > I can reproduce the segfault on Ubuntu 15.10, "everything current".
+| > Definitely a valid bug report, though a 30mb xlsx may not qualify as
+| > minimal.
+| >
+| I'm glad I did not attach it to an email, then :)
+| 
+| The data xlsx provided by the client is about 2 times as big, I had a
+| GRA whittled it down for your entertainment.
+| 
+| If we whittle xlsx file down to a few lines, it does not seg fault, apparently.
+| 
+| I'm going crazy trying to downgrade R in Ubuntu see where that leads.
+| I was using 3.2.2 until a couple of days ago and I never saw a hint of
+| trouble from Rcpp or openxlsx.
+
+Sorry that is so frustrating, I know.  Maybe using clang++ can help as it did
+for KK on OS X.  (Though clang++ remains frustrating on Ubuntu as you have to
+fiddle with -I... switches.)
+
+Dirk
+| 
+| > I won't have time to look at this for a while though so if you find that
+| > downgrading helps that may be your best bet.
+| >
+| > Thanks for the report.  I am so used to simple segfaults from ABI mixings
+| > (g++-5.* will do that for you...) that I called this wrongly at first.
+| >
+| > Dirk
+| >
+| > /tmp/pj/openxlsx_failure$ Rscript
+| > Reproducible_openxlsx_failure.R
+| > R version 3.2.3 (2015-12-10)
+| > Platform: x86_64-pc-linux-gnu (64-bit)
+| > Running under: Ubuntu 15.10
+| >
+| > locale:
+| >  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+| >  LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8
+| >  LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8    LC_PAPER=en_US.UTF-8
+| >   [8] LC_NAME=C                  LC_ADDRESS=C               LC_TELEPHONE=C
+| >  LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+| >
+| > attached base packages:
+| > [1] stats     graphics  grDevices utils     datasets  base
+| >
+| > other attached packages:
+| > [1] openxlsx_3.0.0
+| >
+| > loaded via a namespace (and not attached):
+| > [1] Rcpp_0.12.3.1 methods_3.2.3
+| >
+| >  *** caught segfault ***
+| >  address 0x7fd5b83d8038, cause 'memory not mapped'
+| >
+| > Traceback:
+| >  1: .Call("openxlsx_readWorkbook", v, r, string_refs, isDate, nRows,
+| >  colNames, skipEmptyRows, origin, clean_names, PACKAGE = "openxlsx")
+| >  2: read.xlsx.default("Failure_to_Import.xlsx", colNames = TRUE)
+| >  3: read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+| > aborting ...
+| >
+| >
+| > --
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+| 
+| 
+| -- 
+| Paul E. Johnson
+| Professor, Political Science        Director
+| 1541 Lilac Lane, Room 504      Center for Research Methods
+| University of Kansas                 University of Kansas
+| http://pj.freefaculty.org              http://crmda.ku.edu
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Fri Jan 29 20:27:38 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Fri, 29 Jan 2016 11:27:38 -0800
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22187.24688.645710.208594@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+Message-ID: <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+
+When I add some debug printing to the associated subscripting line
+(https://github.com/awalker89/openxlsx/blob/b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+I see:
+
+   colNumbers.size(): 98,03,150
+   charCols.size(): 95,94,546
+
+It looks to me like the package is erroneously attempting to subset
+vectors of different sizes, causing out-of-bounds reads.
+Unfortunately, Rcpp is not detecting or warning about this...
+
+Either way, I believe this is a bug in the openxlsx package, but Rcpp
+should be checking / reporting this.
+
+Kevin
+
+On Fri, Jan 29, 2016 at 4:52 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> On 28 January 2016 at 21:47, Paul Johnson wrote:
+> | Thanks.
+> |
+> | On Thu, Jan 28, 2016 at 2:42 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> | >
+> | > Paul,
+> | >
+> | > I can reproduce the segfault on Ubuntu 15.10, "everything current".
+> | > Definitely a valid bug report, though a 30mb xlsx may not qualify as
+> | > minimal.
+> | >
+> | I'm glad I did not attach it to an email, then :)
+> |
+> | The data xlsx provided by the client is about 2 times as big, I had a
+> | GRA whittled it down for your entertainment.
+> |
+> | If we whittle xlsx file down to a few lines, it does not seg fault, apparently.
+> |
+> | I'm going crazy trying to downgrade R in Ubuntu see where that leads.
+> | I was using 3.2.2 until a couple of days ago and I never saw a hint of
+> | trouble from Rcpp or openxlsx.
+>
+> Sorry that is so frustrating, I know.  Maybe using clang++ can help as it did
+> for KK on OS X.  (Though clang++ remains frustrating on Ubuntu as you have to
+> fiddle with -I... switches.)
+>
+> Dirk
+> |
+> | > I won't have time to look at this for a while though so if you find that
+> | > downgrading helps that may be your best bet.
+> | >
+> | > Thanks for the report.  I am so used to simple segfaults from ABI mixings
+> | > (g++-5.* will do that for you...) that I called this wrongly at first.
+> | >
+> | > Dirk
+> | >
+> | > /tmp/pj/openxlsx_failure$ Rscript
+> | > Reproducible_openxlsx_failure.R
+> | > R version 3.2.3 (2015-12-10)
+> | > Platform: x86_64-pc-linux-gnu (64-bit)
+> | > Running under: Ubuntu 15.10
+> | >
+> | > locale:
+> | >  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C
+> | >  LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8
+> | >  LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8    LC_PAPER=en_US.UTF-8
+> | >   [8] LC_NAME=C                  LC_ADDRESS=C               LC_TELEPHONE=C
+> | >  LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+> | >
+> | > attached base packages:
+> | > [1] stats     graphics  grDevices utils     datasets  base
+> | >
+> | > other attached packages:
+> | > [1] openxlsx_3.0.0
+> | >
+> | > loaded via a namespace (and not attached):
+> | > [1] Rcpp_0.12.3.1 methods_3.2.3
+> | >
+> | >  *** caught segfault ***
+> | >  address 0x7fd5b83d8038, cause 'memory not mapped'
+> | >
+> | > Traceback:
+> | >  1: .Call("openxlsx_readWorkbook", v, r, string_refs, isDate, nRows,
+> | >  colNames, skipEmptyRows, origin, clean_names, PACKAGE = "openxlsx")
+> | >  2: read.xlsx.default("Failure_to_Import.xlsx", colNames = TRUE)
+> | >  3: read.xlsx("Failure_to_Import.xlsx", colNames = TRUE)
+> | > aborting ...
+> | >
+> | >
+> | > --
+> | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> |
+> |
+> |
+> | --
+> | Paul E. Johnson
+> | Professor, Political Science        Director
+> | 1541 Lilac Lane, Room 504      Center for Research Methods
+> | University of Kansas                 University of Kansas
+> | http://pj.freefaculty.org              http://crmda.ku.edu
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Fri Jan 29 20:29:56 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 29 Jan 2016 13:29:56 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+Message-ID: <22187.48564.451424.421750@max.nulle.part>
+
+
+On 29 January 2016 at 11:27, Kevin Ushey wrote:
+| When I add some debug printing to the associated subscripting line
+| (https://github.com/awalker89/openxlsx/blob/b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+| I see:
+| 
+|    colNumbers.size(): 98,03,150
+|    charCols.size(): 95,94,546
+| 
+| It looks to me like the package is erroneously attempting to subset
+| vectors of different sizes, causing out-of-bounds reads.
+
+Nice work.
+
+| Unfortunately, Rcpp is not detecting or warning about this...
+| 
+| Either way, I believe this is a bug in the openxlsx package, but Rcpp
+| should be checking / reporting this.
+
+With (Rcpp)Armadillo you do have an option of turning this on/off. With Rcpp
+alone not quite.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Fri Jan 29 21:00:12 2016
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Fri, 29 Jan 2016 15:00:12 -0500
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22187.48564.451424.421750@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+Message-ID: <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+
+Hi, Kevin, I was also trying to track this down yesterday.
+
+>From the debugging info below, *indices_n* is not equal to length of
+*indices*, which I don't quite understand.
+
+Program received signal SIGSEGV, Segmentation fault.
+
+0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13,
+true, Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+Rcpp::PreserveStorage> > >::get_vec (this=this at entry=0x7fffffff79a0)
+
+    at
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/Subsetter.h:200
+
+199             output[i] = lhs[ indices[i] ];
+
+(gdb) p i
+
+$1 = 33622
+
+(gdb) p indices[i]
+
+Cannot access memory at address 0x34c6e000
+
+(gdb) p indices_n
+
+$2 = 9594546
+
+On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 29 January 2016 at 11:27, Kevin Ushey wrote:
+> | When I add some debug printing to the associated subscripting line
+> | (
+> https://github.com/awalker89/openxlsx/blob/b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608
+> ),
+> | I see:
+> |
+> |    colNumbers.size(): 98,03,150
+> |    charCols.size(): 95,94,546
+> |
+> | It looks to me like the package is erroneously attempting to subset
+> | vectors of different sizes, causing out-of-bounds reads.
+>
+> Nice work.
+>
+> | Unfortunately, Rcpp is not detecting or warning about this...
+> |
+> | Either way, I believe this is a bug in the openxlsx package, but Rcpp
+> | should be checking / reporting this.
+>
+> With (Rcpp)Armadillo you do have an option of turning this on/off. With
+> Rcpp
+> alone not quite.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160129/7b964edc/attachment.html>
+
+From qkou at umail.iu.edu  Fri Jan 29 23:55:43 2016
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Fri, 29 Jan 2016 17:55:43 -0500
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+ <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+Message-ID: <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+
+Hi, Paul, can you try my fork of Rcpp? You can install it by the line below:
+
+devtools::install_github("thirdwing/Rcpp", ref = "subsetter")
+
+This fixed the segfault on my Ubuntu machine.
+
+The difference can be found from [1].
+
+In *subsetter*, if an IntegerVector passed in, we will try to reuse it.
+This led to a segfault in this case, which I don't know why.
+
+Dirk and Kevin, do you have any thoughts on it?
+
+Best wishes,
+
+KK
+
+[1]
+https://github.com/thirdwing/Rcpp/commit/216c5220bcb84778a656b3496d0f1803b973ef61
+
+
+On Fri, Jan 29, 2016 at 3:00 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+
+> Hi, Kevin, I was also trying to track this down yesterday.
+>
+> From the debugging info below, *indices_n* is not equal to length of
+> *indices*, which I don't quite understand.
+>
+> Program received signal SIGSEGV, Segmentation fault.
+>
+> 0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13,
+> true, Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+> Rcpp::PreserveStorage> > >::get_vec (this=this at entry=0x7fffffff79a0)
+>
+>     at
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/Subsetter.h:200
+>
+> 199             output[i] = lhs[ indices[i] ];
+>
+> (gdb) p i
+>
+> $1 = 33622
+>
+> (gdb) p indices[i]
+>
+> Cannot access memory at address 0x34c6e000
+>
+> (gdb) p indices_n
+>
+> $2 = 9594546
+>
+> On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 29 January 2016 at 11:27, Kevin Ushey wrote:
+>> | When I add some debug printing to the associated subscripting line
+>> | (
+>> https://github.com/awalker89/openxlsx/blob/b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608
+>> ),
+>> | I see:
+>> |
+>> |    colNumbers.size(): 98,03,150
+>> |    charCols.size(): 95,94,546
+>> |
+>> | It looks to me like the package is erroneously attempting to subset
+>> | vectors of different sizes, causing out-of-bounds reads.
+>>
+>> Nice work.
+>>
+>> | Unfortunately, Rcpp is not detecting or warning about this...
+>> |
+>> | Either way, I believe this is a bug in the openxlsx package, but Rcpp
+>> | should be checking / reporting this.
+>>
+>> With (Rcpp)Armadillo you do have an option of turning this on/off. With
+>> Rcpp
+>> alone not quite.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+>
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160129/587ee083/attachment-0001.html>
+
+From edd at debian.org  Sat Jan 30 00:16:10 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 29 Jan 2016 17:16:10 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+ <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+ <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+Message-ID: <22187.62138.954440.279502@max.nulle.part>
+
+
+On 29 January 2016 at 17:55, Qiang Kou wrote:
+| Hi, Paul, can you try my fork of Rcpp? You can install it by the line below:
+| 
+| devtools::install_github("thirdwing/Rcpp", ref = "subsetter")
+| 
+| This fixed the segfault on my Ubuntu machine.
+
+Yay. Nice work!
+ 
+| The difference can be found from [1].
+
+Nice and concise.
+ 
+| In subsetter, if an IntegerVector passed in, we will try to reuse it. This led
+| to a segfault in this case, which I don't know why.
+| 
+| Dirk and Kevin, do you have any thoughts on it?
+
+Not really, but happy to give this the full reverse-dependency check
+treatment so that we can merge it.
+
+Dirk
+
+ 
+| Best wishes,
+| 
+| KK
+| 
+| [1]?https://github.com/thirdwing/Rcpp/commit/
+| 216c5220bcb84778a656b3496d0f1803b973ef61
+| 
+| 
+| On Fri, Jan 29, 2016 at 3:00 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+| 
+| 
+|     Hi, Kevin, I was also trying to track this down yesterday.
+| 
+|     From the debugging info below, indices_n is not equal to length of indices,
+|     which I don't quite understand.
+| 
+|     Program received signal SIGSEGV, Segmentation fault.
+| 
+|     0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13,
+|     true, Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+|     Rcpp::PreserveStorage> > >::get_vec (this=this at entry=0x7fffffff79a0)
+| 
+|     ? ? at /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/
+|     Subsetter.h:200
+| 
+|     199?? ? ? ? ? ? output[i] = lhs[ indices[i] ];
+| 
+|     (gdb) p i
+| 
+|     $1 = 33622
+| 
+|     (gdb) p indices[i]
+| 
+|     Cannot access memory at address 0x34c6e000
+| 
+|     (gdb) p indices_n
+| 
+|     $2 = 9594546
+| 
+| 
+|     On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+|        
+|         On 29 January 2016 at 11:27, Kevin Ushey wrote:
+|         | When I add some debug printing to the associated subscripting line
+|         | (https://github.com/awalker89/openxlsx/blob/
+|         b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+|         | I see:
+|         |
+|         |? ? colNumbers.size(): 98,03,150
+|         |? ? charCols.size(): 95,94,546
+|         |
+|         | It looks to me like the package is erroneously attempting to subset
+|         | vectors of different sizes, causing out-of-bounds reads.
+| 
+|         Nice work.
+|        
+|         | Unfortunately, Rcpp is not detecting or warning about this...
+|         |
+|         | Either way, I believe this is a bug in the openxlsx package, but Rcpp
+|         | should be checking / reporting this.
+| 
+|         With (Rcpp)Armadillo you do have an option of turning this on/off. With
+|         Rcpp
+|         alone not quite.
+|        
+|         Dirk
+|        
+|         --
+|         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+|         _______________________________________________
+|         Rcpp-devel mailing list
+|         Rcpp-devel at lists.r-forge.r-project.org
+|         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| 
+| 
+| 
+|     --
+|     Qiang Kou
+|     qkou at umail.iu.edu
+|     School of Informatics and Computing, Indiana University
+| 
+| 
+| 
+| 
+| 
+| --
+| Qiang Kou
+| qkou at umail.iu.edu
+| School of Informatics and Computing, Indiana University
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Sat Jan 30 08:57:09 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Fri, 29 Jan 2016 23:57:09 -0800
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <22187.62138.954440.279502@max.nulle.part>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+ <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+ <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+ <22187.62138.954440.279502@max.nulle.part>
+Message-ID: <CAJXgQP1BkbxAYPF2iRwaRzg6eFcnSun6tyPa90=y5PDsxR-G_g@mail.gmail.com>
+
+Hmm, I have one thought: we try to re-use the indices from an
+IntegerVector, but the type here is actually a sugar type:
+
+    Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+    Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+    Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+
+Ie, we access the indices with `INTEGER(x)`, but perhaps those indices
+have not actually been properly materialized when we attempt to
+perform the subset?
+
+But then, a simple test case with `x[y - 1]` with `x` and `y` both
+being integer vectors seems to work just fine. So I am a bit confused.
+
+On Fri, Jan 29, 2016 at 3:16 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> On 29 January 2016 at 17:55, Qiang Kou wrote:
+> | Hi, Paul, can you try my fork of Rcpp? You can install it by the line below:
+> |
+> | devtools::install_github("thirdwing/Rcpp", ref = "subsetter")
+> |
+> | This fixed the segfault on my Ubuntu machine.
+>
+> Yay. Nice work!
+>
+> | The difference can be found from [1].
+>
+> Nice and concise.
+>
+> | In subsetter, if an IntegerVector passed in, we will try to reuse it. This led
+> | to a segfault in this case, which I don't know why.
+> |
+> | Dirk and Kevin, do you have any thoughts on it?
+>
+> Not really, but happy to give this the full reverse-dependency check
+> treatment so that we can merge it.
+>
+> Dirk
+>
+>
+> | Best wishes,
+> |
+> | KK
+> |
+> | [1] https://github.com/thirdwing/Rcpp/commit/
+> | 216c5220bcb84778a656b3496d0f1803b973ef61
+> |
+> |
+> | On Fri, Jan 29, 2016 at 3:00 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> |
+> |
+> |     Hi, Kevin, I was also trying to track this down yesterday.
+> |
+> |     From the debugging info below, indices_n is not equal to length of indices,
+> |     which I don't quite understand.
+> |
+> |     Program received signal SIGSEGV, Segmentation fault.
+> |
+> |     0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13,
+> |     true, Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+> |     Rcpp::PreserveStorage> > >::get_vec (this=this at entry=0x7fffffff79a0)
+> |
+> |         at /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/
+> |     Subsetter.h:200
+> |
+> |     199             output[i] = lhs[ indices[i] ];
+> |
+> |     (gdb) p i
+> |
+> |     $1 = 33622
+> |
+> |     (gdb) p indices[i]
+> |
+> |     Cannot access memory at address 0x34c6e000
+> |
+> |     (gdb) p indices_n
+> |
+> |     $2 = 9594546
+> |
+> |
+> |     On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> |
+> |
+> |         On 29 January 2016 at 11:27, Kevin Ushey wrote:
+> |         | When I add some debug printing to the associated subscripting line
+> |         | (https://github.com/awalker89/openxlsx/blob/
+> |         b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+> |         | I see:
+> |         |
+> |         |    colNumbers.size(): 98,03,150
+> |         |    charCols.size(): 95,94,546
+> |         |
+> |         | It looks to me like the package is erroneously attempting to subset
+> |         | vectors of different sizes, causing out-of-bounds reads.
+> |
+> |         Nice work.
+> |
+> |         | Unfortunately, Rcpp is not detecting or warning about this...
+> |         |
+> |         | Either way, I believe this is a bug in the openxlsx package, but Rcpp
+> |         | should be checking / reporting this.
+> |
+> |         With (Rcpp)Armadillo you do have an option of turning this on/off. With
+> |         Rcpp
+> |         alone not quite.
+> |
+> |         Dirk
+> |
+> |         --
+> |         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> |         _______________________________________________
+> |         Rcpp-devel mailing list
+> |         Rcpp-devel at lists.r-forge.r-project.org
+> |         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> |
+> |
+> |
+> |
+> |     --
+> |     Qiang Kou
+> |     qkou at umail.iu.edu
+> |     School of Informatics and Computing, Indiana University
+> |
+> |
+> |
+> |
+> |
+> | --
+> | Qiang Kou
+> | qkou at umail.iu.edu
+> | School of Informatics and Computing, Indiana University
+> |
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Sat Jan 30 16:07:40 2016
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Sat, 30 Jan 2016 10:07:40 -0500
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJXgQP1BkbxAYPF2iRwaRzg6eFcnSun6tyPa90=y5PDsxR-G_g@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+ <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+ <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+ <22187.62138.954440.279502@max.nulle.part>
+ <CAJXgQP1BkbxAYPF2iRwaRzg6eFcnSun6tyPa90=y5PDsxR-G_g@mail.gmail.com>
+Message-ID: <CAJ_LAMCYTq4m9Tf=5McAsW5ZKWDt1NkWmLnuDUiPr0yJ3=zPWw@mail.gmail.com>
+
+Another thing confused me is the segfault only happens when the
+IntegerVector is significantly long.
+
+Best,
+
+KK
+
+On Sat, Jan 30, 2016 at 2:57 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> Hmm, I have one thought: we try to re-use the indices from an
+> IntegerVector, but the type here is actually a sugar type:
+>
+>     Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+>     Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+>     Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+>
+> Ie, we access the indices with `INTEGER(x)`, but perhaps those indices
+> have not actually been properly materialized when we attempt to
+> perform the subset?
+>
+> But then, a simple test case with `x[y - 1]` with `x` and `y` both
+> being integer vectors seems to work just fine. So I am a bit confused.
+>
+> On Fri, Jan 29, 2016 at 3:16 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> > On 29 January 2016 at 17:55, Qiang Kou wrote:
+> > | Hi, Paul, can you try my fork of Rcpp? You can install it by the line
+> below:
+> > |
+> > | devtools::install_github("thirdwing/Rcpp", ref = "subsetter")
+> > |
+> > | This fixed the segfault on my Ubuntu machine.
+> >
+> > Yay. Nice work!
+> >
+> > | The difference can be found from [1].
+> >
+> > Nice and concise.
+> >
+> > | In subsetter, if an IntegerVector passed in, we will try to reuse it.
+> This led
+> > | to a segfault in this case, which I don't know why.
+> > |
+> > | Dirk and Kevin, do you have any thoughts on it?
+> >
+> > Not really, but happy to give this the full reverse-dependency check
+> > treatment so that we can merge it.
+> >
+> > Dirk
+> >
+> >
+> > | Best wishes,
+> > |
+> > | KK
+> > |
+> > | [1] https://github.com/thirdwing/Rcpp/commit/
+> > | 216c5220bcb84778a656b3496d0f1803b973ef61
+> > |
+> > |
+> > | On Fri, Jan 29, 2016 at 3:00 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> > |
+> > |
+> > |     Hi, Kevin, I was also trying to track this down yesterday.
+> > |
+> > |     From the debugging info below, indices_n is not equal to length of
+> indices,
+> > |     which I don't quite understand.
+> > |
+> > |     Program received signal SIGSEGV, Segmentation fault.
+> > |
+> > |     0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage,
+> 13,
+> > |     true, Rcpp::sugar::Minus_Vector_Primitive<13, true,
+> Rcpp::Vector<13,
+> > |     Rcpp::PreserveStorage> > >::get_vec (this=this at entry
+> =0x7fffffff79a0)
+> > |
+> > |         at /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/
+> > |     Subsetter.h:200
+> > |
+> > |     199             output[i] = lhs[ indices[i] ];
+> > |
+> > |     (gdb) p i
+> > |
+> > |     $1 = 33622
+> > |
+> > |     (gdb) p indices[i]
+> > |
+> > |     Cannot access memory at address 0x34c6e000
+> > |
+> > |     (gdb) p indices_n
+> > |
+> > |     $2 = 9594546
+> > |
+> > |
+> > |     On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel <edd at debian.org>
+> wrote:
+> > |
+> > |
+> > |         On 29 January 2016 at 11:27, Kevin Ushey wrote:
+> > |         | When I add some debug printing to the associated
+> subscripting line
+> > |         | (https://github.com/awalker89/openxlsx/blob/
+> > |
+>  b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+> > |         | I see:
+> > |         |
+> > |         |    colNumbers.size(): 98,03,150
+> > |         |    charCols.size(): 95,94,546
+> > |         |
+> > |         | It looks to me like the package is erroneously attempting to
+> subset
+> > |         | vectors of different sizes, causing out-of-bounds reads.
+> > |
+> > |         Nice work.
+> > |
+> > |         | Unfortunately, Rcpp is not detecting or warning about this...
+> > |         |
+> > |         | Either way, I believe this is a bug in the openxlsx package,
+> but Rcpp
+> > |         | should be checking / reporting this.
+> > |
+> > |         With (Rcpp)Armadillo you do have an option of turning this
+> on/off. With
+> > |         Rcpp
+> > |         alone not quite.
+> > |
+> > |         Dirk
+> > |
+> > |         --
+> > |         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > |         _______________________________________________
+> > |         Rcpp-devel mailing list
+> > |         Rcpp-devel at lists.r-forge.r-project.org
+> > |
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> > |
+> > |
+> > |
+> > |
+> > |     --
+> > |     Qiang Kou
+> > |     qkou at umail.iu.edu
+> > |     School of Informatics and Computing, Indiana University
+> > |
+> > |
+> > |
+> > |
+> > |
+> > | --
+> > | Qiang Kou
+> > | qkou at umail.iu.edu
+> > | School of Informatics and Computing, Indiana University
+> > |
+> >
+> > --
+> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160130/2ddd4f8f/attachment.html>
+
+From kevinushey at gmail.com  Sat Jan 30 22:44:40 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sat, 30 Jan 2016 13:44:40 -0800
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJ_LAMCYTq4m9Tf=5McAsW5ZKWDt1NkWmLnuDUiPr0yJ3=zPWw@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+ <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+ <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+ <22187.62138.954440.279502@max.nulle.part>
+ <CAJXgQP1BkbxAYPF2iRwaRzg6eFcnSun6tyPa90=y5PDsxR-G_g@mail.gmail.com>
+ <CAJ_LAMCYTq4m9Tf=5McAsW5ZKWDt1NkWmLnuDUiPr0yJ3=zPWw@mail.gmail.com>
+Message-ID: <CAJXgQP3pFNav6eYFLk+R2gMCz8w-Q6DPFOmeDKGcmdB5LAR9aQ@mail.gmail.com>
+
+I think I know what's going on now. Effectively, we're 'evaluating'
+the sugar proxy vector, getting a pointer to a (temporary,
+unprotected) R data structure, and then storing that pointer. Later,
+when we attempt to allocate the output vector (with `no_init`) the GC
+runs and cleans up our pointer.
+
+See:
+
+    https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/vector/Subsetter.h#L147
+    https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/vector/Subsetter.h#L197
+
+The 'best' fix here is to only re-use the indices for an actual
+IntegerVector, and generate the indices from sugar proxies, but I'm
+not exactly sure how to best handle that. It's also possible that if
+we just allocated the output vector earlier (ie, before getting a
+pointer to our subset proxy), that we'd avoid the R gc cleaning up our
+vector.
+
+FWIW, we should be able to reproduce this reliably when running under
+`gctorture()`...
+
+Kevin
+
+On Sat, Jan 30, 2016 at 7:07 AM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> Another thing confused me is the segfault only happens when the
+> IntegerVector is significantly long.
+>
+> Best,
+>
+> KK
+>
+> On Sat, Jan 30, 2016 at 2:57 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+>>
+>> Hmm, I have one thought: we try to re-use the indices from an
+>> IntegerVector, but the type here is actually a sugar type:
+>>
+>>     Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+>>     Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+>>     Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+>>
+>> Ie, we access the indices with `INTEGER(x)`, but perhaps those indices
+>> have not actually been properly materialized when we attempt to
+>> perform the subset?
+>>
+>> But then, a simple test case with `x[y - 1]` with `x` and `y` both
+>> being integer vectors seems to work just fine. So I am a bit confused.
+>>
+>> On Fri, Jan 29, 2016 at 3:16 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>> >
+>> > On 29 January 2016 at 17:55, Qiang Kou wrote:
+>> > | Hi, Paul, can you try my fork of Rcpp? You can install it by the line
+>> > below:
+>> > |
+>> > | devtools::install_github("thirdwing/Rcpp", ref = "subsetter")
+>> > |
+>> > | This fixed the segfault on my Ubuntu machine.
+>> >
+>> > Yay. Nice work!
+>> >
+>> > | The difference can be found from [1].
+>> >
+>> > Nice and concise.
+>> >
+>> > | In subsetter, if an IntegerVector passed in, we will try to reuse it.
+>> > This led
+>> > | to a segfault in this case, which I don't know why.
+>> > |
+>> > | Dirk and Kevin, do you have any thoughts on it?
+>> >
+>> > Not really, but happy to give this the full reverse-dependency check
+>> > treatment so that we can merge it.
+>> >
+>> > Dirk
+>> >
+>> >
+>> > | Best wishes,
+>> > |
+>> > | KK
+>> > |
+>> > | [1] https://github.com/thirdwing/Rcpp/commit/
+>> > | 216c5220bcb84778a656b3496d0f1803b973ef61
+>> > |
+>> > |
+>> > | On Fri, Jan 29, 2016 at 3:00 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+>> > |
+>> > |
+>> > |     Hi, Kevin, I was also trying to track this down yesterday.
+>> > |
+>> > |     From the debugging info below, indices_n is not equal to length of
+>> > indices,
+>> > |     which I don't quite understand.
+>> > |
+>> > |     Program received signal SIGSEGV, Segmentation fault.
+>> > |
+>> > |     0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage,
+>> > 13,
+>> > |     true, Rcpp::sugar::Minus_Vector_Primitive<13, true,
+>> > Rcpp::Vector<13,
+>> > |     Rcpp::PreserveStorage> > >::get_vec
+>> > (this=this at entry=0x7fffffff79a0)
+>> > |
+>> > |         at /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/
+>> > |     Subsetter.h:200
+>> > |
+>> > |     199             output[i] = lhs[ indices[i] ];
+>> > |
+>> > |     (gdb) p i
+>> > |
+>> > |     $1 = 33622
+>> > |
+>> > |     (gdb) p indices[i]
+>> > |
+>> > |     Cannot access memory at address 0x34c6e000
+>> > |
+>> > |     (gdb) p indices_n
+>> > |
+>> > |     $2 = 9594546
+>> > |
+>> > |
+>> > |     On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel
+>> > <edd at debian.org> wrote:
+>> > |
+>> > |
+>> > |         On 29 January 2016 at 11:27, Kevin Ushey wrote:
+>> > |         | When I add some debug printing to the associated
+>> > subscripting line
+>> > |         | (https://github.com/awalker89/openxlsx/blob/
+>> > |
+>> > b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+>> > |         | I see:
+>> > |         |
+>> > |         |    colNumbers.size(): 98,03,150
+>> > |         |    charCols.size(): 95,94,546
+>> > |         |
+>> > |         | It looks to me like the package is erroneously attempting to
+>> > subset
+>> > |         | vectors of different sizes, causing out-of-bounds reads.
+>> > |
+>> > |         Nice work.
+>> > |
+>> > |         | Unfortunately, Rcpp is not detecting or warning about
+>> > this...
+>> > |         |
+>> > |         | Either way, I believe this is a bug in the openxlsx package,
+>> > but Rcpp
+>> > |         | should be checking / reporting this.
+>> > |
+>> > |         With (Rcpp)Armadillo you do have an option of turning this
+>> > on/off. With
+>> > |         Rcpp
+>> > |         alone not quite.
+>> > |
+>> > |         Dirk
+>> > |
+>> > |         --
+>> > |         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> > |         _______________________________________________
+>> > |         Rcpp-devel mailing list
+>> > |         Rcpp-devel at lists.r-forge.r-project.org
+>> > |
+>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> > |
+>> > |
+>> > |
+>> > |
+>> > |     --
+>> > |     Qiang Kou
+>> > |     qkou at umail.iu.edu
+>> > |     School of Informatics and Computing, Indiana University
+>> > |
+>> > |
+>> > |
+>> > |
+>> > |
+>> > | --
+>> > | Qiang Kou
+>> > | qkou at umail.iu.edu
+>> > | School of Informatics and Computing, Indiana University
+>> > |
+>> >
+>> > --
+>> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+
+From kevinushey at gmail.com  Sat Jan 30 22:58:19 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sat, 30 Jan 2016 13:58:19 -0800
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJXgQP3pFNav6eYFLk+R2gMCz8w-Q6DPFOmeDKGcmdB5LAR9aQ@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+ <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+ <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+ <22187.62138.954440.279502@max.nulle.part>
+ <CAJXgQP1BkbxAYPF2iRwaRzg6eFcnSun6tyPa90=y5PDsxR-G_g@mail.gmail.com>
+ <CAJ_LAMCYTq4m9Tf=5McAsW5ZKWDt1NkWmLnuDUiPr0yJ3=zPWw@mail.gmail.com>
+ <CAJXgQP3pFNav6eYFLk+R2gMCz8w-Q6DPFOmeDKGcmdB5LAR9aQ@mail.gmail.com>
+Message-ID: <CAJXgQP0rnnTTuHKsskgrn6iAPATb0TfD0J+-p7Sg3ZwiE3i8bw@mail.gmail.com>
+
+And I now have a MRE:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+IntegerVector ouch(IntegerVector x, IntegerVector y) {
+  IntegerVector result;
+  result = x[y - 1];
+  return result;
+}
+
+/*** R
+x <- 1:1E6
+y <- 1:1E6
+gctorture(TRUE)
+x <- ouch(x, y)
+gctorture(FALSE)
+*/
+
+This fails pretty reliably for me. Perhaps we can add this to our unit tests.
+
+On Sat, Jan 30, 2016 at 1:44 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+> I think I know what's going on now. Effectively, we're 'evaluating'
+> the sugar proxy vector, getting a pointer to a (temporary,
+> unprotected) R data structure, and then storing that pointer. Later,
+> when we attempt to allocate the output vector (with `no_init`) the GC
+> runs and cleans up our pointer.
+>
+> See:
+>
+>     https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/vector/Subsetter.h#L147
+>     https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/vector/Subsetter.h#L197
+>
+> The 'best' fix here is to only re-use the indices for an actual
+> IntegerVector, and generate the indices from sugar proxies, but I'm
+> not exactly sure how to best handle that. It's also possible that if
+> we just allocated the output vector earlier (ie, before getting a
+> pointer to our subset proxy), that we'd avoid the R gc cleaning up our
+> vector.
+>
+> FWIW, we should be able to reproduce this reliably when running under
+> `gctorture()`...
+>
+> Kevin
+>
+> On Sat, Jan 30, 2016 at 7:07 AM, Qiang Kou <qkou at umail.iu.edu> wrote:
+>> Another thing confused me is the segfault only happens when the
+>> IntegerVector is significantly long.
+>>
+>> Best,
+>>
+>> KK
+>>
+>> On Sat, Jan 30, 2016 at 2:57 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+>>>
+>>> Hmm, I have one thought: we try to re-use the indices from an
+>>> IntegerVector, but the type here is actually a sugar type:
+>>>
+>>>     Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+>>>     Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+>>>     Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+>>>
+>>> Ie, we access the indices with `INTEGER(x)`, but perhaps those indices
+>>> have not actually been properly materialized when we attempt to
+>>> perform the subset?
+>>>
+>>> But then, a simple test case with `x[y - 1]` with `x` and `y` both
+>>> being integer vectors seems to work just fine. So I am a bit confused.
+>>>
+>>> On Fri, Jan 29, 2016 at 3:16 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>>> >
+>>> > On 29 January 2016 at 17:55, Qiang Kou wrote:
+>>> > | Hi, Paul, can you try my fork of Rcpp? You can install it by the line
+>>> > below:
+>>> > |
+>>> > | devtools::install_github("thirdwing/Rcpp", ref = "subsetter")
+>>> > |
+>>> > | This fixed the segfault on my Ubuntu machine.
+>>> >
+>>> > Yay. Nice work!
+>>> >
+>>> > | The difference can be found from [1].
+>>> >
+>>> > Nice and concise.
+>>> >
+>>> > | In subsetter, if an IntegerVector passed in, we will try to reuse it.
+>>> > This led
+>>> > | to a segfault in this case, which I don't know why.
+>>> > |
+>>> > | Dirk and Kevin, do you have any thoughts on it?
+>>> >
+>>> > Not really, but happy to give this the full reverse-dependency check
+>>> > treatment so that we can merge it.
+>>> >
+>>> > Dirk
+>>> >
+>>> >
+>>> > | Best wishes,
+>>> > |
+>>> > | KK
+>>> > |
+>>> > | [1] https://github.com/thirdwing/Rcpp/commit/
+>>> > | 216c5220bcb84778a656b3496d0f1803b973ef61
+>>> > |
+>>> > |
+>>> > | On Fri, Jan 29, 2016 at 3:00 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+>>> > |
+>>> > |
+>>> > |     Hi, Kevin, I was also trying to track this down yesterday.
+>>> > |
+>>> > |     From the debugging info below, indices_n is not equal to length of
+>>> > indices,
+>>> > |     which I don't quite understand.
+>>> > |
+>>> > |     Program received signal SIGSEGV, Segmentation fault.
+>>> > |
+>>> > |     0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage,
+>>> > 13,
+>>> > |     true, Rcpp::sugar::Minus_Vector_Primitive<13, true,
+>>> > Rcpp::Vector<13,
+>>> > |     Rcpp::PreserveStorage> > >::get_vec
+>>> > (this=this at entry=0x7fffffff79a0)
+>>> > |
+>>> > |         at /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/
+>>> > |     Subsetter.h:200
+>>> > |
+>>> > |     199             output[i] = lhs[ indices[i] ];
+>>> > |
+>>> > |     (gdb) p i
+>>> > |
+>>> > |     $1 = 33622
+>>> > |
+>>> > |     (gdb) p indices[i]
+>>> > |
+>>> > |     Cannot access memory at address 0x34c6e000
+>>> > |
+>>> > |     (gdb) p indices_n
+>>> > |
+>>> > |     $2 = 9594546
+>>> > |
+>>> > |
+>>> > |     On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel
+>>> > <edd at debian.org> wrote:
+>>> > |
+>>> > |
+>>> > |         On 29 January 2016 at 11:27, Kevin Ushey wrote:
+>>> > |         | When I add some debug printing to the associated
+>>> > subscripting line
+>>> > |         | (https://github.com/awalker89/openxlsx/blob/
+>>> > |
+>>> > b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+>>> > |         | I see:
+>>> > |         |
+>>> > |         |    colNumbers.size(): 98,03,150
+>>> > |         |    charCols.size(): 95,94,546
+>>> > |         |
+>>> > |         | It looks to me like the package is erroneously attempting to
+>>> > subset
+>>> > |         | vectors of different sizes, causing out-of-bounds reads.
+>>> > |
+>>> > |         Nice work.
+>>> > |
+>>> > |         | Unfortunately, Rcpp is not detecting or warning about
+>>> > this...
+>>> > |         |
+>>> > |         | Either way, I believe this is a bug in the openxlsx package,
+>>> > but Rcpp
+>>> > |         | should be checking / reporting this.
+>>> > |
+>>> > |         With (Rcpp)Armadillo you do have an option of turning this
+>>> > on/off. With
+>>> > |         Rcpp
+>>> > |         alone not quite.
+>>> > |
+>>> > |         Dirk
+>>> > |
+>>> > |         --
+>>> > |         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>> > |         _______________________________________________
+>>> > |         Rcpp-devel mailing list
+>>> > |         Rcpp-devel at lists.r-forge.r-project.org
+>>> > |
+>>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> > |
+>>> > |
+>>> > |
+>>> > |
+>>> > |     --
+>>> > |     Qiang Kou
+>>> > |     qkou at umail.iu.edu
+>>> > |     School of Informatics and Computing, Indiana University
+>>> > |
+>>> > |
+>>> > |
+>>> > |
+>>> > |
+>>> > | --
+>>> > | Qiang Kou
+>>> > | qkou at umail.iu.edu
+>>> > | School of Informatics and Computing, Indiana University
+>>> > |
+>>> >
+>>> > --
+>>> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>>
+>>
+>>
+>> --
+>> Qiang Kou
+>> qkou at umail.iu.edu
+>> School of Informatics and Computing, Indiana University
+>>
+
+From edd at debian.org  Sun Jan 31 00:02:02 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 30 Jan 2016 17:02:02 -0600
+Subject: [Rcpp-devel] Possible regression in R-3.2.3 or Rcpp 0.12.3
+In-Reply-To: <CAJXgQP0rnnTTuHKsskgrn6iAPATb0TfD0J+-p7Sg3ZwiE3i8bw@mail.gmail.com>
+References: <CAErODj_9MQ4y8xwuYXKdgpZrwf_QUW5SWK-gA4nHHc3xKdfiGA@mail.gmail.com>
+ <22186.27936.873041.463903@max.nulle.part>
+ <22186.32038.428726.91533@max.nulle.part>
+ <CAErODj91pTXAZ+3tGDHxMTwqMXc7gYJMW=f1j63+L4OM=ERWjw@mail.gmail.com>
+ <22187.24688.645710.208594@max.nulle.part>
+ <CAJXgQP18bfJsPFRxDULOaGMvx1zC8SKTp5M7gaiaE9zBBrd9HQ@mail.gmail.com>
+ <22187.48564.451424.421750@max.nulle.part>
+ <CAJ_LAMDERO1Gh0xn7v6Y33RdRkgvRNFyD-p9bivN4sY2OC+EjA@mail.gmail.com>
+ <CAJ_LAMD3qc=uQYDP_-OkexikZPgjgog6O8wRfsMVWD6E7=ZCow@mail.gmail.com>
+ <22187.62138.954440.279502@max.nulle.part>
+ <CAJXgQP1BkbxAYPF2iRwaRzg6eFcnSun6tyPa90=y5PDsxR-G_g@mail.gmail.com>
+ <CAJ_LAMCYTq4m9Tf=5McAsW5ZKWDt1NkWmLnuDUiPr0yJ3=zPWw@mail.gmail.com>
+ <CAJXgQP3pFNav6eYFLk+R2gMCz8w-Q6DPFOmeDKGcmdB5LAR9aQ@mail.gmail.com>
+ <CAJXgQP0rnnTTuHKsskgrn6iAPATb0TfD0J+-p7Sg3ZwiE3i8bw@mail.gmail.com>
+Message-ID: <22189.16618.465155.359369@max.nulle.part>
+
+
+On 30 January 2016 at 13:58, Kevin Ushey wrote:
+| And I now have a MRE:
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| // [[Rcpp::export]]
+| IntegerVector ouch(IntegerVector x, IntegerVector y) {
+|   IntegerVector result;
+|   result = x[y - 1];
+|   return result;
+| }
+| 
+| /*** R
+| x <- 1:1E6
+| y <- 1:1E6
+| gctorture(TRUE)
+| x <- ouch(x, y)
+| gctorture(FALSE)
+| */
+| 
+| This fails pretty reliably for me. Perhaps we can add this to our unit tests.
+
+Sweet.
+
+We generally do not run gctorture() in unit tests though.  We could -- maybe
+with a new environment variable to turn it on (somewhat selectively) ?
+
+Dirk
+ 
+| On Sat, Jan 30, 2016 at 1:44 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+| > I think I know what's going on now. Effectively, we're 'evaluating'
+| > the sugar proxy vector, getting a pointer to a (temporary,
+| > unprotected) R data structure, and then storing that pointer. Later,
+| > when we attempt to allocate the output vector (with `no_init`) the GC
+| > runs and cleans up our pointer.
+| >
+| > See:
+| >
+| >     https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/vector/Subsetter.h#L147
+| >     https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/vector/Subsetter.h#L197
+| >
+| > The 'best' fix here is to only re-use the indices for an actual
+| > IntegerVector, and generate the indices from sugar proxies, but I'm
+| > not exactly sure how to best handle that. It's also possible that if
+| > we just allocated the output vector earlier (ie, before getting a
+| > pointer to our subset proxy), that we'd avoid the R gc cleaning up our
+| > vector.
+| >
+| > FWIW, we should be able to reproduce this reliably when running under
+| > `gctorture()`...
+| >
+| > Kevin
+| >
+| > On Sat, Jan 30, 2016 at 7:07 AM, Qiang Kou <qkou at umail.iu.edu> wrote:
+| >> Another thing confused me is the segfault only happens when the
+| >> IntegerVector is significantly long.
+| >>
+| >> Best,
+| >>
+| >> KK
+| >>
+| >> On Sat, Jan 30, 2016 at 2:57 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+| >>>
+| >>> Hmm, I have one thought: we try to re-use the indices from an
+| >>> IntegerVector, but the type here is actually a sugar type:
+| >>>
+| >>>     Rcpp::SubsetProxy<13, Rcpp::PreserveStorage, 13, true,
+| >>>     Rcpp::sugar::Minus_Vector_Primitive<13, true, Rcpp::Vector<13,
+| >>>     Rcpp::PreserveStorage> > >::get_vec (this=<optimized out>)
+| >>>
+| >>> Ie, we access the indices with `INTEGER(x)`, but perhaps those indices
+| >>> have not actually been properly materialized when we attempt to
+| >>> perform the subset?
+| >>>
+| >>> But then, a simple test case with `x[y - 1]` with `x` and `y` both
+| >>> being integer vectors seems to work just fine. So I am a bit confused.
+| >>>
+| >>> On Fri, Jan 29, 2016 at 3:16 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| >>> >
+| >>> > On 29 January 2016 at 17:55, Qiang Kou wrote:
+| >>> > | Hi, Paul, can you try my fork of Rcpp? You can install it by the line
+| >>> > below:
+| >>> > |
+| >>> > | devtools::install_github("thirdwing/Rcpp", ref = "subsetter")
+| >>> > |
+| >>> > | This fixed the segfault on my Ubuntu machine.
+| >>> >
+| >>> > Yay. Nice work!
+| >>> >
+| >>> > | The difference can be found from [1].
+| >>> >
+| >>> > Nice and concise.
+| >>> >
+| >>> > | In subsetter, if an IntegerVector passed in, we will try to reuse it.
+| >>> > This led
+| >>> > | to a segfault in this case, which I don't know why.
+| >>> > |
+| >>> > | Dirk and Kevin, do you have any thoughts on it?
+| >>> >
+| >>> > Not really, but happy to give this the full reverse-dependency check
+| >>> > treatment so that we can merge it.
+| >>> >
+| >>> > Dirk
+| >>> >
+| >>> >
+| >>> > | Best wishes,
+| >>> > |
+| >>> > | KK
+| >>> > |
+| >>> > | [1] https://github.com/thirdwing/Rcpp/commit/
+| >>> > | 216c5220bcb84778a656b3496d0f1803b973ef61
+| >>> > |
+| >>> > |
+| >>> > | On Fri, Jan 29, 2016 at 3:00 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+| >>> > |
+| >>> > |
+| >>> > |     Hi, Kevin, I was also trying to track this down yesterday.
+| >>> > |
+| >>> > |     From the debugging info below, indices_n is not equal to length of
+| >>> > indices,
+| >>> > |     which I don't quite understand.
+| >>> > |
+| >>> > |     Program received signal SIGSEGV, Segmentation fault.
+| >>> > |
+| >>> > |     0x00007ffff2ed5c4e in Rcpp::SubsetProxy<13, Rcpp::PreserveStorage,
+| >>> > 13,
+| >>> > |     true, Rcpp::sugar::Minus_Vector_Primitive<13, true,
+| >>> > Rcpp::Vector<13,
+| >>> > |     Rcpp::PreserveStorage> > >::get_vec
+| >>> > (this=this at entry=0x7fffffff79a0)
+| >>> > |
+| >>> > |         at /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/
+| >>> > |     Subsetter.h:200
+| >>> > |
+| >>> > |     199             output[i] = lhs[ indices[i] ];
+| >>> > |
+| >>> > |     (gdb) p i
+| >>> > |
+| >>> > |     $1 = 33622
+| >>> > |
+| >>> > |     (gdb) p indices[i]
+| >>> > |
+| >>> > |     Cannot access memory at address 0x34c6e000
+| >>> > |
+| >>> > |     (gdb) p indices_n
+| >>> > |
+| >>> > |     $2 = 9594546
+| >>> > |
+| >>> > |
+| >>> > |     On Fri, Jan 29, 2016 at 2:29 PM, Dirk Eddelbuettel
+| >>> > <edd at debian.org> wrote:
+| >>> > |
+| >>> > |
+| >>> > |         On 29 January 2016 at 11:27, Kevin Ushey wrote:
+| >>> > |         | When I add some debug printing to the associated
+| >>> > subscripting line
+| >>> > |         | (https://github.com/awalker89/openxlsx/blob/
+| >>> > |
+| >>> > b92bb3acdd6ea759be928c298c6faeef2f26fa3e/src/cppFunctions.cpp#L2608),
+| >>> > |         | I see:
+| >>> > |         |
+| >>> > |         |    colNumbers.size(): 98,03,150
+| >>> > |         |    charCols.size(): 95,94,546
+| >>> > |         |
+| >>> > |         | It looks to me like the package is erroneously attempting to
+| >>> > subset
+| >>> > |         | vectors of different sizes, causing out-of-bounds reads.
+| >>> > |
+| >>> > |         Nice work.
+| >>> > |
+| >>> > |         | Unfortunately, Rcpp is not detecting or warning about
+| >>> > this...
+| >>> > |         |
+| >>> > |         | Either way, I believe this is a bug in the openxlsx package,
+| >>> > but Rcpp
+| >>> > |         | should be checking / reporting this.
+| >>> > |
+| >>> > |         With (Rcpp)Armadillo you do have an option of turning this
+| >>> > on/off. With
+| >>> > |         Rcpp
+| >>> > |         alone not quite.
+| >>> > |
+| >>> > |         Dirk
+| >>> > |
+| >>> > |         --
+| >>> > |         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >>> > |         _______________________________________________
+| >>> > |         Rcpp-devel mailing list
+| >>> > |         Rcpp-devel at lists.r-forge.r-project.org
+| >>> > |
+| >>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| >>> > |
+| >>> > |
+| >>> > |
+| >>> > |
+| >>> > |     --
+| >>> > |     Qiang Kou
+| >>> > |     qkou at umail.iu.edu
+| >>> > |     School of Informatics and Computing, Indiana University
+| >>> > |
+| >>> > |
+| >>> > |
+| >>> > |
+| >>> > |
+| >>> > | --
+| >>> > | Qiang Kou
+| >>> > | qkou at umail.iu.edu
+| >>> > | School of Informatics and Computing, Indiana University
+| >>> > |
+| >>> >
+| >>> > --
+| >>> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >>
+| >>
+| >>
+| >>
+| >> --
+| >> Qiang Kou
+| >> qkou at umail.iu.edu
+| >> School of Informatics and Computing, Indiana University
+| >>
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

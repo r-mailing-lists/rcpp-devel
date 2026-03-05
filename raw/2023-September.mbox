@@ -1,0 +1,256 @@
+From ralf.stubner at gmail.com  Sat Sep 23 10:28:55 2023
+From: ralf.stubner at gmail.com (Ralf Stubner)
+Date: Sat, 23 Sep 2023 08:28:55 +0000
+Subject: [Rcpp-devel] Life-cycle of Rcpp::XPtr
+Message-ID: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+
+Hi everybody,
+
+I have a question concerning the file-cycle of Rcpp::XPtr: Consider a
+XPtr with the default delete finalizer wrapping some pointer. If I use
+the copy constructor to create another XPtr, this is pointing at the
+same underlying object as expected. What happens if one of these
+pointers goes out of scope and is at some point garbage collected? Is
+the underlying object deleted leaving the other XPtr with a broken
+pointer? Or is the object protected by the existence of the other
+pointer? From my experiments I have the impression that the latter is
+the case, which would be the desired behaviour. But it would be nice
+if one could be sure.
+
+Thanks
+Ralf
+
+From simon.urbanek at R-project.org  Sat Sep 23 11:49:18 2023
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Sat, 23 Sep 2023 21:49:18 +1200
+Subject: [Rcpp-devel] Life-cycle of Rcpp::XPtr
+In-Reply-To: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+References: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+Message-ID: <393CAD69-AC6E-4E07-BE43-8AFA997C6EDC@R-project.org>
+
+The copy constructor doesn't actually create a copy, it only acts as a wrapper that preserves the same EXTPTR object, it is akin to increasing the reference count, so the C++ class wrapped in the EXTPTR is only released when the EXTPTR can be garbage-collected, i.e. all references are gone (including all "copies").
+[Of course that is not true if you were to create two XPtrs with the same pointer and a finalizer each, but that would be a bad idea, obviously].
+
+Cheers,
+Simon
+
+
+> On Sep 23, 2023, at 8:28 PM, Ralf Stubner <ralf.stubner at gmail.com> wrote:
+> 
+> 
+> Hi everybody,
+> 
+> I have a question concerning the file-cycle of Rcpp::XPtr: Consider a
+> XPtr with the default delete finalizer wrapping some pointer. If I use
+> the copy constructor to create another XPtr, this is pointing at the
+> same underlying object as expected. What happens if one of these
+> pointers goes out of scope and is at some point garbage collected? Is
+> the underlying object deleted leaving the other XPtr with a broken
+> pointer? Or is the object protected by the existence of the other
+> pointer? From my experiments I have the impression that the latter is
+> the case, which would be the desired behaviour. But it would be nice
+> if one could be sure.
+> 
+> Thanks
+> Ralf
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From edd at debian.org  Sat Sep 23 14:55:45 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 23 Sep 2023 07:55:45 -0500
+Subject: [Rcpp-devel] Life-cycle of Rcpp::XPtr
+In-Reply-To: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+References: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+Message-ID: <25870.57425.648317.729226@rob.eddelbuettel.com>
+
+
+Hi Ralf,
+
+On 23 September 2023 at 08:28, Ralf Stubner wrote:
+| I have a question concerning the file-cycle of Rcpp::XPtr: Consider a
+| XPtr with the default delete finalizer wrapping some pointer. If I use
+| the copy constructor to create another XPtr, this is pointing at the
+| same underlying object as expected. What happens if one of these
+| pointers goes out of scope and is at some point garbage collected? Is
+| the underlying object deleted leaving the other XPtr with a broken
+| pointer? Or is the object protected by the existence of the other
+| pointer? From my experiments I have the impression that the latter is
+| the case, which would be the desired behaviour. But it would be nice
+| if one could be sure.
+
+I had done some experiments with 'expanded finalizers' that use more logging
+(which I find quite convenient via `spdl` -- same nice spdlog interface now
+from R and C++) so you could add some display of the pointer address, check
+on nullness etc.
+
+I have done a bit more work using XPtr in the context of the tiledb (and the
+related, possibly upcoming tiledbsoma package not yet on CRAN) where I use an
+enum (which requires C++17 in the use I have there) to 'type tag' each
+external pointer and on each use check I have the correct type. I am not
+thinking to a simple unordered_map from enum to string to also make more
+informed errors (showing the type as string rather than enum int value) as
+well as maybe an enhanced show or print at the R level. I have long been
+meaning to farm that out into a new (simple) add-on package (see issue #1212)
+and should get on with that.  (The 'still somewhat raw' XPtr extension in
+tiledb is eg here:
+https://github.com/TileDB-Inc/TileDB-R/blob/1e7bd2fa4e54f3e152c4fec3a65343df49d3f525/src/libtiledb.h#L80-L160
+and the check_xptr_tag is then used throughout the files in src/.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Sep 23 15:55:42 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 23 Sep 2023 08:55:42 -0500
+Subject: [Rcpp-devel] Life-cycle of Rcpp::XPtr
+In-Reply-To: <25870.57425.648317.729226@rob.eddelbuettel.com>
+References: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+ <25870.57425.648317.729226@rob.eddelbuettel.com>
+Message-ID: <25870.61022.883733.619032@rob.eddelbuettel.com>
+
+
+PS There is another neat use case where a shared_ptr is allocated.  Now we
+cannot wrap a shared_ptr in an XPtr but ... we can stick the shared_ptr into
+a struct, and allocate that with new and then make_xptr.  You are then back
+to well-understood C++ semantics.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From ralf.stubner at gmail.com  Sat Sep 23 23:29:52 2023
+From: ralf.stubner at gmail.com (Ralf Stubner)
+Date: Sat, 23 Sep 2023 21:29:52 +0000
+Subject: [Rcpp-devel] Life-cycle of Rcpp::XPtr
+In-Reply-To: <393CAD69-AC6E-4E07-BE43-8AFA997C6EDC@R-project.org>
+References: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+ <393CAD69-AC6E-4E07-BE43-8AFA997C6EDC@R-project.org>
+Message-ID: <CAFQwRQwNPhbXsXhbVmrwA0DLFfaTzoPTaeiZx=b-BiVEOj2vqA@mail.gmail.com>
+
+On Sat, Sep 23, 2023 at 9:49?AM Simon Urbanek
+<simon.urbanek at r-project.org> wrote:
+>
+> The copy constructor doesn't actually create a copy, it only acts as a wrapper that preserves the same EXTPTR object, it is akin to increasing the reference count, so the C++ class wrapped in the EXTPTR is only released when the EXTPTR can be garbage-collected, i.e. all references are gone (including all "copies").
+> [Of course that is not true if you were to create two XPtrs with the same pointer and a finalizer each, but that would be a bad idea, obviously].
+
+Thanks Simon! This seems to be the behaviour I am looking for.
+
+Ralf
+
+From ralf.stubner at gmail.com  Sat Sep 23 23:32:18 2023
+From: ralf.stubner at gmail.com (Ralf Stubner)
+Date: Sat, 23 Sep 2023 21:32:18 +0000
+Subject: [Rcpp-devel] Life-cycle of Rcpp::XPtr
+In-Reply-To: <25870.57425.648317.729226@rob.eddelbuettel.com>
+References: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+ <25870.57425.648317.729226@rob.eddelbuettel.com>
+Message-ID: <CAFQwRQxBo2A+Q3ti4Gs6cV1d2D_Yc+5DXbeVkYo2cdSnr9ioug@mail.gmail.com>
+
+Hi Dirk,
+
+> I had done some experiments with 'expanded finalizers' that use more logging
+> (which I find quite convenient via `spdl` -- same nice spdlog interface now
+> from R and C++) so you could add some display of the pointer address, check
+> on nullness etc.
+>
+> I have done a bit more work using XPtr in the context of the tiledb (and the
+> related, possibly upcoming tiledbsoma package not yet on CRAN) where I use an
+> enum (which requires C++17 in the use I have there) to 'type tag' each
+> external pointer and on each use check I have the correct type. I am not
+> thinking to a simple unordered_map from enum to string to also make more
+> informed errors (showing the type as string rather than enum int value) as
+> well as maybe an enhanced show or print at the R level. I have long been
+> meaning to farm that out into a new (simple) add-on package (see issue #1212)
+> and should get on with that.  (The 'still somewhat raw' XPtr extension in
+> tiledb is eg here:
+> https://github.com/TileDB-Inc/TileDB-R/blob/1e7bd2fa4e54f3e152c4fec3a65343df49d3f525/src/libtiledb.h#L80-L160
+> and the check_xptr_tag is then used throughout the files in src/.
+
+Thanks! That does sound interesting. I think for my current use-case
+the existing functionality is sufficient. But i will have a look at
+these ideas.
+
+Ralf
+
+From inaki.ucar at uc3m.es  Mon Sep 25 15:34:53 2023
+From: inaki.ucar at uc3m.es (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 25 Sep 2023 15:34:53 +0200
+Subject: [Rcpp-devel] Life-cycle of Rcpp::XPtr
+In-Reply-To: <25870.57425.648317.729226@rob.eddelbuettel.com>
+References: <CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>
+ <25870.57425.648317.729226@rob.eddelbuettel.com>
+Message-ID: <CALEXWq05_hjLWywRgxGiM2Tza6hSf3zQrQvosz4XQZ2UJaqbTw@mail.gmail.com>
+
+Hi Ralf,
+
+On Sat, 23 Sept 2023 at 14:56, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> Hi Ralf,
+>
+> On 23 September 2023 at 08:28, Ralf Stubner wrote:
+> | I have a question concerning the file-cycle of Rcpp::XPtr: Consider a
+> | XPtr with the default delete finalizer wrapping some pointer. If I use
+> | the copy constructor to create another XPtr, this is pointing at the
+> | same underlying object as expected. What happens if one of these
+> | pointers goes out of scope and is at some point garbage collected? Is
+> | the underlying object deleted leaving the other XPtr with a broken
+> | pointer? Or is the object protected by the existence of the other
+> | pointer? From my experiments I have the impression that the latter is
+> | the case, which would be the desired behaviour. But it would be nice
+> | if one could be sure.
+
+The answer is yes, XPtr works as a shared_ptr, so you can be sure that
+the object will be protected until the last reference to it is
+deleted. A quick check:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+class Test {
+public:
+  Test()  { Rcout << this << " created" << std::endl; }
+  ~Test() { Rcout << this << " deleted" << std::endl; }
+};
+
+// [[Rcpp::export]]
+SEXP test_new() {
+  return XPtr<Test>(new Test());
+}
+
+// [[Rcpp::export]]
+SEXP test_copy(SEXP x_) {
+  XPtr<Test> x(x_);
+  return x;
+}
+
+/*** R
+x <- test_new()
+#> 0x55a93e3845d0 created
+y <- test_copy(x)
+rm(x); invisible(gc())
+rm(y); invisible(gc())
+#> 0x55a93e3845d0 deleted
+*/
+
+Best,
+I?aki
+
+-- 
+I?aki ?car
+Assistant Professor of Statistics
+Director of the Master in Computational Social Science
+
+Department of Statistics | Big Data Institute
+Universidad Carlos III de Madrid
+Av. de la Universidad 30, 28911 Legan?s, Spain
+Office: 7.3.J25, Tel: +34 916248804
+

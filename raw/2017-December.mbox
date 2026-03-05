@@ -1,0 +1,602 @@
+From david.bellot at gmail.com  Mon Dec  4 16:44:10 2017
+From: david.bellot at gmail.com (David Bellot)
+Date: Mon, 4 Dec 2017 15:44:10 +0000
+Subject: [Rcpp-devel] expose functions dynamically
+Message-ID: <CAOE6ZJGS=F+H-oMMoxRwg_H=Z=QrUvWK_kCLe-c7=178Qoj_2g@mail.gmail.com>
+
+Hi,
+
+I'd like to dynamically add functions to a module when I call one of its
+function. Later I will want to do the same for classes too, so that to
+create classes "on the fly".
+
+But for the moment, here is what I try to do and it doesn't work, because I
+can't see my dynamically created function in R
+
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+double foobar(int x)
+{
+    return x*2.0;
+}
+
+void makef()
+{
+    function("dynfoo",&foobar);
+}
+
+RCPP_MODULE(test1)
+{
+    function("foobar",foobar);
+    function("makef",&makef);
+}
+
+Then in R, I call the function makef hoping to see the function dynfoo
+appears in my global environment in R. It's not the case. I suspect a
+problem with scope (or something like that) ?
+
+- What is the correct way to do that ?
+- Can I create my functions in other environment too ?
+
+Best,
+David
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171204/4da53ed4/attachment.html>
+
+From edd at debian.org  Mon Dec  4 17:41:59 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 4 Dec 2017 10:41:59 -0600
+Subject: [Rcpp-devel] expose functions dynamically
+In-Reply-To: <CAOE6ZJGS=F+H-oMMoxRwg_H=Z=QrUvWK_kCLe-c7=178Qoj_2g@mail.gmail.com>
+References: <CAOE6ZJGS=F+H-oMMoxRwg_H=Z=QrUvWK_kCLe-c7=178Qoj_2g@mail.gmail.com>
+Message-ID: <23077.31447.255301.423628@bud.eddelbuettel.com>
+
+
+On 4 December 2017 at 15:44, David Bellot wrote:
+| Hi,
+| 
+| I'd like to dynamically add functions to a module when I call one of its
+| function. Later I will want to do the same for classes too, so that to
+| create classes "on the fly".
+| 
+| But for the moment, here is what I try to do and it doesn't work, because I
+| can't see my dynamically created function in R
+| 
+| #include <Rcpp.h>
+| 
+| using namespace Rcpp;
+| 
+| double foobar(int x)
+| {
+|     return x*2.0;
+| }
+| 
+| void makef()
+| {
+|     function("dynfoo",&foobar);
+| }
+| 
+| RCPP_MODULE(test1)
+| {
+|     function("foobar",foobar);
+|     function("makef",&makef);
+| }
+| 
+| Then in R, I call the function makef hoping to see the function dynfoo
+| appears in my global environment in R. It's not the case. I suspect a
+| problem with scope (or something like that) ?
+| 
+| - What is the correct way to do that ?
+
+In a package, yes. Modules require a package. Outside of a package, consider
+using a package instead :)
+
+I think a few other people / projects have invented other dynamic schemes but
+I do not have a list or overview. Would be handy to have -- maybe someone
+wants to blog about a comparison?
+
+| - Can I create my functions in other environment too ?
+
+Not sure I really understand your question.
+
+I use Rcpp Attributes a lot, mostly via packages, and sometimes also Modules.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From david.bellot at gmail.com  Mon Dec  4 17:47:13 2017
+From: david.bellot at gmail.com (David Bellot)
+Date: Mon, 4 Dec 2017 16:47:13 +0000
+Subject: [Rcpp-devel] expose functions dynamically
+In-Reply-To: <23077.31447.255301.423628@bud.eddelbuettel.com>
+References: <CAOE6ZJGS=F+H-oMMoxRwg_H=Z=QrUvWK_kCLe-c7=178Qoj_2g@mail.gmail.com>
+ <23077.31447.255301.423628@bud.eddelbuettel.com>
+Message-ID: <CAOE6ZJFu81bQ2z-bFhAzkc42a2nAEK6iGejQuHUKR1U4=2Cq1g@mail.gmail.com>
+
+>
+> | - What is the correct way to do that ?
+>
+> In a package, yes. Modules require a package. Outside of a package,
+> consider
+> using a package instead :)
+>
+
+?Huh ?
+OK I'm lost now :-D
+
+So in the end, how would it work ? What am I missing in my code to make it
+work ?
+?
+
+> ??
+> I think a few other people / projects have invented other dynamic schemes
+> but
+> I do not have a list or overview. Would be handy to have -- maybe someone
+> wants to blog about a comparison?
+>
+
+?I'm curious too indeed.?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171204/6d1789dc/attachment.html>
+
+From tkeitt at utexas.edu  Mon Dec  4 18:36:06 2017
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Mon, 4 Dec 2017 11:36:06 -0600
+Subject: [Rcpp-devel] expose functions dynamically
+In-Reply-To: <CAOE6ZJFu81bQ2z-bFhAzkc42a2nAEK6iGejQuHUKR1U4=2Cq1g@mail.gmail.com>
+References: <CAOE6ZJGS=F+H-oMMoxRwg_H=Z=QrUvWK_kCLe-c7=178Qoj_2g@mail.gmail.com>
+ <23077.31447.255301.423628@bud.eddelbuettel.com>
+ <CAOE6ZJFu81bQ2z-bFhAzkc42a2nAEK6iGejQuHUKR1U4=2Cq1g@mail.gmail.com>
+Message-ID: <CANnL8gp34Gf-r10sS=MaWjFT8qN1K5i3_0KKK6iZKwfZ16xhKw@mail.gmail.com>
+
+http://www.keittlab.org/
+
+On Mon, Dec 4, 2017 at 10:47 AM, David Bellot <david.bellot at gmail.com>
+wrote:
+
+> | - What is the correct way to do that ?
+>>
+>> In a package, yes. Modules require a package. Outside of a package,
+>> consider
+>> using a package instead :)
+>>
+>
+> ?Huh ?
+> OK I'm lost now :-D
+>
+> So in the end, how would it work ? What am I missing in my code to make it
+> work ?
+>
+
+Unless I misunderstood, are you not looking for "Rcpp::sourceCpp"? Don't
+use modules. Just use the // [[Rcpp::export]] attribute.
+
+THK
+
+
+> ?
+>
+>> ??
+>> I think a few other people / projects have invented other dynamic schemes
+>> but
+>> I do not have a list or overview. Would be handy to have -- maybe someone
+>> wants to blog about a comparison?
+>>
+>
+> ?I'm curious too indeed.?
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171204/e30b0c45/attachment.html>
+
+From jj.allaire at gmail.com  Mon Dec  4 19:10:22 2017
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Mon, 4 Dec 2017 13:10:22 -0500
+Subject: [Rcpp-devel] expose functions dynamically
+In-Reply-To: <CANnL8gp34Gf-r10sS=MaWjFT8qN1K5i3_0KKK6iZKwfZ16xhKw@mail.gmail.com>
+References: <CAOE6ZJGS=F+H-oMMoxRwg_H=Z=QrUvWK_kCLe-c7=178Qoj_2g@mail.gmail.com>
+ <23077.31447.255301.423628@bud.eddelbuettel.com>
+ <CAOE6ZJFu81bQ2z-bFhAzkc42a2nAEK6iGejQuHUKR1U4=2Cq1g@mail.gmail.com>
+ <CANnL8gp34Gf-r10sS=MaWjFT8qN1K5i3_0KKK6iZKwfZ16xhKw@mail.gmail.com>
+Message-ID: <CAKw=oCxv1MsL63WaVSsndChRsqsv4Qypobh13qgFjtyP3skKyA@mail.gmail.com>
+
+Note that you can also include modules within a C++ file and sourceCpp will
+automatically add them to the calling environment (as if you had "sourced"
+the definition of an R reference class).
+
+
+On Mon, Dec 4, 2017 at 12:36 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+
+>
+>
+> http://www.keittlab.org/
+>
+> On Mon, Dec 4, 2017 at 10:47 AM, David Bellot <david.bellot at gmail.com>
+> wrote:
+>
+>> | - What is the correct way to do that ?
+>>>
+>>> In a package, yes. Modules require a package. Outside of a package,
+>>> consider
+>>> using a package instead :)
+>>>
+>>
+>> ?Huh ?
+>> OK I'm lost now :-D
+>>
+>> So in the end, how would it work ? What am I missing in my code to make
+>> it work ?
+>>
+>
+> Unless I misunderstood, are you not looking for "Rcpp::sourceCpp"? Don't
+> use modules. Just use the // [[Rcpp::export]] attribute.
+>
+> THK
+>
+>
+>> ?
+>>
+>>> ??
+>>> I think a few other people / projects have invented other dynamic
+>>> schemes but
+>>> I do not have a list or overview. Would be handy to have -- maybe someone
+>>> wants to blog about a comparison?
+>>>
+>>
+>> ?I'm curious too indeed.?
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171204/aaa86f7a/attachment-0001.html>
+
+From rdiaz02 at gmail.com  Tue Dec  5 17:49:31 2017
+From: rdiaz02 at gmail.com (Ramon Diaz-Uriarte)
+Date: Tue, 05 Dec 2017 17:49:31 +0100
+Subject: [Rcpp-devel] clang does not like lists with a DataFrame inside?
+In-Reply-To: <23068.40625.95754.59761@bud.eddelbuettel.com>
+References: <87y3msdpk3.fsf@gmail.com>
+ <23068.4001.696568.360261@bud.eddelbuettel.com> <87tvxfcojb.fsf@gmail.com>
+ <23068.40625.95754.59761@bud.eddelbuettel.com>
+Message-ID: <87vahlw25g.fsf@gmail.com>
+
+
+
+
+On Tue, 28-November-2017, at 00:24:33, Dirk Eddelbuettel <edd at debian.org> wrote:
+> On 28 November 2017 at 00:03, Ramon Diaz-Uriarte wrote:
+> | Hi Dirk,
+> |
+> |
+> | On Mon, 27-November-2017, at 14:14:09, Dirk Eddelbuettel <edd at debian.org> wrote:
+> | > Ramon,
+> | >
+> | > On 27 November 2017 at 10:43, Ramon Diaz-Uriarte wrote:
+> | > | Dear All,
+> | > |
+> | > | I am trying to pass to C++ an R list that contains a data frame. Using gcc
+> | > | the following
+> | > |
+> | > | #############################
+> | > |
+> | > | #include <Rcpp.h>
+> | > | using namespace Rcpp;
+> | > |
+> | > | // [[Rcpp::export]]
+> | > | void withDF(Rcpp::List bl) {
+> | > |   Rcpp::DataFrame df1 = bl["the_df"];
+> | >
+> | > I think every existing example uses a template when extracting items from a
+> | > list as we cannot know at compile time which run-time SEXP we will be handed.
+> |
+> | Aha, understood. I did not think much about it, tried with gcc, it worked,
+> | and then was surprised to see it not work with clang.
+>
+> These slight differences annoyed me at the beginning, but the advantage of
+> getting older is that you just get generally more forgetful.  "Just assume
+> nothing works unless you are explicit about it" seems to be my current motto :)
+
+I am going to store this safely to remind myself of the (many) advantages
+of no longer being so young ;-)
+
+Best,
+
+R.
+
+
+
+>
+> as<>() and wrap() are pretty magic.  We get by with fewer very explicit
+> statement than we used to years ago, but some remain, notably
+>
+>   -- return statements better not be compound
+>   -- assignment from list or data.frame by name
+>   -- [ your issue here, space for rent upon request ]
+>
+> [...]
+>
+> | > I don't think so. See eg
+> | >
+> | > https://github.com/eddelbuettel/rcppexamples/blob/master/src/ListExample.cpp
+> |
+> | Thanks for that. Bookmarked for future reference :-)
+>
+> It's old and could be expanded but better than nothing.
+>
+> Dirk
+
+
+--
+Ramon Diaz-Uriarte
+Department of Biochemistry, Lab B-25
+Facultad de Medicina
+Universidad Aut?noma de Madrid
+Arzobispo Morcillo, 4
+28029 Madrid
+Spain
+
+Phone: +34-91-497-2412
+
+Email: rdiaz02 at gmail.com
+       ramon.diaz at iib.uam.es
+
+http://ligarto.org/rdiaz
+
+From jc.fernandez.navarro at gmail.com  Wed Dec 13 14:51:38 2017
+From: jc.fernandez.navarro at gmail.com (Jose)
+Date: Wed, 13 Dec 2017 14:51:38 +0100
+Subject: [Rcpp-devel] Debug RInside crash
+Message-ID: <CANjbG7NQEKqMP+_zY_HKAgkrUzVtVGZ8Ex0bY8uE-fdYQYEbeg@mail.gmail.com>
+
+Hello,
+
+I am invoking some R code using RInside from a
+C++ tool. Every time I invoke the code it crashes
+randomly. Sometimes even with the same data. It never
+crashes when I use R directly.
+
+I am invoking this function DESeq2::DESeq(data) which runs
+a set of statistical operaions. It always crashes (when it does)
+at this point "mean-dispersion relationship" and the system's log
+shows that it always crashes at the same point:
+
+Thread 3 Crashed:: Thread (pooled)
+0   locfit.so                      0x00000001229b4b34 atree_grow + 20
+(ev_atree.c:92)
+1   locfit.so                      0x00000001229b4d06 atree_grow + 486
+(ev_atree.c:124)
+2   locfit.so                      0x00000001229b4d06 atree_grow + 486
+(ev_atree.c:124)
+3   locfit.so                      0x00000001229b4d06 atree_grow + 486
+(ev_atree.c:124)
+4   locfit.so                      0x00000001229b5259 atree_start + 1033
+(ev_atree.c:167)
+5   locfit.so                      0x00000001229e384d startlf + 1053
+(startlf.c:160)
+6   locfit.so                      0x00000001229a7147 slocfit + 1335
+(S_enter.c:301)
+7   libR.dylib                    0x000000010d0ebcd5 do_dotCode + 5973
+8   libR.dylib                    0x000000010d1183d9 Rf_eval + 1657
+(eval.c:728)
+
+locfit seems to be the R library for local regression fit.
+
+Is there something that I can do to overcome this issue? Why would this
+happen
+if it never happens when I invoke DESeq from R directly?.
+
+Thanks for the help.
+
+Best,
+Jose
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171213/c3e2677a/attachment.html>
+
+From edd at debian.org  Wed Dec 13 15:31:50 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 13 Dec 2017 08:31:50 -0600
+Subject: [Rcpp-devel] Debug RInside crash
+In-Reply-To: <CANjbG7NQEKqMP+_zY_HKAgkrUzVtVGZ8Ex0bY8uE-fdYQYEbeg@mail.gmail.com>
+References: <CANjbG7NQEKqMP+_zY_HKAgkrUzVtVGZ8Ex0bY8uE-fdYQYEbeg@mail.gmail.com>
+Message-ID: <23089.14806.382409.786277@bud.eddelbuettel.com>
+
+
+On 13 December 2017 at 14:51, Jose wrote:
+| Hello,
+| 
+| I am invoking some R code using RInside from a
+| C++ tool. Every time I invoke the code it crashes
+| randomly. Sometimes even with the same data. It never
+| crashes when I use R directly.
+| 
+| I am invoking this function DESeq2::DESeq(data) which runs
+| a set of statistical operaions. It always crashes (when it does)
+| at this point "mean-dispersion relationship" and the system's log
+| shows that it always crashes at the same point:
+| 
+| Thread 3 Crashed:: Thread (pooled)
+| 0   locfit.so                      0x00000001229b4b34 atree_grow + 20
+| (ev_atree.c:92)
+| 1   locfit.so                      0x00000001229b4d06 atree_grow + 486
+| (ev_atree.c:124)
+| 2   locfit.so                      0x00000001229b4d06 atree_grow + 486
+| (ev_atree.c:124)
+| 3   locfit.so                      0x00000001229b4d06 atree_grow + 486
+| (ev_atree.c:124)
+| 4   locfit.so                      0x00000001229b5259 atree_start + 1033
+| (ev_atree.c:167)
+| 5   locfit.so                      0x00000001229e384d startlf + 1053
+| (startlf.c:160)
+| 6   locfit.so                      0x00000001229a7147 slocfit + 1335
+| (S_enter.c:301)
+| 7   libR.dylib                    0x000000010d0ebcd5 do_dotCode + 5973
+| 8   libR.dylib                    0x000000010d1183d9 Rf_eval + 1657
+| (eval.c:728)
+| 
+| locfit seems to be the R library for local regression fit.
+| 
+| Is there something that I can do to overcome this issue?
+
+Create smaller and smaller example that this exhibit the issue?
+
+| Why would this happen if it never happens when I invoke DESeq from R
+| directly?.
+
+Maybe locfit does something it is not supposed to do like threading?
+
+Dirk
+
+| Thanks for the help.
+| 
+| Best,
+| Jose
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jc.fernandez.navarro at gmail.com  Wed Dec 13 17:30:10 2017
+From: jc.fernandez.navarro at gmail.com (Jose)
+Date: Wed, 13 Dec 2017 17:30:10 +0100
+Subject: [Rcpp-devel] Debug RInside crash
+In-Reply-To: <23089.14806.382409.786277@bud.eddelbuettel.com>
+References: <CANjbG7NQEKqMP+_zY_HKAgkrUzVtVGZ8Ex0bY8uE-fdYQYEbeg@mail.gmail.com>
+ <23089.14806.382409.786277@bud.eddelbuettel.com>
+Message-ID: <CANjbG7NP1NM+Tie4wQwWMc=OAiTF1qr3u=DVWqxZS4-bmyfagQ@mail.gmail.com>
+
+Unfortunately, I have not been able to find any common pattern.
+I run it 10 times with the same dataset and It would crash only sometimes.
+
+There's gotta be a race condition most likely related to threading as you
+said.
+
+I explicitly tell DESeq to not use multi-threading though but I believe that
+doesn't necessarily affect locfit.
+
+Anyways, by digging into DESeq's R code I am able to avoid the potentially
+race conditioned part by using a simpler fitting parameter.
+
+So, the behaviour of RInside may be undefined if the R library does
+threading?
+
+Thanks for help!
+
+Best,
+Jose
+
+
+
+2017-12-13 15:31 GMT+01:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 13 December 2017 at 14:51, Jose wrote:
+> | Hello,
+> |
+> | I am invoking some R code using RInside from a
+> | C++ tool. Every time I invoke the code it crashes
+> | randomly. Sometimes even with the same data. It never
+> | crashes when I use R directly.
+> |
+> | I am invoking this function DESeq2::DESeq(data) which runs
+> | a set of statistical operaions. It always crashes (when it does)
+> | at this point "mean-dispersion relationship" and the system's log
+> | shows that it always crashes at the same point:
+> |
+> | Thread 3 Crashed:: Thread (pooled)
+> | 0   locfit.so                      0x00000001229b4b34 atree_grow + 20
+> | (ev_atree.c:92)
+> | 1   locfit.so                      0x00000001229b4d06 atree_grow + 486
+> | (ev_atree.c:124)
+> | 2   locfit.so                      0x00000001229b4d06 atree_grow + 486
+> | (ev_atree.c:124)
+> | 3   locfit.so                      0x00000001229b4d06 atree_grow + 486
+> | (ev_atree.c:124)
+> | 4   locfit.so                      0x00000001229b5259 atree_start + 1033
+> | (ev_atree.c:167)
+> | 5   locfit.so                      0x00000001229e384d startlf + 1053
+> | (startlf.c:160)
+> | 6   locfit.so                      0x00000001229a7147 slocfit + 1335
+> | (S_enter.c:301)
+> | 7   libR.dylib                    0x000000010d0ebcd5 do_dotCode + 5973
+> | 8   libR.dylib                    0x000000010d1183d9 Rf_eval + 1657
+> | (eval.c:728)
+> |
+> | locfit seems to be the R library for local regression fit.
+> |
+> | Is there something that I can do to overcome this issue?
+>
+> Create smaller and smaller example that this exhibit the issue?
+>
+> | Why would this happen if it never happens when I invoke DESeq from R
+> | directly?.
+>
+> Maybe locfit does something it is not supposed to do like threading?
+>
+> Dirk
+>
+> | Thanks for the help.
+> |
+> | Best,
+> | Jose
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171213/441e155f/attachment.html>
+
+From edd at debian.org  Wed Dec 13 17:54:09 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 13 Dec 2017 10:54:09 -0600
+Subject: [Rcpp-devel] Debug RInside crash
+In-Reply-To: <CANjbG7NP1NM+Tie4wQwWMc=OAiTF1qr3u=DVWqxZS4-bmyfagQ@mail.gmail.com>
+References: <CANjbG7NQEKqMP+_zY_HKAgkrUzVtVGZ8Ex0bY8uE-fdYQYEbeg@mail.gmail.com>
+ <23089.14806.382409.786277@bud.eddelbuettel.com>
+ <CANjbG7NP1NM+Tie4wQwWMc=OAiTF1qr3u=DVWqxZS4-bmyfagQ@mail.gmail.com>
+Message-ID: <23089.23345.248371.794335@bud.eddelbuettel.com>
+
+
+On 13 December 2017 at 17:30, Jose wrote:
+| So, the behaviour of RInside may be undefined if the R library does
+| threading?
+
+As is all (embedded) R code (!!), and that is well documented.
+
+So "maybe" all you need is a mutex.  We can't tell without code.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

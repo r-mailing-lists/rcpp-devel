@@ -1,0 +1,382 @@
+From jeskynar at gmail.com  Tue Aug 11 18:42:20 2020
+From: jeskynar at gmail.com (Jeskynar)
+Date: Tue, 11 Aug 2020 17:42:20 +0100
+Subject: [Rcpp-devel] Why might loadModule() fail?
+Message-ID: <CAJ8UCwXd4gxikTXU6+wvhM17jvLuwRqy_iE83OoBsbGzAjwxwQ@mail.gmail.com>
+
+Hi
+
+I'm trying to build the mxnet library from source but the installation is
+failing somewhere inside loadModule('mxnet'). There's no error message
+(other than ERROR: loading failed). What conditions might cause loadModule
+to fail?
+
+Thanks!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200811/79e3b728/attachment.html>
+
+From qkou at qkou.info  Tue Aug 11 18:52:31 2020
+From: qkou at qkou.info (Qiang Kou)
+Date: Tue, 11 Aug 2020 09:52:31 -0700
+Subject: [Rcpp-devel] Why might loadModule() fail?
+In-Reply-To: <CAJ8UCwXd4gxikTXU6+wvhM17jvLuwRqy_iE83OoBsbGzAjwxwQ@mail.gmail.com>
+References: <CAJ8UCwXd4gxikTXU6+wvhM17jvLuwRqy_iE83OoBsbGzAjwxwQ@mail.gmail.com>
+Message-ID: <CALaeKeEUFBk4Jr+L684yW_QfQzs03UgcCgrNgfYCrE5E5VK=gw@mail.gmail.com>
+
+I am the original maintainer of the mxnet R package.
+
+Can you give me a little more information?
+
+Best,
+
+KK
+
+On Tue, Aug 11, 2020 at 9:42 AM Jeskynar <jeskynar at gmail.com> wrote:
+
+> Hi
+>
+> I'm trying to build the mxnet library from source but the installation is
+> failing somewhere inside loadModule('mxnet'). There's no error message
+> (other than ERROR: loading failed). What conditions might cause loadModule
+> to fail?
+>
+> Thanks!
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200811/3981dbac/attachment.html>
+
+From jeskynar at gmail.com  Tue Aug 11 19:26:44 2020
+From: jeskynar at gmail.com (Jeskynar)
+Date: Tue, 11 Aug 2020 18:26:44 +0100
+Subject: [Rcpp-devel] Why might loadModule() fail?
+In-Reply-To: <CALaeKeEUFBk4Jr+L684yW_QfQzs03UgcCgrNgfYCrE5E5VK=gw@mail.gmail.com>
+References: <CAJ8UCwXd4gxikTXU6+wvhM17jvLuwRqy_iE83OoBsbGzAjwxwQ@mail.gmail.com>
+ <CALaeKeEUFBk4Jr+L684yW_QfQzs03UgcCgrNgfYCrE5E5VK=gw@mail.gmail.com>
+Message-ID: <CAJ8UCwVBCTTPc4o-hzrNx4uivEUCcMsz9ET=50UT-wJ1QdK=8Q@mail.gmail.com>
+
+Hi
+I've built mxnet 1.7.0 (from branch v1.7.x) on Windows using Visual Studio
+2019 successfully.
+I've installed CUDA 10.2 and have a GTX1050 GPU.
+Whilst building the R package it compiles the mxnet.dll ok then tests the
+package can be loaded from the temporary location.
+This calls mxnet/R-pacakge/zzz.R which does this:
+library.dynam('libmxnet')
+library.dynam('mxnet')
+loadModule('mxnet', TRUE)
+It fails inside the loadModule.
+I'm trying to determine what possible problems might cause that.
+Thanks for any tips!
+Andrew
+
+
+
+On Tue, 11 Aug 2020 at 17:52, Qiang Kou <qkou at qkou.info> wrote:
+
+> I am the original maintainer of the mxnet R package.
+>
+> Can you give me a little more information?
+>
+> Best,
+>
+> KK
+>
+> On Tue, Aug 11, 2020 at 9:42 AM Jeskynar <jeskynar at gmail.com> wrote:
+>
+>> Hi
+>>
+>> I'm trying to build the mxnet library from source but the installation is
+>> failing somewhere inside loadModule('mxnet'). There's no error message
+>> (other than ERROR: loading failed). What conditions might cause loadModule
+>> to fail?
+>>
+>> Thanks!
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200811/13518116/attachment.html>
+
+From edd at debian.org  Tue Aug 11 19:37:34 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 11 Aug 2020 12:37:34 -0500
+Subject: [Rcpp-devel] Why might loadModule() fail?
+In-Reply-To: <CAJ8UCwVBCTTPc4o-hzrNx4uivEUCcMsz9ET=50UT-wJ1QdK=8Q@mail.gmail.com>
+References: <CAJ8UCwXd4gxikTXU6+wvhM17jvLuwRqy_iE83OoBsbGzAjwxwQ@mail.gmail.com>
+ <CALaeKeEUFBk4Jr+L684yW_QfQzs03UgcCgrNgfYCrE5E5VK=gw@mail.gmail.com>
+ <CAJ8UCwVBCTTPc4o-hzrNx4uivEUCcMsz9ET=50UT-wJ1QdK=8Q@mail.gmail.com>
+Message-ID: <24370.55134.88559.545480@rob.eddelbuettel.com>
+
+
+On 11 August 2020 at 18:26, Jeskynar wrote:
+| I've built mxnet 1.7.0 (from branch v1.7.x) on Windows using Visual Studio
+| 2019 successfully.
+
+Maybe see the Rcpp FAQ, particularly question 2.9 ?
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jeskynar at gmail.com  Tue Aug 11 21:17:02 2020
+From: jeskynar at gmail.com (Jeskynar)
+Date: Tue, 11 Aug 2020 20:17:02 +0100
+Subject: [Rcpp-devel] Why might loadModule() fail?
+In-Reply-To: <24370.55134.88559.545480@rob.eddelbuettel.com>
+References: <CAJ8UCwXd4gxikTXU6+wvhM17jvLuwRqy_iE83OoBsbGzAjwxwQ@mail.gmail.com>
+ <CALaeKeEUFBk4Jr+L684yW_QfQzs03UgcCgrNgfYCrE5E5VK=gw@mail.gmail.com>
+ <CAJ8UCwVBCTTPc4o-hzrNx4uivEUCcMsz9ET=50UT-wJ1QdK=8Q@mail.gmail.com>
+ <24370.55134.88559.545480@rob.eddelbuettel.com>
+Message-ID: <CAJ8UCwUyZJCgXMJrYHfdHu0BN_tfqthoK-LF0etWGn6OTW0LQw@mail.gmail.com>
+
+Sorry for the confusion, mxnet is built with VS2019 but the R module is
+still built using RTools.
+Presumably the DLLs are compatible once compiled (after all, mxnet R used
+to work a few years ago).
+
+On Tue, 11 Aug 2020 at 18:37, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 11 August 2020 at 18:26, Jeskynar wrote:
+> | I've built mxnet 1.7.0 (from branch v1.7.x) on Windows using Visual
+> Studio
+> | 2019 successfully.
+>
+> Maybe see the Rcpp FAQ, particularly question 2.9 ?
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200811/10face1c/attachment.html>
+
+From edd at debian.org  Tue Aug 11 21:51:00 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 11 Aug 2020 14:51:00 -0500
+Subject: [Rcpp-devel] Why might loadModule() fail?
+In-Reply-To: <CAJ8UCwUyZJCgXMJrYHfdHu0BN_tfqthoK-LF0etWGn6OTW0LQw@mail.gmail.com>
+References: <CAJ8UCwXd4gxikTXU6+wvhM17jvLuwRqy_iE83OoBsbGzAjwxwQ@mail.gmail.com>
+ <CALaeKeEUFBk4Jr+L684yW_QfQzs03UgcCgrNgfYCrE5E5VK=gw@mail.gmail.com>
+ <CAJ8UCwVBCTTPc4o-hzrNx4uivEUCcMsz9ET=50UT-wJ1QdK=8Q@mail.gmail.com>
+ <24370.55134.88559.545480@rob.eddelbuettel.com>
+ <CAJ8UCwUyZJCgXMJrYHfdHu0BN_tfqthoK-LF0etWGn6OTW0LQw@mail.gmail.com>
+Message-ID: <24370.63140.367603.306039@rob.eddelbuettel.com>
+
+
+On 11 August 2020 at 20:17, Jeskynar wrote:
+| Sorry for the confusion, mxnet is built with VS2019 but the R module is
+| still built using RTools.
+| Presumably the DLLs are compatible once compiled (after all, mxnet R used
+| to work a few years ago).
+
+"Maybe."  It is a less-commonly traveled way to go about it.
+
+And we cannot really help you without a MCVE.
+
+If I were you, I'd take a minimal working demo Modules package, rebuild it to
+show it work, and then incrementally (and slowly) add the features that
+pertain to your currently broken setup. And rebuild frequently and check to
+see it still works.
+
+If it should "just work" as you say, then linking with it and calling an
+initializer, or versionGetter, or ... should be enough.  If it doesn't then
+you have at least a smaller setup to sort out.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From acharaakshit at gmail.com  Sat Aug 15 14:23:33 2020
+From: acharaakshit at gmail.com (Akshit Achara)
+Date: Sat, 15 Aug 2020 17:53:33 +0530
+Subject: [Rcpp-devel] How to retrieve a flag set in Makevars.in or set the
+	flag as a global variable?
+Message-ID: <CAJ=u__PomTwGoDBK1-31QLmFdeMAWw5f821zqzKF4ZAw4oTk5Q@mail.gmail.com>
+
+I have created an R package(rminizinc
+<https://github.com/acharaakshit/RMiniZinc>) which uses Rcpp. I have a
+configure.ac file to set up the paths in my Makevars.in which looks like
+this:
+
+CXX_STD = CXX11
+PKG_CPPFLAGS = -I. @MZN_INCLUDE@
+PKG_LIBS = @MZN_LIBS@
+OBJECTS.tests = cpp_tests/test-runner.o cpp_tests/test-mzn_parse.o
+cpp_tests/test-
+set_params.o cpp_tests/test-mzn_eval.o cpp_tests/test-sol_parse.o
+cpp_tests/test-
+getMissingPars.o
+OBJECTS.sources = RcppExports.o set_params.o mzn_parse.o mzn_eval.o sol_parse.o
+getMissingPars.o
+OBJECTS.helpers = filetoString.o helper_parse.o expDetails.o pathStringcheck.o
+OBJECTS = $(OBJECTS.sources) $(OBJECTS.tests) $(OBJECTS.helpers)
+$(SOURCES:.cpp=.o)
+strippedLib: $(SHLIB)
+    if test -e "/usr/bin/strip"; then /usr/bin/strip --strip-debug
+$(SHLIB); fi.phony: strippedLib
+all: clean
+clean:
+    rm -f $(OBJECTS.sources) $(OBJECTS.tests) $(OBJECTS.helpers)  *.so
+
+I want to use the path provided to PKG_LIBS flag in one of my scripts.
+Is there any way I could set this flag as a global variable so that I
+can read it the script or if it's not possible, how can I extract this
+flag from inside R? Sys.getenv() doesn't give the values for PKG_LIBS.
+
+Thanks,
+Akshit
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200815/a74e7d6f/attachment-0001.html>
+
+From edd at debian.org  Sat Aug 15 14:45:43 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 15 Aug 2020 07:45:43 -0500
+Subject: [Rcpp-devel] How to retrieve a flag set in Makevars.in or set
+	the	flag as a global variable?
+In-Reply-To: <CAJ=u__PomTwGoDBK1-31QLmFdeMAWw5f821zqzKF4ZAw4oTk5Q@mail.gmail.com>
+References: <CAJ=u__PomTwGoDBK1-31QLmFdeMAWw5f821zqzKF4ZAw4oTk5Q@mail.gmail.com>
+Message-ID: <24375.55543.981440.93696@rob.eddelbuettel.com>
+
+
+Hi Akshit,
+
+On 15 August 2020 at 17:53, Akshit Achara wrote:
+| I have created an R package(rminizinc
+| <https://github.com/acharaakshit/RMiniZinc>) which uses Rcpp. I have a
+| configure.ac file to set up the paths in my Makevars.in which looks like
+| this:
+
+You already posted this at StackOverflow. I saw it, but didn't respond as it
+seemed to both have a) little to do with Rcpp and b) may be an 'XY Problem'.
+ 
+| CXX_STD = CXX11
+| PKG_CPPFLAGS = -I. @MZN_INCLUDE@
+| PKG_LIBS = @MZN_LIBS@
+| OBJECTS.tests = cpp_tests/test-runner.o cpp_tests/test-mzn_parse.o
+| cpp_tests/test-
+| set_params.o cpp_tests/test-mzn_eval.o cpp_tests/test-sol_parse.o
+| cpp_tests/test-
+| getMissingPars.o
+| OBJECTS.sources = RcppExports.o set_params.o mzn_parse.o mzn_eval.o sol_parse.o
+| getMissingPars.o
+| OBJECTS.helpers = filetoString.o helper_parse.o expDetails.o pathStringcheck.o
+| OBJECTS = $(OBJECTS.sources) $(OBJECTS.tests) $(OBJECTS.helpers)
+| $(SOURCES:.cpp=.o)
+| strippedLib: $(SHLIB)
+|     if test -e "/usr/bin/strip"; then /usr/bin/strip --strip-debug
+| $(SHLIB); fi.phony: strippedLib
+| all: clean
+| clean:
+|     rm -f $(OBJECTS.sources) $(OBJECTS.tests) $(OBJECTS.helpers)  *.so
+| 
+| I want to use the path provided to PKG_LIBS flag in one of my scripts.
+| Is there any way I could set this flag as a global variable so that I
+| can read it the script or if it's not possible, how can I extract this
+| flag from inside R? Sys.getenv() doesn't give the values for PKG_LIBS.
+
+It is still not clear what you want and why, and it still has little to do
+with Rcpp, but some with a (maybe misunderstood ?) way of setting up a
+package structure.
+
+For questions about 'how do I built a package with ....' under a specific
+perceived or real constraint you could try the the r-package-devel list.
+Before you do that I would recommend thinking about the problem and maybe
+trying to explain it another way. From what you wrote now twice I still have
+no real idea what (and why) you want to do something.
+
+If this is about picking a configuration value (such as the at PKG_LIBS which
+change per installation), yes one can capture that in configure and then pass
+it to an R or a C/C++ source file. That is what configure does well. Then
+again you don't have as the Makevars snippet is read _by the same R process_
+and you could just extract .libPaths() from src/Makevars (invoking Rscript or
+R).
+
+Good luck.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tdhock5 at gmail.com  Thu Aug 27 19:58:34 2020
+From: tdhock5 at gmail.com (Toby Hocking)
+Date: Thu, 27 Aug 2020 10:58:34 -0700
+Subject: [Rcpp-devel] Rinside libPaths configuration
+Message-ID: <CALK03d3JMfDq2pb=NeZid0qjGWd9QDot2fzkEmK95TGNDJj+2g@mail.gmail.com>
+
+Hi all,
+I'm having this issue
+https://stackoverflow.com/questions/16758129/error-in-loadnamespacename-there-is-no-package-called-rcpp
+Rcpp is installed in ~/R/x86_64-pc-linux-gnu-library/4.0
+But my RInside compiled binary looks for packages in ~/lib/R/library
+Is there a way to configure the default library when I compile my command
+line program with RInside?
+Otherwise, is there a recommended approach for doing run-time configuration
+of the library? I
+tried.R.parseEvalQ(".libPaths('~/R/x86_64-pc-linux-gnu-library/4.0')") but
+that does not seem to work.
+Thanks for any help/ideas
+Toby
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200827/01cc70fa/attachment.html>
+
+From edd at debian.org  Thu Aug 27 20:34:17 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 27 Aug 2020 13:34:17 -0500
+Subject: [Rcpp-devel] Rinside libPaths configuration
+In-Reply-To: <CALK03d3JMfDq2pb=NeZid0qjGWd9QDot2fzkEmK95TGNDJj+2g@mail.gmail.com>
+References: <CALK03d3JMfDq2pb=NeZid0qjGWd9QDot2fzkEmK95TGNDJj+2g@mail.gmail.com>
+Message-ID: <24391.64681.680461.14679@rob.eddelbuettel.com>
+
+
+On 27 August 2020 at 10:58, Toby Hocking wrote:
+| Hi all,
+| I'm having this issue
+| https://stackoverflow.com/questions/16758129/error-in-loadnamespacename-there-is-no-package-called-rcpp
+| Rcpp is installed in ~/R/x86_64-pc-linux-gnu-library/4.0
+| But my RInside compiled binary looks for packages in ~/lib/R/library
+| Is there a way to configure the default library when I compile my command
+| line program with RInside?
+
+Should be. There is no hidden magic anywhere.  RInside uses values it sees
+when building.  Having an identical .libPaths() (or R_LIBS_USER /
+R_LIBS_SITE) should be all you need.
+
+Maybe start by figuring out how it knows about ~/lib/R/library?
+
+| Otherwise, is there a recommended approach for doing run-time configuration
+| of the library? I
+| tried.R.parseEvalQ(".libPaths('~/R/x86_64-pc-linux-gnu-library/4.0')") but
+| that does not seem to work.
+
+That should work too.
+
+| Thanks for any help/ideas
+
+An MCVE may help. RInside ships with 1 1/2 dozen examples just in its
+examples/standard directory and has eight more specialised examples
+directory.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

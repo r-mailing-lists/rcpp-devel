@@ -1,0 +1,3194 @@
+From rcppdevel at hong-ni.com  Sun Nov  6 17:36:41 2016
+From: rcppdevel at hong-ni.com (Anon User)
+Date: Sun, 6 Nov 2016 11:36:41 -0500
+Subject: [Rcpp-devel] Rcpp constructor validator help
+Message-ID: <65BB46BE-B9F5-497B-AF55-3276E291AD2B@hong-ni.com>
+
+Hi,
+
+	Could someone point me to documentation or provide an example on how to use constructor validator to handle the following case:
+
+
+	class Foo;
+
+	struct Bar
+	{ 
+		Bar(const Foo&, int);
+		Bar(int,  int);
+		?
+	};
+
+	I would like to find a way for the R user to build a Bar object using either one of the constructors. 
+
+	Your help is much appreciated!
+
+Hong
+
+From edd at debian.org  Sun Nov  6 18:33:21 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 6 Nov 2016 11:33:21 -0600
+Subject: [Rcpp-devel] Rcpp constructor validator help
+In-Reply-To: <65BB46BE-B9F5-497B-AF55-3276E291AD2B@hong-ni.com>
+References: <65BB46BE-B9F5-497B-AF55-3276E291AD2B@hong-ni.com>
+Message-ID: <22559.26977.110893.30131@max.nulle.part>
+
+
+On 6 November 2016 at 11:36, Anon User wrote:
+| Hi,
+| 
+| 	Could someone point me to documentation or provide an example on how to use constructor validator to handle the following case:
+
+Could you provide a definition or reference for 'constructor validator'?
+That is not a term we use here regularly.
+
+| 	class Foo;
+| 
+| 	struct Bar
+| 	{ 
+| 		Bar(const Foo&, int);
+| 		Bar(int,  int);
+| 		?
+| 	};
+| 
+| 	I would like to find a way for the R user to build a Bar object using either one of the constructors. 
+| 
+| 	Your help is much appreciated!
+
+Well 'Foo' is not something R or Rcpp knows about so you would have to write
+converters first.  See Rcpp-extending for as<>() and wrap().  But I would
+start simpler with basic interfaces using known Rcpp types and/or atomistic
+C++ types.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rcppdevel at hong-ni.com  Mon Nov  7 15:27:16 2016
+From: rcppdevel at hong-ni.com (Anon User)
+Date: Mon, 7 Nov 2016 09:27:16 -0500
+Subject: [Rcpp-devel] Rcpp constructor validator help
+In-Reply-To: <22559.26977.110893.30131@max.nulle.part>
+References: <65BB46BE-B9F5-497B-AF55-3276E291AD2B@hong-ni.com>
+ <22559.26977.110893.30131@max.nulle.part>
+Message-ID: <DA49B8AE-A4A1-48DA-8BDC-1FBFFC0DFF25@hong-ni.com>
+
+Thank you Dirk. I am very new to rcpp devel so I apologize if my terminology is inaccurate. 
+
+By ?Constructor Validator?, I was referring to the validator function pointer used to "implement dispatch to the appropriate constructor when multiple constructors taking the same number of arguments are exposed," as mentioned in your book ?Seamless R and C++ integration with Rcpp? (page 92) 
+
+The class constructors in question take either two ints, or an int plus an object of class Foo, which has been property converted via as<>() and wrap().
+
+Suggestions and example code will be much appreciated!
+
+regards,
+
+Hong
+p.s. Thank you for your work on Rcpp. I very much enjoyed using it for C++ <-> R interactions. I realized Rcpp has simplified my task of exposing my C++ library to R tremendously.
+
+
+> On Nov 6, 2016, at 12:33 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 6 November 2016 at 11:36, Anon User wrote:
+> | Hi,
+> | 
+> | 	Could someone point me to documentation or provide an example on how to use constructor validator to handle the following case:
+> 
+> Could you provide a definition or reference for 'constructor validator'?
+> That is not a term we use here regularly.
+> 
+> | 	class Foo;
+> | 
+> | 	struct Bar
+> | 	{ 
+> | 		Bar(const Foo&, int);
+> | 		Bar(int,  int);
+> | 		?
+> | 	};
+> | 
+> | 	I would like to find a way for the R user to build a Bar object using either one of the constructors. 
+> | 
+> | 	Your help is much appreciated!
+> 
+> Well 'Foo' is not something R or Rcpp knows about so you would have to write
+> converters first.  See Rcpp-extending for as<>() and wrap().  But I would
+> start simpler with basic interfaces using known Rcpp types and/or atomistic
+> C++ types.
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+From edd at debian.org  Mon Nov  7 15:48:08 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 7 Nov 2016 08:48:08 -0600
+Subject: [Rcpp-devel] Rcpp constructor validator help
+In-Reply-To: <DA49B8AE-A4A1-48DA-8BDC-1FBFFC0DFF25@hong-ni.com>
+References: <65BB46BE-B9F5-497B-AF55-3276E291AD2B@hong-ni.com>
+ <22559.26977.110893.30131@max.nulle.part>
+ <DA49B8AE-A4A1-48DA-8BDC-1FBFFC0DFF25@hong-ni.com>
+Message-ID: <22560.37928.831258.822168@max.nulle.part>
+
+
+On 7 November 2016 at 09:27, Anon User wrote:
+| By ?Constructor Validator?, I was referring to the validator function pointer used to "implement dispatch to the appropriate constructor when multiple constructors taking the same number of arguments are exposed," as mentioned in your book ?Seamless R and C++ integration with Rcpp? (page 92) 
+
+Touchee :)
+
+| The class constructors in question take either two ints, or an int plus an object of class Foo, which has been property converted via as<>() and wrap().
+
+If you are in a C++ context, general C++ rules should apply as usual.
+
+We get into some C language constrainst for code we expose back as
+_everything_ has to (eventually) go through `SEXP .Call("somefunc", SEXP, ...)
+
+Complete reproducible examples help.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jingyu.he at chicagobooth.edu  Fri Nov 11 06:16:23 2016
+From: jingyu.he at chicagobooth.edu (Jingyu He)
+Date: Fri, 11 Nov 2016 05:16:23 +0000
+Subject: [Rcpp-devel] How to set a default value when call a R function in
+	Rcpp
+Message-ID: <CAGTS=0pKFX+Ax91b-DWY0TdZ9J2KZWsPjqHG3uJ6k4yXc34g6A@mail.gmail.com>
+
+Hi,
+
+
+I'm writing a R package by Rcpp and I have a problem when setting default
+value when call a R function in Rcpp. Here is an example to pass a R
+function to C++, provided by http://adv-r.had.co.nz/Rcpp.html
+
+#include <Rcpp.h>using namespace Rcpp;// [[Rcpp::export]]RObject
+callWithOne(Function f) {
+  return f(1);}
+
+The question is, how to set the default value for f? I would like to have
+the choice to pass a function or not, like
+
+callWithOne(Function f = NULL) {
+  // if pass f, run f(1)
+  // else, run something else}
+
+
+Thanks!
+
+Best,
+Jingyu He
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161111/c7e5cd13/attachment.html>
+
+From edd at debian.org  Fri Nov 11 06:41:33 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 10 Nov 2016 23:41:33 -0600
+Subject: [Rcpp-devel] How to set a default value when call a R function
+	in	Rcpp
+In-Reply-To: <CAGTS=0pKFX+Ax91b-DWY0TdZ9J2KZWsPjqHG3uJ6k4yXc34g6A@mail.gmail.com>
+References: <CAGTS=0pKFX+Ax91b-DWY0TdZ9J2KZWsPjqHG3uJ6k4yXc34g6A@mail.gmail.com>
+Message-ID: <22565.23053.470527.867983@max.nulle.part>
+
+
+On 11 November 2016 at 05:16, Jingyu He wrote:
+| I'm writing a R package by Rcpp and I have a problem when setting default value
+| when call a R function in Rcpp. Here is an example to pass a R function to C++,
+| provided by?http://adv-r.had.co.nz/Rcpp.html
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| // [[Rcpp::export]]
+| RObject callWithOne(Function f) {
+|   return f(1);
+| }
+| 
+| The question is, how to set the default value for f? I would like to have the
+| choice to pass a function or not, like
+| 
+| callWithOne(Function f = NULL) {
+|   // if pass f, run f(1)
+|   // else, run something else
+| }
+
+
+1) Don't crosspost. If you decided to post on StackOverflow, stay on
+StackOverflow. Now that you posted here, maybe delete the question on
+StackOverflow.
+
+2) I don't understand the question.  Wouldn't the following do:
+
+
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::export]]
+RObject callWithOne(Function f) {
+  const int arg = 1;
+  return f(arg);
+}
+
+
+If it is a constant, as you seem to imply, why not make it one?
+
+But if it is a variable, just pass it down.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jingyu.he at chicagobooth.edu  Fri Nov 11 06:53:57 2016
+From: jingyu.he at chicagobooth.edu (Jingyu He)
+Date: Fri, 11 Nov 2016 05:53:57 +0000
+Subject: [Rcpp-devel] How to set a default value when call a R function
+	in Rcpp
+In-Reply-To: <22565.23053.470527.867983@max.nulle.part>
+References: <CAGTS=0pKFX+Ax91b-DWY0TdZ9J2KZWsPjqHG3uJ6k4yXc34g6A@mail.gmail.com>
+ <22565.23053.470527.867983@max.nulle.part>
+Message-ID: <CAGTS=0o2VKjgXn3+C5MPS3NUw0EqmD02=0bPvFUrZFnR4AjVSw@mail.gmail.com>
+
+Hi,
+
+I've deleted the post on StackOverflow. Sorry for the ambiguity, the
+problem is not arg, but the Function f.
+
+
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::export]]
+RObject cppfunction(Function rfunction = NULL) {
+      if( rfunction == NULL){
+      cout << 1 + 1 << endl;  // if we don't pass rfunction to cppfunction,
+run something not related to rfunction()
+      }else{
+     rfunction()  // if we pass rfunction to cppfunction, run it
+      }
+}
+
+rfunction is an argument of cppfunction. Sometimes I need to pass rfunction
+to cppfunction sometimes not. So I need to set a default rfunction
+(something like NULL indicating not passing it).
+
+But
+   RObject cppfunction(Function rfunction = NULL)
+doesn't work. How can I make it?
+
+Thanks!
+
+Best,
+Jingyu
+
+
+
+
+On Thu, Nov 10, 2016 at 11:41 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+
+On 11 November 2016 at 05:16, Jingyu He wrote:
+| I'm writing a R package by Rcpp and I have a problem when setting default
+value
+| when call a R function in Rcpp. Here is an example to pass a R function
+to C++,
+| provided by http://adv-r.had.co.nz/Rcpp.html
+|
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| // [[Rcpp::export]]
+| RObject callWithOne(Function f) {
+|   return f(1);
+| }
+|
+| The question is, how to set the default value for f? I would like to have
+the
+| choice to pass a function or not, like
+|
+| callWithOne(Function f = NULL) {
+|   // if pass f, run f(1)
+|   // else, run something else
+| }
+
+
+1) Don't crosspost. If you decided to post on StackOverflow, stay on
+StackOverflow. Now that you posted here, maybe delete the question on
+StackOverflow.
+
+2) I don't understand the question.  Wouldn't the following do:
+
+
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::export]]
+RObject callWithOne(Function f) {
+  const int arg = 1;
+  return f(arg);
+}
+
+
+If it is a constant, as you seem to imply, why not make it one?
+
+But if it is a variable, just pass it down.
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161111/e6a3e1a3/attachment.html>
+
+From edd at debian.org  Fri Nov 11 13:18:56 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 11 Nov 2016 06:18:56 -0600
+Subject: [Rcpp-devel] How to set a default value when call a R function
+	in Rcpp
+In-Reply-To: <CAGTS=0o2VKjgXn3+C5MPS3NUw0EqmD02=0bPvFUrZFnR4AjVSw@mail.gmail.com>
+References: <CAGTS=0pKFX+Ax91b-DWY0TdZ9J2KZWsPjqHG3uJ6k4yXc34g6A@mail.gmail.com>
+ <22565.23053.470527.867983@max.nulle.part>
+ <CAGTS=0o2VKjgXn3+C5MPS3NUw0EqmD02=0bPvFUrZFnR4AjVSw@mail.gmail.com>
+Message-ID: <22565.46896.484538.888267@max.nulle.part>
+
+
+On 11 November 2016 at 05:53, Jingyu He wrote:
+| I've deleted the post on StackOverflow. Sorry for the ambiguity, the problem is
+| not arg, but the Function f.?
+| 
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| // [[Rcpp::export]]
+| RObject cppfunction(Function rfunction = NULL) {
+| ? ? ? if( rfunction == NULL){
+| ? ? ? cout << 1 + 1 << endl; ?// if we don't pass rfunction to cppfunction, run
+| something not related to rfunction()?
+| ? ? ? }else{
+| ? ? ?rfunction() ?// if we pass rfunction to cppfunction, run it
+| ? ? ? }
+| }
+| 
+| rfunction is an argument of cppfunction. Sometimes I need to pass rfunction to
+| cppfunction sometimes not. So I need to set a default rfunction (something like
+| NULL indicating not passing it).?
+| 
+| But?
+| ? ?RObject cppfunction(Function rfunction = NULL)?
+| doesn't work. How can I make it?
+
+Well that is a different question :) But it has a nice answer: use
+
+   Rcpp::Nullable<Rcpp::Function> rfunction
+
+and test via
+
+   if (rfunction.isNull())
+
+(Untested, but should work)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Fri Nov 11 15:59:35 2016
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Fri, 11 Nov 2016 09:59:35 -0500
+Subject: [Rcpp-devel] How to set a default value when call a R function
+	in Rcpp
+In-Reply-To: <22565.46896.484538.888267@max.nulle.part>
+References: <CAGTS=0pKFX+Ax91b-DWY0TdZ9J2KZWsPjqHG3uJ6k4yXc34g6A@mail.gmail.com>
+ <22565.23053.470527.867983@max.nulle.part>
+ <CAGTS=0o2VKjgXn3+C5MPS3NUw0EqmD02=0bPvFUrZFnR4AjVSw@mail.gmail.com>
+ <22565.46896.484538.888267@max.nulle.part>
+Message-ID: <CAJ_LAMC0wVXLGDeA+HFF1O9pSRJMmETEbzXp+=n0goH3Fzvz0g@mail.gmail.com>
+
+Hi, Jingyu,
+
+I post a small example below. I think this is what you want.
+
+Best,
+
+KK
+
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+//[[Rcpp::export]]
+void test(Nullable<Function> f = R_NilValue) {
+  if (f.isNotNull()) {
+    Rcpp::Rcout << "Not NULL fun" << std::endl;
+    Function f2(f);
+    f2();
+  } else {
+    Rcout << "NULL fun" << std::endl;
+  }
+}
+
+/* R code
+> Rcpp::sourceCpp("test.cpp")
+> f_test <- function() {
++ print("test fun")
++ }
+> test(f_test)
+Not NULL fun
+[1] "test fun"
+> test()
+NULL fun
+*/
+
+
+
+
+On Fri, Nov 11, 2016 at 7:18 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 11 November 2016 at 05:53, Jingyu He wrote:
+> | I've deleted the post on StackOverflow. Sorry for the ambiguity, the
+> problem is
+> | not arg, but the Function f.
+> |
+> |
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> | // [[Rcpp::export]]
+> | RObject cppfunction(Function rfunction = NULL) {
+> |       if( rfunction == NULL){
+> |       cout << 1 + 1 << endl;  // if we don't pass rfunction to
+> cppfunction, run
+> | something not related to rfunction()
+> |       }else{
+> |      rfunction()  // if we pass rfunction to cppfunction, run it
+> |       }
+> | }
+> |
+> | rfunction is an argument of cppfunction. Sometimes I need to pass
+> rfunction to
+> | cppfunction sometimes not. So I need to set a default rfunction
+> (something like
+> | NULL indicating not passing it).
+> |
+> | But
+> |    RObject cppfunction(Function rfunction = NULL)
+> | doesn't work. How can I make it?
+>
+> Well that is a different question :) But it has a nice answer: use
+>
+>    Rcpp::Nullable<Rcpp::Function> rfunction
+>
+> and test via
+>
+>    if (rfunction.isNull())
+>
+> (Untested, but should work)
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161111/94c8a4fb/attachment.html>
+
+From jingyu.he at chicagobooth.edu  Fri Nov 11 23:46:16 2016
+From: jingyu.he at chicagobooth.edu (Jingyu He)
+Date: Fri, 11 Nov 2016 22:46:16 +0000
+Subject: [Rcpp-devel] How to set a default value when call a R function
+	in Rcpp
+In-Reply-To: <CAJ_LAMC0wVXLGDeA+HFF1O9pSRJMmETEbzXp+=n0goH3Fzvz0g@mail.gmail.com>
+References: <CAGTS=0pKFX+Ax91b-DWY0TdZ9J2KZWsPjqHG3uJ6k4yXc34g6A@mail.gmail.com>
+ <22565.23053.470527.867983@max.nulle.part>
+ <CAGTS=0o2VKjgXn3+C5MPS3NUw0EqmD02=0bPvFUrZFnR4AjVSw@mail.gmail.com>
+ <22565.46896.484538.888267@max.nulle.part>
+ <CAJ_LAMC0wVXLGDeA+HFF1O9pSRJMmETEbzXp+=n0goH3Fzvz0g@mail.gmail.com>
+Message-ID: <CAGTS=0oETUAe0xQMdE-BwbLfJDpt5ZDBRpWMt6_JR2t=j4x84g@mail.gmail.com>
+
+It works, thanks a lot!
+Qiang Kou <qkou at umail.iu.edu>?2016?11?11? ??09:07???
+
+> Hi, Jingyu,
+>
+> I post a small example below. I think this is what you want.
+>
+> Best,
+>
+> KK
+>
+> #include <Rcpp.h>
+>
+> using namespace Rcpp;
+>
+> //[[Rcpp::export]]
+> void test(Nullable<Function> f = R_NilValue) {
+>   if (f.isNotNull()) {
+>     Rcpp::Rcout << "Not NULL fun" << std::endl;
+>     Function f2(f);
+>     f2();
+>   } else {
+>     Rcout << "NULL fun" << std::endl;
+>   }
+> }
+>
+> /* R code
+> > Rcpp::sourceCpp("test.cpp")
+> > f_test <- function() {
+> + print("test fun")
+> + }
+> > test(f_test)
+> Not NULL fun
+> [1] "test fun"
+> > test()
+> NULL fun
+> */
+>
+>
+>
+>
+> On Fri, Nov 11, 2016 at 7:18 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 11 November 2016 at 05:53, Jingyu He wrote:
+> | I've deleted the post on StackOverflow. Sorry for the ambiguity, the
+> problem is
+> | not arg, but the Function f.
+> |
+> |
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> | // [[Rcpp::export]]
+> | RObject cppfunction(Function rfunction = NULL) {
+> |       if( rfunction == NULL){
+> |       cout << 1 + 1 << endl;  // if we don't pass rfunction to
+> cppfunction, run
+> | something not related to rfunction()
+> |       }else{
+> |      rfunction()  // if we pass rfunction to cppfunction, run it
+> |       }
+> | }
+> |
+> | rfunction is an argument of cppfunction. Sometimes I need to pass
+> rfunction to
+> | cppfunction sometimes not. So I need to set a default rfunction
+> (something like
+> | NULL indicating not passing it).
+> |
+> | But
+> |    RObject cppfunction(Function rfunction = NULL)
+> | doesn't work. How can I make it?
+>
+> Well that is a different question :) But it has a nice answer: use
+>
+>    Rcpp::Nullable<Rcpp::Function> rfunction
+>
+> and test via
+>
+>    if (rfunction.isNull())
+>
+> (Untested, but should work)
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161111/21ed163b/attachment.html>
+
+From rcppdevel at hong-ni.com  Mon Nov 14 20:27:46 2016
+From: rcppdevel at hong-ni.com (Anon User)
+Date: Mon, 14 Nov 2016 14:27:46 -0500
+Subject: [Rcpp-devel] sending 3D object to R
+Message-ID: <8626ED89-490D-4DBA-B261-3D10EBCAA4E1@hong-ni.com>
+
+Hi, I am trying to send a 3 dimensional object from C++ to R as an R array. I don?t know how to construct an R array in C++ using Rcpp.  I am hoping to look at an example from one of the CRAN packages that use Rcpp.  Can anyone recommend a package that I should look into?
+
+thanks,
+
+Hong
+
+From edd at debian.org  Mon Nov 14 20:53:00 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 14 Nov 2016 13:53:00 -0600
+Subject: [Rcpp-devel] sending 3D object to R
+In-Reply-To: <8626ED89-490D-4DBA-B261-3D10EBCAA4E1@hong-ni.com>
+References: <8626ED89-490D-4DBA-B261-3D10EBCAA4E1@hong-ni.com>
+Message-ID: <22570.5660.248143.931231@max.nulle.part>
+
+
+On 14 November 2016 at 14:27, Anon User wrote:
+| Hi, I am trying to send a 3 dimensional object from C++ to R as an R array. I don?t know how to construct an R array in C++ using Rcpp.  I am hoping to look at an example from one of the CRAN packages that use Rcpp.  Can anyone recommend a package that I should look into?
+
+The unit test files are a first stop -- look at both
+
+    inst/unitTests/runit.Vector.R
+    inst/unitTests/cpp/Vector.cpp
+
+This can be as simple as
+
+// [[Rcpp::export]]
+IntegerVector integer_dimension_ctor_3(){
+    return IntegerVector( Dimension( 2, 3, 4) ) ;
+}
+
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From binbinlu at whu.edu.cn  Thu Nov 17 14:03:10 2016
+From: binbinlu at whu.edu.cn (binbinlu at whu.edu.cn)
+Date: Thu, 17 Nov 2016 21:03:10 +0800 (GMT+08:00)
+Subject: [Rcpp-devel] Help with WARNING msg: checking line endings in
+ C/C++/Fortran sources/headers ...
+Message-ID: <194f0339.2e5e4.15872623cb0.Coremail.binbinlu@whu.edu.cn>
+
+Dear all,
+
+When I ran R CMD check (R 3.2.2) on Windows 7 with my package, and I kept getting the following warning message:
+
+* checking line endings in C/C++/Fortran sources/headers ... WARNING
+Found the following sources/headers with CR or CRLF line endings:
+  src/RcppExports.cpp
+
+The CPP file is a C++ source used in the package.
+I know it is not a new problem, and there were many posts before. However, I am still confused and fail to get rid of it. I will appreciate it a lot if anyone may help.
+
+Best regards,
+
+Binbin
+
+From balamut2 at illinois.edu  Thu Nov 17 15:05:02 2016
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Thu, 17 Nov 2016 14:05:02 +0000
+Subject: [Rcpp-devel] Help with WARNING msg: checking line endings in
+ C/C++/Fortran sources/headers ...
+In-Reply-To: <194f0339.2e5e4.15872623cb0.Coremail.binbinlu@whu.edu.cn>
+References: <194f0339.2e5e4.15872623cb0.Coremail.binbinlu@whu.edu.cn>
+Message-ID: <5C591F8C0073E544A1330AA751BA3E695D45F536@chimbx4.ad.uillinois.edu>
+
+Greetings and Salutations,
+
+Odd that the warning would end up being triggered as file is automatically generated with appropriate line endings. 
+
+Within the package directory, try running:
+
+Rcpp::compileAttributes()
+
+This will recreate the export files (e.g. src/RcppExports.cpp or R/RcppExports.R).
+
+Sincerely,
+
+JJB
+-----Original Message-----
+From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of binbinlu at whu.edu.cn
+Sent: Thursday, November 17, 2016 7:03 AM
+To: rcpp-devel at lists.r-forge.r-project.org
+Subject: [Rcpp-devel] Help with WARNING msg: checking line endings in C/C++/Fortran sources/headers ...
+
+Dear all,
+
+When I ran R CMD check (R 3.2.2) on Windows 7 with my package, and I kept getting the following warning message:
+
+* checking line endings in C/C++/Fortran sources/headers ... WARNING Found the following sources/headers with CR or CRLF line endings:
+  src/RcppExports.cpp
+
+The CPP file is a C++ source used in the package.
+I know it is not a new problem, and there were many posts before. However, I am still confused and fail to get rid of it. I will appreciate it a lot if anyone may help.
+
+Best regards,
+
+Binbin
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From binbinlu at whu.edu.cn  Fri Nov 18 10:48:28 2016
+From: binbinlu at whu.edu.cn (binbinlu at whu.edu.cn)
+Date: Fri, 18 Nov 2016 17:48:28 +0800
+Subject: [Rcpp-devel] Help with WARNING msg: checking line endings in
+	C/C++/Fortran sources/headers ...
+References: <194f0339.2e5e4.15872623cb0.Coremail.binbinlu@whu.edu.cn>, 
+ <5C591F8C0073E544A1330AA751BA3E695D45F536@chimbx4.ad.uillinois.edu>
+Message-ID: <2016111813592859658527@whu.edu.cn>
+
+Dear Balamuta,
+
+Many thanks for your rely. I've tried to use Rcpp::compileAttributes() for re-generating the RcppExports.cpp and RcppExports.r files. Unfortunately, the warning message is still there. I am wondering whether this problem needs to be solved or we can ignore it.  It has bothered too much.  Any more suggestions?
+
+Best regards,
+
+Binbin
+
+
+
+Dr Binbin Lu
+Lecturer in School of Remote Sensing and Information Engineering, Wuhan University
+Email: binbinlu at whu.edu.cn
+ 
+From: Balamuta, James Joseph
+Date: 2016-11-17 22:05
+To: binbinlu at whu.edu.cn; rcpp-devel at lists.r-forge.r-project.org
+Subject: RE: [Rcpp-devel] Help with WARNING msg: checking line endings in C/C++/Fortran sources/headers ...
+Greetings and Salutations,
+ 
+Odd that the warning would end up being triggered as file is automatically generated with appropriate line endings. 
+ 
+Within the package directory, try running:
+ 
+Rcpp::compileAttributes()
+ 
+This will recreate the export files (e.g. src/RcppExports.cpp or R/RcppExports.R).
+ 
+Sincerely,
+ 
+JJB
+-----Original Message-----
+From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of binbinlu at whu.edu.cn
+Sent: Thursday, November 17, 2016 7:03 AM
+To: rcpp-devel at lists.r-forge.r-project.org
+Subject: [Rcpp-devel] Help with WARNING msg: checking line endings in C/C++/Fortran sources/headers ...
+ 
+Dear all,
+ 
+When I ran R CMD check (R 3.2.2) on Windows 7 with my package, and I kept getting the following warning message:
+ 
+* checking line endings in C/C++/Fortran sources/headers ... WARNING Found the following sources/headers with CR or CRLF line endings:
+  src/RcppExports.cpp
+ 
+The CPP file is a C++ source used in the package.
+I know it is not a new problem, and there were many posts before. However, I am still confused and fail to get rid of it. I will appreciate it a lot if anyone may help.
+ 
+Best regards,
+ 
+Binbin
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161118/8c69dfcd/attachment.html>
+
+From zkokia at 163.com  Fri Nov 18 12:08:10 2016
+From: zkokia at 163.com (Kokia Z)
+Date: Fri, 18 Nov 2016 19:08:10 +0800 (CST)
+Subject: [Rcpp-devel] Problem with calling a function in RcppArmadillo to R
+Message-ID: <3df8ef4c.b25d.158771f500f.Coremail.zkokia@163.com>
+
+I need to compute a kronecker product of two matrix, but the vector is out of the limit:
+
+
+  Error in kronecker(X, as(Y, "TsparseMatrix"), FUN = FUN, make.dimnames = make.dimnames,  :
+  Error in validityMethod(as(object, superClass)) :
+  no support for long vectors?../include/Rinlinedfuns.h:137
+
+
+   So I try to call a kronecker function, the corresponding file in the fn_kron.hpp file are:
+
+
+1) In "R":
+Rcpparma_hello_world <- function () {
+.Call ( 'fn_kron_hpp_rcpparma_hello_world', PACKAGE = 'fn_kron.hpp')
+}}
+
+
+Rcpparma_outerproduct <- function (x) {
+.Call ( 'fn_kron_hpp_rcpparma_outerproduct', PACKAGE = 'fn_kron.hpp', x)
+}}
+
+
+2) "src":
+#Include <Rcpp.h>
+Using namespace Rcpp;
+
+
+// rcpparma_hello_world
+Arma :: mat rcpparma_hello_world ();
+RcppExport SEXP fn_kron_hpp_rcpparma_hello_world () {
+BEGIN_RCPP
+Rcpp :: RObject rcpp_result_gen;
+Rcpp :: RNGScope rcpp_rngScope_gen;
+Rcpp_result_gen = Rcpp :: wrap (rcpparma_hello_world ());
+Return rcpp_result_gen;
+END_RCPP
+}}
+// rcpparma_outerproduct
+Arma :: mat rcpparma_outerproduct (const arma :: colvec & x);
+RcppExport SEXP fn_kron_hpp_rcpparma_outerproduct (SEXP xSEXP) {
+BEGIN_RCPP
+Rcpp :: RObject rcpp_result_gen;
+Rcpp :: RNGScope rcpp_rngScope_gen;
+Rcpp :: traits :: input_parameter <const arma :: colvec &> :: type x (xSEXP);
+Rcpp_result_gen = Rcpp :: wrap (rcpparma_outerproduct (x));
+Return rcpp_result_gen;
+END_RCPP
+}}
+
+
+3)"man" includes rcpparma_hello_world.Rd and fn_kron.hpp-package.Rd two documents.
+
+
+
+# =================================================
+So now the question is that I not know how to call the function in R ?
+Library (RcppArmadillo)
+Ws <- .Call ( 'fn_kron_hpp_rcpparma_outerproduct', PACKAGE = 'fn_kron.hpp', listw)
+
+
+Note: I used the R kronecker function, the code is as follows:
+I_T <- Diagonal (T)
+Ws <- kronecker (I_T, listw)
+
+
+And I do not understand what 'x' represents in . Call ( 'fn_kron_hpp_rcpparma_outerproduct', PACKAGE = 'fn_kron.hpp', x).
+
+
+Thank you !
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161118/72d561d7/attachment.html>
+
+From edd at debian.org  Fri Nov 18 13:15:23 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 18 Nov 2016 06:15:23 -0600
+Subject: [Rcpp-devel] Help with WARNING msg: checking line endings
+	in	C/C++/Fortran sources/headers ...
+In-Reply-To: <2016111813592859658527@whu.edu.cn>
+References: <194f0339.2e5e4.15872623cb0.Coremail.binbinlu@whu.edu.cn>
+ <5C591F8C0073E544A1330AA751BA3E695D45F536@chimbx4.ad.uillinois.edu>
+ <2016111813592859658527@whu.edu.cn>
+Message-ID: <22574.61659.808889.377543@max.nulle.part>
+
+
+On 18 November 2016 at 17:48, binbinlu at whu.edu.cn wrote:
+| Dear Balamuta,
+| 
+| Many thanks for your rely. I've tried to use Rcpp::compileAttributes() for
+| re-generating the RcppExports.cpp and RcppExports.r files. Unfortunately, the
+| warning message is still there. I am wondering whether this problem needs to be
+| solved or we can ignore it.  It has bothered too much.  Any more suggestions?
+
+1) Use a standard unix tool like 'dos2unix' on the file. There are dozens
+   of them.
+
+2) If this file sits in a code repository, let the repository handle it. For
+   eg git you find instructions here:
+
+   https://help.github.com/articles/dealing-with-line-endings/
+
+This has nothing to do with Rcpp use or development so I suggest we stop now.
+
+Cheers, Dirk
+ 
+| Best regards,
+| 
+| Binbin
+| 
+| -------------------------------------------------------------------------------
+| Dr Binbin Lu
+| Lecturer in School of Remote Sensing and Information Engineering,
+| Wuhan University
+| Email: binbinlu at whu.edu.cn
+| 
+|      
+|     From: Balamuta, James Joseph
+|     Date: 2016-11-17 22:05
+|     To: binbinlu at whu.edu.cn; rcpp-devel at lists.r-forge.r-project.org
+|     Subject: RE: [Rcpp-devel] Help with WARNING msg: checking line endings in C
+|     /C++/Fortran sources/headers ...
+|     Greetings and Salutations,
+|      
+|     Odd that the warning would end up being triggered as file is automatically
+|     generated with appropriate line endings.
+|      
+|     Within the package directory, try running:
+|      
+|     Rcpp::compileAttributes()
+|      
+|     This will recreate the export files (e.g. src/RcppExports.cpp or R/
+|     RcppExports.R).
+|      
+|     Sincerely,
+|      
+|     JJB
+|     -----Original Message-----
+|     From: rcpp-devel-bounces at lists.r-forge.r-project.org
+|     [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of
+|     binbinlu at whu.edu.cn
+|     Sent: Thursday, November 17, 2016 7:03 AM
+|     To: rcpp-devel at lists.r-forge.r-project.org
+|     Subject: [Rcpp-devel] Help with WARNING msg: checking line endings in C/C++
+|     /Fortran sources/headers ...
+|      
+|     Dear all,
+|      
+|     When I ran R CMD check (R 3.2.2) on Windows 7 with my package, and I kept
+|     getting the following warning message:
+|      
+|     * checking line endings in C/C++/Fortran sources/headers ... WARNING Found
+|     the following sources/headers with CR or CRLF line endings:
+|       src/RcppExports.cpp
+|      
+|     The CPP file is a C++ source used in the package.
+|     I know it is not a new problem, and there were many posts before. However,
+|     I am still confused and fail to get rid of it. I will appreciate it a lot
+|     if anyone may help.
+|      
+|     Best regards,
+|      
+|     Binbin
+|     _______________________________________________
+|     Rcpp-devel mailing list
+|     Rcpp-devel at lists.r-forge.r-project.org
+|     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Nov 18 13:18:08 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 18 Nov 2016 06:18:08 -0600
+Subject: [Rcpp-devel] Problem with calling a function in RcppArmadillo
+	to R
+In-Reply-To: <3df8ef4c.b25d.158771f500f.Coremail.zkokia@163.com>
+References: <3df8ef4c.b25d.158771f500f.Coremail.zkokia@163.com>
+Message-ID: <22574.61824.394765.148259@max.nulle.part>
+
+
+On 18 November 2016 at 19:08, Kokia Z wrote:
+| I need to compute a kronecker product of two matrix, but the vector is out of
+| the limit:
+| 
+|   Error in kronecker(X, as(Y, "TsparseMatrix"), FUN = FUN, make.dimnames =
+| make.dimnames,  :
+|   Error in validityMethod(as(object, superClass)) :
+|   no support for long vectors?? ../include/Rinlinedfuns.h:137
+
+That's an R function. Maybe it needs another change for x_len_t?
+ 
+|    So I try to call a kronecker function, the corresponding file in the
+| fn_kron.hpp file are:
+
+The rest of your post is (and pardon my directness here) somewhat
+uninformed.  Please look at (at least) the
+
+   vignette on RcppAttributes to learn about sourceCpp()
+
+   the function RcppArmadillo.package.skeleton() to understand a simple
+   package
+
+and see how the Attributes infrastructures takes C++ code (that is simpler
+than what you have before) and makes it callable from R.
+
+Dirk
+
+ 
+| 1) In "R":
+| Rcpparma_hello_world <- function () {
+| .Call ( 'fn_kron_hpp_rcpparma_hello_world', PACKAGE = 'fn_kron.hpp')
+| }}
+| 
+| Rcpparma_outerproduct <- function (x) {
+| .Call ( 'fn_kron_hpp_rcpparma_outerproduct', PACKAGE = 'fn_kron.hpp', x)
+| }}
+| 
+| 2) "src":
+| #Include <Rcpp.h>
+| Using namespace Rcpp;
+| 
+| // rcpparma_hello_world
+| Arma :: mat rcpparma_hello_world ();
+| RcppExport SEXP fn_kron_hpp_rcpparma_hello_world () {
+| BEGIN_RCPP
+| Rcpp :: RObject rcpp_result_gen;
+| Rcpp :: RNGScope rcpp_rngScope_gen;
+| Rcpp_result_gen = Rcpp :: wrap (rcpparma_hello_world ());
+| Return rcpp_result_gen;
+| END_RCPP
+| }}
+| // rcpparma_outerproduct
+| Arma :: mat rcpparma_outerproduct (const arma :: colvec & x);
+| RcppExport SEXP fn_kron_hpp_rcpparma_outerproduct (SEXP xSEXP) {
+| BEGIN_RCPP
+| Rcpp :: RObject rcpp_result_gen;
+| Rcpp :: RNGScope rcpp_rngScope_gen;
+| Rcpp :: traits :: input_parameter <const arma :: colvec &> :: type x (xSEXP);
+| Rcpp_result_gen = Rcpp :: wrap (rcpparma_outerproduct (x));
+| Return rcpp_result_gen;
+| END_RCPP
+| }}
+| 
+| 3)"man" includes rcpparma_hello_world.Rd and fn_kron.hpp-package.Rd two
+| documents.
+| 
+| 
+| # =================================================
+| So now the question is that I not know how to call the function in R ?
+| Library (RcppArmadillo)
+| Ws <- .Call ( 'fn_kron_hpp_rcpparma_outerproduct', PACKAGE = 'fn_kron.hpp',
+| listw)
+| 
+| Note: I used the R kronecker function, the code is as follows:
+| I_T <- Diagonal (T)
+| Ws <- kronecker (I_T, listw)
+| 
+| And I do not understand what 'x' represents in . Call (
+| 'fn_kron_hpp_rcpparma_outerproduct', PACKAGE = 'fn_kron.hpp', x).
+| 
+| Thank you !
+| 
+| 
+| 
+|  
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Nov 18 16:42:07 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 18 Nov 2016 09:42:07 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp 0.12.8
+Message-ID: <22575.8527.984647.878810@max.nulle.part>
+
+
+Rcpp 0.12.8 arrived on CRAN yesterday.  The announcement is at
+
+   http://dirk.eddelbuettel.com/blog/2016/11/18#rcpp_0.12.8
+
+and (without links) below.
+
+Of particular note is that Nathan Russell is now part of team.
+
+Cheers,  Dirk
+
+
+  Fri, 18 Nov 2016
+
+  Rcpp 0.12.8: And more goodies
+
+   Yesterday the eighth update in the 0.12.* series of Rcpp made it to the CRAN
+   network for GNU R where the Windows binary has by now been generated too; the
+   Debian package is on its way as well. This 0.12.8 release follows the 0.12.0
+   release from late July, the 0.12.1 release in September, the 0.12.2 release in
+   November, the 0.12.3 release in January, the 0.12.4 release in March, the
+   0.12.5 release in May, the 0.12.6 release in July, and the 0.12.7 release in
+   September --- making it the twelveth release at the steady bi-montly release
+   frequency. While we are keeping with the pattern, we have managed to include
+   quite a lot of nice stuff in this release. None of it is a major feauture,
+   though, and so we have not increased the middle number.
+
+   Among the changes this release are (once again) much improved exception
+   handling (thanks chiefly to Jim Hester), better large vector support (by
+   Qiang), a number of Sugar extensions (mostly Nathan, Qiang and Dan) and
+   beginnings of new DateVector and DatetimeVectors classes, and other changes
+   detailed below. We plan to properly phase in the new date(time) classes. For
+   now, you have to use a #define such as this one in Rcpp.h which remains
+   commented-out for now. We plan to switch this on as the new default no earlier
+   than twelve months from now.
+
+   Rcpp has become the most popular way of enhancing GNU R with C or C++ code. As
+   of today, 843 packages on CRAN depend on Rcpp for making analytical code go
+   faster and further. That is up by eightyfour packages, or a full ten percent,
+   just since the last release in early September!
+
+   Again, we are lucky to have such a large group of contributors. Among them, we
+   have invited Nathan Russell to the Rcpp Core team given his consistently
+   excellent pull requests (as well as many outstanding Stackoverflow answers for
+   Rcpp). More details on changes are below.
+
+    Changes in Rcpp version 0.12.8 (2016-11-16)
+
+       * Changes in Rcpp API:
+
+            * String and vector elements now use extended R_xlen_t indices (Qiang
+              in PR #560)
+
+            * Hashing functions now return unsigned int (Qiang in PR #561)
+
+            * Added static methods eye(), ones(), and zeros() for select matrix
+              types (Nathan Russell in PR #569)
+
+            * The exception call stack is again correctly reported; print methods
+              and tests added too (Jim Hester in PR #582 fixing #579)
+
+            * Variatic macros no longer use a GNU extensions (Nathan in PR #575)
+
+            * Hash index functions were standardized on returning unsigned
+              integers (Also PR #575)
+
+       * Changes in Rcpp Sugar:
+
+            * Added new Sugar functions rowSums(), colSums(), rowMeans(),
+              colMeans() (PR #551 by Nathan Russell fixing #549)
+
+            * Range Sugar now used R_xlen_t type for start/end (PR #568 by Qiang
+              Kou)
+
+            * Defining RCPP_NO_SUGAR no longer breaks the build. (PR #585 by
+              Daniel C. Dillon)
+
+       * Changes in Rcpp unit tests
+
+            * A test for expression vectors was corrected.
+
+            * The constructor test for datetime vectors reflects the new classes
+              which treats Inf correctly (and still as a non-finite value)
+
+       * Changes in Rcpp Attributes
+
+            * An 'empty' return was corrected (PR #589 fixing issue #588, and with
+              thanks to Duncan Murdoch for the heads-up)
+       * Updated Date and Datetime vector classes:
+
+            * The DateVector and DatetimeVector classes were renamed with a prefix
+              old; they are currently typedef'ed to the existing name (#557)
+
+            * New variants newDateVector and newDatetimeVector were added based on
+              NumericVector (also #557, #577, #581, #587)
+
+            * By defining RCPP_NEW_DATE_DATETIME_VECTORS the new classes can
+              activated. We intend to make the new classes the default no sooner
+              than twelve months from this release.
+
+            * The capabilities() function can also be used for presence of this
+              feature
+
+   Thanks to CRANberries, you can also look at a diff to the previous release. As
+   always, even fuller details are on the Rcpp Changelog page and the Rcpp page
+   which also leads to the downloads page, the browseable doxygen docs and zip
+   files of doxygen output for the standard formats. A local directory has source
+   and documentation too. Questions, comments etc should go to the rcpp-devel
+   mailing list off the R-Forge page.
+
+   This post by Dirk Eddelbuettel originated on his Thinking inside the box blog.
+   Please report excessive re-aggregation in third-party for-profit settings.
+
+                                                       /code/rcpp | permanent link
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From bbolker at gmail.com  Mon Nov 21 22:24:13 2016
+From: bbolker at gmail.com (Ben Bolker)
+Date: Mon, 21 Nov 2016 16:24:13 -0500
+Subject: [Rcpp-devel] warning from Rcpp gallery 'sample' implementation
+In-Reply-To: <dbdba867-0015-fc1e-5aab-04d121c53c7b@gmail.com>
+References: <dbdba867-0015-fc1e-5aab-04d121c53c7b@gmail.com>
+Message-ID: <0c3bf494-7207-d13f-c04e-c1fa3b8ae7ea@gmail.com>
+
+
+Using the amazingly useful
+
+http://gallery.rcpp.org/articles/using-the-Rcpp-based-sample-implementation/
+
+I get a bunch of compiler warnings (copied in full below); the crux seems
+to be
+
+typename T1::elem_type = double; arma::uword = unsigned int]? is deprecated
+
+   I could dig in and try to fix this myself but feel like it might be a
+deep rabbit hole for me ...  This is not critical, but it would
+certainly be nice to have my code compile clean.
+
+  (I'm happy to report this elsewhere if there is a more appropriate venue.)
+
+ Also, FWIW, I get
+
+lists.r-forge.r-project.org uses an invalid security certificate. The
+certificate is only valid for the following names: *.r-project.org,
+r-project.org Error code: SSL_ERROR_BAD_CERT_DOMAIN
+
+  when subscribing to the list ...
+
+ Any help appreciated ...
+
+    Ben Bolker
+
+
+
+sessionInfo():
+
+R Under development (unstable) (2016-10-08 r71471)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 14.04.5 LTS
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] pevosim_0.0.0.9000 testthat_1.0.2
+
+loaded via a namespace (and not attached):
+[1] compiler_3.4.0            magrittr_1.5
+[3] R6_2.2.0                  tools_3.4.0
+[5] RcppArmadillo_0.7.500.0.0 crayon_1.3.2
+[7] Rcpp_0.12.8
+
+In file included from funs.cpp:2:0:
+/usr/local/lib/R/site-library/RcppArmadillo/include/RcppArmadilloExtensions/sample.h:
+In function ?void Rcpp::RcppArmadillo::ProbSampleReplace(arma::uvec&,
+int, int, arma::vec&)?:
+/usr/local/lib/R/site-library/RcppArmadillo/include/RcppArmadilloExtensions/sample.h:149:55:
+warning: ?const arma::mtOp<unsigned int, T1, arma::op_sort_index>
+arma::sort_index(const arma::Base<typename T1::elem_type, T1>&,
+arma::uword) [with T1 = arma::Mat<double>; typename T1::elem_type =
+double; arma::uword = unsigned int]? is deprecated (declared at
+/usr/local/lib/R/site-library/RcppArmadillo/include/armadillo_bits/fn_sort_index.hpp:37)
+[-Wdeprecated-declarations]
+             arma::uvec perm = arma::sort_index(prob, 1); //descending
+sort of i
+                                                       ^
+/usr/local/lib/R/site-library/RcppArmadillo/include/RcppArmadilloExtensions/sample.h:150:38:
+warning: ?typename arma::enable_if2<arma::is_arma_type<T1>::value, const
+arma::Op<T1, arma::op_sort_default> >::result arma::sort(const T1&,
+arma::uword) [with T1 = arma::Col<double>; typename
+arma::enable_if2<arma::is_arma_type<T1>::value, const arma::Op<T1,
+arma::op_sort_default> >::result = const arma::Op<arma::Col<double>,
+arma::op_sort_default>; arma::uword = unsigned int]? is deprecated
+(declared at
+/usr/local/lib/R/site-library/RcppArmadillo/include/armadillo_bits/fn_sort.hpp:47)
+[-Wdeprecated-declarations]
+             prob = arma::sort(prob, 1);  // descending sort of prob
+                                      ^
+/usr/local/lib/R/site-library/RcppArmadillo/include/RcppArmadilloExtensions/sample.h:
+In function ?void Rcpp::RcppArmadillo::ProbSampleNoReplace(arma::uvec&,
+int, int, arma::vec&)?:
+/usr/local/lib/R/site-library/RcppArmadillo/include/RcppArmadilloExtensions/sample.h:211:55:
+warning: ?const arma::mtOp<unsigned int, T1, arma::op_sort_index>
+arma::sort_index(const arma::Base<typename T1::elem_type, T1>&,
+arma::uword) [with T1 = arma::Mat<double>; typename T1::elem_type =
+double; arma::uword = unsigned int]? is deprecated (declared at
+/usr/local/lib/R/site-library/RcppArmadillo/include/armadillo_bits/fn_sort_index.hpp:37)
+[-Wdeprecated-declarations]
+             arma::uvec perm = arma::sort_index(prob, 1); //descending
+sort of i
+                                                       ^
+/usr/local/lib/R/site-library/RcppArmadillo/include/RcppArmadilloExtensions/sample.h:212:38:
+warning: ?typename arma::enable_if2<arma::is_arma_type<T1>::value, const
+arma::Op<T1, arma::op_sort_default> >::result arma::sort(const T1&,
+arma::uword) [with T1 = arma::Col<double>; typename
+arma::enable_if2<arma::is_arma_type<T1>::value, const arma::Op<T1,
+arma::op_sort_default> >::result = const arma::Op<arma::Col<double>,
+arma::op_sort_default>; arma::uword = unsigned int]? is deprecated
+(declared at
+/usr/local/lib/R/site-library/RcppArmadillo/include/armadillo_bits/fn_sort.hpp:47)
+[-Wdeprecated-declarations]
+             prob = arma::sort(prob, 1);  // descending sort of prob
+                                      ^
+
+
+
+
+From xian at unm.edu  Wed Nov 23 12:21:31 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Wed, 23 Nov 2016 04:21:31 -0700
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 85, Issue 8
+In-Reply-To: <fd14a30eb7c24bf0b1720fad2c2e2846@DM2PR07MB1546.namprd07.prod.outlook.com>
+References: <fd14a30eb7c24bf0b1720fad2c2e2846@DM2PR07MB1546.namprd07.prod.outlook.com>
+Message-ID: <CADNH-Pu+eykCuWwob=p62eEPKzcdnZVGiL-3oszyVwRLWrQKGA@mail.gmail.com>
+
+On Wed, Nov 23, 2016 at 4:00 AM,
+rcpp-devel-request at lists.r-forge.r-project.org <
+rcpp-devel-request at lists.r-forge.r-project.org> wrote:
+
+>
+> Using the amazingly useful
+>
+> http://gallery.rcpp.org/articles/using-the-Rcpp-based-
+> sample-implementation/
+>
+> I get a bunch of compiler warnings (copied in full below); the crux seems
+> to be
+>
+> typename T1::elem_type = double; arma::uword = unsigned int]? is deprecated
+>
+>    I could dig in and try to fix this myself but feel like it might be a
+> deep rabbit hole for me ...  This is not critical, but it would
+> certainly be nice to have my code compile clean.
+>
+>   (I'm happy to report this elsewhere if there is a more appropriate
+> venue.)
+
+
+Ben,
+
+Good to hear it's been useful. I'll plan to take a look and clean it up
+this weekend.
+
+best,
+-Christian
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161123/ddf363c6/attachment.html>
+
+From balamut2 at illinois.edu  Wed Nov 23 18:37:16 2016
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Wed, 23 Nov 2016 17:37:16 +0000
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 85, Issue 8
+In-Reply-To: <CADNH-Pu+eykCuWwob=p62eEPKzcdnZVGiL-3oszyVwRLWrQKGA@mail.gmail.com>
+References: <fd14a30eb7c24bf0b1720fad2c2e2846@DM2PR07MB1546.namprd07.prod.outlook.com>
+ <CADNH-Pu+eykCuWwob=p62eEPKzcdnZVGiL-3oszyVwRLWrQKGA@mail.gmail.com>
+Message-ID: <5C591F8C0073E544A1330AA751BA3E695D47114A@chimbx4.ad.uillinois.edu>
+
+Greetings and Salutations Ben and Christian,
+
+This issue has been addressed! In fact, Dirk beat me to it by a few minutes.  See
+
+https://github.com/RcppCore/RcppArmadillo/issues/111
+
+Alas, the updated version has yet to be pushed to CRAN due to the monthly update policy. If I had to guess, this noisy deprecated warning should be resolved sometime between now and next week as the timing is in alignment for the cadence of a monthly release for RcppArmadillo.
+
+Sincerely,
+
+JJB
+
+From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of Christian Gunning
+Sent: Wednesday, November 23, 2016 5:22 AM
+To: rcpp-devel at lists.r-forge.r-project.org
+Cc: bbolker at gmail.com
+Subject: Re: [Rcpp-devel] Rcpp-devel Digest, Vol 85, Issue 8
+
+
+On Wed, Nov 23, 2016 at 4:00 AM, rcpp-devel-request at lists.r-forge.r-project.org<mailto:rcpp-devel-request at lists.r-forge.r-project.org> <rcpp-devel-request at lists.r-forge.r-project.org<mailto:rcpp-devel-request at lists.r-forge.r-project.org>> wrote:
+
+Using the amazingly useful
+
+http://gallery.rcpp.org/articles/using-the-Rcpp-based-sample-implementation/<https://urldefense.proofpoint.com/v2/url?u=http-3A__gallery.rcpp.org_articles_using-2Dthe-2DRcpp-2Dbased-2Dsample-2Dimplementation_&d=DQMFaQ&c=8hUWFZcy2Z-Za5rBPlktOQ&r=Oj62bnDE1oueLU-seL9f0p1xxu4Hvw2JDuP8BUw91c8&m=MtuTSoS6h-4bpL05d9jcymFtjV3Vi3M0rEv1bGfI8qk&s=sWO0ks9GZpq9ibvXN7wm43hpqkqjWEzVzNiF-k5Qmfw&e=>
+
+I get a bunch of compiler warnings (copied in full below); the crux seems
+to be
+
+typename T1::elem_type = double; arma::uword = unsigned int]? is deprecated
+
+   I could dig in and try to fix this myself but feel like it might be a
+deep rabbit hole for me ...  This is not critical, but it would
+certainly be nice to have my code compile clean.
+
+  (I'm happy to report this elsewhere if there is a more appropriate venue.)
+
+Ben,
+Good to hear it's been useful. I'll plan to take a look and clean it up this weekend.
+best,
+-Christian
+
+--
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161123/76b4c832/attachment.html>
+
+From edd at debian.org  Wed Nov 23 19:06:09 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 23 Nov 2016 12:06:09 -0600
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 85, Issue 8
+In-Reply-To: <5C591F8C0073E544A1330AA751BA3E695D47114A@chimbx4.ad.uillinois.edu>
+References: <fd14a30eb7c24bf0b1720fad2c2e2846@DM2PR07MB1546.namprd07.prod.outlook.com>
+ <CADNH-Pu+eykCuWwob=p62eEPKzcdnZVGiL-3oszyVwRLWrQKGA@mail.gmail.com>
+ <5C591F8C0073E544A1330AA751BA3E695D47114A@chimbx4.ad.uillinois.edu>
+Message-ID: <22581.55953.88203.19579@max.nulle.part>
+
+
+On 23 November 2016 at 17:37, Balamuta, James Joseph wrote:
+| Alas, the updated version has yet to be pushed to CRAN due to the monthly
+| update policy. If I had to guess, this noisy deprecated warning should be
+| resolved sometime between now and next week as the timing is in alignment for
+| the cadence of a monthly release for RcppArmadillo.
+
+All true but I do also follow Conrad's schedule for Armadillo proper -- so so
+if he pushes nothing I may not either.
+
+And maybe this issue is not that important and can be addressed with an
+installation against the Github repo (which is indeed at GH-only release
+snapshot).
+
+Thanks again to Christian for sample which turned out to be really useful and
+popular. 
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From deanbodenhambsse at gmail.com  Fri Nov 25 12:41:44 2016
+From: deanbodenhambsse at gmail.com (Dean Bodenham)
+Date: Fri, 25 Nov 2016 12:41:44 +0100
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+Message-ID: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+
+Hi,
+
+I have written an R package using Rcpp that has recently been accepted to
+CRAN. However, on a few systems the installed size ("libs" directory) is
+much larger than on other systems, which leads to a couple of NOTEs:
+https://cran.r-project.org/web/checks/check_results_ffstream.html
+
+Here is an example of this discrepancy that I have observed on two (of my
+own) machines:
+
+
+Operating system            |   Size
+----------------------------|---------
+OSX 10.10.5                 |  1.1 MB
+Ubuntu 16.04 (Linux Mint 18)|  9.0 MB
+
+
+Has anyone seen this problem before?
+
+The package should survive with the NOTEs, but it would be good to fix it
+if possible.
+
+[Although the various (test) systems on CRAN use different versions of the
+compiler(s), which may affect things, I realise it is more likely that I
+have made a mistake when writing/structuring the code.]
+
+Many thanks in advance,
+Dean
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161125/ed523030/attachment.html>
+
+From edd at debian.org  Fri Nov 25 14:23:10 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 25 Nov 2016 07:23:10 -0600
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+Message-ID: <22584.15166.495185.167061@max.nulle.part>
+
+
+On 25 November 2016 at 12:41, Dean Bodenham wrote:
+| I have written an R package using Rcpp that has recently been accepted to CRAN.
+| However, on a few systems the installed size ("libs" directory) is much larger
+| than on other systems, which leads to a couple of NOTEs:
+| https://cran.r-project.org/web/checks/check_results_ffstream.html
+| 
+| Here is an example of this discrepancy that I have observed on two (of my own)
+| machines:
+| 
+| 
+| Operating system ? ? ? ? ? ?| ? Size
+| ----------------------------|---------
+| OSX 10.10.5 ? ? ? ? ? ? ? ? | ?1.1 MB
+| Ubuntu 16.04 (Linux Mint 18)| ?9.0 MB
+| 
+| 
+| Has anyone seen this problem before??
+| 
+| The package should survive with the NOTEs, but it would be good to fix it if
+| possible.
+| 
+| [Although the various (test) systems on CRAN use different versions of the
+| compiler(s), which may affect things, I realise it is more likely that I have
+| made a mistake when writing/structuring the code.]
+
+I don't think it is you. Run 'R CMD INSTALL ...' on both systems, I bet one
+is running with -g and the other is not. Those add debugging symbols, and
+they are HUGE.
+
+Dan Dillon has some experimental code to provide a stripping plugin.  Until
+then, and just for local tests, do something like this in src/Makevars:
+
+   PKG_LIBS= -Wl,-S
+
+This asks the linker to use -S to strip debugging symbols (but not general
+symbols, which R needs).  On my Ubuntu 16.04 box I get a change from
+
+   9.0 mb    (default)
+
+to
+
+   734 kb    (with stripping)
+
+for twelve-fold reduction in size _on the same system_.
+
+If/when we have something more general I am sure it will be announced here.
+If you want to play with the plugin hit me and/or Dan (CC'ed).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Nov 25 14:38:39 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 25 Nov 2016 07:38:39 -0600
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <22584.15166.495185.167061@max.nulle.part>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+ <22584.15166.495185.167061@max.nulle.part>
+Message-ID: <22584.16095.945040.436318@max.nulle.part>
+
+
+On 25 November 2016 at 07:23, Dirk Eddelbuettel wrote:
+| Dan Dillon has some experimental code to provide a stripping plugin.  Until
+| then, and just for local tests, do something like this in src/Makevars:
+| 
+|    PKG_LIBS= -Wl,-S
+| 
+| This asks the linker to use -S to strip debugging symbols (but not general
+| symbols, which R needs).  On my Ubuntu 16.04 box I get a change from
+| 
+|    9.0 mb    (default)
+| 
+| to
+| 
+|    734 kb    (with stripping)
+| 
+| for twelve-fold reduction in size _on the same system_.
+| 
+| If/when we have something more general I am sure it will be announced here.
+| If you want to play with the plugin hit me and/or Dan (CC'ed).
+
+PS The reason we have not talked about this / used this more is that we think
+it raise the "not portable" flags at CRAN so we want to (ideally) do it with
+some code that behaves correctly.
+
+For local use in ~/.R/Makevars it is perfectly fine.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From deanbodenhambsse at gmail.com  Sat Nov 26 12:22:40 2016
+From: deanbodenhambsse at gmail.com (Dean Bodenham)
+Date: Sat, 26 Nov 2016 12:22:40 +0100
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <22584.16095.945040.436318@max.nulle.part>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+ <22584.15166.495185.167061@max.nulle.part>
+ <22584.16095.945040.436318@max.nulle.part>
+Message-ID: <CAJvk7RbhvhO5Gb92=anXZ8UhDb=Zp5kiahBbu+A26rUwk9g27g@mail.gmail.com>
+
+Dear Dirk,
+
+Thank you very much for your detailed replies!
+
+The Ubuntu system does indeed seem to be using the -g flag. I did try a
+local compile/installation with the ~/.R/Makevars file you suggested, but
+couldn't quite get it to work - I get warnings "linking not done" for the
+.o files, and then an error that the "ffstream.so" file is not found.
+
+But, even if it did work locally, then, as you say, relying on a Makevars
+file could lead to issues later when trying to get the package onto CRAN (I
+have encountered difficulties with this approach previously).
+
+Perhaps I will leave the package as it is for the moment, but it is very
+good to know the reason why the libs directory is (sometimes) so large.
+
+Thank you again for your help, and I will watch out for any future
+announcements about this issue.
+
+Best regards,
+Dean
+
+On Fri, Nov 25, 2016 at 2:38 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 25 November 2016 at 07:23, Dirk Eddelbuettel wrote:
+> | Dan Dillon has some experimental code to provide a stripping plugin.
+> Until
+> | then, and just for local tests, do something like this in src/Makevars:
+> |
+> |    PKG_LIBS= -Wl,-S
+> |
+> | This asks the linker to use -S to strip debugging symbols (but not
+> general
+> | symbols, which R needs).  On my Ubuntu 16.04 box I get a change from
+> |
+> |    9.0 mb    (default)
+> |
+> | to
+> |
+> |    734 kb    (with stripping)
+> |
+> | for twelve-fold reduction in size _on the same system_.
+> |
+> | If/when we have something more general I am sure it will be announced
+> here.
+> | If you want to play with the plugin hit me and/or Dan (CC'ed).
+>
+> PS The reason we have not talked about this / used this more is that we
+> think
+> it raise the "not portable" flags at CRAN so we want to (ideally) do it
+> with
+> some code that behaves correctly.
+>
+> For local use in ~/.R/Makevars it is perfectly fine.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161126/30fb0e4d/attachment.html>
+
+From edd at debian.org  Sat Nov 26 14:55:24 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 26 Nov 2016 07:55:24 -0600
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <CAJvk7RbhvhO5Gb92=anXZ8UhDb=Zp5kiahBbu+A26rUwk9g27g@mail.gmail.com>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+ <22584.15166.495185.167061@max.nulle.part>
+ <22584.16095.945040.436318@max.nulle.part>
+ <CAJvk7RbhvhO5Gb92=anXZ8UhDb=Zp5kiahBbu+A26rUwk9g27g@mail.gmail.com>
+Message-ID: <22585.37964.185139.135703@max.nulle.part>
+
+
+On 26 November 2016 at 12:22, Dean Bodenham wrote:
+| Dear Dirk,?
+| 
+| Thank you very much for your detailed replies!?
+| 
+| The Ubuntu system does indeed seem to be using the -g flag. I did try a local
+| compile/installation with the ~/.R/Makevars file you suggested, but couldn't
+| quite get it to work - I get warnings "linking not done" for the .o files, and
+| then an error that the "ffstream.so" file is not found.
+
+Well "it worked me for" but a better approach entirely outside of your
+package may be to take
+
+  edd at max:~$ grep shared /etc/R/Makeconf 
+  DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+  SHLIB_CXXLDFLAGS = -shared
+  SHLIB_CXX1XLDFLAGS = -shared
+  SHLIB_FCLDFLAGS = -shared
+  SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+  edd at max:~$ 
+
+and add them to ~/.R/Makevars as
+
+  DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+  SHLIB_CXXLDFLAGS = -shared
+  SHLIB_CXX1XLDFLAGS = -shared
+  SHLIB_FCLDFLAGS = -shared
+  SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+
+When I do that without/with the change I get
+
+  edd at max:/tmp/ffstream$ ls -lh ffstream*/src/ffstream.so
+  -rwxrwxr-x 1 edd edd 9.0M Nov 26 07:52 ffstream.orig/src/ffstream.so
+  -rwxrwxr-x 1 edd edd 734K Nov 26 07:52 ffstream/src/ffstream.so
+  edd at max:/tmp/ffstream$ 
+
+I think it is an issue worth raising with on r-devel and I may do so.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From dcdillon at gmail.com  Sat Nov 26 16:59:11 2016
+From: dcdillon at gmail.com (Dan Dillon)
+Date: Sat, 26 Nov 2016 09:59:11 -0600
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <22585.37964.185139.135703@max.nulle.part>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+ <22584.15166.495185.167061@max.nulle.part>
+ <22584.16095.945040.436318@max.nulle.part>
+ <CAJvk7RbhvhO5Gb92=anXZ8UhDb=Zp5kiahBbu+A26rUwk9g27g@mail.gmail.com>
+ <22585.37964.185139.135703@max.nulle.part>
+Message-ID: <CAEWw9xVemVWjAL4uW=LaYnDc_4TBMtM_D05HOEF4abGdsCs2pw@mail.gmail.com>
+
+Dean,
+
+I too have been concerned about this and working on a solution for some
+time.  I just formalized my work and put it in a repo at
+https://github.com/dcdillon/r-stripper.  Basically this script adds the
+appropriate commands to the PKG_LIBS variable to cause the linker to strip
+the debugging symbols from the shared library that is created.
+
+Feel free to try it out.  Right now it only knows how to do this for gcc,
+g++, clang, and clang++ but adding others is no problem as long as I know
+how to figure out which linker it is and know the option to pass to the
+linker to achieve "stripping".
+
+Thanks,
+
+Dan
+
+On Sat, Nov 26, 2016 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 26 November 2016 at 12:22, Dean Bodenham wrote:
+> | Dear Dirk,
+> |
+> | Thank you very much for your detailed replies!
+> |
+> | The Ubuntu system does indeed seem to be using the -g flag. I did try a
+> local
+> | compile/installation with the ~/.R/Makevars file you suggested, but
+> couldn't
+> | quite get it to work - I get warnings "linking not done" for the .o
+> files, and
+> | then an error that the "ffstream.so" file is not found.
+>
+> Well "it worked me for" but a better approach entirely outside of your
+> package may be to take
+>
+>   edd at max:~$ grep shared /etc/R/Makeconf
+>   DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+>   SHLIB_CXXLDFLAGS = -shared
+>   SHLIB_CXX1XLDFLAGS = -shared
+>   SHLIB_FCLDFLAGS = -shared
+>   SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+>   edd at max:~$
+>
+> and add them to ~/.R/Makevars as
+>
+>   DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+>   SHLIB_CXXLDFLAGS = -shared
+>   SHLIB_CXX1XLDFLAGS = -shared
+>   SHLIB_FCLDFLAGS = -shared
+>   SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+>
+> When I do that without/with the change I get
+>
+>   edd at max:/tmp/ffstream$ ls -lh ffstream*/src/ffstream.so
+>   -rwxrwxr-x 1 edd edd 9.0M Nov 26 07:52 ffstream.orig/src/ffstream.so
+>   -rwxrwxr-x 1 edd edd 734K Nov 26 07:52 ffstream/src/ffstream.so
+>   edd at max:/tmp/ffstream$
+>
+> I think it is an issue worth raising with on r-devel and I may do so.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161126/2a564837/attachment.html>
+
+From teuder at gmail.com  Sun Nov 27 09:13:13 2016
+From: teuder at gmail.com (=?utf-8?B?5rSl55Sw55yf5qi5?=)
+Date: Sun, 27 Nov 2016 17:13:13 +0900
+Subject: [Rcpp-devel] Introducing Rcpp web book
+Message-ID: <E773BA5C-82B9-4467-806A-6EAE1ECCB7F9@gmail.com>
+
+Dear all
+
+I have written a web book introducing how to use Rcpp. I intended to write this document as easy and comprehensive as possible for those not familiar with C++. Thus, sometimes it is not described strictly from the C++ point of view.
+
+
+Introduction to Rcpp
+https://www.gitbook.com/book/teuder/introduction-to-rcpp/details
+
+I hope it will be helpful for broad range of people who are interested in the Rcpp package. It would be greatly appreciated if you could give us feedback such as wrong content, grammar mistake, difficult to read sentences.
+
+Thank you 
+
+Masaki Tsuda
+
+teuder at gmail.com
+
+From edd at debian.org  Sun Nov 27 15:17:40 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 27 Nov 2016 08:17:40 -0600
+Subject: [Rcpp-devel] Introducing Rcpp web book
+In-Reply-To: <E773BA5C-82B9-4467-806A-6EAE1ECCB7F9@gmail.com>
+References: <E773BA5C-82B9-4467-806A-6EAE1ECCB7F9@gmail.com>
+Message-ID: <22586.60164.565564.741933@max.nulle.part>
+
+
+Hi Masaki,
+
+On 27 November 2016 at 17:13, ???? wrote:
+| I have written a web book introducing how to use Rcpp. I intended to write this document as easy and comprehensive as possible for those not familiar with C++. Thus, sometimes it is not described strictly from the C++ point of view.
+| 
+| 
+| Introduction to Rcpp
+| https://www.gitbook.com/book/teuder/introduction-to-rcpp/details
+| 
+| I hope it will be helpful for broad range of people who are interested in the Rcpp package. It would be greatly appreciated if you could give us feedback such as wrong content, grammar mistake, difficult to read sentences.
+
+Wow, excellent news, and congratulations.
+
+We should probably reference this from the Rcpp FAQ as well.
+
+Best,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From deanbodenhambsse at gmail.com  Mon Nov 28 21:13:38 2016
+From: deanbodenhambsse at gmail.com (Dean Bodenham)
+Date: Mon, 28 Nov 2016 21:13:38 +0100
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <CAEWw9xVemVWjAL4uW=LaYnDc_4TBMtM_D05HOEF4abGdsCs2pw@mail.gmail.com>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+ <22584.15166.495185.167061@max.nulle.part>
+ <22584.16095.945040.436318@max.nulle.part>
+ <CAJvk7RbhvhO5Gb92=anXZ8UhDb=Zp5kiahBbu+A26rUwk9g27g@mail.gmail.com>
+ <22585.37964.185139.135703@max.nulle.part>
+ <CAEWw9xVemVWjAL4uW=LaYnDc_4TBMtM_D05HOEF4abGdsCs2pw@mail.gmail.com>
+Message-ID: <CAJvk7RYp=3YPCLkiXfeS+AipKqmO3=2DACJe9COHfH+tN7JxLQ@mail.gmail.com>
+
+Dear Dirk,
+
+Thank you for your last email - your suggestion worked perfectly!
+
+To be clear (for others), creating a ~/.R/Makevars file containing:
+
+DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+SHLIB_CXXLDFLAGS = -shared
+SHLIB_CXX1XLDFLAGS = -shared
+SHLIB_FCLDFLAGS = -shared
+SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+PKG_LIBS= -Wl,-S
+
+(where the first five lines are from /etc/R/Makeconf) resulted in a much
+smaller ffstream.so for me on Ubuntu 16.04.
+
+I have just started playing around with Dan's r-stripper, but have not
+quite got it working yet.
+
+Dean
+
+On Sat, Nov 26, 2016 at 4:59 PM, Dan Dillon <dcdillon at gmail.com> wrote:
+
+> Dean,
+>
+> I too have been concerned about this and working on a solution for some
+> time.  I just formalized my work and put it in a repo at
+> https://github.com/dcdillon/r-stripper.  Basically this script adds the
+> appropriate commands to the PKG_LIBS variable to cause the linker to strip
+> the debugging symbols from the shared library that is created.
+>
+> Feel free to try it out.  Right now it only knows how to do this for gcc,
+> g++, clang, and clang++ but adding others is no problem as long as I know
+> how to figure out which linker it is and know the option to pass to the
+> linker to achieve "stripping".
+>
+> Thanks,
+>
+> Dan
+>
+> On Sat, Nov 26, 2016 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 26 November 2016 at 12:22, Dean Bodenham wrote:
+>> | Dear Dirk,
+>> |
+>> | Thank you very much for your detailed replies!
+>> |
+>> | The Ubuntu system does indeed seem to be using the -g flag. I did try a
+>> local
+>> | compile/installation with the ~/.R/Makevars file you suggested, but
+>> couldn't
+>> | quite get it to work - I get warnings "linking not done" for the .o
+>> files, and
+>> | then an error that the "ffstream.so" file is not found.
+>>
+>> Well "it worked me for" but a better approach entirely outside of your
+>> package may be to take
+>>
+>>   edd at max:~$ grep shared /etc/R/Makeconf
+>>   DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+>>   SHLIB_CXXLDFLAGS = -shared
+>>   SHLIB_CXX1XLDFLAGS = -shared
+>>   SHLIB_FCLDFLAGS = -shared
+>>   SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+>>   edd at max:~$
+>>
+>> and add them to ~/.R/Makevars as
+>>
+>>   DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+>>   SHLIB_CXXLDFLAGS = -shared
+>>   SHLIB_CXX1XLDFLAGS = -shared
+>>   SHLIB_FCLDFLAGS = -shared
+>>   SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+>>
+>> When I do that without/with the change I get
+>>
+>>   edd at max:/tmp/ffstream$ ls -lh ffstream*/src/ffstream.so
+>>   -rwxrwxr-x 1 edd edd 9.0M Nov 26 07:52 ffstream.orig/src/ffstream.so
+>>   -rwxrwxr-x 1 edd edd 734K Nov 26 07:52 ffstream/src/ffstream.so
+>>   edd at max:/tmp/ffstream$
+>>
+>> I think it is an issue worth raising with on r-devel and I may do so.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161128/e2b0b75e/attachment.html>
+
+From edd at debian.org  Mon Nov 28 21:39:26 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 28 Nov 2016 14:39:26 -0600
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <CAJvk7RYp=3YPCLkiXfeS+AipKqmO3=2DACJe9COHfH+tN7JxLQ@mail.gmail.com>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+ <22584.15166.495185.167061@max.nulle.part>
+ <22584.16095.945040.436318@max.nulle.part>
+ <CAJvk7RbhvhO5Gb92=anXZ8UhDb=Zp5kiahBbu+A26rUwk9g27g@mail.gmail.com>
+ <22585.37964.185139.135703@max.nulle.part>
+ <CAEWw9xVemVWjAL4uW=LaYnDc_4TBMtM_D05HOEF4abGdsCs2pw@mail.gmail.com>
+ <CAJvk7RYp=3YPCLkiXfeS+AipKqmO3=2DACJe9COHfH+tN7JxLQ@mail.gmail.com>
+Message-ID: <22588.38398.617263.5282@max.nulle.part>
+
+
+On 28 November 2016 at 21:13, Dean Bodenham wrote:
+| Dear Dirk,
+| 
+| Thank you for your last email - your suggestion worked perfectly!
+| 
+| To be clear (for others), creating a ~/.R/Makevars file containing:
+| 
+| DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+| SHLIB_CXXLDFLAGS = -shared
+| SHLIB_CXX1XLDFLAGS = -shared
+| SHLIB_FCLDFLAGS = -shared
+| SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+| PKG_LIBS= -Wl,-S
+| 
+| (where the first five lines are from /etc/R/Makeconf) resulted in a much
+| smaller ffstream.so for me on Ubuntu 16.04.
+
+Not quite what I meant.  You can't "hog" PKG_LIBS as some package use it (eg
+for RcppArmadillo).  Try
+
+DYLIB_LDFLAGS = -Wl,-S -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+SHLIB_CXXLDFLAGS = -Wl,-S -shared
+SHLIB_CXX1XLDFLAGS = -Wl,-S -shared
+SHLIB_FCLDFLAGS = -Wl,-S -shared
+SHLIB_LDFLAGS = -Wl,-S -shared# $(CFLAGS) $(CPICFLAGS)
+
+instead.
+
+Dirk
+
+
+| 
+| I have just started playing around with Dan's r-stripper, but have not quite
+| got it working yet.
+| 
+| Dean?
+| 
+| On Sat, Nov 26, 2016 at 4:59 PM, Dan Dillon <dcdillon at gmail.com> wrote:
+| 
+|     Dean,
+| 
+|     I too have been concerned about this and working on a solution for some
+|     time.? I just formalized my work and put it in a repo at https://github.com
+|     /dcdillon/r-stripper.? Basically this script adds the appropriate commands
+|     to the PKG_LIBS variable to cause the linker to strip the debugging symbols
+|     from the shared library that is created.
+| 
+|     Feel free to try it out.? Right now it only knows how to do this for gcc,
+|     g++, clang, and clang++ but adding others is no problem as long as I know
+|     how to figure out which linker it is and know the option to pass to the
+|     linker to achieve "stripping".
+| 
+|     Thanks,
+| 
+|     Dan
+| 
+|     On Sat, Nov 26, 2016 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+|        
+|         On 26 November 2016 at 12:22, Dean Bodenham wrote:
+|         | Dear Dirk,?
+|         |
+|         | Thank you very much for your detailed replies!?
+|         |
+|         | The Ubuntu system does indeed seem to be using the -g flag. I did try
+|         a local
+|         | compile/installation with the ~/.R/Makevars file you suggested, but
+|         couldn't
+|         | quite get it to work - I get warnings "linking not done" for the .o
+|         files, and
+|         | then an error that the "ffstream.so" file is not found.
+| 
+|         Well "it worked me for" but a better approach entirely outside of your
+|         package may be to take
+| 
+|         ? edd at max:~$ grep shared /etc/R/Makeconf
+|         ? DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+|         ? SHLIB_CXXLDFLAGS = -shared
+|         ? SHLIB_CXX1XLDFLAGS = -shared
+|         ? SHLIB_FCLDFLAGS = -shared
+|         ? SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+|         ? edd at max:~$
+| 
+|         and add them to ~/.R/Makevars as
+| 
+|         ? DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+|         ? SHLIB_CXXLDFLAGS = -shared
+|         ? SHLIB_CXX1XLDFLAGS = -shared
+|         ? SHLIB_FCLDFLAGS = -shared
+|         ? SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+| 
+|         When I do that without/with the change I get
+| 
+|         ? edd at max:/tmp/ffstream$ ls -lh ffstream*/src/ffstream.so
+|         ? -rwxrwxr-x 1 edd edd 9.0M Nov 26 07:52 ffstream.orig/src/ffstream.so
+|         ? -rwxrwxr-x 1 edd edd 734K Nov 26 07:52 ffstream/src/ffstream.so
+|         ? edd at max:/tmp/ffstream$
+| 
+|         I think it is an issue worth raising with on r-devel and I may do so.
+|        
+|         Dirk
+| 
+|         --
+|         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+|         _______________________________________________
+|         Rcpp-devel mailing list
+|         Rcpp-devel at lists.r-forge.r-project.org
+|         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| 
+| 
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From dcdillon at gmail.com  Mon Nov 28 21:42:21 2016
+From: dcdillon at gmail.com (Dan Dillon)
+Date: Mon, 28 Nov 2016 20:42:21 +0000
+Subject: [Rcpp-devel] Large size of libs directory on some systems
+In-Reply-To: <CAJvk7RYp=3YPCLkiXfeS+AipKqmO3=2DACJe9COHfH+tN7JxLQ@mail.gmail.com>
+References: <CAJvk7RY+dRbQ433WG78wgxtA8ZN0+Ovy39KdJVBJXEPgTesD6A@mail.gmail.com>
+ <22584.15166.495185.167061@max.nulle.part>
+ <22584.16095.945040.436318@max.nulle.part>
+ <CAJvk7RbhvhO5Gb92=anXZ8UhDb=Zp5kiahBbu+A26rUwk9g27g@mail.gmail.com>
+ <22585.37964.185139.135703@max.nulle.part>
+ <CAEWw9xVemVWjAL4uW=LaYnDc_4TBMtM_D05HOEF4abGdsCs2pw@mail.gmail.com>
+ <CAJvk7RYp=3YPCLkiXfeS+AipKqmO3=2DACJe9COHfH+tN7JxLQ@mail.gmail.com>
+Message-ID: <CAEWw9xW7Q6M9o8OK591mxU5DD8-gRYML_iS9+FWN+9j_oqv2Mw@mail.gmail.com>
+
+I need to make some changes to stripper tonight. Just to give you a heads
+up.
+
+On Mon, Nov 28, 2016 at 2:13 PM Dean Bodenham <deanbodenhambsse at gmail.com>
+wrote:
+
+> Dear Dirk,
+>
+> Thank you for your last email - your suggestion worked perfectly!
+>
+> To be clear (for others), creating a ~/.R/Makevars file containing:
+>
+> DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+> SHLIB_CXXLDFLAGS = -shared
+> SHLIB_CXX1XLDFLAGS = -shared
+> SHLIB_FCLDFLAGS = -shared
+> SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+> PKG_LIBS= -Wl,-S
+>
+> (where the first five lines are from /etc/R/Makeconf) resulted in a much
+> smaller ffstream.so for me on Ubuntu 16.04.
+>
+> I have just started playing around with Dan's r-stripper, but have not
+> quite got it working yet.
+>
+> Dean
+>
+> On Sat, Nov 26, 2016 at 4:59 PM, Dan Dillon <dcdillon at gmail.com> wrote:
+>
+> Dean,
+>
+> I too have been concerned about this and working on a solution for some
+> time.  I just formalized my work and put it in a repo at
+> https://github.com/dcdillon/r-stripper.  Basically this script adds the
+> appropriate commands to the PKG_LIBS variable to cause the linker to strip
+> the debugging symbols from the shared library that is created.
+>
+> Feel free to try it out.  Right now it only knows how to do this for gcc,
+> g++, clang, and clang++ but adding others is no problem as long as I know
+> how to figure out which linker it is and know the option to pass to the
+> linker to achieve "stripping".
+>
+> Thanks,
+>
+> Dan
+>
+> On Sat, Nov 26, 2016 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 26 November 2016 at 12:22, Dean Bodenham wrote:
+> | Dear Dirk,
+> |
+> | Thank you very much for your detailed replies!
+> |
+> | The Ubuntu system does indeed seem to be using the -g flag. I did try a
+> local
+> | compile/installation with the ~/.R/Makevars file you suggested, but
+> couldn't
+> | quite get it to work - I get warnings "linking not done" for the .o
+> files, and
+> | then an error that the "ffstream.so" file is not found.
+>
+> Well "it worked me for" but a better approach entirely outside of your
+> package may be to take
+>
+>   edd at max:~$ grep shared /etc/R/Makeconf
+>   DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+>   SHLIB_CXXLDFLAGS = -shared
+>   SHLIB_CXX1XLDFLAGS = -shared
+>   SHLIB_FCLDFLAGS = -shared
+>   SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+>   edd at max:~$
+>
+> and add them to ~/.R/Makevars as
+>
+>   DYLIB_LDFLAGS = -shared -fopenmp# $(CFLAGS) $(CPICFLAGS)
+>   SHLIB_CXXLDFLAGS = -shared
+>   SHLIB_CXX1XLDFLAGS = -shared
+>   SHLIB_FCLDFLAGS = -shared
+>   SHLIB_LDFLAGS = -shared# $(CFLAGS) $(CPICFLAGS)
+>
+> When I do that without/with the change I get
+>
+>   edd at max:/tmp/ffstream$ ls -lh ffstream*/src/ffstream.so
+>   -rwxrwxr-x 1 edd edd 9.0M Nov 26 07:52 ffstream.orig/src/ffstream.so
+>   -rwxrwxr-x 1 edd edd 734K Nov 26 07:52 ffstream/src/ffstream.so
+>   edd at max:/tmp/ffstream$
+>
+> I think it is an issue worth raising with on r-devel and I may do so.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161128/43d8ed66/attachment-0001.html>
+
+From xian at unm.edu  Tue Nov 29 05:40:55 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Mon, 28 Nov 2016 21:40:55 -0700
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+Message-ID: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+
+Dear List,
+
+The following is a general request for advice / comment on modern Rcpp
+development best-practices for package & class development. I looked over
+the Rcpp gallery, and didn't see anything obvious that answers my
+questions  - perhaps this discussion could serve as a prototype for a new
+post?
+
+## Background
+
+I've used Rcpp modules for several projects where in-place modification was
+required for performance reasons. I like the interface - it encourages
+clean code, and yields a nice mix of performance and encapsulation.
+
+In the past, the lack of serialization has been a minor annoyance.
+Honestly, it's not something I need, but I dislike having invalid objects
+in the work-space after a quit/restart. I've spent a little time thinking
+about work-arounds, which essentially boil down to moving back and forth
+from an R list object.
+
+Looking towards the future, I also looked at the recent Rcpp dev history.
+It looks like modules has had some maintenance issues - for example, the
+last edits there (i..e, PR 454) were reverted due to Windows toolchain
+issues (i.e., https://github.com/RcppCore/Rcpp/issues/463).  From my
+outside perspective, it appears that the modules code is A) hard, and B)
+not a current dev priority.
+
+## A possible alternative: RefClass
+
+I'm able to achieve similar behavior (in-place modification using named
+methods, relatively tidy code) using a combination of R RefClasses and Rcpp
+attributes. This solves the issue of serialization, and yields reasonably
+clean code. This has the added benefit of allowing easy mixing of R and C++
+code in class methods.
+
+>From a user perspective, RefClass methods are a nice place for Rcpp
+functions that modify args in-place, since RefClass implies side-effects.
+And, in terms of style, if all C++ method functions return void, and have
+const-correct arglists, then the C++ function signatures provide something
+of a interface spec.
+
+Minimal example:
+https://gist.github.com/helmingstay/17d5d9f241c4170a29d1681db0111065
+
+
+## Summary of observations:
+
+* RefClass + attributes achieves similar outcomes to Rcpp modules, with
+somewhat better support (serialization, documentation, future?).
+
+* Unique to Rcpp modules is the ability to auto-magically generate
+RefClass-like R bindings for existing C++ class-based code.
+
+* For "mere mortals", Rcpp modules now look less attractive for routine
+use, given available alternatives (i.e. for anything but binding
+auto-generation)
+
+
+## Questions:
+
+A) Any obvious problems with the above observations?
+
+B) Are there any *gotchas* with using Rcpp "modify-in-place" functions
+inside RefClass methods?
+
+C) Is anyone else doing this? Any suggested improvements on the above?
+
+Thanks much,
+Christian Gunning
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161128/65d7bb99/attachment.html>
+
+From armstrong.whit at gmail.com  Tue Nov 29 13:33:22 2016
+From: armstrong.whit at gmail.com (Whit Armstrong)
+Date: Tue, 29 Nov 2016 07:33:22 -0500
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+Message-ID: <CAMi=pg5XSGEuZKAYeMDU-ie9nL08QFWBqfttsX+Dhd=Ew6T-tQ@mail.gmail.com>
+
+Have a look at this project:
+https://github.com/richfitz/RcppR6
+
+
+On Mon, Nov 28, 2016 at 11:40 PM, Christian Gunning <xian at unm.edu> wrote:
+
+> Dear List,
+>
+> The following is a general request for advice / comment on modern Rcpp
+> development best-practices for package & class development. I looked over
+> the Rcpp gallery, and didn't see anything obvious that answers my
+> questions  - perhaps this discussion could serve as a prototype for a new
+> post?
+>
+> ## Background
+>
+> I've used Rcpp modules for several projects where in-place modification
+> was required for performance reasons. I like the interface - it encourages
+> clean code, and yields a nice mix of performance and encapsulation.
+>
+> In the past, the lack of serialization has been a minor annoyance.
+> Honestly, it's not something I need, but I dislike having invalid objects
+> in the work-space after a quit/restart. I've spent a little time thinking
+> about work-arounds, which essentially boil down to moving back and forth
+> from an R list object.
+>
+> Looking towards the future, I also looked at the recent Rcpp dev history.
+> It looks like modules has had some maintenance issues - for example, the
+> last edits there (i..e, PR 454) were reverted due to Windows toolchain
+> issues (i.e., https://github.com/RcppCore/Rcpp/issues/463).  From my
+> outside perspective, it appears that the modules code is A) hard, and B)
+> not a current dev priority.
+>
+> ## A possible alternative: RefClass
+>
+> I'm able to achieve similar behavior (in-place modification using named
+> methods, relatively tidy code) using a combination of R RefClasses and Rcpp
+> attributes. This solves the issue of serialization, and yields reasonably
+> clean code. This has the added benefit of allowing easy mixing of R and C++
+> code in class methods.
+>
+> From a user perspective, RefClass methods are a nice place for Rcpp
+> functions that modify args in-place, since RefClass implies side-effects.
+> And, in terms of style, if all C++ method functions return void, and have
+> const-correct arglists, then the C++ function signatures provide something
+> of a interface spec.
+>
+> Minimal example:
+> https://gist.github.com/helmingstay/17d5d9f241c4170a29d1681db0111065
+>
+>
+> ## Summary of observations:
+>
+> * RefClass + attributes achieves similar outcomes to Rcpp modules, with
+> somewhat better support (serialization, documentation, future?).
+>
+> * Unique to Rcpp modules is the ability to auto-magically generate
+> RefClass-like R bindings for existing C++ class-based code.
+>
+> * For "mere mortals", Rcpp modules now look less attractive for routine
+> use, given available alternatives (i.e. for anything but binding
+> auto-generation)
+>
+>
+> ## Questions:
+>
+> A) Any obvious problems with the above observations?
+>
+> B) Are there any *gotchas* with using Rcpp "modify-in-place" functions
+> inside RefClass methods?
+>
+> C) Is anyone else doing this? Any suggested improvements on the above?
+>
+> Thanks much,
+> Christian Gunning
+> --
+> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161129/88c10d8c/attachment.html>
+
+From edd at debian.org  Tue Nov 29 14:34:29 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 29 Nov 2016 07:34:29 -0600
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CAMi=pg5XSGEuZKAYeMDU-ie9nL08QFWBqfttsX+Dhd=Ew6T-tQ@mail.gmail.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+ <CAMi=pg5XSGEuZKAYeMDU-ie9nL08QFWBqfttsX+Dhd=Ew6T-tQ@mail.gmail.com>
+Message-ID: <22589.33765.899040.966332@max.nulle.part>
+
+
+On 29 November 2016 at 07:33, Whit Armstrong wrote:
+| Have a look at this project:
+| https://github.com/richfitz/RcppR6
+
+Yes, intriguing, even promising, and beyond that, used -- but sadly not on CRAN.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Tue Nov 29 20:02:04 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Tue, 29 Nov 2016 11:02:04 -0800
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+Message-ID: <CAJXgQP3ezh+a=kysJwqnN8MZuYBiEnamnkvkRba2VKAtw1Aa_w@mail.gmail.com>
+
+To be brief -- Rcpp modules are effectively in maintenance mode at this
+point; we don't plan to extend / improve modules beyond resolving issues if
+and when they come up. We did get to the bottom of the posted issue -- R
+packages that use modules need to import the whole Rcpp namespace.
+
+I'm not quite sure what the parallel between reference classes and modules
+are here -- Rcpp modules allow you to basically expose C++ classes to R
+with a relatively minimal amount of boilerplate; of course you can write
+your own R functions (maybe as part of a reference class) to do the same,
+but the techniques are in the end different.
+
+In sum, I think Rcpp modules are more geared towards developers who are
+primarily C++ programmers who just want a super-simple way to expose a C++
+class to R; other methods are going to lean towards being more R-centric. I
+can't really call one method 'better' or 'worse'; they're just different.
+(I guess one downside of Rcpp modules is the use of external pointers,
+which implies they do not serialize / deserialize well?)
+
+Kevin
+
+On Mon, Nov 28, 2016 at 8:40 PM, Christian Gunning <xian at unm.edu> wrote:
+
+> Dear List,
+>
+> The following is a general request for advice / comment on modern Rcpp
+> development best-practices for package & class development. I looked over
+> the Rcpp gallery, and didn't see anything obvious that answers my
+> questions  - perhaps this discussion could serve as a prototype for a new
+> post?
+>
+> ## Background
+>
+> I've used Rcpp modules for several projects where in-place modification
+> was required for performance reasons. I like the interface - it encourages
+> clean code, and yields a nice mix of performance and encapsulation.
+>
+> In the past, the lack of serialization has been a minor annoyance.
+> Honestly, it's not something I need, but I dislike having invalid objects
+> in the work-space after a quit/restart. I've spent a little time thinking
+> about work-arounds, which essentially boil down to moving back and forth
+> from an R list object.
+>
+> Looking towards the future, I also looked at the recent Rcpp dev history.
+> It looks like modules has had some maintenance issues - for example, the
+> last edits there (i..e, PR 454) were reverted due to Windows toolchain
+> issues (i.e., https://github.com/RcppCore/Rcpp/issues/463).  From my
+> outside perspective, it appears that the modules code is A) hard, and B)
+> not a current dev priority.
+>
+> ## A possible alternative: RefClass
+>
+> I'm able to achieve similar behavior (in-place modification using named
+> methods, relatively tidy code) using a combination of R RefClasses and Rcpp
+> attributes. This solves the issue of serialization, and yields reasonably
+> clean code. This has the added benefit of allowing easy mixing of R and C++
+> code in class methods.
+>
+> From a user perspective, RefClass methods are a nice place for Rcpp
+> functions that modify args in-place, since RefClass implies side-effects.
+> And, in terms of style, if all C++ method functions return void, and have
+> const-correct arglists, then the C++ function signatures provide something
+> of a interface spec.
+>
+> Minimal example:
+> https://gist.github.com/helmingstay/17d5d9f241c4170a29d1681db0111065
+>
+>
+> ## Summary of observations:
+>
+> * RefClass + attributes achieves similar outcomes to Rcpp modules, with
+> somewhat better support (serialization, documentation, future?).
+>
+> * Unique to Rcpp modules is the ability to auto-magically generate
+> RefClass-like R bindings for existing C++ class-based code.
+>
+> * For "mere mortals", Rcpp modules now look less attractive for routine
+> use, given available alternatives (i.e. for anything but binding
+> auto-generation)
+>
+>
+> ## Questions:
+>
+> A) Any obvious problems with the above observations?
+>
+> B) Are there any *gotchas* with using Rcpp "modify-in-place" functions
+> inside RefClass methods?
+>
+> C) Is anyone else doing this? Any suggested improvements on the above?
+>
+> Thanks much,
+> Christian Gunning
+> --
+> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161129/523c2edd/attachment.html>
+
+From hye at ucsd.edu  Tue Nov 29 20:12:00 2016
+From: hye at ucsd.edu (Hao Ye)
+Date: Tue, 29 Nov 2016 11:12:00 -0800
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <c31bfd70a416458e92be4ce89df77cc2@XCORE-CUB2.AD.UCSD.EDU>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+ <c31bfd70a416458e92be4ce89df77cc2@XCORE-CUB2.AD.UCSD.EDU>
+Message-ID: <CAK1kXLx8BPm-MiL5i3s=gNO_73LABNvfhg12T1UYn65XGVy3pQ@mail.gmail.com>
+
+>
+> (I guess one downside of Rcpp modules is the use of external pointers,
+> which implies they do not serialize / deserialize well?)
+
+
+I think not at all, unless you can force the same memory location for a new
+R session and everything it loads. This is documented in the Rcpp-modules
+vignette -- I tried it anyway, and it crashed my R session. :)
+
+Best,
+--
+Hao Ye
+hye at ucsd.edu
+
+On Tue, Nov 29, 2016 at 11:02 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> To be brief -- Rcpp modules are effectively in maintenance mode at this
+> point; we don't plan to extend / improve modules beyond resolving issues if
+> and when they come up. We did get to the bottom of the posted issue -- R
+> packages that use modules need to import the whole Rcpp namespace.
+>
+> I'm not quite sure what the parallel between reference classes and modules
+> are here -- Rcpp modules allow you to basically expose C++ classes to R
+> with a relatively minimal amount of boilerplate; of course you can write
+> your own R functions (maybe as part of a reference class) to do the same,
+> but the techniques are in the end different.
+>
+> In sum, I think Rcpp modules are more geared towards developers who are
+> primarily C++ programmers who just want a super-simple way to expose a C++
+> class to R; other methods are going to lean towards being more R-centric. I
+> can't really call one method 'better' or 'worse'; they're just different.
+> (I guess one downside of Rcpp modules is the use of external pointers,
+> which implies they do not serialize / deserialize well?)
+>
+> Kevin
+>
+> On Mon, Nov 28, 2016 at 8:40 PM, Christian Gunning <xian at unm.edu> wrote:
+>
+>> Dear List,
+>>
+>> The following is a general request for advice / comment on modern Rcpp
+>> development best-practices for package & class development. I looked over
+>> the Rcpp gallery, and didn't see anything obvious that answers my
+>> questions  - perhaps this discussion could serve as a prototype for a new
+>> post?
+>>
+>> ## Background
+>>
+>> I've used Rcpp modules for several projects where in-place modification
+>> was required for performance reasons. I like the interface - it encourages
+>> clean code, and yields a nice mix of performance and encapsulation.
+>>
+>> In the past, the lack of serialization has been a minor annoyance.
+>> Honestly, it's not something I need, but I dislike having invalid objects
+>> in the work-space after a quit/restart. I've spent a little time thinking
+>> about work-arounds, which essentially boil down to moving back and forth
+>> from an R list object.
+>>
+>> Looking towards the future, I also looked at the recent Rcpp dev history.
+>> It looks like modules has had some maintenance issues - for example, the
+>> last edits there (i..e, PR 454) were reverted due to Windows toolchain
+>> issues (i.e., https://github.com/RcppCore/Rcpp/issues/463).  From my
+>> outside perspective, it appears that the modules code is A) hard, and B)
+>> not a current dev priority.
+>>
+>> ## A possible alternative: RefClass
+>>
+>> I'm able to achieve similar behavior (in-place modification using named
+>> methods, relatively tidy code) using a combination of R RefClasses and Rcpp
+>> attributes. This solves the issue of serialization, and yields reasonably
+>> clean code. This has the added benefit of allowing easy mixing of R and C++
+>> code in class methods.
+>>
+>> From a user perspective, RefClass methods are a nice place for Rcpp
+>> functions that modify args in-place, since RefClass implies side-effects.
+>> And, in terms of style, if all C++ method functions return void, and have
+>> const-correct arglists, then the C++ function signatures provide something
+>> of a interface spec.
+>>
+>> Minimal example:
+>> https://gist.github.com/helmingstay/17d5d9f241c4170a29d1681db0111065
+>>
+>>
+>> ## Summary of observations:
+>>
+>> * RefClass + attributes achieves similar outcomes to Rcpp modules, with
+>> somewhat better support (serialization, documentation, future?).
+>>
+>> * Unique to Rcpp modules is the ability to auto-magically generate
+>> RefClass-like R bindings for existing C++ class-based code.
+>>
+>> * For "mere mortals", Rcpp modules now look less attractive for routine
+>> use, given available alternatives (i.e. for anything but binding
+>> auto-generation)
+>>
+>>
+>> ## Questions:
+>>
+>> A) Any obvious problems with the above observations?
+>>
+>> B) Are there any *gotchas* with using Rcpp "modify-in-place" functions
+>> inside RefClass methods?
+>>
+>> C) Is anyone else doing this? Any suggested improvements on the above?
+>>
+>> Thanks much,
+>> Christian Gunning
+>> --
+>> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161129/3e45d60b/attachment-0001.html>
+
+From edd at debian.org  Tue Nov 29 20:38:56 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 29 Nov 2016 13:38:56 -0600
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CAK1kXLx8BPm-MiL5i3s=gNO_73LABNvfhg12T1UYn65XGVy3pQ@mail.gmail.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+ <c31bfd70a416458e92be4ce89df77cc2@XCORE-CUB2.AD.UCSD.EDU>
+ <CAK1kXLx8BPm-MiL5i3s=gNO_73LABNvfhg12T1UYn65XGVy3pQ@mail.gmail.com>
+Message-ID: <22589.55632.858857.732383@max.nulle.part>
+
+
+On 29 November 2016 at 11:12, Hao Ye wrote:
+|     (I guess one downside of Rcpp modules is the use of external pointers,
+|     which implies they do not serialize / deserialize well?)
+| 
+| 
+| I think not at all, unless you can force the same memory location for a new R
+| session and everything it loads. This is documented in the Rcpp-modules
+| vignette -- I tried it anyway, and it crashed my R session. :)
+
+Right.
+
+And as I recall it is not so much the use of XPtr but rather that it points
+to some content in memory for which we don't have a serialization mechanism.
+
+Now, if memory serves, the good folks of the Stan project did in fact build
+something related in order to preserve compilation via inline (or a variant)
+across sessions so it is not impossible.  But it hasn't been done here.
+
+And the bigger point, as Kevin noted, is that Modules is not exactly under
+active development.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From xian at unm.edu  Wed Nov 30 05:02:10 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Tue, 29 Nov 2016 21:02:10 -0700
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+Message-ID: <CADNH-PvyC3VKZkrTG2Crb2nArW462q1-86VUNNjf9v6hohEnww@mail.gmail.com>
+
+All,
+Thanks for the comments, much appreciated.
+To summarize what I'm hearing:
+
+A) No major problems with the described approach
+B) Not much evidence for previous use of this approach
+
+On Tue, Nov 29, 2016 at 12:02 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> To be brief -- Rcpp modules are effectively in maintenance mode at this
+> point; we don't plan to extend / improve modules beyond resolving issues if
+> and when they come up.
+>
+
+Thanks, that answers one big question.
+
+
+> We did get to the bottom of the posted issue
+>
+
+Yes, I realize that.  My point was that PR 454 remains un-merged, meaning
+that the last attempted modules code work was ultimately unfruitful. It can
+be challenging for end-users to distinguish between projects / code that is
+"fully functional but no longer under active development" (ok) from
+directions that code that is "unofficially deprecated".
+
+
+> I'm not quite sure what the parallel between reference classes and modules
+> are here
+>
+
+For a *user*, the resulting behavior is very similar.
+
+One big point is Rcpp's by-reference semantics, which has caused perennial
+confusion for users coming from a purely R background.  Of course,
+by-reference semantics of Rcpp provides a big potential speed-up, but
+yields R functions that commonly confuse new users. And yes, both Rcpp
+functions and RefClasses are *labeled* with strongly worded warnings.
+Still, RefClasses introduce novel R style & semantics. I strongly suspect
+users are less likely to be surprised when "the_obj" is modified in-place
+by a call to "the_obj$rcpp_add(1)" [RefClass, Rcpp modules]  versus
+"rcpp_add(the_obj, 1)" [Rcpp attributes, non-const args].
+
+
+>
+> In sum, I think Rcpp modules are more geared towards developers who are
+> primarily C++ programmers who just want a super-simple way to expose a C++
+> class to R;
+>
+
+As a point of reference, I *literally* learned Cpp OO to use Rcpp modules
+(thanks Romain!). This was quite a while ago, and I don't think Rcpp
+attributes were around yet. Also, R RefClasses were still new, and no one
+was talking about them. I really *liked* the Rcpp modules interface, but I
+still don't really understand it. As far as I can tell, the approach I
+describe here allows me to achieve the same end-goal as Rcpp modules with a
+similar amount of effort using tools under active development.
+
+The broader question of "best practices" remains - the Rcpp docs have
+expanded considerably over the years (it even has a book!). A number of
+great vignettes describing many "best practices" - in particular, I found a
+recent re-read of the attributes vignette to be *very* helpful. I didn't
+see much discussion of my particular question of how best to fit these
+parts together. If I'm the only one interested in this, so be it :)
+
+best,
+Christian
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161129/f930b267/attachment.html>
+
+From edd at debian.org  Wed Nov 30 05:16:22 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 29 Nov 2016 22:16:22 -0600
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CADNH-PvyC3VKZkrTG2Crb2nArW462q1-86VUNNjf9v6hohEnww@mail.gmail.com>
+References: <CADNH-PvyC3VKZkrTG2Crb2nArW462q1-86VUNNjf9v6hohEnww@mail.gmail.com>
+Message-ID: <22590.21142.604117.996318@max.nulle.part>
+
+
+On 29 November 2016 at 21:02, Christian Gunning wrote:
+| [...] It can be challenging for end-users to distinguish between projects /
+| code that is "fully functional but no longer under active development" (ok)
+| from directions that code that is "unofficially deprecated".
+
+Point taken.  But it is hard to be succinct about it, but we try. We aim for
+
+ - predictable releases dates (and doing well at a maintained two-months cycle)
+
+ - increased tests over time, and we generally pass all existing tests
+
+ie a release does everything previous releases did, and often a bit more each time.
+
+So stuff doesn't just disappear.  But we have limited time and resources and
+cannot expand all aspects all the time.  Some stagnate. C'est la vie.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Nov 30 05:21:40 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 29 Nov 2016 22:21:40 -0600
+Subject: [Rcpp-devel] Interim release Rcpp 0.12.8.2 available via Rcpp Drat
+Message-ID: <22590.21460.609212.206422@max.nulle.part>
+
+
+We have a small regression in Rcpp 0.12.8: On old compilers such as the
+g++-4.*, Rcpp::stop(txt) no longer returns the proper error messages. It
+works with g++-5.* or later, and 'throw std::range_error(txt)' works too.
+
+For those who would rather not alter their error code, or are eg using Travis
+with that compiler, an interim release Rcpp 0.12.8.2 -- properly tested via
+the usual complete reverse-depends -- is at the Drat repo
+
+   http://rcppcore.github.io/drat/
+
+which has instructions.  A broader discussion of the issue, demonstrations of
+it as well as the fix etc pp are at
+
+   https://github.com/RcppCore/Rcpp/issues/596
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From xian at unm.edu  Wed Nov 30 11:49:19 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Wed, 30 Nov 2016 03:49:19 -0700
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <846bb8ea0ca44e8fa9fff220517d4eb7@CY1PR07MB1543.namprd07.prod.outlook.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+ <846bb8ea0ca44e8fa9fff220517d4eb7@CY1PR07MB1543.namprd07.prod.outlook.com>
+Message-ID: <CADNH-PuuHTNdPknQ+DdzT_B4cunNKtHM0Kv5KpMwmjECeOwf3g@mail.gmail.com>
+
+Whit,
+
+I see that this could be useful in similar situations where Rcpp modules
+excels (generating R bindings to existing C++ classes). Language preference
+aside, it's less clear to me what advantage this approach (or Rcpp modules)
+offers average users over RefClasses + Rcpp functions, where the RefClass
+holds state, and the Rcpp functions operate on the state using by-reference
+semantics.
+
+-Christian
+
+On Tue, Nov 29, 2016 at 5:33 AM, Whit Armstrong <armstrong.whit at gmail.com>
+wrote:
+
+> Have a look at this project:
+> https://github.com/richfitz/RcppR6
+>
+>
+> On Mon, Nov 28, 2016 at 11:40 PM, Christian Gunning <xian at unm.edu> wrote:
+>
+>> Dear List,
+>>
+>> The following is a general request for advice / comment on modern Rcpp
+>> development best-practices for package & class development. I looked over
+>> the Rcpp gallery, and didn't see anything obvious that answers my
+>> questions  - perhaps this discussion could serve as a prototype for a new
+>> post?
+>>
+>> ## Background
+>>
+>> I've used Rcpp modules for several projects where in-place modification
+>> was required for performance reasons. I like the interface - it encourages
+>> clean code, and yields a nice mix of performance and encapsulation.
+>>
+>> In the past, the lack of serialization has been a minor annoyance.
+>> Honestly, it's not something I need, but I dislike having invalid objects
+>> in the work-space after a quit/restart. I've spent a little time thinking
+>> about work-arounds, which essentially boil down to moving back and forth
+>> from an R list object.
+>>
+>> Looking towards the future, I also looked at the recent Rcpp dev history.
+>> It looks like modules has had some maintenance issues - for example, the
+>> last edits there (i..e, PR 454) were reverted due to Windows toolchain
+>> issues (i.e., https://github.com/RcppCore/Rcpp/issues/463).  From my
+>> outside perspective, it appears that the modules code is A) hard, and B)
+>> not a current dev priority.
+>>
+>> ## A possible alternative: RefClass
+>>
+>> I'm able to achieve similar behavior (in-place modification using named
+>> methods, relatively tidy code) using a combination of R RefClasses and Rcpp
+>> attributes. This solves the issue of serialization, and yields reasonably
+>> clean code. This has the added benefit of allowing easy mixing of R and C++
+>> code in class methods.
+>>
+>> From a user perspective, RefClass methods are a nice place for Rcpp
+>> functions that modify args in-place, since RefClass implies side-effects.
+>> And, in terms of style, if all C++ method functions return void, and have
+>> const-correct arglists, then the C++ function signatures provide something
+>> of a interface spec.
+>>
+>> Minimal example:
+>> https://gist.github.com/helmingstay/17d5d9f241c4170a29d1681db0111065
+>>
+>>
+>> ## Summary of observations:
+>>
+>> * RefClass + attributes achieves similar outcomes to Rcpp modules, with
+>> somewhat better support (serialization, documentation, future?).
+>>
+>> * Unique to Rcpp modules is the ability to auto-magically generate
+>> RefClass-like R bindings for existing C++ class-based code.
+>>
+>> * For "mere mortals", Rcpp modules now look less attractive for routine
+>> use, given available alternatives (i.e. for anything but binding
+>> auto-generation)
+>>
+>>
+>> ## Questions:
+>>
+>> A) Any obvious problems with the above observations?
+>>
+>> B) Are there any *gotchas* with using Rcpp "modify-in-place" functions
+>> inside RefClass methods?
+>>
+>> C) Is anyone else doing this? Any suggested improvements on the above?
+>>
+>> Thanks much,
+>> Christian Gunning
+>> --
+>> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161130/d89219dc/attachment-0001.html>
+
+From xian at unm.edu  Wed Nov 30 12:15:01 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Wed, 30 Nov 2016 04:15:01 -0700
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+Message-ID: <CADNH-PsAWGi-aWzo-Lc8AzufvT3vvtzriZUzN3r0ePA+N0z6mw@mail.gmail.com>
+
+On Mon, Nov 28, 2016 at 9:40 PM, Christian Gunning <xian at unm.edu> wrote:
+
+>
+> B) Are there any *gotchas* with using Rcpp "modify-in-place" functions
+> inside RefClass methods?
+>
+
+After some reading, I'm going to answer my own question and point to one
+possible *gotcha* that wasn't clear to me at first.
+
+* From help("refClass-class"):
+"In particular, methods should not use non-exported entries in the
+package's namespace, because the methods may be inherited by a reference
+class in another package."
+
+* From vignette('Rcpp-attributes'):
+"The compileAttributes function deals only with exporting C++ functions to
+R . If you want the functions to additionally be publicly available from
+your package?s namespace another step may be required."
+
+So, the Rcpp helper functions used by refClass methods should be exported
+from the package namespace to facilitate downstream inheritance, even if
+the helper functions are not intended for public consumption.  Honestly,
+this is unlikely to be an issue for average users.
+
+best,
+-Christian
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161130/bfca5e2d/attachment.html>
+
+From armstrong.whit at gmail.com  Wed Nov 30 16:23:04 2016
+From: armstrong.whit at gmail.com (Whit Armstrong)
+Date: Wed, 30 Nov 2016 10:23:04 -0500
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CADNH-PuuHTNdPknQ+DdzT_B4cunNKtHM0Kv5KpMwmjECeOwf3g@mail.gmail.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+ <846bb8ea0ca44e8fa9fff220517d4eb7@CY1PR07MB1543.namprd07.prod.outlook.com>
+ <CADNH-PuuHTNdPknQ+DdzT_B4cunNKtHM0Kv5KpMwmjECeOwf3g@mail.gmail.com>
+Message-ID: <CAMi=pg5EMHHR1ZZmRDE1oo4WbDd6QHipUhjNnZFbjyiz1h22xA@mail.gmail.com>
+
+My point regarding the clang parser is that one really shouldn't have to
+write any R or Rcpp wrappers at all.
+
+If one directly parses the c++ class then both the R6/RefClass/List (or
+whatever implementation one chooses to use) and the C wrappers (which we
+will still need as we can't expose the c++ class directly to R; we still
+need .Call) can be generated directly from parsing the class w/ clang.
+
+Rcpp modules uses chaining to do this, but one still has to write this code:
+
+    Rcpp::class_<Redis>("Redis")
+        .constructor("default constructor")
+        .constructor<std::string>("constructor with host port")
+        .constructor<std::string, int>("constructor with host and port")
+        .constructor<std::string, int, std::string>("constructor with host
+and port and auth")
+        .constructor<std::string, int, std::string, int>("constructor with
+host and port, auth, and timeout")
+        .method("exec", &Redis::exec,  "execute given redis command and
+arguments")
+...
+
+
+richfitz/RcppR6 uses some yaml to generate the bindings, which one has to
+provide and keep it synchronized w/ the class.
+
+circle:
+  constructor:
+    args: [radius: double]
+  methods:
+    area:
+      return_type: double
+  active:
+    circumference:
+      name_cpp: circumference
+      name_cpp_set: set_circumference
+      access: member
+      type: double
+    radius: {access: field, type: double}
+
+
+we should be able to extract all that from the class itself w/ clang.
+That's the point.
+
+-Whit
+
+
+On Wed, Nov 30, 2016 at 5:49 AM, Christian Gunning <xian at unm.edu> wrote:
+
+> Whit,
+>
+> I see that this could be useful in similar situations where Rcpp modules
+> excels (generating R bindings to existing C++ classes). Language preference
+> aside, it's less clear to me what advantage this approach (or Rcpp modules)
+> offers average users over RefClasses + Rcpp functions, where the RefClass
+> holds state, and the Rcpp functions operate on the state using by-reference
+> semantics.
+>
+> -Christian
+>
+> On Tue, Nov 29, 2016 at 5:33 AM, Whit Armstrong <armstrong.whit at gmail.com>
+> wrote:
+>
+>> Have a look at this project:
+>> https://github.com/richfitz/RcppR6
+>>
+>>
+>> On Mon, Nov 28, 2016 at 11:40 PM, Christian Gunning <xian at unm.edu> wrote:
+>>
+>>> Dear List,
+>>>
+>>> The following is a general request for advice / comment on modern Rcpp
+>>> development best-practices for package & class development. I looked over
+>>> the Rcpp gallery, and didn't see anything obvious that answers my
+>>> questions  - perhaps this discussion could serve as a prototype for a new
+>>> post?
+>>>
+>>> ## Background
+>>>
+>>> I've used Rcpp modules for several projects where in-place modification
+>>> was required for performance reasons. I like the interface - it encourages
+>>> clean code, and yields a nice mix of performance and encapsulation.
+>>>
+>>> In the past, the lack of serialization has been a minor annoyance.
+>>> Honestly, it's not something I need, but I dislike having invalid objects
+>>> in the work-space after a quit/restart. I've spent a little time thinking
+>>> about work-arounds, which essentially boil down to moving back and forth
+>>> from an R list object.
+>>>
+>>> Looking towards the future, I also looked at the recent Rcpp dev
+>>> history. It looks like modules has had some maintenance issues - for
+>>> example, the last edits there (i..e, PR 454) were reverted due to Windows
+>>> toolchain issues (i.e., https://github.com/RcppCore/Rcpp/issues/463).
+>>> From my outside perspective, it appears that the modules code is A) hard,
+>>> and B) not a current dev priority.
+>>>
+>>> ## A possible alternative: RefClass
+>>>
+>>> I'm able to achieve similar behavior (in-place modification using named
+>>> methods, relatively tidy code) using a combination of R RefClasses and Rcpp
+>>> attributes. This solves the issue of serialization, and yields reasonably
+>>> clean code. This has the added benefit of allowing easy mixing of R and C++
+>>> code in class methods.
+>>>
+>>> From a user perspective, RefClass methods are a nice place for Rcpp
+>>> functions that modify args in-place, since RefClass implies side-effects.
+>>> And, in terms of style, if all C++ method functions return void, and have
+>>> const-correct arglists, then the C++ function signatures provide something
+>>> of a interface spec.
+>>>
+>>> Minimal example:
+>>> https://gist.github.com/helmingstay/17d5d9f241c4170a29d1681db0111065
+>>>
+>>>
+>>> ## Summary of observations:
+>>>
+>>> * RefClass + attributes achieves similar outcomes to Rcpp modules, with
+>>> somewhat better support (serialization, documentation, future?).
+>>>
+>>> * Unique to Rcpp modules is the ability to auto-magically generate
+>>> RefClass-like R bindings for existing C++ class-based code.
+>>>
+>>> * For "mere mortals", Rcpp modules now look less attractive for routine
+>>> use, given available alternatives (i.e. for anything but binding
+>>> auto-generation)
+>>>
+>>>
+>>> ## Questions:
+>>>
+>>> A) Any obvious problems with the above observations?
+>>>
+>>> B) Are there any *gotchas* with using Rcpp "modify-in-place" functions
+>>> inside RefClass methods?
+>>>
+>>> C) Is anyone else doing this? Any suggested improvements on the above?
+>>>
+>>> Thanks much,
+>>> Christian Gunning
+>>> --
+>>> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>>
+>
+>
+> --
+> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161130/8b2a6a48/attachment.html>
+
+From edd at debian.org  Wed Nov 30 16:36:38 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 30 Nov 2016 09:36:38 -0600
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+In-Reply-To: <CAMi=pg5EMHHR1ZZmRDE1oo4WbDd6QHipUhjNnZFbjyiz1h22xA@mail.gmail.com>
+References: <CADNH-PviSycrLjd-KLSigNBWyjib8NsVcBx0_-_4K_EROBGkxg@mail.gmail.com>
+ <846bb8ea0ca44e8fa9fff220517d4eb7@CY1PR07MB1543.namprd07.prod.outlook.com>
+ <CADNH-PuuHTNdPknQ+DdzT_B4cunNKtHM0Kv5KpMwmjECeOwf3g@mail.gmail.com>
+ <CAMi=pg5EMHHR1ZZmRDE1oo4WbDd6QHipUhjNnZFbjyiz1h22xA@mail.gmail.com>
+Message-ID: <22590.61958.684904.417726@max.nulle.part>
+
+
+On 30 November 2016 at 10:23, Whit Armstrong wrote:
+| My point regarding the clang parser is that one really shouldn't have to write
+| any R or Rcpp wrappers at all.
+
+Did anybody keep tabs on the related projects by Duncan Temple Lang?
+
+  https://github.com/omegahat/RClangSimple
+  https://github.com/duncantl/Rllvm
+  https://github.com/duncantl/RLLVMCompile
+
+Yet another (ambitious !!) Google Summer of Code idea ...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

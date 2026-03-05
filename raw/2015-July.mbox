@@ -1,0 +1,4649 @@
+From pengyu.ut at gmail.com  Mon Jul  6 19:10:37 2015
+From: pengyu.ut at gmail.com (Peng Yu)
+Date: Mon, 6 Jul 2015 12:10:37 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+Message-ID: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+
+Hi, I made a package using Rcpp and FORTRAN. But I see the following
+error message on Ubuntu (it can be installed correctly on Mac OS X).
+
+I searched for the solution to it. But it not clear how I should fix
+the problem. Could anybody let me know how to solve this problem.
+
+Loading required package: Rcpp
+R CMD INSTALL --preclean --no-multiarch /mnt/nfs/py/projects/Rusrpkg/lbfgsbr
+> tools:::.install_packages()
+* installing to library ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0?
+* installing *source* package ?lbfgsbr? ...
+** libs
+gfortran  -fpic -g -O2  -c  dcsrch.f90 -o dcsrch.o
+gfortran  -fpic -g -O2  -c  dcstep.f90 -o dcstep.o
+g++ -I/opt/packages/R/R-3.1.0/lib/R/include -DNDEBUG `echo
+"Rcpp:::CxxFlags()"|R --vanilla --slave` -I/usr/local/include    -fpic
+ -g -O2  -c mtlnsrch.cpp -o mtlnsrch.o
+gfortran -shared -L/usr/local/lib -o lbfgsbr.so dcsrch.o dcstep.o
+mtlnsrch.o -lgfortran
+installing to /home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs
+** R
+** preparing package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded
+> tools:::.test_load_package('lbfgsbr', '/home/py/R/x86_64-pc-linux-gnu-library/3.1.0')
+Error in dyn.load(file, DLLpath = DLLpath, ...) :
+  unable to load shared object
+'/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs/lbfgsbr.so':
+  /home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs/lbfgsbr.so:
+undefined symbol: _ZTVN10__cxxabiv120__si_class_type_infoE
+Error: loading failed
+Execution halted
+ERROR: loading failed
+* removing ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr?
+* restoring previous ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr?
+
+-- 
+Regards,
+Peng
+
+From edd at debian.org  Mon Jul  6 19:35:43 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 6 Jul 2015 12:35:43 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+Message-ID: <21914.48239.508473.686041@max.nulle.part>
+
+
+On 6 July 2015 at 12:10, Peng Yu wrote:
+| Hi, I made a package using Rcpp and FORTRAN. But I see the following
+| error message on Ubuntu (it can be installed correctly on Mac OS X).
+| 
+| I searched for the solution to it. But it not clear how I should fix
+| the problem. Could anybody let me know how to solve this problem.
+| 
+| Loading required package: Rcpp
+| R CMD INSTALL --preclean --no-multiarch /mnt/nfs/py/projects/Rusrpkg/lbfgsbr
+| > tools:::.install_packages()
+| * installing to library ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0?
+| * installing *source* package ?lbfgsbr? ...
+| ** libs
+| gfortran  -fpic -g -O2  -c  dcsrch.f90 -o dcsrch.o
+| gfortran  -fpic -g -O2  -c  dcstep.f90 -o dcstep.o
+| g++ -I/opt/packages/R/R-3.1.0/lib/R/include -DNDEBUG `echo
+| "Rcpp:::CxxFlags()"|R --vanilla --slave` -I/usr/local/include    -fpic
+|  -g -O2  -c mtlnsrch.cpp -o mtlnsrch.o
+| gfortran -shared -L/usr/local/lib -o lbfgsbr.so dcsrch.o dcstep.o
+| mtlnsrch.o -lgfortran
+| installing to /home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs
+| ** R
+| ** preparing package for lazy loading
+| ** help
+| *** installing help indices
+| ** building package indices
+| ** testing if installed package can be loaded
+| > tools:::.test_load_package('lbfgsbr', '/home/py/R/x86_64-pc-linux-gnu-library/3.1.0')
+| Error in dyn.load(file, DLLpath = DLLpath, ...) :
+|   unable to load shared object
+| '/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs/lbfgsbr.so':
+|   /home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs/lbfgsbr.so:
+| undefined symbol: _ZTVN10__cxxabiv120__si_class_type_infoE
+| Error: loading failed
+| Execution halted
+| ERROR: loading failed
+| * removing ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr?
+| * restoring previous ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr?
+
+That is a linker error.
+
+Now, if look at the linker statement from above (wrapped to one line here)
+
+ gfortran -shared -L/usr/local/lib -o lbfgsbr.so dcsrch.o dcstep.o mtlnsrch.o -lgfortran
+
+you see that is contains no linking of any (system) C++ library.
+
+So no wonder the symbol is missing.
+
+You could try to start from a working package (Rcpp.package.skeleton() can
+help) then add your Fortran file(s), and/or set LD in src/Makevars explicitly.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Mon Jul  6 19:37:12 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 6 Jul 2015 12:37:12 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+Message-ID: <21914.48328.414270.552324@max.nulle.part>
+
+
+PS Looking the ~/.R/Makevars (an optional file) I use here you may want
+to set SHLIB_CXXLD.  
+
+  edd at max:~$ grep LD .R/Makevars
+  SHLIB_CXXLD=g++$(VER)
+  edd at max:~$
+
+(Here $(VER) is a local setting allowing me to switch between g++ versions.)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Mon Jul  6 19:40:25 2015
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Mon, 6 Jul 2015 10:40:25 -0700
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+Message-ID: <CAJXgQP37Ubmo46pJXcjAF=6GsijAPB9=MYGsX7jDMjhTb2kbPA@mail.gmail.com>
+
+You'll have to share your package if you want more complete help, but some
+of my responses are inline. My best guess is you have a funky configure
+script or something to that effect.
+
+On Mon, Jul 6, 2015 at 10:10 AM, Peng Yu <pengyu.ut at gmail.com> wrote:
+
+> Hi, I made a package using Rcpp and FORTRAN. But I see the following
+> error message on Ubuntu (it can be installed correctly on Mac OS X).
+>
+> I searched for the solution to it. But it not clear how I should fix
+> the problem. Could anybody let me know how to solve this problem.
+>
+> Loading required package: Rcpp
+> R CMD INSTALL --preclean --no-multiarch
+> /mnt/nfs/py/projects/Rusrpkg/lbfgsbr
+> > tools:::.install_packages()
+> * installing to library ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0?
+> * installing *source* package ?lbfgsbr? ...
+> ** libs
+> gfortran  -fpic -g -O2  -c  dcsrch.f90 -o dcsrch.o
+> gfortran  -fpic -g -O2  -c  dcstep.f90 -o dcstep.o
+>
+
+
+
+> g++ -I/opt/packages/R/R-3.1.0/lib/R/include -DNDEBUG `echo
+> "Rcpp:::CxxFlags()"|R --vanilla --slave` -I/usr/local/include    -fpic
+>  -g -O2  -c mtlnsrch.cpp -o mtlnsrch.o
+>
+
+Why isn't the statement `echo "Rcpp:::CxxFlags()"|R --vanilla --slave`
+being expanded?
+
+
+> gfortran -shared -L/usr/local/lib -o lbfgsbr.so dcsrch.o dcstep.o
+> mtlnsrch.o -lgfortran
+>
+
+Why is the shared library being built with `gfortran`? I believe it should
+be constructed with `gcc`.
+
+
+> installing to /home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs
+> ** R
+> ** preparing package for lazy loading
+> ** help
+> *** installing help indices
+> ** building package indices
+> ** testing if installed package can be loaded
+> > tools:::.test_load_package('lbfgsbr',
+> '/home/py/R/x86_64-pc-linux-gnu-library/3.1.0')
+> Error in dyn.load(file, DLLpath = DLLpath, ...) :
+>   unable to load shared object
+> '/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs/lbfgsbr.so':
+>   /home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr/libs/lbfgsbr.so:
+> undefined symbol: _ZTVN10__cxxabiv120__si_class_type_infoE
+> Error: loading failed
+> Execution halted
+> ERROR: loading failed
+> * removing ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr?
+> * restoring previous ?/home/py/R/x86_64-pc-linux-gnu-library/3.1.0/lbfgsbr?
+>
+> --
+> Regards,
+> Peng
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150706/3f345af1/attachment.html>
+
+From pengyu.ut at gmail.com  Mon Jul  6 21:06:47 2015
+From: pengyu.ut at gmail.com (Peng Yu)
+Date: Mon, 6 Jul 2015 14:06:47 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <21914.48239.508473.686041@max.nulle.part>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+ <21914.48239.508473.686041@max.nulle.part>
+Message-ID: <CABrM6wnkXqYjj7B8jMTb=ZeRwk4LbeYSK_6tT1hKtW_jNpYU+w@mail.gmail.com>
+
+> You could try to start from a working package (Rcpp.package.skeleton() can
+> help) then add your Fortran file(s), and/or set LD in src/Makevars explicitly.
+
+Do you know an existing R package that use both Rcpp and FORTRAN so
+that I see what might be the best way to configure the package?
+Thanks.
+
+-- 
+Regards,
+Peng
+
+From pengyu.ut at gmail.com  Tue Jul  7 00:24:14 2015
+From: pengyu.ut at gmail.com (Peng Yu)
+Date: Mon, 6 Jul 2015 17:24:14 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <21914.48328.414270.552324@max.nulle.part>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+ <21914.48328.414270.552324@max.nulle.part>
+Message-ID: <CABrM6wkH8UujLix3Xs0wfHpwtQ6J4CCZu0GKqPSTU8HCbiLEZQ@mail.gmail.com>
+
+> PS Looking the ~/.R/Makevars (an optional file) I use here you may want
+> to set SHLIB_CXXLD.
+>
+>   edd at max:~$ grep LD .R/Makevars
+>   SHLIB_CXXLD=g++$(VER)
+>   edd at max:~$
+>
+> (Here $(VER) is a local setting allowing me to switch between g++ versions.)
+
+The things above do not solve my problem on Ubuntu (I use R-3.1.0).
+
+I tried minqa_1.2.4. Originally, there were only .f files in its src/
+directory. When I installed the package, I saw the following command
+was run to make the shared library.
+
+g++ -shared -L/usr/local/lib -o minqa.so altmov.o bigden.o biglag.o
+bobyqa.o bobyqb.o lagmax.o minqa.o newuoa.o newuob.o prelim.o rescue.o
+trsapp.o trsbox.o trstep.o uobyqa.o uobyqb.o update.o updatebobyqa.o
+-lgfortran -lm -lquadmath
+
+Then I changed lagmax.f to lagmax.f90 (and changed the fortran code
+from fixed format to free format). Now, it calls the follow command to
+make the shared library.
+
+gfortran -shared -L/usr/local/lib -o minqa.so altmov.o bigden.o
+biglag.o bobyqa.o bobyqb.o lagmax.o minqa.o newuoa.o newuob.o prelim.o
+rescue.o trsapp.o trsbox.o trstep.o uobyqa.o uobyqb.o update.o
+updatebobyqa.o -lgfortran -lm -lquadmath
+
+So the problem seems that R somehow handles .f and .f90 differently.
+
+I then manually changed the following file in the directory where the
+R is installed.
+
+/opt/packages/R/R-3.1.0/lib/R/etc/Makeconf
+
+In particular, I addd three "info" commands before and after where
+SHLIB_LD is set.
+
+$(info CC $(CC))
+$(info SHLIB_LD 1 $(SHLIB_LD))
+SHLIB_LD = $(CC)
+$(info SHLIB_LD 2 $(SHLIB_LD))
+
+When I install the R package (with a .f90 file), I see the following
+command. The weird thing is that SHLIB_LD is not changed after it is
+set in `/opt/packages/R/R-3.1.0/lib/R/etc/Makeconf`.
+
+CC gcc -std=gnu99
+SHLIB_LD 1 gfortran
+SHLIB_LD 2 gfortran
+
+Could you try if you can reproduce the problem?
+
+I know that make has an option -e to ignore variable set within the
+script. This sounds to be the case. However, it is not clear to where
+make is called and how it is called as when try to search "make" I got
+many files containing, it is hard to find the location where it
+matters.
+
+Do you have a way to solve this problem?
+
+Thanks.
+
+BTW, I checked all the packages that depend on Rcpp one way or
+another. All the packages which use FORTRAN only have .f files but not
+.f90 files. Is it an coincident or it is known that R does not support
+.f90 well?
+
+-- 
+Regards,
+Peng
+
+From edd at debian.org  Tue Jul  7 01:20:54 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 6 Jul 2015 18:20:54 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <CABrM6wkH8UujLix3Xs0wfHpwtQ6J4CCZu0GKqPSTU8HCbiLEZQ@mail.gmail.com>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+ <21914.48328.414270.552324@max.nulle.part>
+ <CABrM6wkH8UujLix3Xs0wfHpwtQ6J4CCZu0GKqPSTU8HCbiLEZQ@mail.gmail.com>
+Message-ID: <21915.3414.437734.702258@max.nulle.part>
+
+
+On 6 July 2015 at 17:24, Peng Yu wrote:
+| BTW, I checked all the packages that depend on Rcpp one way or
+| another. All the packages which use FORTRAN only have .f files but not
+| .f90 files. Is it an coincident or it is known that R does not support
+| .f90 well?
+
+A _15 second_ search of Writing R Extensions reveals this in Section 1.1.5:
+
+      The sources and headers for the compiled code are in 'src', plus
+   optionally a file 'Makevars' or 'Makefile'.  When a package is installed
+   using 'R CMD INSTALL', 'make' is used to control compilation and linking
+   into a shared object for loading into R. There are default 'make'
+   variables and rules for this (determined when R is configured and
+   recorded in 'R_HOME/etcR_ARCH/Makeconf'), providing support for C, C++,
+   FORTRAN 77, Fortran 9x(5), Objective C and Objective C++(6) with
+   associated extensions '.c', '.cc' or '.cpp', '.f', '.f90' or '.f95',
+   '.m', and '.mm', respectively.  We recommend using '.h' for headers,
+   also for C++(7) or Fortran 9x include files.  (Use of extension '.C' for
+   C++ is no longer supported.)  Files in the 'src' directory should not be
+   hidden (start with a dot), and hidden files will under some versions of
+   R be ignored.
+   
+      It is not portable (and may not be possible at all) to mix all these
+   languages in a single package, and we do not support using both C++ and
+   Fortran 9x.  Because R itself uses it, we know that C and FORTRAN 77 can
+   be used together and mixing C and C++ seems to be widely successful.
+
+Note the second paragraph:  So f90 and C++ do NOT go together.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From pengyu.ut at gmail.com  Tue Jul  7 02:03:11 2015
+From: pengyu.ut at gmail.com (Peng Yu)
+Date: Mon, 6 Jul 2015 19:03:11 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <21915.3414.437734.702258@max.nulle.part>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+ <21914.48328.414270.552324@max.nulle.part>
+ <CABrM6wkH8UujLix3Xs0wfHpwtQ6J4CCZu0GKqPSTU8HCbiLEZQ@mail.gmail.com>
+ <21915.3414.437734.702258@max.nulle.part>
+Message-ID: <CABrM6wnYECOQjeqt_xoNmj7vuPKUxTiB19_STapX3osn5pJ4+A@mail.gmail.com>
+
+On Monday, July 6, 2015, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 6 July 2015 at 17:24, Peng Yu wrote:
+> | BTW, I checked all the packages that depend on Rcpp one way or
+> | another. All the packages which use FORTRAN only have .f files but not
+> | .f90 files. Is it an coincident or it is known that R does not support
+> | .f90 well?
+>
+> A _15 second_ search of Writing R Extensions reveals this in Section 1.1.5:
+
+
+Thanks. I also saw it.
+
+>
+>       The sources and headers for the compiled code are in 'src', plus
+>    optionally a file 'Makevars' or 'Makefile'.  When a package is installed
+>    using 'R CMD INSTALL', 'make' is used to control compilation and linking
+>    into a shared object for loading into R. There are default 'make'
+>    variables and rules for this (determined when R is configured and
+>    recorded in 'R_HOME/etcR_ARCH/Makeconf'), providing support for C, C++,
+>    FORTRAN 77, Fortran 9x(5), Objective C and Objective C++(6) with
+>    associated extensions '.c', '.cc' or '.cpp', '.f', '.f90' or '.f95',
+>    '.m', and '.mm', respectively.  We recommend using '.h' for headers,
+>    also for C++(7) or Fortran 9x include files.  (Use of extension '.C' for
+>    C++ is no longer supported.)  Files in the 'src' directory should not be
+>    hidden (start with a dot), and hidden files will under some versions of
+>    R be ignored.
+>
+>       It is not portable (and may not be possible at all) to mix all these
+>    languages in a single package, and we do not support using both C++ and
+>    Fortran 9x.
+
+
+The funny thing of the manual is that actually my package can be compiled
+on Mac. It is defintitely possible to mix fortran 90 and C++ (at least with
+some subset features of both).
+
+It seems that this is just another problem of R's documention and some
+idiosyncratic decision made by the R core team members in charge of this
+aspect.
+
+
+> Because R itself uses it, we know that C and FORTRAN 77 can
+>    be used together and mixing C and C++ seems to be widely successful.
+>
+> Note the second paragraph:  So f90 and C++ do NOT go together.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> <javascript:;>
+>
+
+
+-- 
+Regards,
+Peng
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150706/198a48b4/attachment.html>
+
+From edd at debian.org  Tue Jul  7 02:24:02 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 6 Jul 2015 19:24:02 -0500
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <CABrM6wnYECOQjeqt_xoNmj7vuPKUxTiB19_STapX3osn5pJ4+A@mail.gmail.com>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+ <21914.48328.414270.552324@max.nulle.part>
+ <CABrM6wkH8UujLix3Xs0wfHpwtQ6J4CCZu0GKqPSTU8HCbiLEZQ@mail.gmail.com>
+ <21915.3414.437734.702258@max.nulle.part>
+ <CABrM6wnYECOQjeqt_xoNmj7vuPKUxTiB19_STapX3osn5pJ4+A@mail.gmail.com>
+Message-ID: <21915.7202.524456.915003@max.nulle.part>
+
+
+On 6 July 2015 at 19:03, Peng Yu wrote:
+| The funny thing of the manual is that actually my package can be compiled on
+| Mac. It is defintitely possible to mix fortran 90?and C++ (at least with some
+| subset features of both).
+
+Maybe it works with clang.  That compiler is available on Linux, but less
+common. It won't help you at all on Windows.
+
+| It?seems that this is just another problem of R's documention and some
+| idiosyncratic decision made by the R core team members in charge of this
+| aspect.
+
+This list is not the place for arguing with, or about, R Core.  R comes with
+a particular build system you need to adher to for CRAN admission and wider use.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Tue Jul  7 19:04:27 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Tue, 7 Jul 2015 10:04:27 -0700
+Subject: [Rcpp-devel] undefined symbol:
+ _ZTVN10__cxxabiv120__si_class_type_infoE (on Ubuntu but not on Mac OS X)
+In-Reply-To: <CABrM6wnYECOQjeqt_xoNmj7vuPKUxTiB19_STapX3osn5pJ4+A@mail.gmail.com>
+References: <CABrM6wneD0h2SY8X4dLpnmXJzWwvJbrUnaO9cC1S2pgUvN7Mfw@mail.gmail.com>
+ <21914.48328.414270.552324@max.nulle.part>
+ <CABrM6wkH8UujLix3Xs0wfHpwtQ6J4CCZu0GKqPSTU8HCbiLEZQ@mail.gmail.com>
+ <21915.3414.437734.702258@max.nulle.part>
+ <CABrM6wnYECOQjeqt_xoNmj7vuPKUxTiB19_STapX3osn5pJ4+A@mail.gmail.com>
+Message-ID: <CAJ_LAMCyFaoGHv7hQMpLgjAWiT1FTo3X3ghRj0qBp6T2PCxkmw@mail.gmail.com>
+
+On Mon, Jul 6, 2015 at 5:03 PM, Peng Yu <pengyu.ut at gmail.com> wrote:
+
+>       It is not portable (and may not be possible at all) to mix all these
+>>    languages in a single package, and we do not support using both C++ and
+>>    Fortran 9x.
+>
+>
+> The funny thing of the manual is that actually my package can be compiled
+> on Mac. It is defintitely possible to mix fortran 90 and C++ (at least with
+> some subset features of both).
+>
+
+This is not funny. This is just what "*not portable*" means and happens
+very often.
+
+I have never used f90. From my own experience, it is OK to mix C++ and f77.
+
+More people can give more help if you are willing to share the source.
+
+Best wishes,
+
+KK
+
+
+>
+>
+
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150707/64d70d0c/attachment.html>
+
+From danas.zuokas at gmail.com  Tue Jul 14 08:25:03 2015
+From: danas.zuokas at gmail.com (Danas Zuokas)
+Date: Tue, 14 Jul 2015 09:25:03 +0300
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+	different results are returned
+Message-ID: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+
+I have written parallel implementation of sums in groups using RcppParallel.
+
+// [[Rcpp::depends(RcppParallel)]]#include <Rcpp.h>#include <RcppParallel.h>
+using namespace Rcpp;
+using namespace RcppParallel;
+
+struct SumsG: public Worker{
+  const RVector<double> v;
+  const RVector<int> gi;
+
+  RVector<double> sg;
+
+  SumsG(const NumericVector v, const IntegerVector gi, NumericVector
+sg): v(v), gi(gi), sg(sg) {}
+  SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+
+  void operator()(std::size_t begin, std::size_t end) {
+    for (std::size_t i = begin; i < end; i++) {
+      sg[gi[i]] += v[i];
+    }
+  }
+
+  void join(const SumsG& p) {
+    for(std::size_t i = 0; i < sg.length(); i++) {
+      sg[i] += p.sg[i];
+    }
+  }};
+// [[Rcpp::export]]
+List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+  NumericVector sg(ni);
+  SumsG p(v, gi, sg);
+  parallelReduce(0, v.length(), p);
+
+  return List::create(_["sg"] = p.sg);}
+
+It compiles using Rcpp::sourceCpp. Now when I call it from R sumsingroups(1:10,
+rep(0:1, each = 5), 2) several times I get the right answer (15 40) and
+then something different (usually some multiplicative of the right answer).
+Running
+
+res <- sumsingroups(1:10, rep(0:1, each = 5), 2)for(i in 1:1000) {
+    tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+    if(res[[1]][1] != tmp[[1]][1]) break
+    Sys.sleep(0.1)}
+
+breaks at random iteration returning
+
+$sg[1]  60 160
+
+or
+
+$sg[1] 30 80
+
+I am new to Rcpp and RcppParallel and do not know what could cause such
+behavior.
+
+Things that did not help:
+
+   1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0; to
+   both of constructors.
+   2. Changed names so that they are different in Worker definition and in
+   function implementation.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150714/24c0a39d/attachment-0001.html>
+
+From edd at debian.org  Tue Jul 14 12:54:41 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 14 Jul 2015 05:54:41 -0500
+Subject: [Rcpp-devel] When calling same Rcpp function several
+	times	different results are returned
+In-Reply-To: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+Message-ID: <21924.60017.652821.268731@max.nulle.part>
+
+
+On 14 July 2015 at 09:25, Danas Zuokas wrote:
+| I have written parallel implementation of sums in groups using RcppParallel.
+
+Isn't this the same question as
+http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+
+You got some excellent comments there by SO user 'RHertel'. Did you consider those?
+
+Dirk
+ 
+| // [[Rcpp::depends(RcppParallel)]]
+| #include <Rcpp.h>
+| #include <RcppParallel.h>
+| using namespace Rcpp;
+| using namespace RcppParallel;
+| 
+| struct SumsG: public Worker
+| {
+|   const RVector<double> v;
+|   const RVector<int> gi;
+| 
+|   RVector<double> sg;
+| 
+|   SumsG(const NumericVector v, const IntegerVector gi, NumericVector sg): v(v), gi(gi), sg(sg) {}
+|   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+| 
+|   void operator()(std::size_t begin, std::size_t end) {
+|     for (std::size_t i = begin; i < end; i++) {
+|       sg[gi[i]] += v[i];
+|     }
+|   }
+| 
+|   void join(const SumsG& p) {
+|     for(std::size_t i = 0; i < sg.length(); i++) {
+|       sg[i] += p.sg[i];
+|     }
+|   }
+| };
+| 
+| // [[Rcpp::export]]
+| List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+|   NumericVector sg(ni);
+|   SumsG p(v, gi, sg);
+|   parallelReduce(0, v.length(), p);
+| 
+|   return List::create(_["sg"] = p.sg);
+| }
+| 
+| It compiles using?Rcpp::sourceCpp. Now when I call it from R?sumsingroups(1:10,
+| rep(0:1, each = 5), 2)?several times I get the right answer (15 40) and then
+| something different (usually some multiplicative of the right answer). Running
+| 
+| 
+| res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+| for(i in 1:1000) {
+|     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+|     if(res[[1]][1] != tmp[[1]][1]) break
+|     Sys.sleep(0.1)
+| }
+| 
+| breaks at random iteration returning
+| 
+| $sg
+| [1]  60 160
+| 
+| or
+| 
+| $sg
+| [1] 30 80
+| 
+| I am new to?Rcpp?and?RcppParallel?and do not know what could cause such
+| behavior.
+| 
+| Things that did not help:
+| 
+|  1. Added?for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0;?to both of
+|     constructors.
+|  2. Changed names so that they are different in?Worker?definition and in
+|     function implementation.
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From danas.zuokas at gmail.com  Tue Jul 14 13:15:01 2015
+From: danas.zuokas at gmail.com (Danas Zuokas)
+Date: Tue, 14 Jul 2015 14:15:01 +0300
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+ different results are returned
+In-Reply-To: <21924.60017.652821.268731@max.nulle.part>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+ <21924.60017.652821.268731@max.nulle.part>
+Message-ID: <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+
+Yes it is the same question on SO and I did consider RHertel's comments.
+But this problem (sums by group id) is not parallelFor it is parallelReduce:
+I split vector, calculate sums and then aggregate those sums.
+Please correct me if I am wrong.
+
+2015-07-14 13:54 GMT+03:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 14 July 2015 at 09:25, Danas Zuokas wrote:
+> | I have written parallel implementation of sums in groups using
+> RcppParallel.
+>
+> Isn't this the same question as
+>
+> http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+>
+> You got some excellent comments there by SO user 'RHertel'. Did you
+> consider those?
+>
+> Dirk
+>
+> | // [[Rcpp::depends(RcppParallel)]]
+> | #include <Rcpp.h>
+> | #include <RcppParallel.h>
+> | using namespace Rcpp;
+> | using namespace RcppParallel;
+> |
+> | struct SumsG: public Worker
+> | {
+> |   const RVector<double> v;
+> |   const RVector<int> gi;
+> |
+> |   RVector<double> sg;
+> |
+> |   SumsG(const NumericVector v, const IntegerVector gi, NumericVector
+> sg): v(v), gi(gi), sg(sg) {}
+> |   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+> |
+> |   void operator()(std::size_t begin, std::size_t end) {
+> |     for (std::size_t i = begin; i < end; i++) {
+> |       sg[gi[i]] += v[i];
+> |     }
+> |   }
+> |
+> |   void join(const SumsG& p) {
+> |     for(std::size_t i = 0; i < sg.length(); i++) {
+> |       sg[i] += p.sg[i];
+> |     }
+> |   }
+> | };
+> |
+> | // [[Rcpp::export]]
+> | List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+> |   NumericVector sg(ni);
+> |   SumsG p(v, gi, sg);
+> |   parallelReduce(0, v.length(), p);
+> |
+> |   return List::create(_["sg"] = p.sg);
+> | }
+> |
+> | It compiles using Rcpp::sourceCpp. Now when I call it from
+> R sumsingroups(1:10,
+> | rep(0:1, each = 5), 2) several times I get the right answer (15 40) and
+> then
+> | something different (usually some multiplicative of the right answer).
+> Running
+> |
+> |
+> | res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+> | for(i in 1:1000) {
+> |     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+> |     if(res[[1]][1] != tmp[[1]][1]) break
+> |     Sys.sleep(0.1)
+> | }
+> |
+> | breaks at random iteration returning
+> |
+> | $sg
+> | [1]  60 160
+> |
+> | or
+> |
+> | $sg
+> | [1] 30 80
+> |
+> | I am new to Rcpp and RcppParallel and do not know what could cause such
+> | behavior.
+> |
+> | Things that did not help:
+> |
+> |  1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0; to
+> both of
+> |     constructors.
+> |  2. Changed names so that they are different in Worker definition and in
+> |     function implementation.
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150714/1c38afbe/attachment.html>
+
+From jj.allaire at gmail.com  Tue Jul 14 13:21:59 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Tue, 14 Jul 2015 07:21:59 -0400
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+ different results are returned
+In-Reply-To: <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+ <21924.60017.652821.268731@max.nulle.part>
+ <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+Message-ID: <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+
+The examples in the RcppParallel documentation assume that access to
+vectors and matrixes are *aligned* (i.e. fall into neat buckets
+whereby reading and writing doesn't overlap between worker instances).
+Your example appears to access arbitrary elements of sg (depending on
+what's passed in gi) which probably creates overlapping reads/writes.
+You should also study the documentation for join carefully.
+
+There's nothing incorrect about RcppParallel's behavior here, rather
+you need to think more carefully about the access patterns of your
+data and how they might conflict. You may need to introduce locking to
+overcome the conflicts, which in turn could kill the performance
+benefit you gain from parallelism. No easy answers here :-\
+
+On Tue, Jul 14, 2015 at 7:15 AM, Danas Zuokas <danas.zuokas at gmail.com> wrote:
+> Yes it is the same question on SO and I did consider RHertel's comments.
+> But this problem (sums by group id) is not parallelFor it is parallelReduce:
+> I split vector, calculate sums and then aggregate those sums.
+> Please correct me if I am wrong.
+>
+> 2015-07-14 13:54 GMT+03:00 Dirk Eddelbuettel <edd at debian.org>:
+>>
+>>
+>> On 14 July 2015 at 09:25, Danas Zuokas wrote:
+>> | I have written parallel implementation of sums in groups using
+>> RcppParallel.
+>>
+>> Isn't this the same question as
+>>
+>> http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+>>
+>> You got some excellent comments there by SO user 'RHertel'. Did you
+>> consider those?
+>>
+>> Dirk
+>>
+>> | // [[Rcpp::depends(RcppParallel)]]
+>> | #include <Rcpp.h>
+>> | #include <RcppParallel.h>
+>> | using namespace Rcpp;
+>> | using namespace RcppParallel;
+>> |
+>> | struct SumsG: public Worker
+>> | {
+>> |   const RVector<double> v;
+>> |   const RVector<int> gi;
+>> |
+>> |   RVector<double> sg;
+>> |
+>> |   SumsG(const NumericVector v, const IntegerVector gi, NumericVector
+>> sg): v(v), gi(gi), sg(sg) {}
+>> |   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+>> |
+>> |   void operator()(std::size_t begin, std::size_t end) {
+>> |     for (std::size_t i = begin; i < end; i++) {
+>> |       sg[gi[i]] += v[i];
+>> |     }
+>> |   }
+>> |
+>> |   void join(const SumsG& p) {
+>> |     for(std::size_t i = 0; i < sg.length(); i++) {
+>> |       sg[i] += p.sg[i];
+>> |     }
+>> |   }
+>> | };
+>> |
+>> | // [[Rcpp::export]]
+>> | List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+>> |   NumericVector sg(ni);
+>> |   SumsG p(v, gi, sg);
+>> |   parallelReduce(0, v.length(), p);
+>> |
+>> |   return List::create(_["sg"] = p.sg);
+>> | }
+>> |
+>> | It compiles using Rcpp::sourceCpp. Now when I call it from R
+>> sumsingroups(1:10,
+>> | rep(0:1, each = 5), 2) several times I get the right answer (15 40) and
+>> then
+>> | something different (usually some multiplicative of the right answer).
+>> Running
+>> |
+>> |
+>> | res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>> | for(i in 1:1000) {
+>> |     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>> |     if(res[[1]][1] != tmp[[1]][1]) break
+>> |     Sys.sleep(0.1)
+>> | }
+>> |
+>> | breaks at random iteration returning
+>> |
+>> | $sg
+>> | [1]  60 160
+>> |
+>> | or
+>> |
+>> | $sg
+>> | [1] 30 80
+>> |
+>> | I am new to Rcpp and RcppParallel and do not know what could cause such
+>> | behavior.
+>> |
+>> | Things that did not help:
+>> |
+>> |  1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0; to
+>> both of
+>> |     constructors.
+>> |  2. Changed names so that they are different in Worker definition and in
+>> |     function implementation.
+>> |
+>> | _______________________________________________
+>> | Rcpp-devel mailing list
+>> | Rcpp-devel at lists.r-forge.r-project.org
+>> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From romain at r-enthusiasts.com  Tue Jul 14 13:34:37 2015
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Tue, 14 Jul 2015 13:34:37 +0200
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+	different results are returned
+In-Reply-To: <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+ <21924.60017.652821.268731@max.nulle.part>
+ <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+ <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+Message-ID: <DACD25EF-74DE-44AC-8B0C-98E045F85EF1@r-enthusiasts.com>
+
+Or just use a std::vector<double> for sg. That should do it. 
+
+Romain
+
+Envoy? de mon iPhone
+
+> Le 14 juil. 2015 ? 13:21, JJ Allaire <jj.allaire at gmail.com> a ?crit :
+> 
+> The examples in the RcppParallel documentation assume that access to
+> vectors and matrixes are *aligned* (i.e. fall into neat buckets
+> whereby reading and writing doesn't overlap between worker instances).
+> Your example appears to access arbitrary elements of sg (depending on
+> what's passed in gi) which probably creates overlapping reads/writes.
+> You should also study the documentation for join carefully.
+> 
+> There's nothing incorrect about RcppParallel's behavior here, rather
+> you need to think more carefully about the access patterns of your
+> data and how they might conflict. You may need to introduce locking to
+> overcome the conflicts, which in turn could kill the performance
+> benefit you gain from parallelism. No easy answers here :-\
+> 
+>> On Tue, Jul 14, 2015 at 7:15 AM, Danas Zuokas <danas.zuokas at gmail.com> wrote:
+>> Yes it is the same question on SO and I did consider RHertel's comments.
+>> But this problem (sums by group id) is not parallelFor it is parallelReduce:
+>> I split vector, calculate sums and then aggregate those sums.
+>> Please correct me if I am wrong.
+>> 
+>> 2015-07-14 13:54 GMT+03:00 Dirk Eddelbuettel <edd at debian.org>:
+>>> 
+>>> 
+>>> On 14 July 2015 at 09:25, Danas Zuokas wrote:
+>>> | I have written parallel implementation of sums in groups using
+>>> RcppParallel.
+>>> 
+>>> Isn't this the same question as
+>>> 
+>>> http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+>>> 
+>>> You got some excellent comments there by SO user 'RHertel'. Did you
+>>> consider those?
+>>> 
+>>> Dirk
+>>> 
+>>> | // [[Rcpp::depends(RcppParallel)]]
+>>> | #include <Rcpp.h>
+>>> | #include <RcppParallel.h>
+>>> | using namespace Rcpp;
+>>> | using namespace RcppParallel;
+>>> |
+>>> | struct SumsG: public Worker
+>>> | {
+>>> |   const RVector<double> v;
+>>> |   const RVector<int> gi;
+>>> |
+>>> |   RVector<double> sg;
+>>> |
+>>> |   SumsG(const NumericVector v, const IntegerVector gi, NumericVector
+>>> sg): v(v), gi(gi), sg(sg) {}
+>>> |   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+>>> |
+>>> |   void operator()(std::size_t begin, std::size_t end) {
+>>> |     for (std::size_t i = begin; i < end; i++) {
+>>> |       sg[gi[i]] += v[i];
+>>> |     }
+>>> |   }
+>>> |
+>>> |   void join(const SumsG& p) {
+>>> |     for(std::size_t i = 0; i < sg.length(); i++) {
+>>> |       sg[i] += p.sg[i];
+>>> |     }
+>>> |   }
+>>> | };
+>>> |
+>>> | // [[Rcpp::export]]
+>>> | List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+>>> |   NumericVector sg(ni);
+>>> |   SumsG p(v, gi, sg);
+>>> |   parallelReduce(0, v.length(), p);
+>>> |
+>>> |   return List::create(_["sg"] = p.sg);
+>>> | }
+>>> |
+>>> | It compiles using Rcpp::sourceCpp. Now when I call it from R
+>>> sumsingroups(1:10,
+>>> | rep(0:1, each = 5), 2) several times I get the right answer (15 40) and
+>>> then
+>>> | something different (usually some multiplicative of the right answer).
+>>> Running
+>>> |
+>>> |
+>>> | res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>>> | for(i in 1:1000) {
+>>> |     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>>> |     if(res[[1]][1] != tmp[[1]][1]) break
+>>> |     Sys.sleep(0.1)
+>>> | }
+>>> |
+>>> | breaks at random iteration returning
+>>> |
+>>> | $sg
+>>> | [1]  60 160
+>>> |
+>>> | or
+>>> |
+>>> | $sg
+>>> | [1] 30 80
+>>> |
+>>> | I am new to Rcpp and RcppParallel and do not know what could cause such
+>>> | behavior.
+>>> |
+>>> | Things that did not help:
+>>> |
+>>> |  1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0; to
+>>> both of
+>>> |     constructors.
+>>> |  2. Changed names so that they are different in Worker definition and in
+>>> |     function implementation.
+>>> |
+>>> | _______________________________________________
+>>> | Rcpp-devel mailing list
+>>> | Rcpp-devel at lists.r-forge.r-project.org
+>>> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> 
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> 
+>> 
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From jj.allaire at gmail.com  Tue Jul 14 13:36:24 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Tue, 14 Jul 2015 07:36:24 -0400
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+ different results are returned
+In-Reply-To: <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+ <21924.60017.652821.268731@max.nulle.part>
+ <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+ <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+Message-ID: <CAKw=oCxVDXdeLRwpRj9D=xT-=UuvndGJiFjP=otZ6iNaj=Ov_w@mail.gmail.com>
+
+Would that still solve the problem if there are overlapping indexes in
+gi ? (i.e. if the same index appeared more than one time and was
+utilized from more than one thread at a time)
+
+On Tue, Jul 14, 2015 at 7:21 AM, JJ Allaire <jj.allaire at gmail.com> wrote:
+> The examples in the RcppParallel documentation assume that access to
+> vectors and matrixes are *aligned* (i.e. fall into neat buckets
+> whereby reading and writing doesn't overlap between worker instances).
+> Your example appears to access arbitrary elements of sg (depending on
+> what's passed in gi) which probably creates overlapping reads/writes.
+> You should also study the documentation for join carefully.
+>
+> There's nothing incorrect about RcppParallel's behavior here, rather
+> you need to think more carefully about the access patterns of your
+> data and how they might conflict. You may need to introduce locking to
+> overcome the conflicts, which in turn could kill the performance
+> benefit you gain from parallelism. No easy answers here :-\
+>
+> On Tue, Jul 14, 2015 at 7:15 AM, Danas Zuokas <danas.zuokas at gmail.com> wrote:
+>> Yes it is the same question on SO and I did consider RHertel's comments.
+>> But this problem (sums by group id) is not parallelFor it is parallelReduce:
+>> I split vector, calculate sums and then aggregate those sums.
+>> Please correct me if I am wrong.
+>>
+>> 2015-07-14 13:54 GMT+03:00 Dirk Eddelbuettel <edd at debian.org>:
+>>>
+>>>
+>>> On 14 July 2015 at 09:25, Danas Zuokas wrote:
+>>> | I have written parallel implementation of sums in groups using
+>>> RcppParallel.
+>>>
+>>> Isn't this the same question as
+>>>
+>>> http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+>>>
+>>> You got some excellent comments there by SO user 'RHertel'. Did you
+>>> consider those?
+>>>
+>>> Dirk
+>>>
+>>> | // [[Rcpp::depends(RcppParallel)]]
+>>> | #include <Rcpp.h>
+>>> | #include <RcppParallel.h>
+>>> | using namespace Rcpp;
+>>> | using namespace RcppParallel;
+>>> |
+>>> | struct SumsG: public Worker
+>>> | {
+>>> |   const RVector<double> v;
+>>> |   const RVector<int> gi;
+>>> |
+>>> |   RVector<double> sg;
+>>> |
+>>> |   SumsG(const NumericVector v, const IntegerVector gi, NumericVector
+>>> sg): v(v), gi(gi), sg(sg) {}
+>>> |   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+>>> |
+>>> |   void operator()(std::size_t begin, std::size_t end) {
+>>> |     for (std::size_t i = begin; i < end; i++) {
+>>> |       sg[gi[i]] += v[i];
+>>> |     }
+>>> |   }
+>>> |
+>>> |   void join(const SumsG& p) {
+>>> |     for(std::size_t i = 0; i < sg.length(); i++) {
+>>> |       sg[i] += p.sg[i];
+>>> |     }
+>>> |   }
+>>> | };
+>>> |
+>>> | // [[Rcpp::export]]
+>>> | List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+>>> |   NumericVector sg(ni);
+>>> |   SumsG p(v, gi, sg);
+>>> |   parallelReduce(0, v.length(), p);
+>>> |
+>>> |   return List::create(_["sg"] = p.sg);
+>>> | }
+>>> |
+>>> | It compiles using Rcpp::sourceCpp. Now when I call it from R
+>>> sumsingroups(1:10,
+>>> | rep(0:1, each = 5), 2) several times I get the right answer (15 40) and
+>>> then
+>>> | something different (usually some multiplicative of the right answer).
+>>> Running
+>>> |
+>>> |
+>>> | res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>>> | for(i in 1:1000) {
+>>> |     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>>> |     if(res[[1]][1] != tmp[[1]][1]) break
+>>> |     Sys.sleep(0.1)
+>>> | }
+>>> |
+>>> | breaks at random iteration returning
+>>> |
+>>> | $sg
+>>> | [1]  60 160
+>>> |
+>>> | or
+>>> |
+>>> | $sg
+>>> | [1] 30 80
+>>> |
+>>> | I am new to Rcpp and RcppParallel and do not know what could cause such
+>>> | behavior.
+>>> |
+>>> | Things that did not help:
+>>> |
+>>> |  1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0; to
+>>> both of
+>>> |     constructors.
+>>> |  2. Changed names so that they are different in Worker definition and in
+>>> |     function implementation.
+>>> |
+>>> | _______________________________________________
+>>> | Rcpp-devel mailing list
+>>> | Rcpp-devel at lists.r-forge.r-project.org
+>>> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From danas.zuokas at gmail.com  Tue Jul 14 14:22:18 2015
+From: danas.zuokas at gmail.com (Danas Zuokas)
+Date: Tue, 14 Jul 2015 15:22:18 +0300
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+ different results are returned
+In-Reply-To: <DACD25EF-74DE-44AC-8B0C-98E045F85EF1@r-enthusiasts.com>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+ <21924.60017.652821.268731@max.nulle.part>
+ <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+ <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+ <DACD25EF-74DE-44AC-8B0C-98E045F85EF1@r-enthusiasts.com>
+Message-ID: <CAA1t=HbVzzKy43HySNhucm+ABw-vL7xeeysX5OE-R5oMwosgPA@mail.gmail.com>
+
+I have tried this with no luck.
+
+2015-07-14 14:34 GMT+03:00 Romain Francois <romain at r-enthusiasts.com>:
+
+> Or just use a std::vector<double> for sg. That should do it.
+>
+> Romain
+>
+> Envoy? de mon iPhone
+>
+> > Le 14 juil. 2015 ? 13:21, JJ Allaire <jj.allaire at gmail.com> a ?crit :
+> >
+> > The examples in the RcppParallel documentation assume that access to
+> > vectors and matrixes are *aligned* (i.e. fall into neat buckets
+> > whereby reading and writing doesn't overlap between worker instances).
+> > Your example appears to access arbitrary elements of sg (depending on
+> > what's passed in gi) which probably creates overlapping reads/writes.
+> > You should also study the documentation for join carefully.
+> >
+> > There's nothing incorrect about RcppParallel's behavior here, rather
+> > you need to think more carefully about the access patterns of your
+> > data and how they might conflict. You may need to introduce locking to
+> > overcome the conflicts, which in turn could kill the performance
+> > benefit you gain from parallelism. No easy answers here :-\
+> >
+> >> On Tue, Jul 14, 2015 at 7:15 AM, Danas Zuokas <danas.zuokas at gmail.com>
+> wrote:
+> >> Yes it is the same question on SO and I did consider RHertel's comments.
+> >> But this problem (sums by group id) is not parallelFor it is
+> parallelReduce:
+> >> I split vector, calculate sums and then aggregate those sums.
+> >> Please correct me if I am wrong.
+> >>
+> >> 2015-07-14 13:54 GMT+03:00 Dirk Eddelbuettel <edd at debian.org>:
+> >>>
+> >>>
+> >>> On 14 July 2015 at 09:25, Danas Zuokas wrote:
+> >>> | I have written parallel implementation of sums in groups using
+> >>> RcppParallel.
+> >>>
+> >>> Isn't this the same question as
+> >>>
+> >>>
+> http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+> >>>
+> >>> You got some excellent comments there by SO user 'RHertel'. Did you
+> >>> consider those?
+> >>>
+> >>> Dirk
+> >>>
+> >>> | // [[Rcpp::depends(RcppParallel)]]
+> >>> | #include <Rcpp.h>
+> >>> | #include <RcppParallel.h>
+> >>> | using namespace Rcpp;
+> >>> | using namespace RcppParallel;
+> >>> |
+> >>> | struct SumsG: public Worker
+> >>> | {
+> >>> |   const RVector<double> v;
+> >>> |   const RVector<int> gi;
+> >>> |
+> >>> |   RVector<double> sg;
+> >>> |
+> >>> |   SumsG(const NumericVector v, const IntegerVector gi, NumericVector
+> >>> sg): v(v), gi(gi), sg(sg) {}
+> >>> |   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+> >>> |
+> >>> |   void operator()(std::size_t begin, std::size_t end) {
+> >>> |     for (std::size_t i = begin; i < end; i++) {
+> >>> |       sg[gi[i]] += v[i];
+> >>> |     }
+> >>> |   }
+> >>> |
+> >>> |   void join(const SumsG& p) {
+> >>> |     for(std::size_t i = 0; i < sg.length(); i++) {
+> >>> |       sg[i] += p.sg[i];
+> >>> |     }
+> >>> |   }
+> >>> | };
+> >>> |
+> >>> | // [[Rcpp::export]]
+> >>> | List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+> >>> |   NumericVector sg(ni);
+> >>> |   SumsG p(v, gi, sg);
+> >>> |   parallelReduce(0, v.length(), p);
+> >>> |
+> >>> |   return List::create(_["sg"] = p.sg);
+> >>> | }
+> >>> |
+> >>> | It compiles using Rcpp::sourceCpp. Now when I call it from R
+> >>> sumsingroups(1:10,
+> >>> | rep(0:1, each = 5), 2) several times I get the right answer (15 40)
+> and
+> >>> then
+> >>> | something different (usually some multiplicative of the right
+> answer).
+> >>> Running
+> >>> |
+> >>> |
+> >>> | res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+> >>> | for(i in 1:1000) {
+> >>> |     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+> >>> |     if(res[[1]][1] != tmp[[1]][1]) break
+> >>> |     Sys.sleep(0.1)
+> >>> | }
+> >>> |
+> >>> | breaks at random iteration returning
+> >>> |
+> >>> | $sg
+> >>> | [1]  60 160
+> >>> |
+> >>> | or
+> >>> |
+> >>> | $sg
+> >>> | [1] 30 80
+> >>> |
+> >>> | I am new to Rcpp and RcppParallel and do not know what could cause
+> such
+> >>> | behavior.
+> >>> |
+> >>> | Things that did not help:
+> >>> |
+> >>> |  1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0; to
+> >>> both of
+> >>> |     constructors.
+> >>> |  2. Changed names so that they are different in Worker definition
+> and in
+> >>> |     function implementation.
+> >>> |
+> >>> | _______________________________________________
+> >>> | Rcpp-devel mailing list
+> >>> | Rcpp-devel at lists.r-forge.r-project.org
+> >>> |
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >>>
+> >>> --
+> >>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> >>
+> >>
+> >>
+> >> _______________________________________________
+> >> Rcpp-devel mailing list
+> >> Rcpp-devel at lists.r-forge.r-project.org
+> >> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150714/bd6a6fbd/attachment.html>
+
+From mpiktas at gmail.com  Wed Jul 15 14:37:27 2015
+From: mpiktas at gmail.com (Vaidas Zemlys)
+Date: Wed, 15 Jul 2015 12:37:27 +0000
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+ different results are returned
+In-Reply-To: <CAA1t=HbVzzKy43HySNhucm+ABw-vL7xeeysX5OE-R5oMwosgPA@mail.gmail.com>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+ <21924.60017.652821.268731@max.nulle.part>
+ <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+ <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+ <DACD25EF-74DE-44AC-8B0C-98E045F85EF1@r-enthusiasts.com>
+ <CAA1t=HbVzzKy43HySNhucm+ABw-vL7xeeysX5OE-R5oMwosgPA@mail.gmail.com>
+Message-ID: <CAHGonVJASEW7MP2u_K5Ni-FGKniW+hjQ0qNx7D-prCfQQQrwVg@mail.gmail.com>
+
+Hi,
+
+I?ve finally managed to produce code that works. I hope. The key was to
+leave output variable out of constructor:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::depends(RcppParallel)]]
+#include <RcppParallel.h>
+
+using namespace RcppParallel;
+struct SumsInGroups5: public Worker
+{
+    const RVector<double> v;
+    const RVector<int> g;
+
+    std::vector<double> s;
+
+    SumsInGroups5(const NumericVector v, const IntegerVector g): v(v),
+g(g),  s(*std::max_element(g.begin(), g.end()) + 1, 0.0){ }
+
+    SumsInGroups5(const SumsInGroups5& p, Split): v(p.v), g(p.g),
+s(*std::max_element(g.begin(), g.end()) + 1, 0.0) {}
+
+    void operator()(std::size_t begin, std::size_t end) {
+        for (std::size_t i = begin; i < end; ++i) {
+            s[g[i]]+=v[i];
+        }
+
+    }
+
+    void join(const SumsInGroups5& rhs) {
+        for(std::size_t i = 0; i < s.size(); i++) {
+            s[i] += rhs.s[i];
+        }
+    }
+};
+
+// [[Rcpp::export]]
+NumericVector sg5(NumericVector v, IntegerVector g) {
+    SumsInGroups5 p(v, g);
+    parallelReduce(0, v.length(), p);
+    return wrap(p.s);
+}
+
+/*** R
+a <- 1:10
+g <- c(rep(0,5),rep(1,5))
+
+
+bb <- lapply(1:10000,function(x)sg5(a,g))
+cc<-do.call("rbind",bb)
+table(cc[,1])
+table(cc[,2])
+*/
+
+Looking at the example
+http://gallery.rcpp.org/articles/parallel-distance-matrix/, the ouput is
+initialized in constructor and everything works. So if anybody can explain
+why in this case leaving out the output from the constructor made the code
+work I would be all ears.
+
+Vaidotas Zemlys
+
+
+Le mar. 14 juil. 2015 ? 15:22, Danas Zuokas <danas.zuokas at gmail.com> a
+?crit :
+
+> I have tried this with no luck.
+>
+> 2015-07-14 14:34 GMT+03:00 Romain Francois <romain at r-enthusiasts.com>:
+>
+>> Or just use a std::vector<double> for sg. That should do it.
+>>
+>> Romain
+>>
+>> Envoy? de mon iPhone
+>>
+>> > Le 14 juil. 2015 ? 13:21, JJ Allaire <jj.allaire at gmail.com> a ?crit :
+>> >
+>> > The examples in the RcppParallel documentation assume that access to
+>> > vectors and matrixes are *aligned* (i.e. fall into neat buckets
+>> > whereby reading and writing doesn't overlap between worker instances).
+>> > Your example appears to access arbitrary elements of sg (depending on
+>> > what's passed in gi) which probably creates overlapping reads/writes.
+>> > You should also study the documentation for join carefully.
+>> >
+>> > There's nothing incorrect about RcppParallel's behavior here, rather
+>> > you need to think more carefully about the access patterns of your
+>> > data and how they might conflict. You may need to introduce locking to
+>> > overcome the conflicts, which in turn could kill the performance
+>> > benefit you gain from parallelism. No easy answers here :-\
+>> >
+>> >> On Tue, Jul 14, 2015 at 7:15 AM, Danas Zuokas <danas.zuokas at gmail.com>
+>> wrote:
+>> >> Yes it is the same question on SO and I did consider RHertel's
+>> comments.
+>> >> But this problem (sums by group id) is not parallelFor it is
+>> parallelReduce:
+>> >> I split vector, calculate sums and then aggregate those sums.
+>> >> Please correct me if I am wrong.
+>> >>
+>> >> 2015-07-14 13:54 GMT+03:00 Dirk Eddelbuettel <edd at debian.org>:
+>> >>>
+>> >>>
+>> >>> On 14 July 2015 at 09:25, Danas Zuokas wrote:
+>> >>> | I have written parallel implementation of sums in groups using
+>> >>> RcppParallel.
+>> >>>
+>> >>> Isn't this the same question as
+>> >>>
+>> >>>
+>> http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+>> >>>
+>> >>> You got some excellent comments there by SO user 'RHertel'. Did you
+>> >>> consider those?
+>> >>>
+>> >>> Dirk
+>> >>>
+>> >>> | // [[Rcpp::depends(RcppParallel)]]
+>> >>> | #include <Rcpp.h>
+>> >>> | #include <RcppParallel.h>
+>> >>> | using namespace Rcpp;
+>> >>> | using namespace RcppParallel;
+>> >>> |
+>> >>> | struct SumsG: public Worker
+>> >>> | {
+>> >>> |   const RVector<double> v;
+>> >>> |   const RVector<int> gi;
+>> >>> |
+>> >>> |   RVector<double> sg;
+>> >>> |
+>> >>> |   SumsG(const NumericVector v, const IntegerVector gi, NumericVector
+>> >>> sg): v(v), gi(gi), sg(sg) {}
+>> >>> |   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+>> >>> |
+>> >>> |   void operator()(std::size_t begin, std::size_t end) {
+>> >>> |     for (std::size_t i = begin; i < end; i++) {
+>> >>> |       sg[gi[i]] += v[i];
+>> >>> |     }
+>> >>> |   }
+>> >>> |
+>> >>> |   void join(const SumsG& p) {
+>> >>> |     for(std::size_t i = 0; i < sg.length(); i++) {
+>> >>> |       sg[i] += p.sg[i];
+>> >>> |     }
+>> >>> |   }
+>> >>> | };
+>> >>> |
+>> >>> | // [[Rcpp::export]]
+>> >>> | List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+>> >>> |   NumericVector sg(ni);
+>> >>> |   SumsG p(v, gi, sg);
+>> >>> |   parallelReduce(0, v.length(), p);
+>> >>> |
+>> >>> |   return List::create(_["sg"] = p.sg);
+>> >>> | }
+>> >>> |
+>> >>> | It compiles using Rcpp::sourceCpp. Now when I call it from R
+>> >>> sumsingroups(1:10,
+>> >>> | rep(0:1, each = 5), 2) several times I get the right answer (15 40)
+>> and
+>> >>> then
+>> >>> | something different (usually some multiplicative of the right
+>> answer).
+>> >>> Running
+>> >>> |
+>> >>> |
+>> >>> | res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>> >>> | for(i in 1:1000) {
+>> >>> |     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>> >>> |     if(res[[1]][1] != tmp[[1]][1]) break
+>> >>> |     Sys.sleep(0.1)
+>> >>> | }
+>> >>> |
+>> >>> | breaks at random iteration returning
+>> >>> |
+>> >>> | $sg
+>> >>> | [1]  60 160
+>> >>> |
+>> >>> | or
+>> >>> |
+>> >>> | $sg
+>> >>> | [1] 30 80
+>> >>> |
+>> >>> | I am new to Rcpp and RcppParallel and do not know what could cause
+>> such
+>> >>> | behavior.
+>> >>> |
+>> >>> | Things that did not help:
+>> >>> |
+>> >>> |  1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0;
+>> to
+>> >>> both of
+>> >>> |     constructors.
+>> >>> |  2. Changed names so that they are different in Worker definition
+>> and in
+>> >>> |     function implementation.
+>> >>> |
+>> >>> | _______________________________________________
+>> >>> | Rcpp-devel mailing list
+>> >>> | Rcpp-devel at lists.r-forge.r-project.org
+>> >>> |
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> >>>
+>> >>> --
+>> >>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> >>
+>> >>
+>> >>
+>> >> _______________________________________________
+>> >> Rcpp-devel mailing list
+>> >> Rcpp-devel at lists.r-forge.r-project.org
+>> >>
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> > _______________________________________________
+>> > Rcpp-devel mailing list
+>> > Rcpp-devel at lists.r-forge.r-project.org
+>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150715/cacc03ef/attachment.html>
+
+From jj.allaire at gmail.com  Wed Jul 15 15:20:53 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Wed, 15 Jul 2015 09:20:53 -0400
+Subject: [Rcpp-devel] When calling same Rcpp function several times
+ different results are returned
+In-Reply-To: <CAHGonVJASEW7MP2u_K5Ni-FGKniW+hjQ0qNx7D-prCfQQQrwVg@mail.gmail.com>
+References: <CAA1t=HbuE2EDEALN0EMcyw4H1Ou-xFTLiDpiPfYfVi0ChCXAUQ@mail.gmail.com>
+ <21924.60017.652821.268731@max.nulle.part>
+ <CAA1t=HYzBCwUeK_Nnm7SGsG55z=yk0KHNQe9YBFThSMBdWuxLQ@mail.gmail.com>
+ <CAKw=oCz+_+o-Sii5AC+ExrNiCN93w-a==p9s-rViR7tZCjA_Hg@mail.gmail.com>
+ <DACD25EF-74DE-44AC-8B0C-98E045F85EF1@r-enthusiasts.com>
+ <CAA1t=HbVzzKy43HySNhucm+ABw-vL7xeeysX5OE-R5oMwosgPA@mail.gmail.com>
+ <CAHGonVJASEW7MP2u_K5Ni-FGKniW+hjQ0qNx7D-prCfQQQrwVg@mail.gmail.com>
+Message-ID: <CAKw=oCwz0=a8czVV=0bJ9h=yT3xH0UGhEGDDtWESuHPQWhKOzQ@mail.gmail.com>
+
+It's because several instances of your object will be created (via the
+splitting constructor) and then joined together using the join method.
+If all instances share an output variable then they will overwrite
+each others' output, giving them their own allows the split/join logic
+to work correctly.
+
+
+On Wed, Jul 15, 2015 at 8:37 AM, Vaidas Zemlys <mpiktas at gmail.com> wrote:
+> Hi,
+>
+> I?ve finally managed to produce code that works. I hope. The key was to
+> leave output variable out of constructor:
+>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> // [[Rcpp::depends(RcppParallel)]]
+> #include <RcppParallel.h>
+>
+> using namespace RcppParallel;
+> struct SumsInGroups5: public Worker
+> {
+>     const RVector<double> v;
+>     const RVector<int> g;
+>
+>     std::vector<double> s;
+>
+>     SumsInGroups5(const NumericVector v, const IntegerVector g): v(v), g(g),
+> s(*std::max_element(g.begin(), g.end()) + 1, 0.0){ }
+>
+>     SumsInGroups5(const SumsInGroups5& p, Split): v(p.v), g(p.g),
+> s(*std::max_element(g.begin(), g.end()) + 1, 0.0) {}
+>
+>     void operator()(std::size_t begin, std::size_t end) {
+>         for (std::size_t i = begin; i < end; ++i) {
+>             s[g[i]]+=v[i];
+>         }
+>
+>     }
+>
+>     void join(const SumsInGroups5& rhs) {
+>         for(std::size_t i = 0; i < s.size(); i++) {
+>             s[i] += rhs.s[i];
+>         }
+>     }
+> };
+>
+> // [[Rcpp::export]]
+> NumericVector sg5(NumericVector v, IntegerVector g) {
+>     SumsInGroups5 p(v, g);
+>     parallelReduce(0, v.length(), p);
+>     return wrap(p.s);
+> }
+>
+> /*** R
+> a <- 1:10
+> g <- c(rep(0,5),rep(1,5))
+>
+>
+> bb <- lapply(1:10000,function(x)sg5(a,g))
+> cc<-do.call("rbind",bb)
+> table(cc[,1])
+> table(cc[,2])
+> */
+>
+> Looking at the example
+> http://gallery.rcpp.org/articles/parallel-distance-matrix/, the ouput is
+> initialized in constructor and everything works. So if anybody can explain
+> why in this case leaving out the output from the constructor made the code
+> work I would be all ears.
+>
+> Vaidotas Zemlys
+>
+>
+> Le mar. 14 juil. 2015 ? 15:22, Danas Zuokas <danas.zuokas at gmail.com> a ?crit
+> :
+>>
+>> I have tried this with no luck.
+>>
+>> 2015-07-14 14:34 GMT+03:00 Romain Francois <romain at r-enthusiasts.com>:
+>>>
+>>> Or just use a std::vector<double> for sg. That should do it.
+>>>
+>>> Romain
+>>>
+>>> Envoy? de mon iPhone
+>>>
+>>> > Le 14 juil. 2015 ? 13:21, JJ Allaire <jj.allaire at gmail.com> a ?crit :
+>>> >
+>>> > The examples in the RcppParallel documentation assume that access to
+>>> > vectors and matrixes are *aligned* (i.e. fall into neat buckets
+>>> > whereby reading and writing doesn't overlap between worker instances).
+>>> > Your example appears to access arbitrary elements of sg (depending on
+>>> > what's passed in gi) which probably creates overlapping reads/writes.
+>>> > You should also study the documentation for join carefully.
+>>> >
+>>> > There's nothing incorrect about RcppParallel's behavior here, rather
+>>> > you need to think more carefully about the access patterns of your
+>>> > data and how they might conflict. You may need to introduce locking to
+>>> > overcome the conflicts, which in turn could kill the performance
+>>> > benefit you gain from parallelism. No easy answers here :-\
+>>> >
+>>> >> On Tue, Jul 14, 2015 at 7:15 AM, Danas Zuokas <danas.zuokas at gmail.com>
+>>> >> wrote:
+>>> >> Yes it is the same question on SO and I did consider RHertel's
+>>> >> comments.
+>>> >> But this problem (sums by group id) is not parallelFor it is
+>>> >> parallelReduce:
+>>> >> I split vector, calculate sums and then aggregate those sums.
+>>> >> Please correct me if I am wrong.
+>>> >>
+>>> >> 2015-07-14 13:54 GMT+03:00 Dirk Eddelbuettel <edd at debian.org>:
+>>> >>>
+>>> >>>
+>>> >>> On 14 July 2015 at 09:25, Danas Zuokas wrote:
+>>> >>> | I have written parallel implementation of sums in groups using
+>>> >>> RcppParallel.
+>>> >>>
+>>> >>> Isn't this the same question as
+>>> >>>
+>>> >>>
+>>> >>> http://stackoverflow.com/questions/31318419/when-calling-same-rcpp-function-several-times-different-results-are-returned
+>>> >>>
+>>> >>> You got some excellent comments there by SO user 'RHertel'. Did you
+>>> >>> consider those?
+>>> >>>
+>>> >>> Dirk
+>>> >>>
+>>> >>> | // [[Rcpp::depends(RcppParallel)]]
+>>> >>> | #include <Rcpp.h>
+>>> >>> | #include <RcppParallel.h>
+>>> >>> | using namespace Rcpp;
+>>> >>> | using namespace RcppParallel;
+>>> >>> |
+>>> >>> | struct SumsG: public Worker
+>>> >>> | {
+>>> >>> |   const RVector<double> v;
+>>> >>> |   const RVector<int> gi;
+>>> >>> |
+>>> >>> |   RVector<double> sg;
+>>> >>> |
+>>> >>> |   SumsG(const NumericVector v, const IntegerVector gi,
+>>> >>> NumericVector
+>>> >>> sg): v(v), gi(gi), sg(sg) {}
+>>> >>> |   SumsG(const SumsG& p, Split): v(p.v), gi(p.gi), sg(p.sg) {}
+>>> >>> |
+>>> >>> |   void operator()(std::size_t begin, std::size_t end) {
+>>> >>> |     for (std::size_t i = begin; i < end; i++) {
+>>> >>> |       sg[gi[i]] += v[i];
+>>> >>> |     }
+>>> >>> |   }
+>>> >>> |
+>>> >>> |   void join(const SumsG& p) {
+>>> >>> |     for(std::size_t i = 0; i < sg.length(); i++) {
+>>> >>> |       sg[i] += p.sg[i];
+>>> >>> |     }
+>>> >>> |   }
+>>> >>> | };
+>>> >>> |
+>>> >>> | // [[Rcpp::export]]
+>>> >>> | List sumsingroups(NumericVector v, IntegerVector gi, int ni) {
+>>> >>> |   NumericVector sg(ni);
+>>> >>> |   SumsG p(v, gi, sg);
+>>> >>> |   parallelReduce(0, v.length(), p);
+>>> >>> |
+>>> >>> |   return List::create(_["sg"] = p.sg);
+>>> >>> | }
+>>> >>> |
+>>> >>> | It compiles using Rcpp::sourceCpp. Now when I call it from R
+>>> >>> sumsingroups(1:10,
+>>> >>> | rep(0:1, each = 5), 2) several times I get the right answer (15 40)
+>>> >>> and
+>>> >>> then
+>>> >>> | something different (usually some multiplicative of the right
+>>> >>> answer).
+>>> >>> Running
+>>> >>> |
+>>> >>> |
+>>> >>> | res <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>>> >>> | for(i in 1:1000) {
+>>> >>> |     tmp <- sumsingroups(1:10, rep(0:1, each = 5), 2)
+>>> >>> |     if(res[[1]][1] != tmp[[1]][1]) break
+>>> >>> |     Sys.sleep(0.1)
+>>> >>> | }
+>>> >>> |
+>>> >>> | breaks at random iteration returning
+>>> >>> |
+>>> >>> | $sg
+>>> >>> | [1]  60 160
+>>> >>> |
+>>> >>> | or
+>>> >>> |
+>>> >>> | $sg
+>>> >>> | [1] 30 80
+>>> >>> |
+>>> >>> | I am new to Rcpp and RcppParallel and do not know what could cause
+>>> >>> such
+>>> >>> | behavior.
+>>> >>> |
+>>> >>> | Things that did not help:
+>>> >>> |
+>>> >>> |  1. Added for (std::size_t i = 0; i < sg.length(); i++) sg[i] = 0;
+>>> >>> to
+>>> >>> both of
+>>> >>> |     constructors.
+>>> >>> |  2. Changed names so that they are different in Worker definition
+>>> >>> and in
+>>> >>> |     function implementation.
+>>> >>> |
+>>> >>> | _______________________________________________
+>>> >>> | Rcpp-devel mailing list
+>>> >>> | Rcpp-devel at lists.r-forge.r-project.org
+>>> >>> |
+>>> >>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> >>>
+>>> >>> --
+>>> >>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>> >>
+>>> >>
+>>> >>
+>>> >> _______________________________________________
+>>> >> Rcpp-devel mailing list
+>>> >> Rcpp-devel at lists.r-forge.r-project.org
+>>> >>
+>>> >> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> > _______________________________________________
+>>> > Rcpp-devel mailing list
+>>> > Rcpp-devel at lists.r-forge.r-project.org
+>>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From aforget at cmu.edu  Thu Jul 16 23:20:59 2015
+From: aforget at cmu.edu (Alain Forget)
+Date: Thu, 16 Jul 2015 17:20:59 -0400
+Subject: [Rcpp-devel] Manual Rcpp installation failure
+Message-ID: <002401d0c00d$4fc59100$ef50b300$@cmu.edu>
+
+Hi all,
+
+I need to manually download and install Rcpp for R-3.1.2 on CentOS. I downloaded Rcpp from the "Package source" link here:
+
+https://cran.r-project.org/web/packages/Rcpp/index.html
+
+I then unpacked the tar.gz, and ran the following command to install the package, which resulted in the errors below:
+
+$ R CMD INSTALL Rcpp -l  my/R/packages/directory
+* installing *source* package 'Rcpp' ...
+** package 'Rcpp' successfully unpacked and MD5 sums checked
+** libs
+Warning: R include directory is empty -- perhaps need to install R-devel.rpm or similar
+g++ -m64 -I/usr/include/R -DNDEBUG -I../inst/include/ -I/usr/local/include    -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -mtune=generic  -c Date.cpp -o Date.o
+In file included from ../inst/include/RcppCommon.h:29,
+                 from ../inst/include/Rcpp.h:27,
+                 from Date.cpp:31:
+../inst/include/Rcpp/r/headers.h:52:15: error: R.h: No such file or directory
+../inst/include/Rcpp/r/headers.h:53:24: error: Rinternals.h: No such file or directory
+../inst/include/Rcpp/r/headers.h:54:27: error: R_ext/Complex.h: No such file or directory
+../inst/include/Rcpp/r/headers.h:55:25: error: R_ext/Parse.h: No such file or directory
+../inst/include/Rcpp/r/headers.h:56:28: error: R_ext/Rdynload.h: No such file or directory
+../inst/include/Rcpp/r/headers.h:57:22: error: Rversion.h: No such file or directory
+In file included from ../inst/include/Rcpp.h:27,
+                 from Date.cpp:31:
+../inst/include/RcppCommon.h:67:29: error: R_ext/Callbacks.h: No such file or directory
+../inst/include/RcppCommon.h:68:30: error: R_ext/Visibility.h: No such file or directory
+../inst/include/RcppCommon.h:71:19: error: Rmath.h: No such file or directory
+In file included from ../inst/include/RcppCommon.h:132,
+                 from ../inst/include/Rcpp.h:27,
+                 from Date.cpp:31:
+../inst/include/Rcpp/Interrupt.h:25:34: error: R_ext/GraphicsEngine.h: No such file or directory
+In file included from ../inst/include/Rcpp.h:73,
+                 from Date.cpp:31:
+../inst/include/Rcpp/Rmath.h:134:27: error: missing binary operator before token "("
+In file included from ../inst/include/Rcpp.h:27,
+                 from Date.cpp:31:
+../inst/include/RcppCommon.h:76: error: 'SEXP' does not name a type
+../inst/include/RcppCommon.h:83: error: 'SEXP' does not name a type
+../inst/include/RcppCommon.h:90: error: variable or field 'Rcpp_ReleaseObject' declared void
+../inst/include/RcppCommon.h:90: error: 'SEXP' was not declared in this scope
+Date.cpp:1276: error: expected '}' at end of input
+make: *** [Date.o] Error 1
+
+I'm guessing there's something basic I am not aware of? Any suggestions or assistance in manually installing Rcpp would be greatly appreciated, since so many other packages depend on Rcpp, so we're rather stuck until this works.
+
+Thank you,
+Alain
+
+
+
+From edd at debian.org  Thu Jul 16 23:52:40 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 16 Jul 2015 16:52:40 -0500
+Subject: [Rcpp-devel] Manual Rcpp installation failure
+In-Reply-To: <002401d0c00d$4fc59100$ef50b300$@cmu.edu>
+References: <002401d0c00d$4fc59100$ef50b300$@cmu.edu>
+Message-ID: <21928.10152.460722.883410@max.nulle.part>
+
+
+Alain,
+
+On 16 July 2015 at 17:20, Alain Forget wrote:
+| I need to manually download and install Rcpp for R-3.1.2 on CentOS. I downloaded Rcpp from the "Package source" link here:
+
+Which version of CentOS?  
+ 
+| https://cran.r-project.org/web/packages/Rcpp/index.html
+| 
+| I then unpacked the tar.gz, and ran the following command to install the package, which resulted in the errors below:
+| 
+| $ R CMD INSTALL Rcpp -l  my/R/packages/directory
+| * installing *source* package 'Rcpp' ...
+| ** package 'Rcpp' successfully unpacked and MD5 sums checked
+| ** libs
+| Warning: R include directory is empty -- perhaps need to install R-devel.rpm or similar
+| g++ -m64 -I/usr/include/R -DNDEBUG -I../inst/include/ -I/usr/local/include    -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -mtune=generic  -c Date.cpp -o Date.o
+| In file included from ../inst/include/RcppCommon.h:29,
+|                  from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/Rcpp/r/headers.h:52:15: error: R.h: No such file or directory
+| ../inst/include/Rcpp/r/headers.h:53:24: error: Rinternals.h: No such file or directory
+| ../inst/include/Rcpp/r/headers.h:54:27: error: R_ext/Complex.h: No such file or directory
+| ../inst/include/Rcpp/r/headers.h:55:25: error: R_ext/Parse.h: No such file or directory
+| ../inst/include/Rcpp/r/headers.h:56:28: error: R_ext/Rdynload.h: No such file or directory
+| ../inst/include/Rcpp/r/headers.h:57:22: error: Rversion.h: No such file or directory
+| In file included from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/RcppCommon.h:67:29: error: R_ext/Callbacks.h: No such file or directory
+| ../inst/include/RcppCommon.h:68:30: error: R_ext/Visibility.h: No such file or directory
+| ../inst/include/RcppCommon.h:71:19: error: Rmath.h: No such file or directory
+| In file included from ../inst/include/RcppCommon.h:132,
+|                  from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/Rcpp/Interrupt.h:25:34: error: R_ext/GraphicsEngine.h: No such file or directory
+| In file included from ../inst/include/Rcpp.h:73,
+|                  from Date.cpp:31:
+| ../inst/include/Rcpp/Rmath.h:134:27: error: missing binary operator before token "("
+| In file included from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/RcppCommon.h:76: error: 'SEXP' does not name a type
+| ../inst/include/RcppCommon.h:83: error: 'SEXP' does not name a type
+| ../inst/include/RcppCommon.h:90: error: variable or field 'Rcpp_ReleaseObject' declared void
+| ../inst/include/RcppCommon.h:90: error: 'SEXP' was not declared in this scope
+| Date.cpp:1276: error: expected '}' at end of input
+| make: *** [Date.o] Error 1
+| 
+| I'm guessing there's something basic I am not aware of? Any suggestions or assistance in manually installing Rcpp would be greatly appreciated, since so many other packages depend on Rcpp, so we're rather stuck until this works.
+
+You may be missing R-devel (which is what CentOS/RHEL/Fedora calls it IIRC)
+which supplies the R headers.  Rcpp needs them.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.barthelme at gipsa-lab.fr  Fri Jul 17 16:32:40 2015
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?B?U2ltb24gQmFydGhlbG3DqQ==?=)
+Date: Fri, 17 Jul 2015 16:32:40 +0200
+Subject: [Rcpp-devel] correct way of making custom as and wrap functions
+ available to other packages
+Message-ID: <55A91208.60704@gipsa-lab.fr>
+
+Dear list,
+
+For a package I'm developing (https://github.com/dahtah/imager/) I had 
+to write custom "as" and "wrap" functions for third-party classes. I'd 
+like to make these wrappers accessible to other developers via inline 
+C++ as well as LinkingTo directives (so that they can be used in other 
+packages).
+So far I've only managed the former: I have a header file in 
+inst/include, called "wrappers.h", that contains the full 
+implementations of my custom as and wrap functions. I've written a 
+custom inline plugin and everything works fine. However, LinkingTo 
+doesn't work: wrappers.h gets included in multiple object files and I 
+get linking errors (the linker complains about multiple declarations of 
+"as" and "wrap").
+I understand RcppArmadillo manages to get around the problem but I can't 
+figure out how. What's the correct way of doing this? Is there a way of 
+making as and wrap inline functions so that it's safe to have 
+header-only implementations?
+
+Thanks!
+
+Simon Barthelme
+
+
+From krthornt at uci.edu  Fri Jul 17 16:56:01 2015
+From: krthornt at uci.edu (Kevin Thornton)
+Date: Fri, 17 Jul 2015 07:56:01 -0700
+Subject: [Rcpp-devel] correct way of making custom as and wrap functions
+	available to other packages
+In-Reply-To: <55A91208.60704@gipsa-lab.fr>
+References: <55A91208.60704@gipsa-lab.fr>
+Message-ID: <2CFB588D-6B92-42FC-B5DE-5658C949DC04@uci.edu>
+
+A good guess is that the as/wrap definitions in wrappers.h are the culprit (https://github.com/dahtah/imager/blob/master/inst/include/wrappers.h <https://github.com/dahtah/imager/blob/master/inst/include/wrappers.h>).  Try declaring them as inline, or separating the definition from the declaration.
+
+?Kevin
+
+> On Jul 17, 2015, at 7:32 AM, Simon Barthelm? <simon.barthelme at gipsa-lab.fr> wrote:
+> 
+> Dear list,
+> 
+> For a package I'm developing (https://github.com/dahtah/imager/) I had to write custom "as" and "wrap" functions for third-party classes. I'd like to make these wrappers accessible to other developers via inline C++ as well as LinkingTo directives (so that they can be used in other packages).
+> So far I've only managed the former: I have a header file in inst/include, called "wrappers.h", that contains the full implementations of my custom as and wrap functions. I've written a custom inline plugin and everything works fine. However, LinkingTo doesn't work: wrappers.h gets included in multiple object files and I get linking errors (the linker complains about multiple declarations of "as" and "wrap").
+> I understand RcppArmadillo manages to get around the problem but I can't figure out how. What's the correct way of doing this? Is there a way of making as and wrap inline functions so that it's safe to have header-only implementations?
+> 
+> Thanks!
+> 
+> Simon Barthelme
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150717/dc925d8c/attachment.html>
+
+From edd at debian.org  Fri Jul 17 17:09:39 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 17 Jul 2015 10:09:39 -0500
+Subject: [Rcpp-devel] correct way of making custom as and wrap functions
+ available to other packages
+In-Reply-To: <55A91208.60704@gipsa-lab.fr>
+References: <55A91208.60704@gipsa-lab.fr>
+Message-ID: <21929.6835.315220.971540@max.nulle.part>
+
+
+On 17 July 2015 at 16:32, Simon Barthelm? wrote:
+| Dear list,
+| 
+| For a package I'm developing (https://github.com/dahtah/imager/) I had 
+| to write custom "as" and "wrap" functions for third-party classes. I'd 
+| like to make these wrappers accessible to other developers via inline 
+| C++ as well as LinkingTo directives (so that they can be used in other 
+| packages).
+| So far I've only managed the former: I have a header file in 
+| inst/include, called "wrappers.h", that contains the full 
+| implementations of my custom as and wrap functions. I've written a 
+| custom inline plugin and everything works fine. However, LinkingTo 
+| doesn't work: wrappers.h gets included in multiple object files and I 
+| get linking errors (the linker complains about multiple declarations of 
+| "as" and "wrap").
+| I understand RcppArmadillo manages to get around the problem but I can't 
+| figure out how. What's the correct way of doing this? Is there a way of 
+| making as and wrap inline functions so that it's safe to have 
+| header-only implementations?
+
+Am at work now with my wrapped in another issue but I think one way of fixing
+this is to ensure that only one compilation unit includes the file. Another
+is to make sure the header file is "pure" in the 'just templates' sense so
+that you do not get multiple instantiations.  A third is to use #define
+statements to separate declarations (used for other packages) from definitions
+and instantiations (which your package uses).
+
+I definitely had this design issue and managed to address it.  With a bit
+more coffee I may even remember which package that was in...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.barthelme at gipsa-lab.fr  Fri Jul 17 17:12:41 2015
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?B?U2ltb24gQmFydGhlbG3DqQ==?=)
+Date: Fri, 17 Jul 2015 17:12:41 +0200
+Subject: [Rcpp-devel] correct way of making custom as and wrap functions
+ available to other packages
+In-Reply-To: <2CFB588D-6B92-42FC-B5DE-5658C949DC04@uci.edu>
+References: <55A91208.60704@gipsa-lab.fr>
+ <2CFB588D-6B92-42FC-B5DE-5658C949DC04@uci.edu>
+Message-ID: <55A91B69.2050408@gipsa-lab.fr>
+
+Hi Kevin
+
+Thanks for your answer. I've tried declaring them as inline but the 
+compiler (clang, haven't tried gcc) issues a warning saying it's going 
+to ignore the inline statement. I'm assuming this is because the 
+declaration is actually a template specialisation but I haven't found a 
+definitive answer.
+If I separate the declaration from the definition, the linker now 
+complains as and wrap are missing. Using the interface:: attribute 
+doesn't seem to help either.
+
+Best
+
+Simon
+
+Le 17/07/2015 16:56, Kevin Thornton a ?crit :
+> A good guess is that the as/wrap definitions in wrappers.h are the 
+> culprit 
+> (https://github.com/dahtah/imager/blob/master/inst/include/wrappers.h).  Try 
+> declaring them as inline, or separating the definition from the 
+> declaration.
+>
+> ?Kevin
+>
+>> On Jul 17, 2015, at 7:32 AM, Simon Barthelm? 
+>> <simon.barthelme at gipsa-lab.fr <mailto:simon.barthelme at gipsa-lab.fr>> 
+>> wrote:
+>>
+>> Dear list,
+>>
+>> For a package I'm developing (https://github.com/dahtah/imager/) I 
+>> had to write custom "as" and "wrap" functions for third-party 
+>> classes. I'd like to make these wrappers accessible to other 
+>> developers via inline C++ as well as LinkingTo directives (so that 
+>> they can be used in other packages).
+>> So far I've only managed the former: I have a header file in 
+>> inst/include, called "wrappers.h", that contains the full 
+>> implementations of my custom as and wrap functions. I've written a 
+>> custom inline plugin and everything works fine. However, LinkingTo 
+>> doesn't work: wrappers.h gets included in multiple object files and I 
+>> get linking errors (the linker complains about multiple declarations 
+>> of "as" and "wrap").
+>> I understand RcppArmadillo manages to get around the problem but I 
+>> can't figure out how. What's the correct way of doing this? Is there 
+>> a way of making as and wrap inline functions so that it's safe to 
+>> have header-only implementations?
+>>
+>> Thanks!
+>>
+>> Simon Barthelme
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org 
+>> <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150717/cf03ea9b/attachment.html>
+
+From tbfowler4 at gmail.com  Fri Jul 17 17:33:44 2015
+From: tbfowler4 at gmail.com (Thell Fowler)
+Date: Fri, 17 Jul 2015 10:33:44 -0500
+Subject: [Rcpp-devel] correct way of making custom as and wrap functions
+ available to other packages
+In-Reply-To: <55A91B69.2050408@gipsa-lab.fr>
+References: <55A91208.60704@gipsa-lab.fr>
+ <2CFB588D-6B92-42FC-B5DE-5658C949DC04@uci.edu>
+ <55A91B69.2050408@gipsa-lab.fr>
+Message-ID: <CAAJPTXiGjrW35-Vbxx-B9UwydK-Ye5fd5VPVq0KQYY0Qwk+adg@mail.gmail.com>
+
+Simon,
+
+Not sure if it'll help but take a look at
+https://github.com/Thell/RcppMultiPrecision/tree/wip-mpreal-wrappers
+
+Particularly the flags.R, inline.R and mpreal_wrap_example.cpp. When I
+built this Dirk pointed me to several
+example packages in the thread [Rcpp-devel] Rcpp RMpfr mpreal to mpfr wrapping.
+
+http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2012-April/003719.html
+
+On Fri, Jul 17, 2015 at 10:12 AM, Simon Barthelm?
+<simon.barthelme at gipsa-lab.fr> wrote:
+> Hi Kevin
+>
+> Thanks for your answer. I've tried declaring them as inline but the compiler
+> (clang, haven't tried gcc) issues a warning saying it's going to ignore the
+> inline statement. I'm assuming this is because the declaration is actually a
+> template specialisation but I haven't found a definitive answer.
+> If I separate the declaration from the definition, the linker now complains
+> as and wrap are missing. Using the interface:: attribute doesn't seem to
+> help either.
+>
+> Best
+>
+> Simon
+>
+>
+> Le 17/07/2015 16:56, Kevin Thornton a ?crit :
+>
+> A good guess is that the as/wrap definitions in wrappers.h are the culprit
+> (https://github.com/dahtah/imager/blob/master/inst/include/wrappers.h).  Try
+> declaring them as inline, or separating the definition from the declaration.
+>
+> ?Kevin
+>
+> On Jul 17, 2015, at 7:32 AM, Simon Barthelm? <simon.barthelme at gipsa-lab.fr>
+> wrote:
+>
+> Dear list,
+>
+> For a package I'm developing (https://github.com/dahtah/imager/) I had to
+> write custom "as" and "wrap" functions for third-party classes. I'd like to
+> make these wrappers accessible to other developers via inline C++ as well as
+> LinkingTo directives (so that they can be used in other packages).
+> So far I've only managed the former: I have a header file in inst/include,
+> called "wrappers.h", that contains the full implementations of my custom as
+> and wrap functions. I've written a custom inline plugin and everything works
+> fine. However, LinkingTo doesn't work: wrappers.h gets included in multiple
+> object files and I get linking errors (the linker complains about multiple
+> declarations of "as" and "wrap").
+> I understand RcppArmadillo manages to get around the problem but I can't
+> figure out how. What's the correct way of doing this? Is there a way of
+> making as and wrap inline functions so that it's safe to have header-only
+> implementations?
+>
+> Thanks!
+>
+> Simon Barthelme
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Sincerely,
+Thell
+
+From simon.barthelme at gipsa-lab.fr  Fri Jul 17 17:38:04 2015
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?B?U2ltb24gQmFydGhlbG3DqQ==?=)
+Date: Fri, 17 Jul 2015 17:38:04 +0200
+Subject: [Rcpp-devel] correct way of making custom as and wrap functions
+ available to other packages
+In-Reply-To: <CAAJPTXiGjrW35-Vbxx-B9UwydK-Ye5fd5VPVq0KQYY0Qwk+adg@mail.gmail.com>
+References: <55A91208.60704@gipsa-lab.fr>	<2CFB588D-6B92-42FC-B5DE-5658C949DC04@uci.edu>	<55A91B69.2050408@gipsa-lab.fr>
+ <CAAJPTXiGjrW35-Vbxx-B9UwydK-Ye5fd5VPVq0KQYY0Qwk+adg@mail.gmail.com>
+Message-ID: <55A9215C.5060702@gipsa-lab.fr>
+
+Thanks Thell, I'll take a look and report back
+
+Le 17/07/2015 17:33, Thell Fowler a ?crit :
+> >
+> >Dear list,
+> >
+> >For a package I'm developing (https://github.com/dahtah/imager/) I had to
+
+
+From aforget at cmu.edu  Sun Jul 19 17:42:59 2015
+From: aforget at cmu.edu (Alain Forget)
+Date: Sun, 19 Jul 2015 11:42:59 -0400
+Subject: [Rcpp-devel] Manual Rcpp installation failure
+In-Reply-To: <21928.10152.460722.883410@max.nulle.part>
+References: <002401d0c00d$4fc59100$ef50b300$@cmu.edu>
+ <21928.10152.460722.883410@max.nulle.part>
+Message-ID: <001e01d0c239$983af730$c8b0e590$@cmu.edu>
+
+Hey Dirk (and Rccp-devels),
+
+Centos 6.3
+
+I have tried looking for R-devel but have been unsuccessful in even figuring out what it is (an R package? Its own standalone software?). Could you please point me in the right direction?
+
+Thanks!
+Alain
+
+-----Original Message-----
+From: Dirk Eddelbuettel [mailto:edd at debian.org] 
+Sent: Thursday, July 16, 2015 17:53
+To: aforget at cmu.edu
+Cc: rcpp-devel at lists.r-forge.r-project.org
+Subject: Re: [Rcpp-devel] Manual Rcpp installation failure
+
+
+Alain,
+
+On 16 July 2015 at 17:20, Alain Forget wrote:
+| I need to manually download and install Rcpp for R-3.1.2 on CentOS. I downloaded Rcpp from the "Package source" link here:
+
+Which version of CentOS?  
+ 
+| https://cran.r-project.org/web/packages/Rcpp/index.html
+| 
+| I then unpacked the tar.gz, and ran the following command to install the package, which resulted in the errors below:
+| 
+| $ R CMD INSTALL Rcpp -l  my/R/packages/directory
+| * installing *source* package 'Rcpp' ...
+| ** package 'Rcpp' successfully unpacked and MD5 sums checked
+| ** libs
+| Warning: R include directory is empty -- perhaps need to install 
+| R-devel.rpm or similar
+| g++ -m64 -I/usr/include/R -DNDEBUG -I../inst/include/ -I/usr/local/include    -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -mtune=generic  -c Date.cpp -o Date.o
+| In file included from ../inst/include/RcppCommon.h:29,
+|                  from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/Rcpp/r/headers.h:52:15: error: R.h: No such file or 
+| directory
+| ../inst/include/Rcpp/r/headers.h:53:24: error: Rinternals.h: No such 
+| file or directory
+| ../inst/include/Rcpp/r/headers.h:54:27: error: R_ext/Complex.h: No 
+| such file or directory
+| ../inst/include/Rcpp/r/headers.h:55:25: error: R_ext/Parse.h: No such 
+| file or directory
+| ../inst/include/Rcpp/r/headers.h:56:28: error: R_ext/Rdynload.h: No 
+| such file or directory
+| ../inst/include/Rcpp/r/headers.h:57:22: error: Rversion.h: No such 
+| file or directory In file included from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/RcppCommon.h:67:29: error: R_ext/Callbacks.h: No such 
+| file or directory
+| ../inst/include/RcppCommon.h:68:30: error: R_ext/Visibility.h: No such 
+| file or directory
+| ../inst/include/RcppCommon.h:71:19: error: Rmath.h: No such file or 
+| directory In file included from ../inst/include/RcppCommon.h:132,
+|                  from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/Rcpp/Interrupt.h:25:34: error: R_ext/GraphicsEngine.h: 
+| No such file or directory In file included from ../inst/include/Rcpp.h:73,
+|                  from Date.cpp:31:
+| ../inst/include/Rcpp/Rmath.h:134:27: error: missing binary operator before token "("
+| In file included from ../inst/include/Rcpp.h:27,
+|                  from Date.cpp:31:
+| ../inst/include/RcppCommon.h:76: error: 'SEXP' does not name a type
+| ../inst/include/RcppCommon.h:83: error: 'SEXP' does not name a type
+| ../inst/include/RcppCommon.h:90: error: variable or field 
+| 'Rcpp_ReleaseObject' declared void
+| ../inst/include/RcppCommon.h:90: error: 'SEXP' was not declared in 
+| this scope
+| Date.cpp:1276: error: expected '}' at end of input
+| make: *** [Date.o] Error 1
+| 
+| I'm guessing there's something basic I am not aware of? Any suggestions or assistance in manually installing Rcpp would be greatly appreciated, since so many other packages depend on Rcpp, so we're rather stuck until this works.
+
+You may be missing R-devel (which is what CentOS/RHEL/Fedora calls it IIRC) which supplies the R headers.  Rcpp needs them.
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+From edd at debian.org  Sun Jul 19 18:36:49 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 19 Jul 2015 11:36:49 -0500
+Subject: [Rcpp-devel] Manual Rcpp installation failure
+In-Reply-To: <001e01d0c239$983af730$c8b0e590$@cmu.edu>
+References: <002401d0c00d$4fc59100$ef50b300$@cmu.edu>
+ <21928.10152.460722.883410@max.nulle.part>
+ <001e01d0c239$983af730$c8b0e590$@cmu.edu>
+Message-ID: <21931.53793.883059.936924@max.nulle.part>
+
+
+On 19 July 2015 at 11:42, Alain Forget wrote:
+| Hey Dirk (and Rccp-devels),
+| 
+| Centos 6.3
+| 
+| I have tried looking for R-devel but have been unsuccessful in even figuring out what it is (an R package? Its own standalone software?). Could you please point me in the right direction?
+
+I don't know.
+
+Maybe try the r-sig-fedoara list. I use Debian and Ubuntu where things
+work. I find CentOS extremely constraining, and the colleagues that (still)
+use it install most things from source.  I prefer apt, dpkg and the
+Debian/Ubuntu machinery.
+
+(That said Rcpp does _of course_ work there; CRAN runs to RH/Fedora based
+test machines.)
+
+Dirk
+ 
+| Thanks!
+| Alain
+| 
+| -----Original Message-----
+| From: Dirk Eddelbuettel [mailto:edd at debian.org] 
+| Sent: Thursday, July 16, 2015 17:53
+| To: aforget at cmu.edu
+| Cc: rcpp-devel at lists.r-forge.r-project.org
+| Subject: Re: [Rcpp-devel] Manual Rcpp installation failure
+| 
+| 
+| Alain,
+| 
+| On 16 July 2015 at 17:20, Alain Forget wrote:
+| | I need to manually download and install Rcpp for R-3.1.2 on CentOS. I downloaded Rcpp from the "Package source" link here:
+| 
+| Which version of CentOS?  
+|  
+| | https://cran.r-project.org/web/packages/Rcpp/index.html
+| | 
+| | I then unpacked the tar.gz, and ran the following command to install the package, which resulted in the errors below:
+| | 
+| | $ R CMD INSTALL Rcpp -l  my/R/packages/directory
+| | * installing *source* package 'Rcpp' ...
+| | ** package 'Rcpp' successfully unpacked and MD5 sums checked
+| | ** libs
+| | Warning: R include directory is empty -- perhaps need to install 
+| | R-devel.rpm or similar
+| | g++ -m64 -I/usr/include/R -DNDEBUG -I../inst/include/ -I/usr/local/include    -fpic  -O2 -g -pipe -Wall -Wp,-D_FORTIFY_SOURCE=2 -fexceptions -fstack-protector --param=ssp-buffer-size=4 -m64 -mtune=generic  -c Date.cpp -o Date.o
+| | In file included from ../inst/include/RcppCommon.h:29,
+| |                  from ../inst/include/Rcpp.h:27,
+| |                  from Date.cpp:31:
+| | ../inst/include/Rcpp/r/headers.h:52:15: error: R.h: No such file or 
+| | directory
+| | ../inst/include/Rcpp/r/headers.h:53:24: error: Rinternals.h: No such 
+| | file or directory
+| | ../inst/include/Rcpp/r/headers.h:54:27: error: R_ext/Complex.h: No 
+| | such file or directory
+| | ../inst/include/Rcpp/r/headers.h:55:25: error: R_ext/Parse.h: No such 
+| | file or directory
+| | ../inst/include/Rcpp/r/headers.h:56:28: error: R_ext/Rdynload.h: No 
+| | such file or directory
+| | ../inst/include/Rcpp/r/headers.h:57:22: error: Rversion.h: No such 
+| | file or directory In file included from ../inst/include/Rcpp.h:27,
+| |                  from Date.cpp:31:
+| | ../inst/include/RcppCommon.h:67:29: error: R_ext/Callbacks.h: No such 
+| | file or directory
+| | ../inst/include/RcppCommon.h:68:30: error: R_ext/Visibility.h: No such 
+| | file or directory
+| | ../inst/include/RcppCommon.h:71:19: error: Rmath.h: No such file or 
+| | directory In file included from ../inst/include/RcppCommon.h:132,
+| |                  from ../inst/include/Rcpp.h:27,
+| |                  from Date.cpp:31:
+| | ../inst/include/Rcpp/Interrupt.h:25:34: error: R_ext/GraphicsEngine.h: 
+| | No such file or directory In file included from ../inst/include/Rcpp.h:73,
+| |                  from Date.cpp:31:
+| | ../inst/include/Rcpp/Rmath.h:134:27: error: missing binary operator before token "("
+| | In file included from ../inst/include/Rcpp.h:27,
+| |                  from Date.cpp:31:
+| | ../inst/include/RcppCommon.h:76: error: 'SEXP' does not name a type
+| | ../inst/include/RcppCommon.h:83: error: 'SEXP' does not name a type
+| | ../inst/include/RcppCommon.h:90: error: variable or field 
+| | 'Rcpp_ReleaseObject' declared void
+| | ../inst/include/RcppCommon.h:90: error: 'SEXP' was not declared in 
+| | this scope
+| | Date.cpp:1276: error: expected '}' at end of input
+| | make: *** [Date.o] Error 1
+| | 
+| | I'm guessing there's something basic I am not aware of? Any suggestions or assistance in manually installing Rcpp would be greatly appreciated, since so many other packages depend on Rcpp, so we're rather stuck until this works.
+| 
+| You may be missing R-devel (which is what CentOS/RHEL/Fedora calls it IIRC) which supplies the R headers.  Rcpp needs them.
+| 
+| Dirk
+| 
+| --
+| http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From bodenhofer at bioinf.jku.at  Mon Jul 20 12:00:27 2015
+From: bodenhofer at bioinf.jku.at (bodenhofer at bioinf.jku.at)
+Date: 20 Jul 2015 10:00:27 -0000
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 69, Issue 10
+Message-ID: <20150720100027.24111.qmail@lion.ifs.uni-linz.ac.at>
+
+Thanks for your message! I am out of office until August 10, 2015. Your  
+message will be answered after I return to office on August 11, 2015. Thank  
+you in advance for your kind patience!
+
+Best regards,
+Ulrich Bodenhofer
+
+From mertens.ulf at gmail.com  Thu Jul 23 15:53:55 2015
+From: mertens.ulf at gmail.com (Ulf Mertens)
+Date: Thu, 23 Jul 2015 15:53:55 +0200
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+Message-ID: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+
+Dear list,
+
+I am working on a project in C++ where I have to use Bayesian Statistics
+quite extensively. I coded my own Metropolis Hasting Sampler but since it
+is not working that well, I wanted to call rstan from within C++ via
+RInside. I already wrote the appropriate RInside/Rcpp code but I don't know
+how to rewrite my CMakeLists.txt file to make it work.
+
+I looked at the CMakelists.txt file in the standard/examples folder but I
+don't know enough about cmake to rewrite it for my own project.
+
+My project consists of 3 source files and 2 header files and I am working
+with Eclipse Mars. Here is my current file:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*cmake_minimum_required(VERSION 2.6)project(XX)# use
+C++11set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}
+-std=c++11")add_executable(${PROJECT_NAME}  global.h  model.h  model.cpp
+run.cpp  mcmc.h  mcmc.cpp  )*
+What do I have to change (in the file or in Eclipse itself) to make it work?
+
+Thanks in advance for your help
+Ulf
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150723/a4506930/attachment.html>
+
+From hmamoucheyussef at gmail.com  Thu Jul 23 16:07:54 2015
+From: hmamoucheyussef at gmail.com (Hmamouche Youssef)
+Date: Thu, 23 Jul 2015 16:07:54 +0200
+Subject: [Rcpp-devel] Readin cvs files in Rcpp package
+Message-ID: <CALp=_qHkHu-vhMpO32bd8BWtxogEG3g2Lee4iBZjmoS903QQsw@mail.gmail.com>
+
+Hello
+
+I'm trying te read a csv file in Rcpp package, with C++ function:
+
+ifstream ifs("FileName.csv")
+
+I'm using Rcpp modules , and the code work with Qt creator (purly in C++),
+but Rcpp cant' find the csv file in his stuctur.
+
+I remark also that the package work well without importing csv file, so the
+problem is that my Rcpp package cant' find csv file.
+
+
+
+Sincerly
+
+Youssef
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150723/b19e7fc8/attachment.html>
+
+From edd at debian.org  Thu Jul 23 16:15:58 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 23 Jul 2015 09:15:58 -0500
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+Message-ID: <21936.63262.183031.698452@max.nulle.part>
+
+
+Hi Ulf,
+
+On 23 July 2015 at 15:53, Ulf Mertens wrote:
+| I am working on a project in C++ where I have to use Bayesian Statistics quite
+| extensively. I coded my own Metropolis Hasting Sampler but since it is not
+| working that well, I wanted to call rstan from within C++ via RInside. I
+| already wrote the appropriate RInside/Rcpp code but I don't know how to rewrite
+| my CMakeLists.txt file to make it work.
+
+Sounds nice. Will you release this?
+ 
+| I looked at the CMakelists.txt file in the standard/examples folder but I don't
+| know enough about cmake to rewrite it for my own project.
+| 
+| My project consists of 3 source files and 2 header files and I am working with
+| Eclipse Mars. Here is my current file:
+| 
+| cmake_minimum_required(VERSION 2.6)
+| 
+| project(XX)
+| 
+| # use C++11
+| set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+| 
+| add_executable(${PROJECT_NAME}
+| ? global.h
+| ? model.h
+| ? model.cpp
+| ? run.cpp
+| ? mcmc.h
+| ? mcmc.cpp
+| ? )
+| 
+| What do I have to change (in the file or in Eclipse itself) to make it work?
+
+I wrote and support the 'plain old Makefile(s)' and can help with this.
+
+CMake support was added by Peter (CC'ed) who may be able to help you with this.
+My usual approach for 'non-Make' builds is to make it work with make, and
+then carry the changes over.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Jul 23 16:17:39 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 23 Jul 2015 09:17:39 -0500
+Subject: [Rcpp-devel] Readin cvs files in Rcpp package
+In-Reply-To: <CALp=_qHkHu-vhMpO32bd8BWtxogEG3g2Lee4iBZjmoS903QQsw@mail.gmail.com>
+References: <CALp=_qHkHu-vhMpO32bd8BWtxogEG3g2Lee4iBZjmoS903QQsw@mail.gmail.com>
+Message-ID: <21936.63363.40253.790653@max.nulle.part>
+
+
+Youssef,
+
+On 23 July 2015 at 16:07, Hmamouche Youssef wrote:
+| I'm trying te read a csv file in Rcpp package, with C++ function:
+| 
+| ifstream ifs("FileName.csv")
+| 
+| I'm using Rcpp modules , and the code work with Qt creator (purly in C++), but
+| Rcpp cant' find the csv file in his stuctur.
+| 
+| I remark also that the package work well without importing csv file, so the
+| problem is that my Rcpp package cant' find csv file.?
+
+You may find a Google query such
+
+   how to change working directory from C code
+
+helpful, or think about how the 'filename' argument can also support a path.
+
+This isn't an Rcpp question, but an elementary programming issue.  It might
+be polite to use a more appropriate venue for this.
+
+Regards, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mertens.ulf at gmail.com  Thu Jul 23 17:14:26 2015
+From: mertens.ulf at gmail.com (Ulf Mertens)
+Date: Thu, 23 Jul 2015 17:14:26 +0200
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <21936.63262.183031.698452@max.nulle.part>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+ <21936.63262.183031.698452@max.nulle.part>
+Message-ID: <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+
+Hi,
+
+thanks for your mail.
+
+I don't have to use cmake for my project. It's totally fine to use plain
+Makefiles for me.
+
+Sure, I can release this. But first, I want to optimize the code a bit. For
+instance, I am working with Eigen matrices and vectors in my
+c++ program but I don't know how to convert a Rcpp::NumericVector to say
+Eigen::VectorXd. Right now, I first convert to std::vector with Rcpp::as<>
+and then to Eigen::VectorXd with Eigen::Map. There is certainly a better
+way but I didn't figure it out yet.
+
+Ulf
+
+
+On Thu, Jul 23, 2015 at 4:15 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Ulf,
+>
+> On 23 July 2015 at 15:53, Ulf Mertens wrote:
+> | I am working on a project in C++ where I have to use Bayesian Statistics
+> quite
+> | extensively. I coded my own Metropolis Hasting Sampler but since it is
+> not
+> | working that well, I wanted to call rstan from within C++ via RInside. I
+> | already wrote the appropriate RInside/Rcpp code but I don't know how to
+> rewrite
+> | my CMakeLists.txt file to make it work.
+>
+> Sounds nice. Will you release this?
+>
+> | I looked at the CMakelists.txt file in the standard/examples folder but
+> I don't
+> | know enough about cmake to rewrite it for my own project.
+> |
+> | My project consists of 3 source files and 2 header files and I am
+> working with
+> | Eclipse Mars. Here is my current file:
+> |
+> | cmake_minimum_required(VERSION 2.6)
+> |
+> | project(XX)
+> |
+> | # use C++11
+> | set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+> |
+> | add_executable(${PROJECT_NAME}
+> |   global.h
+> |   model.h
+> |   model.cpp
+> |   run.cpp
+> |   mcmc.h
+> |   mcmc.cpp
+> |   )
+> |
+> | What do I have to change (in the file or in Eclipse itself) to make it
+> work?
+>
+> I wrote and support the 'plain old Makefile(s)' and can help with this.
+>
+> CMake support was added by Peter (CC'ed) who may be able to help you with
+> this.
+> My usual approach for 'non-Make' builds is to make it work with make, and
+> then carry the changes over.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150723/dfd1dfd3/attachment.html>
+
+From mertens.ulf at gmail.com  Fri Jul 24 10:18:10 2015
+From: mertens.ulf at gmail.com (Ulf Mertens)
+Date: Fri, 24 Jul 2015 10:18:10 +0200
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+ <21936.63262.183031.698452@max.nulle.part>
+ <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+Message-ID: <CA+7RmvZ_9BMKpx7rGM09Pu6vEybpOKv6pKnYMZZ-zAu9GuLYaQ@mail.gmail.com>
+
+Hi,
+
+I just looked into the GNUMakefile. I think I just have to only change
+those two lines, right?
+
+sources :=         $(wildcard *.cpp)
+programs :=       $(sources:.cpp=)
+
+
+If I understand it correctly, it only works for .cpp files. So it has be
+changed to something like this?
+
+sources :=        $(wildcard *.cpp)
+header :=          $(wildcard *.h)
+programs :=      $(sources:.cpp= header:.h=)
+
+Thanks
+
+Ulf
+
+
+
+
+On Thu, Jul 23, 2015 at 5:14 PM, Ulf Mertens <mertens.ulf at gmail.com> wrote:
+
+> Hi,
+>
+> thanks for your mail.
+>
+> I don't have to use cmake for my project. It's totally fine to use plain
+> Makefiles for me.
+>
+> Sure, I can release this. But first, I want to optimize the code a bit.
+> For instance, I am working with Eigen matrices and vectors in my
+> c++ program but I don't know how to convert a Rcpp::NumericVector to say
+> Eigen::VectorXd. Right now, I first convert to std::vector with Rcpp::as<>
+> and then to Eigen::VectorXd with Eigen::Map. There is certainly a better
+> way but I didn't figure it out yet.
+>
+> Ulf
+>
+>
+> On Thu, Jul 23, 2015 at 4:15 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> Hi Ulf,
+>>
+>> On 23 July 2015 at 15:53, Ulf Mertens wrote:
+>> | I am working on a project in C++ where I have to use Bayesian
+>> Statistics quite
+>> | extensively. I coded my own Metropolis Hasting Sampler but since it is
+>> not
+>> | working that well, I wanted to call rstan from within C++ via RInside. I
+>> | already wrote the appropriate RInside/Rcpp code but I don't know how to
+>> rewrite
+>> | my CMakeLists.txt file to make it work.
+>>
+>> Sounds nice. Will you release this?
+>>
+>> | I looked at the CMakelists.txt file in the standard/examples folder but
+>> I don't
+>> | know enough about cmake to rewrite it for my own project.
+>> |
+>> | My project consists of 3 source files and 2 header files and I am
+>> working with
+>> | Eclipse Mars. Here is my current file:
+>> |
+>> | cmake_minimum_required(VERSION 2.6)
+>> |
+>> | project(XX)
+>> |
+>> | # use C++11
+>> | set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+>> |
+>> | add_executable(${PROJECT_NAME}
+>> |   global.h
+>> |   model.h
+>> |   model.cpp
+>> |   run.cpp
+>> |   mcmc.h
+>> |   mcmc.cpp
+>> |   )
+>> |
+>> | What do I have to change (in the file or in Eclipse itself) to make it
+>> work?
+>>
+>> I wrote and support the 'plain old Makefile(s)' and can help with this.
+>>
+>> CMake support was added by Peter (CC'ed) who may be able to help you with
+>> this.
+>> My usual approach for 'non-Make' builds is to make it work with make, and
+>> then carry the changes over.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150724/7068d963/attachment-0001.html>
+
+From edd at debian.org  Fri Jul 24 13:13:08 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 24 Jul 2015 06:13:08 -0500
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <CA+7RmvZ_9BMKpx7rGM09Pu6vEybpOKv6pKnYMZZ-zAu9GuLYaQ@mail.gmail.com>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+ <21936.63262.183031.698452@max.nulle.part>
+ <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+ <CA+7RmvZ_9BMKpx7rGM09Pu6vEybpOKv6pKnYMZZ-zAu9GuLYaQ@mail.gmail.com>
+Message-ID: <21938.7620.274389.370232@max.nulle.part>
+
+
+On 24 July 2015 at 10:18, Ulf Mertens wrote:
+| Hi,
+| 
+| I just looked into the GNUMakefile. I think I just have to only change those
+| two lines, right?
+| 
+| sources := ??? ??? $(wildcard *.cpp)
+| programs := ??? ? $(sources:.cpp=)
+
+The idea here is that each .cpp leads to one executable, and its build is
+triggered by a change in it.  (
+ 
+| If I understand it correctly, it only works for .cpp files. So it has be
+| changed to something like this?
+| 
+| sources := ??? ?? $(wildcard *.cpp)
+| header :=??? ????? $(wildcard *.h)
+| programs := ???? $(sources:.cpp= header:.h=)
+
+The header files are implicit.  You could just enumerate the files by hand.:
+Or, as eg in examples/threads/GNUmakefile, just write the rule:
+
+
+all:			boostEx
+
+boostEx:		boostEx.cpp
+			$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LDLIBS) 
+			strip $@
+
+where strip of course optional too.  'boostEx' could depend on more than one
+.cpp; just list additonal ones.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mertens.ulf at gmail.com  Fri Jul 24 13:47:07 2015
+From: mertens.ulf at gmail.com (Ulf Mertens)
+Date: Fri, 24 Jul 2015 13:47:07 +0200
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <21938.7620.274389.370232@max.nulle.part>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+ <21936.63262.183031.698452@max.nulle.part>
+ <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+ <CA+7RmvZ_9BMKpx7rGM09Pu6vEybpOKv6pKnYMZZ-zAu9GuLYaQ@mail.gmail.com>
+ <21938.7620.274389.370232@max.nulle.part>
+Message-ID: <CA+7Rmva3naLFuj1Eq=i_GZB=xauwTaudtjn4Adaw2sKbzo1n2A@mail.gmail.com>
+
+Alright, I left the GNUMakefile as it is and copied it into my program
+directory. It gives the following error:
+
+make: Circular run <- run dependency dropped.
+
+Running model:
+
+Running run:
+/bin/sh: ./run: No such file or directory
+make: *** [run] Error 127
+
+Can you help me here?
+
+Thanks again for your help
+
+Ulf
+
+On Fri, Jul 24, 2015 at 1:13 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 24 July 2015 at 10:18, Ulf Mertens wrote:
+> | Hi,
+> |
+> | I just looked into the GNUMakefile. I think I just have to only change
+> those
+> | two lines, right?
+> |
+> | sources :=         $(wildcard *.cpp)
+> | programs :=       $(sources:.cpp=)
+>
+> The idea here is that each .cpp leads to one executable, and its build is
+> triggered by a change in it.  (
+>
+> | If I understand it correctly, it only works for .cpp files. So it has be
+> | changed to something like this?
+> |
+> | sources :=        $(wildcard *.cpp)
+> | header :=          $(wildcard *.h)
+> | programs :=      $(sources:.cpp= header:.h=)
+>
+> The header files are implicit.  You could just enumerate the files by
+> hand.:
+> Or, as eg in examples/threads/GNUmakefile, just write the rule:
+>
+>
+> all:                    boostEx
+>
+> boostEx:                boostEx.cpp
+>                         $(CXX) $(CPPFLAGS) $(CXXFLAGS) -o $@ $^ $(LDLIBS)
+>                         strip $@
+>
+> where strip of course optional too.  'boostEx' could depend on more than
+> one
+> .cpp; just list additonal ones.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150724/fd86d7db/attachment.html>
+
+From edd at debian.org  Fri Jul 24 14:00:10 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 24 Jul 2015 07:00:10 -0500
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <CA+7Rmva3naLFuj1Eq=i_GZB=xauwTaudtjn4Adaw2sKbzo1n2A@mail.gmail.com>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+ <21936.63262.183031.698452@max.nulle.part>
+ <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+ <CA+7RmvZ_9BMKpx7rGM09Pu6vEybpOKv6pKnYMZZ-zAu9GuLYaQ@mail.gmail.com>
+ <21938.7620.274389.370232@max.nulle.part>
+ <CA+7Rmva3naLFuj1Eq=i_GZB=xauwTaudtjn4Adaw2sKbzo1n2A@mail.gmail.com>
+Message-ID: <21938.10442.951751.553320@max.nulle.part>
+
+
+Ulf,
+
+On 24 July 2015 at 13:47, Ulf Mertens wrote:
+| Alright, I left the GNUMakefile as it is and copied it into my program
+
+Err, "the GNUmakefile"?  Which one? There are seven different ones below examples/.
+
+| directory. It gives the following error:
+| 
+| make: Circular run <- run dependency dropped.
+| 
+| Running model:
+| 
+| Running run:
+| /bin/sh: ./run: No such file or directory
+| make: *** [run] Error 127
+| 
+| Can you help me here?
+
+Honestly, I can't, given the information provided by you.
+
+If I may: If make is not your cup of tea, don't use it.  Build your project
+with a shell script, or manually, or WHATEVER WORKS. Your project.
+
+And: _Generic questions about CRAN packages_ are now handled on the (still
+pretty new) list r-package-devel.
+
+This list here is meant for Rcpp (and RInside) questions. I think we have
+strayed too far off.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mertens.ulf at gmail.com  Fri Jul 24 14:11:17 2015
+From: mertens.ulf at gmail.com (Ulf Mertens)
+Date: Fri, 24 Jul 2015 14:11:17 +0200
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <21938.10442.951751.553320@max.nulle.part>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+ <21936.63262.183031.698452@max.nulle.part>
+ <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+ <CA+7RmvZ_9BMKpx7rGM09Pu6vEybpOKv6pKnYMZZ-zAu9GuLYaQ@mail.gmail.com>
+ <21938.7620.274389.370232@max.nulle.part>
+ <CA+7Rmva3naLFuj1Eq=i_GZB=xauwTaudtjn4Adaw2sKbzo1n2A@mail.gmail.com>
+ <21938.10442.951751.553320@max.nulle.part>
+Message-ID: <CA+7RmvZ-ZsyON+pckGR+m_xLUB2nNh=5PgAWmXCrE43sa9kGCQ@mail.gmail.com>
+
+The question is still the same. I embedded RInside into my project but
+don't know how to compile it.
+
+The problem is that I don't know any way to make it work. I don't hold out
+for the usage of make. I just want to make it work somehow.
+
+I am referring to the makefile in examples/standard.
+
+Ulf
+
+
+
+On Fri, Jul 24, 2015 at 2:00 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Ulf,
+>
+> On 24 July 2015 at 13:47, Ulf Mertens wrote:
+> | Alright, I left the GNUMakefile as it is and copied it into my program
+>
+> Err, "the GNUmakefile"?  Which one? There are seven different ones below
+> examples/.
+>
+> | directory. It gives the following error:
+> |
+> | make: Circular run <- run dependency dropped.
+> |
+> | Running model:
+> |
+> | Running run:
+> | /bin/sh: ./run: No such file or directory
+> | make: *** [run] Error 127
+> |
+> | Can you help me here?
+>
+> Honestly, I can't, given the information provided by you.
+>
+> If I may: If make is not your cup of tea, don't use it.  Build your project
+> with a shell script, or manually, or WHATEVER WORKS. Your project.
+>
+> And: _Generic questions about CRAN packages_ are now handled on the (still
+> pretty new) list r-package-devel.
+>
+> This list here is meant for Rcpp (and RInside) questions. I think we have
+> strayed too far off.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150724/870a5da7/attachment.html>
+
+From mertens.ulf at gmail.com  Fri Jul 24 14:38:59 2015
+From: mertens.ulf at gmail.com (Ulf Mertens)
+Date: Fri, 24 Jul 2015 14:38:59 +0200
+Subject: [Rcpp-devel] Embedding RInside in C++ project
+In-Reply-To: <CA+7RmvZ-ZsyON+pckGR+m_xLUB2nNh=5PgAWmXCrE43sa9kGCQ@mail.gmail.com>
+References: <CA+7RmvaC_zUQoP_+DokhBqseqVE-KDEDd2Ek+-jtqGmZpUPQ0g@mail.gmail.com>
+ <21936.63262.183031.698452@max.nulle.part>
+ <CA+7RmvZGRfOmrZ2os9AEUtB3zkBKyFoxdSRyVL-HPC_xGTUpcw@mail.gmail.com>
+ <CA+7RmvZ_9BMKpx7rGM09Pu6vEybpOKv6pKnYMZZ-zAu9GuLYaQ@mail.gmail.com>
+ <21938.7620.274389.370232@max.nulle.part>
+ <CA+7Rmva3naLFuj1Eq=i_GZB=xauwTaudtjn4Adaw2sKbzo1n2A@mail.gmail.com>
+ <21938.10442.951751.553320@max.nulle.part>
+ <CA+7RmvZ-ZsyON+pckGR+m_xLUB2nNh=5PgAWmXCrE43sa9kGCQ@mail.gmail.com>
+Message-ID: <CA+7RmvYMZoh8h21hfZd_PxQNr9h=v_5TfRk4qF3wxxUoD8xkFA@mail.gmail.com>
+
+Ok, I figured it out:
+The error stems from the fact that one of my source files was named
+run.cpp. I renamed it and now (at least) this error is gone.
+
+Ulf
+
+On Fri, Jul 24, 2015 at 2:11 PM, Ulf Mertens <mertens.ulf at gmail.com> wrote:
+
+> The question is still the same. I embedded RInside into my project but
+> don't know how to compile it.
+>
+> The problem is that I don't know any way to make it work. I don't hold out
+> for the usage of make. I just want to make it work somehow.
+>
+> I am referring to the makefile in examples/standard.
+>
+> Ulf
+>
+>
+>
+> On Fri, Jul 24, 2015 at 2:00 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> Ulf,
+>>
+>> On 24 July 2015 at 13:47, Ulf Mertens wrote:
+>> | Alright, I left the GNUMakefile as it is and copied it into my program
+>>
+>> Err, "the GNUmakefile"?  Which one? There are seven different ones below
+>> examples/.
+>>
+>> | directory. It gives the following error:
+>> |
+>> | make: Circular run <- run dependency dropped.
+>> |
+>> | Running model:
+>> |
+>> | Running run:
+>> | /bin/sh: ./run: No such file or directory
+>> | make: *** [run] Error 127
+>> |
+>> | Can you help me here?
+>>
+>> Honestly, I can't, given the information provided by you.
+>>
+>> If I may: If make is not your cup of tea, don't use it.  Build your
+>> project
+>> with a shell script, or manually, or WHATEVER WORKS. Your project.
+>>
+>> And: _Generic questions about CRAN packages_ are now handled on the (still
+>> pretty new) list r-package-devel.
+>>
+>> This list here is meant for Rcpp (and RInside) questions. I think we have
+>> strayed too far off.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150724/a9d17225/attachment.html>
+
+From felix at nicebread.de  Mon Jul 27 14:57:53 2015
+From: felix at nicebread.de (Felix =?utf-8?q?Sch=C3=B6nbrodt?=)
+Date: Mon, 27 Jul 2015 14:57:53 +0200
+Subject: [Rcpp-devel] Compile RcppEigen with low memory
+Message-ID: <723E62DB-F17F-4603-B23D-20121D8AE159@nicebread.de>
+
+Hi all,
+
+I run R with Shiny on a virtual server (Ubuntu 12.04). Since the last 
+version, I cannot install/compile RcppEigen any more, with the following 
+error message:
+
+	virtual memory exhausted: Cannot allocate memory
+	make: *** [fastLm.o] Error 1
+
+Respectively, when I remove -pipe:
+
+	cc1plus: out of memory allocating 2097152 bytes after a total of 
+22822912 bytes
+	make: *** [fastLm.o] Error 1
+	ERROR: compilation failed for package ?RcppEigen?
+
+I tried the following:
+
+- Create a swap file --> did not work - presumably not allowed by the 
+hoster
+- Set the -g0 -O0 compiler flag
+- remove the -pipe compiler flag
+
+Obviously, I cannot increase physical RAM.
+Any ideas how to proceed from here?
+
+Best,
+Felix
+
+_______________________________
+PD Dr. Felix Sch?nbrodt
+Ludwig-Maximilians-Universit?t M?nchen, Germany
+
+Phone: +49 (0) 89 2180-5217
+http://www.psy.lmu.de/allg2
+http://www.nicebread.de
+@nicebread303
+
+`Please cite R packages you use, just as you would cite regular papers!
+E.g.: citation('TripleR')`
+
+
+From matdzb at gmail.com  Mon Jul 27 18:39:26 2015
+From: matdzb at gmail.com (Matt D.)
+Date: Mon, 27 Jul 2015 18:39:26 +0200
+Subject: [Rcpp-devel] Compile RcppEigen with low memory
+In-Reply-To: <723E62DB-F17F-4603-B23D-20121D8AE159@nicebread.de>
+References: <723E62DB-F17F-4603-B23D-20121D8AE159@nicebread.de>
+Message-ID: <55B65EBE.5040500@gmail.com>
+
+On 7/27/2015 14:57, Felix Sch?nbrodt wrote:
+> Hi all,
+Hi there!
+
+>
+> I run R with Shiny on a virtual server (Ubuntu 12.04). Since the last 
+> version, I cannot install/compile RcppEigen any more, with the 
+> following error message:
+> [...]
+>
+> Obviously, I cannot increase physical RAM.
+> Any ideas how to proceed from here?
+
+Here's an idea (disclaimer: this may be crazy... but it might just 
+work): Compile your binaries on another box, e.g., a VM (like VirtualBox 
+or VMware).
+
+You can get the image corresponding to the same OS version you're going 
+to need (so as to avoid linking with different/incompatible sys libs), 
+i.e., "Ubuntu 12.04 Precise Pangolin" from OSBoxes:
+http://www.osboxes.org/ubuntu/
+
+Note: Remember to use -march=<cpu_of_your_deployment_target>, otherwise 
+you may end up with suboptimal (or even unusable) binary.
+Here's the list: 
+https://gcc.gnu.org/onlinedocs/gcc/x86-Options.html#x86-Options
+Naturally, you definitely want to enable optimization (like 
+vectorization) that matches your deployment target: 
+http://eigen.tuxfamily.org/index.php?title=FAQ#How_can_I_enable_vectorization.3F
+
+Good luck!
+
+Best,
+
+Matt
+
+
+From edd at debian.org  Mon Jul 27 19:37:05 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 27 Jul 2015 12:37:05 -0500
+Subject: [Rcpp-devel] Compile RcppEigen with low memory
+In-Reply-To: <55B65EBE.5040500@gmail.com>
+References: <723E62DB-F17F-4603-B23D-20121D8AE159@nicebread.de>
+ <55B65EBE.5040500@gmail.com>
+Message-ID: <21942.27713.365298.351384@max.nulle.part>
+
+
+On 27 July 2015 at 18:39, Matt D. wrote:
+| On 7/27/2015 14:57, Felix Sch?nbrodt wrote:
+| Here's an idea (disclaimer: this may be crazy... but it might just 
+
+It's not. Use a binary r-cran-rcppeigen package.
+
+Just yesterday I blogged about the same context -- how to use an PPA at
+launchpad.net in order to get binaries for Travis.  This obviously carries
+over to other non-Travis installations.  See
+
+http://dirk.eddelbuettel.com/blog/2015/07/26#evading_the_hadley_tax_faster_travis_tests
+
+for that post. And for me as maintainer of the r-cran-rcppeigen package, it
+is particularly to re-create a build for 12.04 using the PPA build service.
+But, and here is the big but, you probably do not need to because Michael's
+c2d4u (and/or rrutter) will almost surely have r-cran-rcppeigen as lme4
+depends upon it.  So on your virtual machine, just point to the CRAN repo
+and or Michael's PPA(s) and use the binary.
+
+The code for all this is in the r-travis repo:
+
+https://github.com/craigcitro/r-travis/blob/master/scripts/travis-tool.sh#L63-L68
+
+so you should be all set.  Report back if you issues or questions.
+
+And last but not least, the obvious advice:  get a real computer with a
+proper memory allocation and a recent OS versions ;-)
+
+Hope this helps,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From felix at nicebread.de  Tue Jul 28 09:29:24 2015
+From: felix at nicebread.de (Felix =?utf-8?q?Sch=C3=B6nbrodt?=)
+Date: Tue, 28 Jul 2015 09:29:24 +0200
+Subject: [Rcpp-devel] Compile RcppEigen with low memory
+In-Reply-To: <21942.27713.365298.351384@max.nulle.part>
+References: <723E62DB-F17F-4603-B23D-20121D8AE159@nicebread.de>
+ <55B65EBE.5040500@gmail.com> <21942.27713.365298.351384@max.nulle.part>
+Message-ID: <266B51FD-514C-4F0F-9927-3D2BB6E82C30@nicebread.de>
+
+Wow - that is of course the best solution!
+Thanks for the detailed instructions - worked like a charm.
+
+I was not aware of these PPAs, but they are really helpful for my small, 
+outdated, and virtual server ;-)
+
+Cheers,
+Felix
+
+
+On 27 Jul 2015, at 19:37, Dirk Eddelbuettel wrote:
+
+> On 27 July 2015 at 18:39, Matt D. wrote:
+> | On 7/27/2015 14:57, Felix Sch?nbrodt wrote:
+> | Here's an idea (disclaimer: this may be crazy... but it might just
+>
+> It's not. Use a binary r-cran-rcppeigen package.
+>
+> Just yesterday I blogged about the same context -- how to use an PPA 
+> at
+> launchpad.net in order to get binaries for Travis.  This obviously 
+> carries
+> over to other non-Travis installations.  See
+>
+> http://dirk.eddelbuettel.com/blog/2015/07/26#evading_the_hadley_tax_faster_travis_tests
+>
+> for that post. And for me as maintainer of the r-cran-rcppeigen 
+> package, it
+> is particularly to re-create a build for 12.04 using the PPA build 
+> service.
+> But, and here is the big but, you probably do not need to because 
+> Michael's
+> c2d4u (and/or rrutter) will almost surely have r-cran-rcppeigen as 
+> lme4
+> depends upon it.  So on your virtual machine, just point to the CRAN 
+> repo
+> and or Michael's PPA(s) and use the binary.
+>
+> The code for all this is in the r-travis repo:
+>
+> https://github.com/craigcitro/r-travis/blob/master/scripts/travis-tool.sh#L63-L68
+>
+> so you should be all set.  Report back if you issues or questions.
+>
+> And last but not least, the obvious advice:  get a real computer with 
+> a
+> proper memory allocation and a recent OS versions ;-)
+>
+> Hope this helps,  Dirk
+>
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+_______________________________
+PD Dr. Felix Sch?nbrodt
+Ludwig-Maximilians-Universit?t M?nchen, Germany
+
+Phone: +49 (0) 89 2180-5217
+http://www.psy.lmu.de/allg2
+http://www.nicebread.de
+@nicebread303
+
+`Please cite R packages you use, just as you would cite regular papers!
+E.g.: citation('TripleR')`
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150728/3cf4d636/attachment.html>
+
+From simon.barthelme at gipsa-lab.fr  Tue Jul 28 10:59:58 2015
+From: simon.barthelme at gipsa-lab.fr (=?windows-1252?Q?Simon_Barthelm=E9?=)
+Date: Tue, 28 Jul 2015 10:59:58 +0200
+Subject: [Rcpp-devel] correct way of making custom as and wrap functions
+ available to other packages
+In-Reply-To: <21929.18453.291311.606091@max.nulle.part>
+References: <55A91208.60704@gipsa-lab.fr>	<21929.6835.315220.971540@max.nulle.part>	<55A9222A.1010108@gipsa-lab.fr>
+ <21929.18453.291311.606091@max.nulle.part>
+Message-ID: <55B7448E.3070800@gipsa-lab.fr>
+
+Dear list,
+
+As a follow-up to last week's discussion, the simplest solution is 
+indeed inlining.
+You can define your wrapper functions in a header, myPackage.h, 
+containing inline function definitions rather than declarations:
+
+----
+
+namespace Rcpp {
+template <> inline myClass as(SEXP foo){
+     //
+}
+template <> inline SEXP wrap(myClass &bar){
+     //
+}
+
+----
+
+You put the header in inst/include, and add -I../inst/include to 
+PKG_CPPFLAGS.
+
+Your wrapper functions are now available to other packages via a 
+Depends: statement in DESCRIPTION, and you can define a plugin as well 
+by adding a file to R/ containing:
+
+inlineCxxPlugin <- Rcpp:::Rcpp.plugin.maker(
+     include.before = "#include <myPackage.h>",
+     package        = "myPackage"
+)
+
+The mistake I was making was to write inline template <> instead of 
+template <> inline, which the compiler ignores (rather than issue a 
+syntax error). Thanks everybody for your input!
+
+Best
+
+Simon
+
+
+Le 17/07/2015 20:23, Dirk Eddelbuettel a ?crit :
+> On 17 July 2015 at 17:41, Simon Barthelm? wrote:
+> | Thanks Dirk! I'm not sure how to ensure that only one compilation unit
+> | includes the file (the package would have to get rid of RcppExports.cpp
+> | somehow, or stuff everything in there). I'm also not sure I understand
+> | what you mean by enforcing purity but I'll investigate. The third
+>
+> Kevin hit that as well:  inline function, and/or templates.  You essentially
+> need to avoid having the symbol be created several times over as that gets
+> the linker error.
+>
+> Dirk
+>
+>
+> | solution is the same one Kevin suggested, I think, and I haven't managed
+> | to get it to work.
+> |
+> | Best
+> |
+> | Simon
+> |
+> | Le 17/07/2015 17:09, Dirk Eddelbuettel a ?crit :
+> | > On 17 July 2015 at 16:32, Simon Barthelm? wrote:
+> | > | Dear list,
+> | > |
+> | > | For a package I'm developing (https://github.com/dahtah/imager/) I had
+> | > | to write custom "as" and "wrap" functions for third-party classes. I'd
+> | > | like to make these wrappers accessible to other developers via inline
+> | > | C++ as well as LinkingTo directives (so that they can be used in other
+> | > | packages).
+> | > | So far I've only managed the former: I have a header file in
+> | > | inst/include, called "wrappers.h", that contains the full
+> | > | implementations of my custom as and wrap functions. I've written a
+> | > | custom inline plugin and everything works fine. However, LinkingTo
+> | > | doesn't work: wrappers.h gets included in multiple object files and I
+> | > | get linking errors (the linker complains about multiple declarations of
+> | > | "as" and "wrap").
+> | > | I understand RcppArmadillo manages to get around the problem but I can't
+> | > | figure out how. What's the correct way of doing this? Is there a way of
+> | > | making as and wrap inline functions so that it's safe to have
+> | > | header-only implementations?
+> | >
+> | > Am at work now with my wrapped in another issue but I think one way of fixing
+> | > this is to ensure that only one compilation unit includes the file. Another
+> | > is to make sure the header file is "pure" in the 'just templates' sense so
+> | > that you do not get multiple instantiations.  A third is to use #define
+> | > statements to separate declarations (used for other packages) from definitions
+> | > and instantiations (which your package uses).
+> | >
+> | > I definitely had this design issue and managed to address it.  With a bit
+> | > more coffee I may even remember which package that was in...
+> | >
+> | > Dirk
+> | >
+> |
+>
+
+
+From rguy at 123mail.org  Tue Jul 28 18:53:30 2015
+From: rguy at 123mail.org (Rguy)
+Date: Tue, 28 Jul 2015 17:53:30 +0100
+Subject: [Rcpp-devel] Call by reference
+Message-ID: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+
+I attempted to implement the call by reference example on page 200 of
+Seamless R and C++, as follows:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+void absC(double & x) {
+if (x < 0) x = -x;
+}
+
+/*** R
+x = -1
+absC(x)
+x
+*/
+
+Unfortunately, x remains equal to -1.
+Platforms: Windows 7,  "R version 3.1.3 Patched (2015-03-16 r68103)".
+Please advise.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150728/41fb2c4c/attachment.html>
+
+From edd at debian.org  Tue Jul 28 20:45:55 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 28 Jul 2015 13:45:55 -0500
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+Message-ID: <21943.52707.228089.398714@max.nulle.part>
+
+
+On 28 July 2015 at 17:53, Rguy wrote:
+| I attempted to implement the call by reference example on page 200 of Seamless
+| R and C++, as follows:
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| // [[Rcpp::export]]
+| void absC(double & x) {
+| if (x < 0) x = -x;
+| }
+| 
+| /*** R
+| x = -1
+| absC(x)
+| x
+| */
+| 
+| Unfortunately, x remains equal to -1.
+| Platforms: Windows 7, ?"R version 3.1.3 Patched (2015-03-16 r68103)".
+| Please advise.
+
+An (atomic) double does not exist in R, so you are _always_ forcing a copy,
+which works against your intent here.
+
+Try replacing double with Rcpp::NumericVector.
+
+Dirk
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Jul 29 02:56:17 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 28 Jul 2015 19:56:17 -0500
+Subject: [Rcpp-devel] [ANN] Rcpp 0.12.0
+Message-ID: <21944.9393.38457.709797@max.nulle.part>
+
+
+Rcpp 0.12.0 came out on Saturday, and I wrote a short blog which I expected
+to be mostly ignored on the weekend.  I then forgot to mention this here.
+
+A short blog post about it is at
+
+   http://dirk.eddelbuettel.com/blog/    
+   http://dirk.eddelbuettel.com/blog/2015/07/25#rcpp_0.12.0
+
+and included as text (without links, or the nice image :) below.
+
+This release represents much appreciated contributions from a number of
+people--particularly Qiang Kou whom we also welcomed into the Rcpp Core team.
+As always, thanks to everybody for testing, suggestions and input.
+
+On behalf of Rcpp Core,  Dirk
+
+
+
+  Rcpp 0.12.0: Now with more Big Data!
+
+   big-data image
+
+   A new release 0.12.0 of Rcpp arrived on the CRAN network for GNU R this
+   morning, and I also pushed a Debian package upload.
+
+   Rcpp has become the most popular way of enhancing GNU R with C++ code. As
+   of today, 423 packages on CRAN depend on Rcpp for making analyses go
+   faster and further. Note that this is 60 more packages since the last
+   release in May! Also, BioConductor adds another 57 packages, and casual
+   searches on GitHub suggests many more.
+
+   And according to Andrie De Vries, Rcpp has now page rank of one on CRAN as
+   well!
+
+   And with this release, Rcpp also becomes ready for Big Data, or, as they
+   call it in Texas, Data.
+
+   Thanks to a lot of work and several pull requests by Qiang Kou, support
+   for R_xlen_t has been added.
+
+   That means we can now do stunts like
+
+ R> library(Rcpp)
+ R> big <- 2^31-1
+ R> bigM <- rep(NA, big)
+ R> bigM2 <- c(bigM, bigM)
+ R> cppFunction("double getSz(LogicalVector x) { return x.length(); }")
+ R> getSz(bigM)
+ [1] 2147483647
+ R> getSz(bigM2)
+ [1] 4294967294
+ R>
+
+   where prior versions of Rcpp would just have said
+
+ > getSz(bigM2)
+ Error in getSz(bigM2) :
+   long vectors not supported yet: ../../src/include/Rinlinedfuns.h:137
+ >
+
+   which is clearly not Texas-style. Another wellcome change, also thanks to
+   Qiang Kou, adds encoding support for strings.
+
+   A lot of other things got polished. We are still improving exception
+   handling as we still get the odd curveballs in a corner cases. Matt
+   Dziubinski corrected the var() computation to use the proper two-pass
+   method and added better support for lambda functions in Sugar expression
+   using sapply(), Qiang Kou added more pull requests mostly for string
+   initialization, and Romain added a pull request which made data frame
+   creation a little more robust, and JJ was his usual self in tirelessly
+   looking after all aspects of Rcpp Attributes.
+
+   As always, you can follow the development via the GitHub repo and
+   particularly the Issue tickets and Pull Requests. And any discussions,
+   questions, ... regarding Rcpp are always welcome at the rcpp-devel mailing
+   list.
+
+   Last but not least, we are also extremely pleased to annouce that Qiang
+   Kou has joined us in the Rcpp-Core team. We are looking forward to a lot
+   more awesome!
+
+   See below for a detailed list of changes extracted from the NEWS file.
+
+    Changes in Rcpp version 0.12.0 (2015-07-24)
+
+       * Changes in Rcpp API:
+
+            * Rcpp_eval() no longer uses R_ToplevelExec when evaluating R
+              expressions; this should resolve errors where calling handlers
+              (e.g. through suppressMessages()) were not properly respected.
+
+            * All internal length variables have been changed from R_len_t to
+              R_xlen_t to support vectors longer than 2^31-1 elements (via
+              pull request 303 by Qiang Kou).
+
+            * The sugar function sapply now supports lambda functions
+              (addressing issue 213 thanks to Matt Dziubinski)
+
+            * The var sugar function now uses a more robust two-pass method,
+              supports complex numbers, with new unit tests added (via pull
+              request 320 by Matt Dziubinski)
+
+            * String constructors now allow encodings (via pull request 310
+              by Qiang Kou)
+
+            * String objects are preserving the underlying SEXP objects
+              better, and are more careful about initializations (via pull
+              requests 322 and 329 by Qiang Kou)
+
+            * DataFrame constructors are now a little more careful (via pull
+              request 301 by Romain Francois)
+
+            * For R 3.2.0 or newer, Rf_installChar() is used instead of
+              Rf_install(CHAR()) (via pull request 332).
+
+       * Changes in Rcpp Attributes:
+
+            * Use more robust method of ensuring unique paths for generated
+              shared libraries.
+
+            * The evalCpp function now also supports the plugins argument.
+
+            * Correctly handle signature termination characters ('{' or ';')
+              contained in quotes.
+
+       * Changes in Rcpp Documentation:
+
+            * The Rcpp-FAQ vignette was once again updated with respect to OS
+              X issues and Fortran libraries needed for e.g. RcppArmadillo.
+
+            * The included Rcpp.bib bibtex file (which is also used by other
+              Rcpp* packages) was updated with respect to its CRAN
+              references.
+
+   Thanks to CRANberries, you can also look at a diff to the previous release
+   As always, even fuller details are on the Rcpp Changelog page and the Rcpp
+   page which also leads to the downloads page, the browseable doxygen docs
+   and zip files of doxygen output for the standard formats. A local
+   directory has source and documentation too. Questions, comments etc should
+   go to the rcpp-devel mailing list off the R-Forge page.
+
+   This post by Dirk Eddelbuettel originated on his Thinking inside the box
+   blog. Please report excessive re-aggregation in third-party for-profit
+   settings.
+
+                                                  /code/rcpp | permanent link
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From sorenh at math.aau.dk  Wed Jul 29 06:36:01 2015
+From: sorenh at math.aau.dk (=?iso-8859-1?Q?S=F8ren_H=F8jsgaard?=)
+Date: Wed, 29 Jul 2015 04:36:01 +0000
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <21943.52707.228089.398714@max.nulle.part>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+Message-ID: <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+
+Just a follow up on "copying": If you copying": If you do
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+void absC(NumericVector & x) {
+if (x[0] < 0) 
+  x = -x;
+}
+
+/*** R
+y <- -1L
+absC(y)
+y
+*/
+
+you'll get 
+
+> y <- -1L
+> absC(y)
+> y
+[1] -1
+
+and that is because an IntegerVector is provided but a NumericVector is expected; hence a copying takes place. 
+
+Regards
+S?ren
+
+
+
+
+|-----Original Message-----
+|From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-
+|bounces at lists.r-forge.r-project.org] On Behalf Of Dirk Eddelbuettel
+|Sent: 28. juli 2015 20:46
+|To: Rguy
+|Cc: rcpp-devel at lists.r-forge.r-project.org
+|Subject: Re: [Rcpp-devel] Call by reference
+|
+|
+|On 28 July 2015 at 17:53, Rguy wrote:
+|| I attempted to implement the call by reference example on page 200 of
+|| Seamless R and C++, as follows:
+||
+|| #include <Rcpp.h>
+|| using namespace Rcpp;
+||
+|| // [[Rcpp::export]]
+|| void absC(double & x) {
+|| if (x < 0) x = -x;
+|| }
+||
+|| /*** R
+|| x = -1
+|| absC(x)
+|| x
+|| */
+||
+|| Unfortunately, x remains equal to -1.
+|| Platforms: Windows 7, ?"R version 3.1.3 Patched (2015-03-16 r68103)".
+|| Please advise.
+|
+|An (atomic) double does not exist in R, so you are _always_ forcing a
+|copy, which works against your intent here.
+|
+|Try replacing double with Rcpp::NumericVector.
+|
+|Dirk
+|
+|
+|--
+|http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+|_______________________________________________
+|Rcpp-devel mailing list
+|Rcpp-devel at lists.r-forge.r-project.org
+|https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From rguy at 123mail.org  Wed Jul 29 08:29:02 2015
+From: rguy at 123mail.org (Rguy)
+Date: Wed, 29 Jul 2015 07:29:02 +0100
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+Message-ID: <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+
+Soren,
+
+Thanks for the insight. For other readers possibly struggling with call by
+reference, the following code works as expected, i.e., x is changed to c(1,
+2).
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+void absC(NumericVector & x) {
+int n = x.size();
+for (int i = 0; i < n; ++i) {
+if (x[i] < 0) x[i] = -x[i];
+}
+}
+
+/*** R
+x = c(-1, -2)
+absC(x)
+x
+*/
+
+
+On Wed, Jul 29, 2015 at 5:36 AM, S?ren H?jsgaard <sorenh at math.aau.dk> wrote:
+
+> Just a follow up on "copying": If you copying": If you do
+>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> // [[Rcpp::export]]
+> void absC(NumericVector & x) {
+> if (x[0] < 0)
+>   x = -x;
+> }
+>
+> /*** R
+> y <- -1L
+> absC(y)
+> y
+> */
+>
+> you'll get
+>
+> > y <- -1L
+> > absC(y)
+> > y
+> [1] -1
+>
+> and that is because an IntegerVector is provided but a NumericVector is
+> expected; hence a copying takes place.
+>
+> Regards
+> S?ren
+>
+>
+>
+>
+> |-----Original Message-----
+> |From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-
+> |bounces at lists.r-forge.r-project.org] On Behalf Of Dirk Eddelbuettel
+> |Sent: 28. juli 2015 20:46
+> |To: Rguy
+> |Cc: rcpp-devel at lists.r-forge.r-project.org
+> |Subject: Re: [Rcpp-devel] Call by reference
+> |
+> |
+> |On 28 July 2015 at 17:53, Rguy wrote:
+> || I attempted to implement the call by reference example on page 200 of
+> || Seamless R and C++, as follows:
+> ||
+> || #include <Rcpp.h>
+> || using namespace Rcpp;
+> ||
+> || // [[Rcpp::export]]
+> || void absC(double & x) {
+> || if (x < 0) x = -x;
+> || }
+> ||
+> || /*** R
+> || x = -1
+> || absC(x)
+> || x
+> || */
+> ||
+> || Unfortunately, x remains equal to -1.
+> || Platforms: Windows 7,  "R version 3.1.3 Patched (2015-03-16 r68103)".
+> || Please advise.
+> |
+> |An (atomic) double does not exist in R, so you are _always_ forcing a
+> |copy, which works against your intent here.
+> |
+> |Try replacing double with Rcpp::NumericVector.
+> |
+> |Dirk
+> |
+> |
+> |--
+> |http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> |_______________________________________________
+> |Rcpp-devel mailing list
+> |Rcpp-devel at lists.r-forge.r-project.org
+> |https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150729/d3eeb07b/attachment.html>
+
+From edd at debian.org  Wed Jul 29 13:37:50 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Jul 2015 06:37:50 -0500
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+Message-ID: <21944.47886.357534.861320@max.nulle.part>
+
+
+On 29 July 2015 at 07:29, Rguy wrote:
+| Thanks for the insight. For other readers possibly struggling with call by
+| reference, the following code works as expected, i.e., x is changed to c(1, 2).
+
+Nobody is struggling, but your example is still "unusual" (to avoid the
+loaded term "wrong") as we generally prefer functions which compute something
+to return something.
+
+But if you insist on side-effects, this is simpler:
+
+R> cppFunction("void myabs(NumericVector & x) { x = abs(x); }")
+R> x <- c(-2.0, 4.0)
+R> myabs(x)
+>R x
+[1] 2 4
+R>
+
+But you should really do
+
+R> cppFunction("NumericVector myabs(NumericVector & x) { return abs(x); }")
+R> x <- c(-2.0, 4.0)
+R> myabs(x)
+[1] 2 4
+R>
+
+which more like R.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jsmith5889 at yahoo.com  Wed Jul 29 17:19:44 2015
+From: jsmith5889 at yahoo.com (jsmith5889 at yahoo.com)
+Date: Wed, 29 Jul 2015 17:19:44 +0200
+Subject: [Rcpp-devel] Specify Rcpp header location in Makevars
+Message-ID: <55B8EF10.70501@yahoo.com>
+
+Hi,
+
+Is there a way to automatically specify the location of the Rcpp include
+directory (for Rcpp.h) in Makevars?
+
+In my Makevars, I use the following compile command:
+
+%.o: %.cpp $(cpp_sources)
+	$(CXX) $(PKG_CXXFLAGS) $<
+
+
+I also specified "Imports: Rcpp" in DESCRIPTION, but it does not appear
+to automatically add the right flags to the compile command.
+
+I am looking for something that could work similarly to Rscript -e
+"Rcpp:::LdFlags()", which used to export the Rcpp library flags.
+
+Any ideas are greatly appreciated!
+
+Thanks!
+Lutz
+
+From romain at r-enthusiasts.com  Wed Jul 29 17:29:40 2015
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Wed, 29 Jul 2015 17:29:40 +0200
+Subject: [Rcpp-devel] Specify Rcpp header location in Makevars
+In-Reply-To: <55B8EF10.70501@yahoo.com>
+References: <55B8EF10.70501@yahoo.com>
+Message-ID: <BBE48A6F-4F7E-4514-9C53-F9224E060A6C@r-enthusiasts.com>
+
+You need 
+
+LinkingTo: Rcpp
+
+As per the current documentation. 
+
+Romain
+
+Envoy? de mon iPhone
+
+> Le 29 juil. 2015 ? 17:19, "jsmith5889 at yahoo.com" <jsmith5889 at yahoo.com> a ?crit :
+> 
+> Hi,
+> 
+> Is there a way to automatically specify the location of the Rcpp include
+> directory (for Rcpp.h) in Makevars?
+> 
+> In my Makevars, I use the following compile command:
+> 
+> %.o: %.cpp $(cpp_sources)
+>    $(CXX) $(PKG_CXXFLAGS) $<
+> 
+> 
+> I also specified "Imports: Rcpp" in DESCRIPTION, but it does not appear
+> to automatically add the right flags to the compile command.
+> 
+> I am looking for something that could work similarly to Rscript -e
+> "Rcpp:::LdFlags()", which used to export the Rcpp library flags.
+> 
+> Any ideas are greatly appreciated!
+> 
+> Thanks!
+> Lutz
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From rguy at 123mail.org  Wed Jul 29 18:28:17 2015
+From: rguy at 123mail.org (Rguy)
+Date: Wed, 29 Jul 2015 17:28:17 +0100
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <21944.47886.357534.861320@max.nulle.part>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+Message-ID: <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+
+The reason I am interested in using call by reference is that I am
+accessing data frames with over a million rows and hundreds of columns. It
+is more efficient to operate on such a data frame directly, as opposed to
+copying it into and out of a function. In other words, I want to be *not*
+like R, which is why I am interested in utilizing C++, which supports call
+by reference.
+
+On Wed, Jul 29, 2015 at 12:37 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 29 July 2015 at 07:29, Rguy wrote:
+> | Thanks for the insight. For other readers possibly struggling with call
+> by
+> | reference, the following code works as expected, i.e., x is changed to
+> c(1, 2).
+>
+> Nobody is struggling, but your example is still "unusual" (to avoid the
+> loaded term "wrong") as we generally prefer functions which compute
+> something
+> to return something.
+>
+> But if you insist on side-effects, this is simpler:
+>
+> R> cppFunction("void myabs(NumericVector & x) { x = abs(x); }")
+> R> x <- c(-2.0, 4.0)
+> R> myabs(x)
+> >R x
+> [1] 2 4
+> R>
+>
+> But you should really do
+>
+> R> cppFunction("NumericVector myabs(NumericVector & x) { return abs(x); }")
+> R> x <- c(-2.0, 4.0)
+> R> myabs(x)
+> [1] 2 4
+> R>
+>
+> which more like R.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150729/6f3b2544/attachment.html>
+
+From edd at debian.org  Wed Jul 29 19:37:37 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Jul 2015 12:37:37 -0500
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+ <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+Message-ID: <21945.3937.576586.727498@max.nulle.part>
+
+
+On 29 July 2015 at 17:28, Rguy wrote:
+| The reason I am interested in using call by reference is that I am accessing
+| data frames with over a million rows and hundreds of columns. It is more
+| efficient to operate on such a data frame directly, as opposed to copying it
+| into and out of a function. In other words, I want to be *not* like R, which is
+| why I am interested in utilizing C++, which supports call by reference.
+
+You misunderstand.  We communicate by SEXP.  Where the P stands for pointer.
+IE even with 
+
+  R> M <- as.data.frame(matrix(rnorm(1e6, 1e3)))
+  R> object.size(M)
+  8000672 bytes
+  R>
+
+we'd still only pass the same 56 bytes a SEXP takes. See eg
+https://cran.r-project.org/doc/manuals/R-ints.html#SEXPs and play with memory
+profiling in R.
+
+Dirk 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From hye at ucsd.edu  Wed Jul 29 20:01:58 2015
+From: hye at ucsd.edu (Hao Ye)
+Date: Wed, 29 Jul 2015 11:01:58 -0700
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <21945.3937.576586.727498@max.nulle.part>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+ <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+ <21945.3937.576586.727498@max.nulle.part>
+Message-ID: <2D50151B-6762-415E-B104-5E88BC8EBD57@ucsd.edu>
+
+The data.table package might also be worth looking into.
+
+Best,
+--
+Hao Ye
+hye at ucsd.edu
+
+> On Jul 29, 2015, at 10:37 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 29 July 2015 at 17:28, Rguy wrote:
+> | The reason I am interested in using call by reference is that I am accessing
+> | data frames with over a million rows and hundreds of columns. It is more
+> | efficient to operate on such a data frame directly, as opposed to copying it
+> | into and out of a function. In other words, I want to be *not* like R, which is
+> | why I am interested in utilizing C++, which supports call by reference.
+> 
+> You misunderstand.  We communicate by SEXP.  Where the P stands for pointer.
+> IE even with 
+> 
+>  R> M <- as.data.frame(matrix(rnorm(1e6, 1e3)))
+>  R> object.size(M)
+>  8000672 bytes
+>  R>
+> 
+> we'd still only pass the same 56 bytes a SEXP takes. See eg
+> https://cran.r-project.org/doc/manuals/R-ints.html#SEXPs and play with memory
+> profiling in R.
+> 
+> Dirk 
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From romain at r-enthusiasts.com  Wed Jul 29 20:28:31 2015
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Wed, 29 Jul 2015 20:28:31 +0200
+Subject: [Rcpp-devel] Specify Rcpp header location in Makevars
+In-Reply-To: <55B8EF10.70501@yahoo.com>
+References: <55B8EF10.70501@yahoo.com>
+Message-ID: <7A447D73-2C6D-461C-89E2-9E0B14369A35@r-enthusiasts.com>
+
+You need LinkingTo: Rcpp
+
+And the information goes into the CLINK_CPPFLAGS variable if you really need to make a custom rule for .cpp files
+
+Romain
+
+> Le 29 juil. 2015 ? 17:19, "jsmith5889 at yahoo.com" <jsmith5889 at yahoo.com> a ?crit :
+> 
+> Hi,
+> 
+> Is there a way to automatically specify the location of the Rcpp include
+> directory (for Rcpp.h) in Makevars?
+> 
+> In my Makevars, I use the following compile command:
+> 
+> %.o: %.cpp $(cpp_sources)
+>    $(CXX) $(PKG_CXXFLAGS) $<
+> 
+> 
+> I also specified "Imports: Rcpp" in DESCRIPTION, but it does not appear
+> to automatically add the right flags to the compile command.
+> 
+> I am looking for something that could work similarly to Rscript -e
+> "Rcpp:::LdFlags()", which used to export the Rcpp library flags.
+> 
+> Any ideas are greatly appreciated!
+> 
+> Thanks!
+> Lutz
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Wed Jul 29 21:16:33 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Jul 2015 14:16:33 -0500
+Subject: [Rcpp-devel] Specify Rcpp header location in Makevars
+In-Reply-To: <55B8EF10.70501@yahoo.com>
+References: <55B8EF10.70501@yahoo.com>
+Message-ID: <21945.9873.952369.733494@max.nulle.part>
+
+
+On 29 July 2015 at 17:19, jsmith5889 at yahoo.com wrote:
+| Is there a way to automatically specify the location of the Rcpp include
+| directory (for Rcpp.h) in Makevars?
+
+As Romain said, add "LinkingTo: Rcpp" to your DESCRIPTION.
+ 
+| In my Makevars, I use the following compile command:
+| 
+| %.o: %.cpp $(cpp_sources)
+| 	$(CXX) $(PKG_CXXFLAGS) $<
+
+This is generally not a good idea. The advise in "Writing R Extensions" is
+not as clear-cut on this as it might be but there were e.g. some comments by
+Simon on this list (or maybe r-devel).  In general, you want your Makevars to
+be as minimal as possibly as these implicit rules __already__ come in via the
+core Makefile parts provided by R.  You are more likely to do harm than good
+here (and yes, I got burned too in the past).
+ 
+| I also specified "Imports: Rcpp" in DESCRIPTION, but it does not appear
+| to automatically add the right flags to the compile command.
+| 
+| I am looking for something that could work similarly to Rscript -e
+| "Rcpp:::LdFlags()", which used to export the Rcpp library flags.
+| 
+| Any ideas are greatly appreciated!
+
+The best best may be to start with Rcpp.package.skeleton() and see what it
+creates.
+
+Cheers, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jsmith5889 at yahoo.com  Wed Jul 29 21:33:49 2015
+From: jsmith5889 at yahoo.com (jsmith5889 at yahoo.com)
+Date: Wed, 29 Jul 2015 21:33:49 +0200
+Subject: [Rcpp-devel] Specify Rcpp header location in Makevars
+In-Reply-To: <21945.9873.952369.733494@max.nulle.part>
+References: <55B8EF10.70501@yahoo.com>
+ <21945.9873.952369.733494@max.nulle.part>
+Message-ID: <55B92A9D.40505@yahoo.com>
+
+Thanks Dirk and Romain for your comments! CLINK_CPPFLAGS did the trick.
+
+Dirk, I understand that it might seem sub-optimal to define my own
+compile commands: part of my project is in cuda for GPU-based
+parallelization, and I manually set the compile commands to compile my
+cuda source files with nvcc and the c++ source files with the default
+compiler.
+
+If there is a more elegant or a more robust way to integrate c++ and
+cuda sources in one project, I'd be delighted to hear about it; for now
+my Makevars-based approach gets the job done.
+
+Thanks again!
+Lutz
+
+On 07/29/2015 09:16 PM, Dirk Eddelbuettel wrote:
+> 
+> On 29 July 2015 at 17:19, jsmith5889 at yahoo.com wrote:
+> | Is there a way to automatically specify the location of the Rcpp include
+> | directory (for Rcpp.h) in Makevars?
+> 
+> As Romain said, add "LinkingTo: Rcpp" to your DESCRIPTION.
+>  
+> | In my Makevars, I use the following compile command:
+> | 
+> | %.o: %.cpp $(cpp_sources)
+> | 	$(CXX) $(PKG_CXXFLAGS) $<
+> 
+> This is generally not a good idea. The advise in "Writing R Extensions" is
+> not as clear-cut on this as it might be but there were e.g. some comments by
+> Simon on this list (or maybe r-devel).  In general, you want your Makevars to
+> be as minimal as possibly as these implicit rules __already__ come in via the
+> core Makefile parts provided by R.  You are more likely to do harm than good
+> here (and yes, I got burned too in the past).
+>  
+> | I also specified "Imports: Rcpp" in DESCRIPTION, but it does not appear
+> | to automatically add the right flags to the compile command.
+> | 
+> | I am looking for something that could work similarly to Rscript -e
+> | "Rcpp:::LdFlags()", which used to export the Rcpp library flags.
+> | 
+> | Any ideas are greatly appreciated!
+> 
+> The best best may be to start with Rcpp.package.skeleton() and see what it
+> creates.
+> 
+> Cheers, Dirk
+> 
+
+From nate at verse.com  Wed Jul 29 22:05:21 2015
+From: nate at verse.com (Nathan Kurz)
+Date: Wed, 29 Jul 2015 13:05:21 -0700
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <21945.3937.576586.727498@max.nulle.part>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+ <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+ <21945.3937.576586.727498@max.nulle.part>
+Message-ID: <CAFAN8vw=nMK82EXdVxBrnGc2zuqVPRjPyvH6FctM-HBm3uO3aw@mail.gmail.com>
+
+On Wed, Jul 29, 2015 at 10:37 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> You misunderstand.  We communicate by SEXP.  Where the P stands for pointer.
+> IE even with
+>
+>   R> M <- as.data.frame(matrix(rnorm(1e6, 1e3)))
+>   R> object.size(M)
+>   8000672 bytes
+>   R>
+>
+> we'd still only pass the same 56 bytes a SEXP takes. See eg
+> https://cran.r-project.org/doc/manuals/R-ints.html#SEXPs and play with memory
+> profiling in R.
+
+I tried memory profiling both of your versions with a long vector, and
+found that the recommended Rcpp approach made an additional 8GB copy.
+Is there a way to avoid this extra copy without resorting to in place
+modification?
+
+--nate
+
+nate at ubuntu:~/R/byreference$ less abs.R
+  library(Rcpp)
+
+  cppFunction("NumericVector absCopy(NumericVector & x) { return abs(x); }")
+  cppFunction("void absInPlace(NumericVector & x) { x = abs(x); }")
+
+  xOrig = rnorm(1000*1000*1000)
+  xRef = xOrig       # shallow copy shares memory
+  xCopy = xOrig * 1  # deep copy is independent
+
+  Rprofmem("absInPlace.txt")
+  absInPlace(xOrig)
+  Rprofmem(NULL)
+
+  identical(xOrig, xRef)
+  identical(xOrig, xCopy)
+
+  Rprofmem("absCopy.txt")
+  xCopy = absCopy(xCopy)
+  Rprofmem(NULL)
+
+  identical(xOrig, xRef)
+  identical(xOrig, xCopy)
+
+nate at ubuntu:~/R/byreference$ Rscript abs.R
+  [1] TRUE
+  [1] FALSE
+  [1] TRUE
+  [1] TRUE
+
+nate at ubuntu:~/R/byreference$ cat absInPlace.txt
+  2544 :"<Anonymous>" "absInPlace"
+
+nate at ubuntu:~/R/byreference$ cat absCopy.txt
+  8000000040 :"<Anonymous>" "absCopy"
+  2544 :"<Anonymous>" "absCopy"
+
+From edd at debian.org  Wed Jul 29 22:12:06 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Jul 2015 15:12:06 -0500
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <CAFAN8vw=nMK82EXdVxBrnGc2zuqVPRjPyvH6FctM-HBm3uO3aw@mail.gmail.com>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+ <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+ <21945.3937.576586.727498@max.nulle.part>
+ <CAFAN8vw=nMK82EXdVxBrnGc2zuqVPRjPyvH6FctM-HBm3uO3aw@mail.gmail.com>
+Message-ID: <21945.13206.734716.895932@max.nulle.part>
+
+
+On 29 July 2015 at 13:05, Nathan Kurz wrote:
+| I tried memory profiling both of your versions with a long vector, and
+| found that the recommended Rcpp approach made an additional 8GB copy.
+| Is there a way to avoid this extra copy without resorting to in place
+| modification?
+
+Look at Rcpp::XPtr for the most fine-grained control.  We have used that to
+pass bigmemory object handles around.
+
+| nate at ubuntu:~/R/byreference$ less abs.R
+|   library(Rcpp)
+| 
+|   cppFunction("NumericVector absCopy(NumericVector & x) { return abs(x); }")
+
+Copy-on-write semantics. *If* you alter you create copies.
+
+
+All this is becoming a wee bit obscure.  The focus of the list is to help
+people use R, not to navigate constraints built into the R system.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Jul 29 22:45:46 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Jul 2015 15:45:46 -0500
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <21945.13206.734716.895932@max.nulle.part>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+ <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+ <21945.3937.576586.727498@max.nulle.part>
+ <CAFAN8vw=nMK82EXdVxBrnGc2zuqVPRjPyvH6FctM-HBm3uO3aw@mail.gmail.com>
+ <21945.13206.734716.895932@max.nulle.part>
+Message-ID: <21945.15226.473611.646175@max.nulle.part>
+
+
+On 29 July 2015 at 15:12, Dirk Eddelbuettel wrote:
+| All this is becoming a wee bit obscure.  The focus of the list is to help
+| people use R, not to navigate constraints built into the R system.
+
+Sorry:  "... is to help people use Rcpp, not to ..."
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From nate at verse.com  Wed Jul 29 23:21:27 2015
+From: nate at verse.com (Nathan Kurz)
+Date: Wed, 29 Jul 2015 14:21:27 -0700
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <21945.15226.473611.646175@max.nulle.part>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+ <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+ <21945.3937.576586.727498@max.nulle.part>
+ <CAFAN8vw=nMK82EXdVxBrnGc2zuqVPRjPyvH6FctM-HBm3uO3aw@mail.gmail.com>
+ <21945.13206.734716.895932@max.nulle.part>
+ <21945.15226.473611.646175@max.nulle.part>
+Message-ID: <CAFAN8vzOopKsjHUXqXMJxVvscB8MjW8sneJSwOYPscmjgwrNjA@mail.gmail.com>
+
+> On 29 July 2015 at 15:12, Dirk Eddelbuettel wrote:
+> All this is becoming a wee bit obscure.  The focus of the list is to help
+> people use Rcpp, not to navigate constraints built into the R system.
+
+<genuine>
+Yes, but for many users (well, at least RGuy and me) the impetus for
+using Rcpp is to to improve performance on larger datasets.  Since R
+is relatively weak in memory management, avoiding large unnecessary
+copies by using Rcpp is frequently the best way to do this.
+</genuine>
+
+<joking>
+Really, your misfortune was creating such a generally useful tool that
+solves other people's problems.  If you'd thought ahead and designed
+it to be less flexible, you wouldn't have people asking all these
+uncomfortable questions about how to modify in place.
+</joking>
+
+--nate
+
+ps.  I messed up slightly in my example.   With a 1000*1000 vector,
+it's only an 8MB copy.  You need to change that to 1000*1000*1000 to
+suffer an 8GB copy.
+
+From edd at debian.org  Thu Jul 30 00:11:53 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Jul 2015 17:11:53 -0500
+Subject: [Rcpp-devel] Call by reference
+In-Reply-To: <CAFAN8vzOopKsjHUXqXMJxVvscB8MjW8sneJSwOYPscmjgwrNjA@mail.gmail.com>
+References: <CAEorq2OSkii+xGVuskFJ9mt0GJuEURbsa=LSBswS5iJAd4Dmtw@mail.gmail.com>
+ <21943.52707.228089.398714@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3B530E177@AD-EXCHMBX2-1.aau.dk>
+ <CAEorq2Mjm4=kK3KbX9_guzhJ+hc-QpQ57wr-AxrF1N8jQWSCZQ@mail.gmail.com>
+ <21944.47886.357534.861320@max.nulle.part>
+ <CAEorq2PQGzY4iJr3_oZJw9UnmFuui-iRDOi1Ee3TkxtwCWaahA@mail.gmail.com>
+ <21945.3937.576586.727498@max.nulle.part>
+ <CAFAN8vw=nMK82EXdVxBrnGc2zuqVPRjPyvH6FctM-HBm3uO3aw@mail.gmail.com>
+ <21945.13206.734716.895932@max.nulle.part>
+ <21945.15226.473611.646175@max.nulle.part>
+ <CAFAN8vzOopKsjHUXqXMJxVvscB8MjW8sneJSwOYPscmjgwrNjA@mail.gmail.com>
+Message-ID: <21945.20393.339944.907553@max.nulle.part>
+
+
+On 29 July 2015 at 14:21, Nathan Kurz wrote:
+| > On 29 July 2015 at 15:12, Dirk Eddelbuettel wrote:
+| > All this is becoming a wee bit obscure.  The focus of the list is to help
+| > people use Rcpp, not to navigate constraints built into the R system.
+| 
+| <genuine>
+| Yes, but for many users (well, at least RGuy and me) the impetus for
+| using Rcpp is to to improve performance on larger datasets.  Since R
+| is relatively weak in memory management, avoiding large unnecessary
+| copies by using Rcpp is frequently the best way to do this.
+| </genuine>
+
+I know. But then it is best to put cards on the table at the outset -- and
+hear about XPtr -- then to putz around with adding & or not.  This isn;t pure
+C++.  We interface R through a C interface that was defined a long time ago
+and is pure C.
+ 
+| <joking>
+| Really, your misfortune was creating such a generally useful tool that
+| solves other people's problems.  If you'd thought ahead and designed
+| it to be less flexible, you wouldn't have people asking all these
+| uncomfortable questions about how to modify in place.
+| </joking>
+
+I know that too and suffer^Henjoy it daily :)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

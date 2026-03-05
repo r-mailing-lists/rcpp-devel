@@ -1,0 +1,99 @@
+From kirill.mueller at ivt.baug.ethz.ch  Thu Apr 27 22:43:58 2017
+From: kirill.mueller at ivt.baug.ethz.ch (=?UTF-8?Q?Kirill_M=c3=bcller?=)
+Date: Thu, 27 Apr 2017 22:43:58 +0200
+Subject: [Rcpp-devel] -Wconversion
+Message-ID: <1e20b27b-c4d5-05c9-029b-34e539c84c1c@ivt.baug.ethz.ch>
+
+For RSQLite, I wanted to double-check that I'm not inadvertently 
+truncating integer values. Unfortunately, enabling -Wconversion gives me 
+several false positives that originate from Rcpp headers.
+
+I was able to fix these locally by editing 11 header files (see list 
+below), mostly by replacing int with size_t or R_xlen_t, or by adding 
+casts. Happy to submit several pull requests, but wanted to discuss 
+scope and granularity first:
+
+- one PR each for Dimension.h, api/, date_datetime/, module/, sugar/, 
+vector/
+- one PR per affected file
+- one PR per affected line of code?
+
+
+-Kirill
+
+
+
+  M inst/include/Rcpp/Dimension.h
+  M inst/include/Rcpp/api/meat/module/Module.h
+  M inst/include/Rcpp/date_datetime/Date.h
+  M inst/include/Rcpp/date_datetime/Datetime.h
+  M inst/include/Rcpp/date_datetime/newDateVector.h
+  M inst/include/Rcpp/date_datetime/newDatetimeVector.h
+  M inst/include/Rcpp/module/Module.h
+  M inst/include/Rcpp/sugar/functions/rowSums.h
+  M inst/include/Rcpp/sugar/functions/sample.h
+  M inst/include/Rcpp/sugar/functions/strings/trimws.h
+  M inst/include/Rcpp/vector/no_init.h
+
+
+From edd at debian.org  Thu Apr 27 22:56:12 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 27 Apr 2017 15:56:12 -0500
+Subject: [Rcpp-devel] -Wconversion
+In-Reply-To: <1e20b27b-c4d5-05c9-029b-34e539c84c1c@ivt.baug.ethz.ch>
+References: <1e20b27b-c4d5-05c9-029b-34e539c84c1c@ivt.baug.ethz.ch>
+Message-ID: <22786.23276.523550.622801@max.eddelbuettel.com>
+
+
+On 27 April 2017 at 22:43, Kirill M?ller wrote:
+| For RSQLite, I wanted to double-check that I'm not inadvertently 
+| truncating integer values. Unfortunately, enabling -Wconversion gives me 
+| several false positives that originate from Rcpp headers.
+| 
+| I was able to fix these locally by editing 11 header files (see list 
+| below), mostly by replacing int with size_t or R_xlen_t, or by adding 
+| casts. Happy to submit several pull requests, but wanted to discuss 
+| scope and granularity first:
+| 
+| - one PR each for Dimension.h, api/, date_datetime/, module/, sugar/, 
+| vector/
+| - one PR per affected file
+| - one PR per affected line of code?
+
+Not sure :-/
+
+James opened a relate issue #678 for remaining R_len_t -> R_xlen_t
+conversions but at least one of the SEXPs, namely CHARSXP, still uses
+R_len_t. 
+
+So we can't do this "blindly" with search and replace.  Maybe we can do them
+a file or group at a time.  Ie the four Date/Datime ones could work as on.
+Maybe the sugar ones as another.  Everything more internal I'd want to be
+pretty careful.
+
+Dirk
+ 
+| -Kirill
+| 
+| 
+| 
+|   M inst/include/Rcpp/Dimension.h
+|   M inst/include/Rcpp/api/meat/module/Module.h
+|   M inst/include/Rcpp/date_datetime/Date.h
+|   M inst/include/Rcpp/date_datetime/Datetime.h
+|   M inst/include/Rcpp/date_datetime/newDateVector.h
+|   M inst/include/Rcpp/date_datetime/newDatetimeVector.h
+|   M inst/include/Rcpp/module/Module.h
+|   M inst/include/Rcpp/sugar/functions/rowSums.h
+|   M inst/include/Rcpp/sugar/functions/sample.h
+|   M inst/include/Rcpp/sugar/functions/strings/trimws.h
+|   M inst/include/Rcpp/vector/no_init.h
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

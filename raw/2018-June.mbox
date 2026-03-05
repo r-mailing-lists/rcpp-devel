@@ -1,0 +1,811 @@
+From i.ucar86 at gmail.com  Sat Jun  9 13:39:48 2018
+From: i.ucar86 at gmail.com (=?UTF-8?B?ScOxYWtpIMOaY2Fy?=)
+Date: Sat, 9 Jun 2018 13:39:48 +0200
+Subject: [Rcpp-devel] Rcpp_fast_eval
+Message-ID: <CALEXWq1qBcYUaUi_stv-mxUp0MZC1AQNOav50k_4i2rQS3JLOA@mail.gmail.com>
+
+Hi all,
+
+I've followed with interest the development of the new evaluation API.
+Now that it's finally merged, I was testing it. Perhaps I'm mistaken,
+but shouldn't we expect a performance improvement in code such as the
+following?
+
+Rcpp::sourceCpp(code='
+  #include <Rcpp.h>
+  using namespace Rcpp;
+
+  // [[Rcpp::export]]
+  void old_api(Function func, int n) {
+    for (int i=0; i<n; i++) func();
+  }'
+)
+
+Rcpp::sourceCpp(code='
+  #define RCPP_PROTECTED_EVAL
+  #include <Rcpp.h>
+  using namespace Rcpp;
+
+  // [[Rcpp::export]]
+  void new_api(Function func, int n) {
+    for (int i=0; i<n; i++) func();
+  }'
+)
+
+func <- function() 1
+system.time(old_api(func, 1e5))
+system.time(new_api(func, 1e5))
+
+Regards,
+I?aki
+
+From kevinushey at gmail.com  Sun Jun 10 02:15:37 2018
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sat, 9 Jun 2018 17:15:37 -0700
+Subject: [Rcpp-devel] Rcpp_fast_eval
+In-Reply-To: <CALEXWq1qBcYUaUi_stv-mxUp0MZC1AQNOav50k_4i2rQS3JLOA@mail.gmail.com>
+References: <CALEXWq1qBcYUaUi_stv-mxUp0MZC1AQNOav50k_4i2rQS3JLOA@mail.gmail.com>
+Message-ID: <CAJXgQP05W9iteSjMz14miOXsbVhoSBwpXmja4+tO8TOpMD4rvw@mail.gmail.com>
+
+I think this is mostly because we still haven't ported the majority of
+usages of Rcpp_eval() to the new Rcpp_fast_eval(), so by default users are
+still getting the slower Rcpp_eval(). Compare e.g.
+
+Rcpp::sourceCpp(code='
+  #include <Rcpp.h>
+  using namespace Rcpp;
+
+  // [[Rcpp::export]]
+  void Rcpp_eval_old(SEXP expr, int n) {
+    for (int i = 0; i < n; i++)
+      Rcpp_eval(expr, R_GlobalEnv);
+  }'
+)
+
+Rcpp::sourceCpp(code='
+  #define RCPP_PROTECTED_EVAL
+  #include <Rcpp.h>
+  using namespace Rcpp;
+
+  // [[Rcpp::export]]
+  void Rcpp_eval_new(SEXP expr, int n) {
+    for (int i = 0; i < n; i++)
+       Rcpp_fast_eval(expr, R_GlobalEnv);
+  }')
+
+system.time(Rcpp_eval_old(quote(1 + 1), 1E5L))
+system.time(Rcpp_eval_new(quote(1 + 1), 1E5L))
+
+
+I get:
+
+> system.time(Rcpp_eval_old(quote(1 + 1), 1E5L))
+   user  system elapsed
+  1.198   0.003   1.203
+> system.time(Rcpp_eval_new(quote(1 + 1), 1E5L))
+   user  system elapsed
+  0.118   0.034   0.151
+
+
+We'll take a closer look next week.
+
+On Sat, Jun 9, 2018 at 4:40 AM I?aki ?car <i.ucar86 at gmail.com> wrote:
+
+> Hi all,
+>
+> I've followed with interest the development of the new evaluation API.
+> Now that it's finally merged, I was testing it. Perhaps I'm mistaken,
+> but shouldn't we expect a performance improvement in code such as the
+> following?
+>
+> Rcpp::sourceCpp(code='
+>   #include <Rcpp.h>
+>   using namespace Rcpp;
+>
+>   // [[Rcpp::export]]
+>   void old_api(Function func, int n) {
+>     for (int i=0; i<n; i++) func();
+>   }'
+> )
+>
+> Rcpp::sourceCpp(code='
+>   #define RCPP_PROTECTED_EVAL
+>   #include <Rcpp.h>
+>   using namespace Rcpp;
+>
+>   // [[Rcpp::export]]
+>   void new_api(Function func, int n) {
+>     for (int i=0; i<n; i++) func();
+>   }'
+> )
+>
+> func <- function() 1
+> system.time(old_api(func, 1e5))
+> system.time(new_api(func, 1e5))
+>
+> Regards,
+> I?aki
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180609/43cad21c/attachment.html>
+
+From i.ucar86 at gmail.com  Sun Jun 10 09:53:48 2018
+From: i.ucar86 at gmail.com (=?UTF-8?B?ScOxYWtpIMOaY2Fy?=)
+Date: Sun, 10 Jun 2018 09:53:48 +0200
+Subject: [Rcpp-devel] Rcpp_fast_eval
+In-Reply-To: <CALQ1WmZbMFw43Kt+Qp_fHTWhLB67MhQzpOqVxmSASeAi7KnbnQ@mail.gmail.com>
+References: <CALEXWq1qBcYUaUi_stv-mxUp0MZC1AQNOav50k_4i2rQS3JLOA@mail.gmail.com>
+ <CAJXgQP05W9iteSjMz14miOXsbVhoSBwpXmja4+tO8TOpMD4rvw@mail.gmail.com>
+ <CALQ1WmZbMFw43Kt+Qp_fHTWhLB67MhQzpOqVxmSASeAi7KnbnQ@mail.gmail.com>
+Message-ID: <CALEXWq1LKDoL6oJJ9=XoeRC7Z7kh9Zd2CJPDfq10R9iJ4nmUgQ@mail.gmail.com>
+
+Understood, thanks, Kevin and Qiang, for your response. Those numbers
+are really impressive!, so special kudos to Lionel, Luke and everyone
+involved in this new evaluation path for their efforts.
+
+Looking forward to seeing these usages ported to the new
+Rcpp_fast_eval. This will be a *huge* performance improvement for my
+simulator, which compulsorily needs to make an intensive use of R
+function evaluation from C++.
+
+I?aki
+El dom., 10 jun. 2018 a las 4:07, Qiang Kou (<qkou at iu.edu>) escribi?:
+>
+> I think Kevin is right.
+>
+> The Rcpp Function is still using the old API: https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/Function.h#L82
+>
+> After changing to Rcpp_fast_eval in Rcpp Function, the timing result on my laptop is as follow:
+>
+> > system.time(old_api(func, 1e5))
+>    user  system elapsed
+>   1.025   0.000   1.025
+> > system.time(new_api(func, 1e5))
+>    user  system elapsed
+>   0.025   0.000   0.025
+>
+> I believe this is what Inaki expected.
+>
+> Best wishes,
+>
+> Qiang Kou
+>
+>
+>
+> On Sat, Jun 9, 2018 at 8:15 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+>>
+>> I think this is mostly because we still haven't ported the majority of usages of Rcpp_eval() to the new Rcpp_fast_eval(), so by default users are still getting the slower Rcpp_eval(). Compare e.g.
+>>
+>> Rcpp::sourceCpp(code='
+>>   #include <Rcpp.h>
+>>   using namespace Rcpp;
+>>
+>>   // [[Rcpp::export]]
+>>   void Rcpp_eval_old(SEXP expr, int n) {
+>>     for (int i = 0; i < n; i++)
+>>       Rcpp_eval(expr, R_GlobalEnv);
+>>   }'
+>> )
+>>
+>> Rcpp::sourceCpp(code='
+>>   #define RCPP_PROTECTED_EVAL
+>>   #include <Rcpp.h>
+>>   using namespace Rcpp;
+>>
+>>   // [[Rcpp::export]]
+>>   void Rcpp_eval_new(SEXP expr, int n) {
+>>     for (int i = 0; i < n; i++)
+>>        Rcpp_fast_eval(expr, R_GlobalEnv);
+>>   }')
+>>
+>> system.time(Rcpp_eval_old(quote(1 + 1), 1E5L))
+>> system.time(Rcpp_eval_new(quote(1 + 1), 1E5L))
+>>
+>>
+>> I get:
+>>
+>> > system.time(Rcpp_eval_old(quote(1 + 1), 1E5L))
+>>    user  system elapsed
+>>   1.198   0.003   1.203
+>> > system.time(Rcpp_eval_new(quote(1 + 1), 1E5L))
+>>    user  system elapsed
+>>   0.118   0.034   0.151
+>>
+>>
+>> We'll take a closer look next week.
+>>
+>> On Sat, Jun 9, 2018 at 4:40 AM I?aki ?car <i.ucar86 at gmail.com> wrote:
+>>>
+>>> Hi all,
+>>>
+>>> I've followed with interest the development of the new evaluation API.
+>>> Now that it's finally merged, I was testing it. Perhaps I'm mistaken,
+>>> but shouldn't we expect a performance improvement in code such as the
+>>> following?
+>>>
+>>> Rcpp::sourceCpp(code='
+>>>   #include <Rcpp.h>
+>>>   using namespace Rcpp;
+>>>
+>>>   // [[Rcpp::export]]
+>>>   void old_api(Function func, int n) {
+>>>     for (int i=0; i<n; i++) func();
+>>>   }'
+>>> )
+>>>
+>>> Rcpp::sourceCpp(code='
+>>>   #define RCPP_PROTECTED_EVAL
+>>>   #include <Rcpp.h>
+>>>   using namespace Rcpp;
+>>>
+>>>   // [[Rcpp::export]]
+>>>   void new_api(Function func, int n) {
+>>>     for (int i=0; i<n; i++) func();
+>>>   }'
+>>> )
+>>>
+>>> func <- function() 1
+>>> system.time(old_api(func, 1e5))
+>>> system.time(new_api(func, 1e5))
+>>>
+>>> Regards,
+>>> I?aki
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+
+
+-- 
+I?aki ?car
+http://www.enchufa2.es
+@Enchufa2
+
+From jason.serviss at ki.se  Wed Jun 13 13:05:10 2018
+From: jason.serviss at ki.se (Jason Serviss)
+Date: Wed, 13 Jun 2018 11:05:10 +0000
+Subject: [Rcpp-devel] ___assert_rtn warning with package check
+Message-ID: <3489AC03-C5C3-43A4-9104-67A61DC342E6@ki.se>
+
+Hello everyone,
+
+I am currently in the process of trying to utilise C++ via Rcpp, RcppEigen, and RcppArmadillo in a package for the first time. I am experiencing the following on running devtools::check() with the package:
+
+
+checking compiled code ... WARNING
+File ?check/libs/check.so?:
+  Found ?___assert_rtn?, possibly from ?assert? (C)
+    Object: ?RcppExports.o?
+
+
+I found a similar problem previously discussed (here: http://rcpp-devel.r-forge.r-project.narkive.com/yc1h8bf6/rcppeigen-package-skeleton-r-cmd-check-warning) some time ago although, in this case, it seemed to be system specific. Based on the comments, I created a minimal reproducible example (here: https://github.com/jasonserviss/check) and automated the build with TravisCI (build report here: https://travis-ci.org/jasonserviss/check/builds/391685256).
+
+I have noticed two things:
+
+1) there are 2 functions in the package, function ?a" and function ?b?, if I remove function ?b? I no longer receive the warning. Despite this, there wouldn?t, to my eyes, seem to be anything extremely unusual about function ?b?.
+
+2) If I remove RcppArmadillo from the LinkingTo section in the DESCRIPTION file I, again, no longer receive the warning. I am aware of the fact that, in the example, there is no need to link to RcppArmadillo although, in the real use case, there is.
+
+Id be very appreciative if anyone here could help me get an understanding for this warning and how it can be resolved!
+
+Kind Regards,
+Jason Serviss
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180613/a1c5cd92/attachment.html>
+
+From qkou at qkou.info  Wed Jun 13 15:51:43 2018
+From: qkou at qkou.info (Qiang Kou)
+Date: Wed, 13 Jun 2018 09:51:43 -0400
+Subject: [Rcpp-devel] ___assert_rtn warning with package check
+In-Reply-To: <3489AC03-C5C3-43A4-9104-67A61DC342E6@ki.se>
+References: <3489AC03-C5C3-43A4-9104-67A61DC342E6@ki.se>
+Message-ID: <CALaeKeHATg4ns5VOQdRDbShCY=4xv8B9e0QuHL1K8FZHbVeNjA@mail.gmail.com>
+
+Hi, Jason,
+
+The assert is from RcppEigen.
+
+I think the reason is how "NDEBUG" is handled by Armadillo.
+
+In your package, the RcppArmadillo header is included before RcppEigen:
+https://github.com/jasonserviss/check/blob/master/src/RcppExports.cpp#L4
+
+In RcppArmadillo:
+
+https://github.com/RcppCore/RcppArmadillo/blob/master/inst/include/RcppArmadilloConfig.h#L92-L94
+
+The NDEBUG has been undefined.
+
+Then in RcppEigen:
+
+https://github.com/RcppCore/RcppEigen/blob/master/inst/include/Eigen/src/Core/util/Macros.h#L549
+
+The assert will be used if NDEBUG has been undefined.
+
+I hope this answers your question.
+
+Best wishes,
+
+KK
+
+
+On Wed, Jun 13, 2018 at 7:05 AM, Jason Serviss <jason.serviss at ki.se> wrote:
+
+> Hello everyone,
+>
+> I am currently in the process of trying to utilise C++ via Rcpp,
+> RcppEigen, and RcppArmadillo in a package for the first time. I am
+> experiencing the following on running devtools::check() with the package:
+>
+> checking compiled code ... WARNINGFile ?check/libs/check.so?:
+>   Found ?___assert_rtn?, possibly from ?assert? (C)
+>     Object: ?RcppExports.o?
+>
+>
+> I found a similar problem previously discussed (here:
+> http://rcpp-devel.r-forge.r-project.narkive.com/yc1h8bf6/
+> rcppeigen-package-skeleton-r-cmd-check-warning) some time ago although,
+> in this case, it seemed to be system specific. Based on the comments, I
+> created a minimal reproducible example (here: https://github.com/
+> jasonserviss/check) and automated the build with TravisCI (build report
+> here: https://travis-ci.org/jasonserviss/check/builds/391685256).
+>
+> I have noticed two things:
+>
+> 1) there are 2 functions in the package, function ?a" and function ?b?, if
+> I remove function ?b? I no longer receive the warning. Despite this, there
+> wouldn?t, to my eyes, seem to be anything extremely unusual about function
+> ?b?.
+>
+> 2) If I remove RcppArmadillo from the LinkingTo section in the DESCRIPTION
+> file I, again, no longer receive the warning. I am aware of the fact that,
+> in the example, there is no need to link to RcppArmadillo although, in the
+> real use case, there is.
+>
+> Id be very appreciative if anyone here could help me get an understanding
+> for this warning and how it can be resolved!
+>
+> Kind Regards,
+> Jason Serviss
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180613/d531e320/attachment-0001.html>
+
+From jason.serviss at ki.se  Fri Jun 15 12:56:49 2018
+From: jason.serviss at ki.se (Jason Serviss)
+Date: Fri, 15 Jun 2018 10:56:49 +0000
+Subject: [Rcpp-devel] [**SPAM**] Re: ___assert_rtn warning with package
+ check
+In-Reply-To: <CALaeKeHATg4ns5VOQdRDbShCY=4xv8B9e0QuHL1K8FZHbVeNjA@mail.gmail.com>
+References: <3489AC03-C5C3-43A4-9104-67A61DC342E6@ki.se>
+ <CALaeKeHATg4ns5VOQdRDbShCY=4xv8B9e0QuHL1K8FZHbVeNjA@mail.gmail.com>
+Message-ID: <FEFB218E-FF5D-48A0-BEF8-1755FAD934DC@ki.se>
+
+Qiang,
+
+Sorry for the late reply (somehow your reply ended up in the Junk folder). Switching RcppArmadillo and RcppEigen in the LinkingTo section (and thus the header order) did not help BUT your mention of NDEBUG lead me to this Githuhb issue: https://github.com/RcppCore/RcppArmadillo/issues/116. The addition of a similar file in the inst folder (see change log at the bottom of the issue) with #define NDEBUG 1 and then adding the file as an import in RcppExports.cpp did the trick. Unfortunately, running compileAttributes() locally overwrites the manual changes in RcppExports.cpp but, for now, I guess I will have to live with this. Thanks a lot for your input!
+
+Kind Regards,
+Jason
+
+
+
+
+On 13 Jun 2018, at 15:51, Qiang Kou <qkou at qkou.info<mailto:qkou at qkou.info>> wrote:
+
+Hi, Jason,
+
+The assert is from RcppEigen.
+
+I think the reason is how "NDEBUG" is handled by Armadillo.
+
+In your package, the RcppArmadillo header is included before RcppEigen: https://github.com/jasonserviss/check/blob/master/src/RcppExports.cpp#L4<https://mailfilter.sunet.se/canit/urlproxy.php?_q=aHR0cHM6Ly9naXRodWIuY29tL2phc29uc2Vydmlzcy9jaGVjay9ibG9iL21hc3Rlci9zcmMvUmNwcEV4cG9ydHMuY3BwI0w0&_s=amFzb24uc2Vydmlzc0BraS5zZQ%3D%3D&_c=fdecf48f&_r=a2ktc2U%3D>
+
+In RcppArmadillo:
+
+https://github.com/RcppCore/RcppArmadillo/blob/master/inst/include/RcppArmadilloConfig.h#L92-L94<https://mailfilter.sunet.se/canit/urlproxy.php?_q=aHR0cHM6Ly9naXRodWIuY29tL1JjcHBDb3JlL1JjcHBBcm1hZGlsbG8vYmxvYi9tYXN0ZXIvaW5zdC9pbmNsdWRlL1JjcHBBcm1hZGlsbG9Db25maWcuaCNMOTItTDk0&_s=amFzb24uc2Vydmlzc0BraS5zZQ%3D%3D&_c=cf8cff17&_r=a2ktc2U%3D>
+
+The NDEBUG has been undefined.
+
+Then in RcppEigen:
+
+https://github.com/RcppCore/RcppEigen/blob/master/inst/include/Eigen/src/Core/util/Macros.h#L549<https://mailfilter.sunet.se/canit/urlproxy.php?_q=aHR0cHM6Ly9naXRodWIuY29tL1JjcHBDb3JlL1JjcHBFaWdlbi9ibG9iL21hc3Rlci9pbnN0L2luY2x1ZGUvRWlnZW4vc3JjL0NvcmUvdXRpbC9NYWNyb3MuaCNMNTQ5&_s=amFzb24uc2Vydmlzc0BraS5zZQ%3D%3D&_c=4af01d3b&_r=a2ktc2U%3D>
+
+The assert will be used if NDEBUG has been undefined.
+
+I hope this answers your question.
+
+Best wishes,
+
+KK
+
+
+On Wed, Jun 13, 2018 at 7:05 AM, Jason Serviss <jason.serviss at ki.se<mailto:jason.serviss at ki.se>> wrote:
+Hello everyone,
+
+I am currently in the process of trying to utilise C++ via Rcpp, RcppEigen, and RcppArmadillo in a package for the first time. I am experiencing the following on running devtools::check() with the package:
+
+
+checking compiled code ... WARNING
+File ?check/libs/check.so?:
+  Found ?___assert_rtn?, possibly from ?assert? (C)
+    Object: ?RcppExports.o?
+
+
+I found a similar problem previously discussed (here: http://rcpp-devel.r-forge.r-project.narkive.com/yc1h8bf6/rcppeigen-package-skeleton-r-cmd-check-warning<https://mailfilter.sunet.se/canit/urlproxy.php?_q=aHR0cDovL3JjcHAtZGV2ZWwuci1mb3JnZS5yLXByb2plY3QubmFya2l2ZS5jb20veWMxaDhiZjYvcmNwcGVpZ2VuLXBhY2thZ2Utc2tlbGV0b24tci1jbWQtY2hlY2std2FybmluZw%3D%3D&_s=amFzb24uc2Vydmlzc0BraS5zZQ%3D%3D&_c=f9d02bc5&_r=a2ktc2U%3D>) some time ago although, in this case, it seemed to be system specific. Based on the comments, I created a minimal reproducible example (here: https://github.com/jasonserviss/check<https://mailfilter.sunet.se/canit/urlproxy.php?_q=aHR0cHM6Ly9naXRodWIuY29tL2phc29uc2Vydmlzcy9jaGVjaw%3D%3D&_s=amFzb24uc2Vydmlzc0BraS5zZQ%3D%3D&_c=fd24f0d8&_r=a2ktc2U%3D>) and automated the build with TravisCI (build report here: https://travis-ci.org/jasonserviss/check/builds/391685256<https://mailfilter.sunet.se/canit/urlproxy.php?_q=aHR0cHM6Ly90cmF2aXMtY2kub3JnL2phc29uc2Vydmlzcy9jaGVjay9idWlsZHMvMzkxNjg1MjU2&_s=amFzb24uc2Vydmlzc0BraS5zZQ%3D%3D&_c=717fbb88&_r=a2ktc2U%3D>).
+
+I have noticed two things:
+
+1) there are 2 functions in the package, function ?a" and function ?b?, if I remove function ?b? I no longer receive the warning. Despite this, there wouldn?t, to my eyes, seem to be anything extremely unusual about function ?b?.
+
+2) If I remove RcppArmadillo from the LinkingTo section in the DESCRIPTION file I, again, no longer receive the warning. I am aware of the fact that, in the example, there is no need to link to RcppArmadillo although, in the real use case, there is.
+
+Id be very appreciative if anyone here could help me get an understanding for this warning and how it can be resolved!
+
+Kind Regards,
+Jason Serviss
+
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org<mailto:Rcpp-devel at lists.r-forge.r-project.org>
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel<https://mailfilter.sunet.se/canit/urlproxy.php?_q=aHR0cHM6Ly9saXN0cy5yLWZvcmdlLnItcHJvamVjdC5vcmcvY2dpLWJpbi9tYWlsbWFuL2xpc3RpbmZvL3JjcHAtZGV2ZWw%3D&_s=amFzb24uc2Vydmlzc0BraS5zZQ%3D%3D&_c=07a68f11&_r=a2ktc2U%3D>
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180615/9318438b/attachment-0001.html>
+
+From edd at debian.org  Fri Jun 15 13:38:20 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 15 Jun 2018 06:38:20 -0500
+Subject: [Rcpp-devel] [**SPAM**] Re: ___assert_rtn warning with package
+ check
+In-Reply-To: <FEFB218E-FF5D-48A0-BEF8-1755FAD934DC@ki.se>
+References: <3489AC03-C5C3-43A4-9104-67A61DC342E6@ki.se>
+ <CALaeKeHATg4ns5VOQdRDbShCY=4xv8B9e0QuHL1K8FZHbVeNjA@mail.gmail.com>
+ <FEFB218E-FF5D-48A0-BEF8-1755FAD934DC@ki.se>
+Message-ID: <23331.42284.800866.748640@rob.eddelbuettel.com>
+
+
+On 15 June 2018 at 10:56, Jason Serviss wrote:
+| Qiang,
+| 
+| Sorry for the late reply (somehow your reply ended up in the Junk folder). Switching RcppArmadillo and RcppEigen in the LinkingTo section (and thus the header order) did not help BUT your mention of NDEBUG lead me to this Githuhb issue: https://github.com/RcppCore/RcppArmadillo/issues/116. The addition of a similar file in the inst folder (see change log at the bottom of the issue) with #define NDEBUG 1 and then adding the file as an import in RcppExports.cpp did the trick. Unfortunately, running compileAttributes() locally overwrites the manual changes in RcppExports.cpp but, for now, I guess I will have to live with this. Thanks a lot for your input!
+
+Re-read the Rcpp Attributes vignette more carefully. There are way to have a
+header file auto-included, one way is to name the same as your package but
+append _types.h -- ie RcppGSL has inst/include/RcppGSL_types.h.
+
+No need for manual updates then.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From murray.efford at gmail.com  Sat Jun 23 17:22:16 2018
+From: murray.efford at gmail.com (Murray Efford)
+Date: Sun, 24 Jun 2018 03:22:16 +1200
+Subject: [Rcpp-devel] GNU extension in makefile
+Message-ID: <CAMWmeHaM_+35CYB2+PCBUa_MVqjq3kW8kHF9mCrYgwr6FoGKgQ@mail.gmail.com>
+
+The RcppParallel introduction at https://rcppcore.github.io/RcppParallel/
+instructs package writers to include a Makevars file with
+
+PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e "RcppParallel::RcppParallelLibs()")
+
+However, R CMD check in R 3.5.0 generates a warning apparently because +=
+and $(shell are non-portable GNU extensions. As a Windows user I'm not
+familiar with makefiles and am not confident to work around this. Am I
+missing something, or is there a simple solution? An update to the
+introduction would be welcome.
+
+Murray
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180624/5dc9388b/attachment.html>
+
+From edd at debian.org  Sat Jun 23 17:31:20 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 23 Jun 2018 10:31:20 -0500
+Subject: [Rcpp-devel] GNU extension in makefile
+In-Reply-To: <CAMWmeHaM_+35CYB2+PCBUa_MVqjq3kW8kHF9mCrYgwr6FoGKgQ@mail.gmail.com>
+References: <CAMWmeHaM_+35CYB2+PCBUa_MVqjq3kW8kHF9mCrYgwr6FoGKgQ@mail.gmail.com>
+Message-ID: <23342.26568.742745.480677@rob.eddelbuettel.com>
+
+
+On 24 June 2018 at 03:22, Murray Efford wrote:
+| The RcppParallel introduction at https://rcppcore.github.io/RcppParallel/
+| instructs package writers to include a Makevars file with
+| 
+| PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e "RcppParallel::RcppParallelLibs()")
+| 
+| However, R CMD check in R 3.5.0 generates a warning apparently because +=
+| and $(shell are non-portable GNU extensions. As a Windows user I'm not
+| familiar with makefiles and am not confident to work around this. Am I
+| missing something, or is there a simple solution? An update to the
+| introduction would be welcome.
+
+Two things:
+
+i)  _Every_ R package which needs a Makevars _on Windows_ uses
+    src/Makevars.win -- see "Writing R Extensions"
+
+ii) If one needs GNU make, one can declare the dependency in DESCRIPTION via
+    SystemRequirements: -- again, see "Writing R Extensions"
+
+And we have just that:
+
+    SystemRequirements:	GNU make, Windows: cmd.exe and cscript.exe, Solaris: g++ is required
+
+Does that answer your question?  If not, did you look at user reverse-depends
+of RcppParallel and examine what they do?  One can often copy working
+solution s from other packages...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jdnewmil at dcn.davis.ca.us  Sat Jun 23 17:40:43 2018
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Sat, 23 Jun 2018 08:40:43 -0700
+Subject: [Rcpp-devel] GNU extension in makefile
+In-Reply-To: <23342.26568.742745.480677@rob.eddelbuettel.com>
+References: <CAMWmeHaM_+35CYB2+PCBUa_MVqjq3kW8kHF9mCrYgwr6FoGKgQ@mail.gmail.com>
+ <23342.26568.742745.480677@rob.eddelbuettel.com>
+Message-ID: <BF0B8BF9-5362-4175-A174-9E5FF110274A@dcn.davis.ca.us>
+
+Alternatively, you might not need that file at all since Rcpp handles simple cases without it. [1]
+
+[1] https://www.mail-archive.com/rcpp-devel at lists.r-forge.r-project.org/msg09485.html
+
+On June 23, 2018 8:31:20 AM PDT, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>On 24 June 2018 at 03:22, Murray Efford wrote:
+>| The RcppParallel introduction at
+>https://rcppcore.github.io/RcppParallel/
+>| instructs package writers to include a Makevars file with
+>| 
+>| PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e
+>"RcppParallel::RcppParallelLibs()")
+>| 
+>| However, R CMD check in R 3.5.0 generates a warning apparently
+>because +=
+>| and $(shell are non-portable GNU extensions. As a Windows user I'm
+>not
+>| familiar with makefiles and am not confident to work around this. Am
+>I
+>| missing something, or is there a simple solution? An update to the
+>| introduction would be welcome.
+>
+>Two things:
+>
+>i)  _Every_ R package which needs a Makevars _on Windows_ uses
+>    src/Makevars.win -- see "Writing R Extensions"
+>
+>ii) If one needs GNU make, one can declare the dependency in
+>DESCRIPTION via
+>    SystemRequirements: -- again, see "Writing R Extensions"
+>
+>And we have just that:
+>
+>SystemRequirements:	GNU make, Windows: cmd.exe and cscript.exe,
+>Solaris: g++ is required
+>
+>Does that answer your question?  If not, did you look at user
+>reverse-depends
+>of RcppParallel and examine what they do?  One can often copy working
+>solution s from other packages...
+>
+>Dirk
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From murray.efford at gmail.com  Sat Jun 23 17:59:08 2018
+From: murray.efford at gmail.com (Murray Efford)
+Date: Sun, 24 Jun 2018 03:59:08 +1200
+Subject: [Rcpp-devel] GNU extension in makefile
+In-Reply-To: <23342.26568.742745.480677@rob.eddelbuettel.com>
+References: <CAMWmeHaM_+35CYB2+PCBUa_MVqjq3kW8kHF9mCrYgwr6FoGKgQ@mail.gmail.com>
+ <23342.26568.742745.480677@rob.eddelbuettel.com>
+Message-ID: <CAMWmeHa6H9MLLdwV3o+3R1fS9YD9pMMvMXAFnKsD3y4kw88SsA@mail.gmail.com>
+
+Thanks for the advice. It seems that R CMD check (locally and on
+winbuilder) throws the warning despite having SystemRequirements: GNU make.
+May not be a problem on CRAN itself.
+
+I assumed that for CRAN one needed both Makevars and Makevars.win, so have
+always included both in submissions to CRAN.
+
+I suspect Jeff's suggestion, to omit, does not apply to RcppParallel.
+
+On Sun, Jun 24, 2018 at 3:31 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 24 June 2018 at 03:22, Murray Efford wrote:
+> | The RcppParallel introduction at https://rcppcore.github.io/
+> RcppParallel/
+> | instructs package writers to include a Makevars file with
+> |
+> | PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e "RcppParallel::
+> RcppParallelLibs()")
+> |
+> | However, R CMD check in R 3.5.0 generates a warning apparently because +=
+> | and $(shell are non-portable GNU extensions. As a Windows user I'm not
+> | familiar with makefiles and am not confident to work around this. Am I
+> | missing something, or is there a simple solution? An update to the
+> | introduction would be welcome.
+>
+> Two things:
+>
+> i)  _Every_ R package which needs a Makevars _on Windows_ uses
+>     src/Makevars.win -- see "Writing R Extensions"
+>
+> ii) If one needs GNU make, one can declare the dependency in DESCRIPTION
+> via
+>     SystemRequirements: -- again, see "Writing R Extensions"
+>
+> And we have just that:
+>
+>     SystemRequirements: GNU make, Windows: cmd.exe and cscript.exe,
+> Solaris: g++ is required
+>
+> Does that answer your question?  If not, did you look at user
+> reverse-depends
+> of RcppParallel and examine what they do?  One can often copy working
+> solution s from other packages...
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180624/13f5085e/attachment.html>
+
+From murray.efford at gmail.com  Sat Jun 23 18:14:04 2018
+From: murray.efford at gmail.com (Murray Efford)
+Date: Sun, 24 Jun 2018 04:14:04 +1200
+Subject: [Rcpp-devel] GNU extension in makefile
+In-Reply-To: <CAMWmeHa6H9MLLdwV3o+3R1fS9YD9pMMvMXAFnKsD3y4kw88SsA@mail.gmail.com>
+References: <CAMWmeHaM_+35CYB2+PCBUa_MVqjq3kW8kHF9mCrYgwr6FoGKgQ@mail.gmail.com>
+ <23342.26568.742745.480677@rob.eddelbuettel.com>
+ <CAMWmeHa6H9MLLdwV3o+3R1fS9YD9pMMvMXAFnKsD3y4kw88SsA@mail.gmail.com>
+Message-ID: <CAMWmeHZgHRdpn3VAzvZRCdoZTMTRhVx9bHRWX3LqR6n4tLH41Q@mail.gmail.com>
+
+My mistake - the SystemRequirements line had been lost from my DESCRIPTION
+file (editing error?). OK and wiser now.
+Sorry for wasting your time.
+Murray
+
+On Sun, Jun 24, 2018 at 3:59 AM, Murray Efford <murray.efford at gmail.com>
+wrote:
+
+> Thanks for the advice. It seems that R CMD check (locally and on
+> winbuilder) throws the warning despite having SystemRequirements: GNU make.
+> May not be a problem on CRAN itself.
+>
+> I assumed that for CRAN one needed both Makevars and Makevars.win, so have
+> always included both in submissions to CRAN.
+>
+> I suspect Jeff's suggestion, to omit, does not apply to RcppParallel.
+>
+> On Sun, Jun 24, 2018 at 3:31 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 24 June 2018 at 03:22, Murray Efford wrote:
+>> | The RcppParallel introduction at https://rcppcore.github.io/Rcp
+>> pParallel/
+>> | instructs package writers to include a Makevars file with
+>> |
+>> | PKG_LIBS += $(shell ${R_HOME}/bin/Rscript -e
+>> "RcppParallel::RcppParallelLibs()")
+>> |
+>> | However, R CMD check in R 3.5.0 generates a warning apparently because
+>> +=
+>> | and $(shell are non-portable GNU extensions. As a Windows user I'm not
+>> | familiar with makefiles and am not confident to work around this. Am I
+>> | missing something, or is there a simple solution? An update to the
+>> | introduction would be welcome.
+>>
+>> Two things:
+>>
+>> i)  _Every_ R package which needs a Makevars _on Windows_ uses
+>>     src/Makevars.win -- see "Writing R Extensions"
+>>
+>> ii) If one needs GNU make, one can declare the dependency in DESCRIPTION
+>> via
+>>     SystemRequirements: -- again, see "Writing R Extensions"
+>>
+>> And we have just that:
+>>
+>>     SystemRequirements: GNU make, Windows: cmd.exe and cscript.exe,
+>> Solaris: g++ is required
+>>
+>> Does that answer your question?  If not, did you look at user
+>> reverse-depends
+>> of RcppParallel and examine what they do?  One can often copy working
+>> solution s from other packages...
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180624/6f9891f9/attachment-0001.html>
+
+From edd at debian.org  Sat Jun 23 18:36:23 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 23 Jun 2018 11:36:23 -0500
+Subject: [Rcpp-devel] GNU extension in makefile
+In-Reply-To: <CAMWmeHZgHRdpn3VAzvZRCdoZTMTRhVx9bHRWX3LqR6n4tLH41Q@mail.gmail.com>
+References: <CAMWmeHaM_+35CYB2+PCBUa_MVqjq3kW8kHF9mCrYgwr6FoGKgQ@mail.gmail.com>
+ <23342.26568.742745.480677@rob.eddelbuettel.com>
+ <CAMWmeHa6H9MLLdwV3o+3R1fS9YD9pMMvMXAFnKsD3y4kw88SsA@mail.gmail.com>
+ <CAMWmeHZgHRdpn3VAzvZRCdoZTMTRhVx9bHRWX3LqR6n4tLH41Q@mail.gmail.com>
+Message-ID: <23342.30471.522152.394979@rob.eddelbuettel.com>
+
+
+On 24 June 2018 at 04:14, Murray Efford wrote:
+| My mistake - the SystemRequirements line had been lost from my DESCRIPTION
+| file (editing error?). OK and wiser now.
+| Sorry for wasting your time.
+
+Oh, not to worry -- we've all been there. Thanks for circling back though!
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From twolodzko+rcpp at gmail.com  Sat Jun 30 21:56:29 2018
+From: twolodzko+rcpp at gmail.com (Timothy)
+Date: Sat, 30 Jun 2018 21:56:29 +0200
+Subject: [Rcpp-devel] UBSAN warning
+Message-ID: <CAHa5zCte8mufY431Ue4iiAO7-Ux32-0q_W=XDDT-GGRuyZ6XHw@mail.gmail.com>
+
+Hi,
+
+I maintain a package on CRAN. Recently I posted an update and was asked
+about UBSAN warning produced during checks of the previous version:
+https://www.stats.ox.ac.uk/pub/bdr/memtests/clang-UBSAN/kernelboot/tests/testthat.Rout
+It is not clear for me where does the warning come from, could you give me
+some hints what could it be? The warning message seems to relate to Rcpp
+itself, isn't it? If not, what is the best way of diagnosing causes of such
+warnings?
+
+Thanks in advance,
+Timothy
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180630/676d35da/attachment.html>
+

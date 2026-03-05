@@ -1,0 +1,1812 @@
+From jon at thon.love  Tue Sep  8 09:28:54 2015
+From: jon at thon.love (Jonathon Love)
+Date: Tue, 8 Sep 2015 09:28:54 +0200
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+Message-ID: <55EE8E36.60502@thon.love>
+
+hi dirk,
+
+my application JASP makes use of RInside, and has for about two years
+now (https://jasp-stats.org). however, i've just found the most bizare
+bug. it only seems to occur under R 3.2.2 (from CRAN) under Ubuntu
+Trusty. the issue does not occur under R 3.0.2 (from the standard ubuntu
+repos), nor does it occur under R 3.2.2 on Ubuntu Vivid.
+
+the problem is, bizarely enough, to do with a call to stats::quantile( )
+
+calling:
+
+stats::quantile(x, probs=0.01)
+
+within JASP, gives the error:
+
+"unused argument (probs = 0.01)"
+
+but calling it outside of JASP, in an R session run at the terminal,
+gives me the expected result.
+
+i have inspected the Version, the .libPaths(), everything between the
+terminal and JASP is identical.
+calling:
+
+print(stats::quantiles)
+
+gives me the same (short) function definition in both environments
+
+if i run stats::quantile(1:10), inside of JASP, it gives me the exact
+vector back (rather than the quantiles)!
+
+if i go to the R SVN, and copy the stats::quantile.default() into the
+JASP R code, rename it, and substitute calls within JASP, everything
+works fine.
+
+there's also an issue with stats::as.formula() not working
+
+in typically JASP usage, dozens of R functions are called, and there
+don't seem to be any issues other than these, so it appears to be
+isolated to the stats package.
+
+the only difference i can see, is that one runs inside of RInside, the
+other at the terminal.
+
+any idea of what it could cause this?
+
+with thanks
+
+jonathon
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+
+From edd at debian.org  Tue Sep  8 16:29:18 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Sep 2015 09:29:18 -0500
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <55EE8E36.60502@thon.love>
+References: <55EE8E36.60502@thon.love>
+Message-ID: <21998.61630.23401.717075@max.nulle.part>
+
+
+On 8 September 2015 at 09:28, Jonathon Love wrote:
+| hi dirk,
+| 
+| my application JASP makes use of RInside, and has for about two years
+| now (https://jasp-stats.org). however, i've just found the most bizare
+| bug. it only seems to occur under R 3.2.2 (from CRAN) under Ubuntu
+| Trusty. the issue does not occur under R 3.0.2 (from the standard ubuntu
+| repos), nor does it occur under R 3.2.2 on Ubuntu Vivid.
+| 
+| the problem is, bizarely enough, to do with a call to stats::quantile( )
+| 
+| calling:
+| 
+| stats::quantile(x, probs=0.01)
+| 
+| within JASP, gives the error:
+| 
+| "unused argument (probs = 0.01)"
+| 
+| but calling it outside of JASP, in an R session run at the terminal,
+| gives me the expected result.
+| 
+| i have inspected the Version, the .libPaths(), everything between the
+| terminal and JASP is identical.
+| calling:
+| 
+| print(stats::quantiles)
+| 
+| gives me the same (short) function definition in both environments
+| 
+| if i run stats::quantile(1:10), inside of JASP, it gives me the exact
+| vector back (rather than the quantiles)!
+| 
+| if i go to the R SVN, and copy the stats::quantile.default() into the
+| JASP R code, rename it, and substitute calls within JASP, everything
+| works fine.
+| 
+| there's also an issue with stats::as.formula() not working
+| 
+| in typically JASP usage, dozens of R functions are called, and there
+| don't seem to be any issues other than these, so it appears to be
+| isolated to the stats package.
+| 
+| the only difference i can see, is that one runs inside of RInside, the
+| other at the terminal.
+| 
+| any idea of what it could cause this?
+
+We are aware of one issue between R 3.2.2 and Rcpp 0.12.0 which is due to
+recent changes in R prior to the R 3.2.2 release.  That is addressed in
+Rcpp's master branch on GitHub so you could try that.  It should also work
+with R-devel.  We are planning Rcpp 0.12.1 "relatively soon" because of this.
+
+Hope that helps, if it doesn;t we need to dig deeper.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.love  Tue Sep  8 20:08:23 2015
+From: jon at thon.love (Jonathon Love)
+Date: Tue, 8 Sep 2015 20:08:23 +0200
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <21998.61630.23401.717075@max.nulle.part>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part>
+Message-ID: <55EF2417.2060706@thon.love>
+
+hi dirk,
+
+with further testing, it occurs with any version from CRAN (available
+for trusty at least).
+
+i.e.
+
+r-base-core | 3.2.2-1trusty0 |
+r-base-core | 3.2.1-4trusty0 |
+r-base-core | 3.2.1-3trusty0 |
+r-base-core | 3.2.1-2trusty0 |
+r-base-core | 3.2.1-1trusty0 |
+r-base-core | 3.2.0-4trusty0 |
+r-base-core | 3.2.0-1trusty |
+r-base-core | 3.1.3-1trusty |
+r-base-core | 3.1.2-1trusty0 |
+r-base-core | 3.1.1-1trusty0 |
+r-base-core | 3.1.0-1trusty0 |
+
+works with this one (from archive.ubuntu.com):
+
+r-base-core | 3.0.2-1ubuntu1 |
+
+using rcpp 0.12.0 and rinside 0.2.13 from my PPA
+
+https://launchpad.net/~jonathon-love/+archive/ubuntu/jasp/+packages
+
+any clues?
+
+with thanks
+
+jonathon
+
+
+On 8/09/2015 4:29 pm, Dirk Eddelbuettel wrote:
+> 
+> On 8 September 2015 at 09:28, Jonathon Love wrote:
+> | hi dirk,
+> | 
+> | my application JASP makes use of RInside, and has for about two years
+> | now (https://jasp-stats.org). however, i've just found the most bizare
+> | bug. it only seems to occur under R 3.2.2 (from CRAN) under Ubuntu
+> | Trusty. the issue does not occur under R 3.0.2 (from the standard ubuntu
+> | repos), nor does it occur under R 3.2.2 on Ubuntu Vivid.
+> | 
+> | the problem is, bizarely enough, to do with a call to stats::quantile( )
+> | 
+> | calling:
+> | 
+> | stats::quantile(x, probs=0.01)
+> | 
+> | within JASP, gives the error:
+> | 
+> | "unused argument (probs = 0.01)"
+> | 
+> | but calling it outside of JASP, in an R session run at the terminal,
+> | gives me the expected result.
+> | 
+> | i have inspected the Version, the .libPaths(), everything between the
+> | terminal and JASP is identical.
+> | calling:
+> | 
+> | print(stats::quantiles)
+> | 
+> | gives me the same (short) function definition in both environments
+> | 
+> | if i run stats::quantile(1:10), inside of JASP, it gives me the exact
+> | vector back (rather than the quantiles)!
+> | 
+> | if i go to the R SVN, and copy the stats::quantile.default() into the
+> | JASP R code, rename it, and substitute calls within JASP, everything
+> | works fine.
+> | 
+> | there's also an issue with stats::as.formula() not working
+> | 
+> | in typically JASP usage, dozens of R functions are called, and there
+> | don't seem to be any issues other than these, so it appears to be
+> | isolated to the stats package.
+> | 
+> | the only difference i can see, is that one runs inside of RInside, the
+> | other at the terminal.
+> | 
+> | any idea of what it could cause this?
+> 
+> We are aware of one issue between R 3.2.2 and Rcpp 0.12.0 which is due to
+> recent changes in R prior to the R 3.2.2 release.  That is addressed in
+> Rcpp's master branch on GitHub so you could try that.  It should also work
+> with R-devel.  We are planning Rcpp 0.12.1 "relatively soon" because of this.
+> 
+> Hope that helps, if it doesn;t we need to dig deeper.
+> 
+> Dirk
+> 
+
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+
+From edd at debian.org  Tue Sep  8 20:31:12 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Sep 2015 13:31:12 -0500
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <55EF2417.2060706@thon.love>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part>
+ <55EF2417.2060706@thon.love>
+Message-ID: <21999.10608.534122.630385@max.nulle.part>
+
+
+Hi Jonathon,
+
+On 8 September 2015 at 20:08, Jonathon Love wrote:
+| hi dirk,
+| 
+| with further testing, it occurs with any version from CRAN (available
+| for trusty at least).
+| 
+| i.e.
+| 
+| r-base-core | 3.2.2-1trusty0 |
+| r-base-core | 3.2.1-4trusty0 |
+| r-base-core | 3.2.1-3trusty0 |
+| r-base-core | 3.2.1-2trusty0 |
+| r-base-core | 3.2.1-1trusty0 |
+| r-base-core | 3.2.0-4trusty0 |
+| r-base-core | 3.2.0-1trusty |
+| r-base-core | 3.1.3-1trusty |
+| r-base-core | 3.1.2-1trusty0 |
+| r-base-core | 3.1.1-1trusty0 |
+| r-base-core | 3.1.0-1trusty0 |
+| 
+| works with this one (from archive.ubuntu.com):
+| 
+| r-base-core | 3.0.2-1ubuntu1 |
+| 
+| using rcpp 0.12.0 and rinside 0.2.13 from my PPA
+| 
+| https://launchpad.net/~jonathon-love/+archive/ubuntu/jasp/+packages
+| 
+| any clues?
+
+Not really.  A minimally reproducible example is always welcome.
+
+Also note how I suggested below to try Rcpp from GitHub which is near a release.
+
+Dirk
+
+| with thanks
+| 
+| jonathon
+| 
+| 
+| On 8/09/2015 4:29 pm, Dirk Eddelbuettel wrote:
+| > 
+| > On 8 September 2015 at 09:28, Jonathon Love wrote:
+| > | hi dirk,
+| > | 
+| > | my application JASP makes use of RInside, and has for about two years
+| > | now (https://jasp-stats.org). however, i've just found the most bizare
+| > | bug. it only seems to occur under R 3.2.2 (from CRAN) under Ubuntu
+| > | Trusty. the issue does not occur under R 3.0.2 (from the standard ubuntu
+| > | repos), nor does it occur under R 3.2.2 on Ubuntu Vivid.
+| > | 
+| > | the problem is, bizarely enough, to do with a call to stats::quantile( )
+| > | 
+| > | calling:
+| > | 
+| > | stats::quantile(x, probs=0.01)
+| > | 
+| > | within JASP, gives the error:
+| > | 
+| > | "unused argument (probs = 0.01)"
+| > | 
+| > | but calling it outside of JASP, in an R session run at the terminal,
+| > | gives me the expected result.
+| > | 
+| > | i have inspected the Version, the .libPaths(), everything between the
+| > | terminal and JASP is identical.
+| > | calling:
+| > | 
+| > | print(stats::quantiles)
+| > | 
+| > | gives me the same (short) function definition in both environments
+| > | 
+| > | if i run stats::quantile(1:10), inside of JASP, it gives me the exact
+| > | vector back (rather than the quantiles)!
+| > | 
+| > | if i go to the R SVN, and copy the stats::quantile.default() into the
+| > | JASP R code, rename it, and substitute calls within JASP, everything
+| > | works fine.
+| > | 
+| > | there's also an issue with stats::as.formula() not working
+| > | 
+| > | in typically JASP usage, dozens of R functions are called, and there
+| > | don't seem to be any issues other than these, so it appears to be
+| > | isolated to the stats package.
+| > | 
+| > | the only difference i can see, is that one runs inside of RInside, the
+| > | other at the terminal.
+| > | 
+| > | any idea of what it could cause this?
+| > 
+| > We are aware of one issue between R 3.2.2 and Rcpp 0.12.0 which is due to
+| > recent changes in R prior to the R 3.2.2 release.  That is addressed in
+| > Rcpp's master branch on GitHub so you could try that.  It should also work
+| > with R-devel.  We are planning Rcpp 0.12.1 "relatively soon" because of this.
+| > 
+| > Hope that helps, if it doesn;t we need to dig deeper.
+| > 
+| > Dirk
+| > 
+| 
+| 
+| -- 
+| 
+| JASP - A Fresh Way to Do Statistics
+| http://jasp-stats.org/
+| 
+| --
+| 
+| How happy is he born and taught,
+| That serveth not another's will;
+| Whose armour is his honest thought,
+| And simple truth his utmost skill
+| 
+| This man is freed from servile bands
+| Of hope to rise, or fear to fall:
+| Lord of himself, though not of lands,
+| And, having nothing, yet hath all.
+| 
+|   -- Sir Henry Wotton
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.love  Tue Sep  8 21:25:42 2015
+From: jon at thon.love (Jonathon Love)
+Date: Tue, 8 Sep 2015 21:25:42 +0200
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <21999.10608.534122.630385@max.nulle.part>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part> <55EF2417.2060706@thon.love>
+ <21999.10608.534122.630385@max.nulle.part>
+Message-ID: <55EF3636.9000701@thon.love>
+
+> Not really.  A minimally reproducible example is always welcome.
+
+what if that minimally reproducible example only happens on ubuntu trusty?
+
+jonathon
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+
+From edd at debian.org  Tue Sep  8 21:46:38 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Sep 2015 14:46:38 -0500
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <55EF3636.9000701@thon.love>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part>
+ <55EF2417.2060706@thon.love>
+ <21999.10608.534122.630385@max.nulle.part>
+ <55EF3636.9000701@thon.love>
+Message-ID: <21999.15134.665452.396209@max.nulle.part>
+
+
+On 8 September 2015 at 21:25, Jonathon Love wrote:
+| > Not really.  A minimally reproducible example is always welcome.
+| 
+| what if that minimally reproducible example only happens on ubuntu trusty?
+
+Then I don't care as that is not a current version.  You can always apply for
+your money-back guarantee.
+
+(Which one is trusty again?  I only ever use the numeric codes and now run
+15.04 everywhere.  As that is the 'v', I presume trusty is the 14.04?)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.love  Tue Sep  8 22:02:06 2015
+From: jon at thon.love (Jonathon Love)
+Date: Tue, 8 Sep 2015 22:02:06 +0200
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <21999.15134.665452.396209@max.nulle.part>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part> <55EF2417.2060706@thon.love>
+ <21999.10608.534122.630385@max.nulle.part> <55EF3636.9000701@thon.love>
+ <21999.15134.665452.396209@max.nulle.part>
+Message-ID: <55EF3EBE.9030406@thon.love>
+
+> Then I don't care as that is not a current version.
+
+an LTS doesn't count? i think it's a *current* version, just not *the
+latest* version. unfortunately, it represents a chunk of my user base
+(with the LTS, and the linux mints being based on it)
+
+> (Which one is trusty again?  I only ever use the numeric codes and now run
+> 15.04 everywhere.  As that is the 'v', I presume trusty is the 14.04?)
+
+yeah, trusty is 14.04
+
+jonathon
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+
+From edd at debian.org  Tue Sep  8 22:13:33 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Sep 2015 15:13:33 -0500
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <55EF3EBE.9030406@thon.love>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part>
+ <55EF2417.2060706@thon.love>
+ <21999.10608.534122.630385@max.nulle.part>
+ <55EF3636.9000701@thon.love>
+ <21999.15134.665452.396209@max.nulle.part>
+ <55EF3EBE.9030406@thon.love>
+Message-ID: <21999.16749.303088.424106@max.nulle.part>
+
+
+On 8 September 2015 at 22:02, Jonathon Love wrote:
+| > Then I don't care as that is not a current version.
+| 
+| an LTS doesn't count? i think it's a *current* version, just not *the
+| latest* version. unfortunately, it represents a chunk of my user base
+| (with the LTS, and the linux mints being based on it)
+
+With all due respect I am doing this for free. So coming back with demands as
+to what I should or should not support simply does not fly.  Sorry.  
+
+I will help you to debug this, but this would appear to be your issue more
+than mine.  
+
+I also asked you twice already to try Rcpp from GitHub.  Did you?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.love  Tue Sep  8 22:19:06 2015
+From: jon at thon.love (Jonathon Love)
+Date: Tue, 8 Sep 2015 22:19:06 +0200
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <21999.16749.303088.424106@max.nulle.part>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part> <55EF2417.2060706@thon.love>
+ <21999.10608.534122.630385@max.nulle.part> <55EF3636.9000701@thon.love>
+ <21999.15134.665452.396209@max.nulle.part> <55EF3EBE.9030406@thon.love>
+ <21999.16749.303088.424106@max.nulle.part>
+Message-ID: <55EF42BA.6090804@thon.love>
+
+> | > Then I don't care as that is not a current version.
+> | 
+> | an LTS doesn't count? i think it's a *current* version, just not *the
+> | latest* version. unfortunately, it represents a chunk of my user base
+> | (with the LTS, and the linux mints being based on it)
+> 
+> With all due respect I am doing this for free. So coming back with demands as
+> to what I should or should not support simply does not fly.  Sorry.  
+
+oh sorry, it was meant as an earnest question. i did not intend it in a
+demanding way.
+
+> I also asked you twice already to try Rcpp from GitHub.  Did you?
+
+yup. issue persists.
+
+with thanks
+
+jonathon
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+
+From edd at debian.org  Tue Sep  8 22:53:38 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Sep 2015 15:53:38 -0500
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <55EF42BA.6090804@thon.love>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part>
+ <55EF2417.2060706@thon.love>
+ <21999.10608.534122.630385@max.nulle.part>
+ <55EF3636.9000701@thon.love>
+ <21999.15134.665452.396209@max.nulle.part>
+ <55EF3EBE.9030406@thon.love>
+ <21999.16749.303088.424106@max.nulle.part>
+ <55EF42BA.6090804@thon.love>
+Message-ID: <21999.19154.962278.19544@max.nulle.part>
+
+
+On 8 September 2015 at 22:19, Jonathon Love wrote:
+| > I also asked you twice already to try Rcpp from GitHub.  Did you?
+| 
+| yup. issue persists.
+
+That sounds more like a genuine bug than something that rears its head only
+on trusty.  But without a reproducible example ... there is little to do here.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rguy at 123mail.org  Wed Sep  9 08:24:22 2015
+From: rguy at 123mail.org (Rguy)
+Date: Wed, 9 Sep 2015 07:24:22 +0100
+Subject: [Rcpp-devel] NA in templates
+Message-ID: <CAEorq2P8az2kNOk30dQWAJR32YZE1wyQMpOoX_Ne34hH0WYWZQ@mail.gmail.com>
+
+What is correct way to represent NA in a template? I have been successfully
+using NA_REAL (see example below) but I am not sure if this is the proper
+method.
+Thanks.
+
+/* template_NA.cpp:
+Experiment with use of NA in templates in Rcpp. Change first member of a
+vector to NA.
+*/
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+template<typename T>
+T first2NA(T vec) { //Set first el of vector to NA.
+int n = vec.size();
+if (n == 0) return vec;
+vec[0] = NA_REAL;
+return(vec);
+}
+
+// [[Rcpp::export]]
+LogicalVector first2NA_logi(LogicalVector vec) {return first2NA(vec);}
+// [[Rcpp::export]]
+IntegerVector first2NA_int(IntegerVector vec) {return first2NA(vec);}
+// [[Rcpp::export]]
+NumericVector first2NA_num(NumericVector vec) {return first2NA(vec);}
+// [[Rcpp::export]]
+CharacterVector first2NA_char(CharacterVector vec) {return first2NA(vec);}
+
+/***R
+vec_logi = sample(c(T, F), 5, rep=T)
+vec_logi
+first2NA_logi(vec_logi)
+vec_int = 1:5
+vec_int
+first2NA_int(vec_int)
+vec_num = rnorm(5)
+vec_num
+first2NA_num(vec_num)
+vec_char = letters[1:5]
+vec_char
+first2NA_char(vec_char)
+*/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150909/30febf23/attachment.html>
+
+From jon at thon.love  Wed Sep  9 08:24:29 2015
+From: jon at thon.love (Jonathon Love)
+Date: Wed, 9 Sep 2015 08:24:29 +0200
+Subject: [Rcpp-devel] strange behaviour ... something to do with RInside?
+In-Reply-To: <21999.19154.962278.19544@max.nulle.part>
+References: <55EE8E36.60502@thon.love>
+ <21998.61630.23401.717075@max.nulle.part> <55EF2417.2060706@thon.love>
+ <21999.10608.534122.630385@max.nulle.part> <55EF3636.9000701@thon.love>
+ <21999.15134.665452.396209@max.nulle.part> <55EF3EBE.9030406@thon.love>
+ <21999.16749.303088.424106@max.nulle.part> <55EF42BA.6090804@thon.love>
+ <21999.19154.962278.19544@max.nulle.part>
+Message-ID: <55EFD09D.4050605@thon.love>
+
+> That sounds more like a genuine bug than something that rears its head only
+> on trusty.  But without a reproducible example ... there is little to do here.
+
+yeah, i was going to sit down to and write a reproducible example, but
+i'm pretty sure it will only reproduce under trusty (i know it doesn't
+occur under vivid for example)
+
+anyhow, i'll keep digging.
+
+thanks
+
+jonathon
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+
+From romain at r-enthusiasts.com  Wed Sep  9 08:26:43 2015
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Wed, 9 Sep 2015 08:26:43 +0200
+Subject: [Rcpp-devel] NA in templates
+In-Reply-To: <CAEorq2P8az2kNOk30dQWAJR32YZE1wyQMpOoX_Ne34hH0WYWZQ@mail.gmail.com>
+References: <CAEorq2P8az2kNOk30dQWAJR32YZE1wyQMpOoX_Ne34hH0WYWZQ@mail.gmail.com>
+Message-ID: <420D5B2D-7C07-4C8D-993F-532CA54A2DC1@r-enthusiasts.com>
+
+You can use T::get_na() 
+
+Romain
+
+> Le 9 sept. 2015 ? 08:24, Rguy <rguy at 123mail.org> a ?crit :
+> 
+> What is correct way to represent NA in a template? I have been successfully using NA_REAL (see example below) but I am not sure if this is the proper method.
+> Thanks.
+> 
+> /* template_NA.cpp:
+> Experiment with use of NA in templates in Rcpp. Change first member of a vector to NA.
+> */
+> 
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> 
+> template<typename T>
+> T first2NA(T vec) { //Set first el of vector to NA.
+> 	int n = vec.size();
+> 	if (n == 0) return vec;
+> 	vec[0] = NA_REAL;
+> 	return(vec);
+> }
+> 
+> // [[Rcpp::export]]
+> LogicalVector first2NA_logi(LogicalVector vec) {return first2NA(vec);}
+> // [[Rcpp::export]]
+> IntegerVector first2NA_int(IntegerVector vec) {return first2NA(vec);}
+> // [[Rcpp::export]]
+> NumericVector first2NA_num(NumericVector vec) {return first2NA(vec);}
+> // [[Rcpp::export]]
+> CharacterVector first2NA_char(CharacterVector vec) {return first2NA(vec);}
+> 
+> /***R
+> vec_logi = sample(c(T, F), 5, rep=T)
+> vec_logi
+> first2NA_logi(vec_logi)
+> vec_int = 1:5
+> vec_int
+> first2NA_int(vec_int)
+> vec_num = rnorm(5)
+> vec_num
+> first2NA_num(vec_num)
+> vec_char = letters[1:5]
+> vec_char
+> first2NA_char(vec_char)
+> */
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From dvm1607 at gmail.com  Wed Sep  9 22:55:38 2015
+From: dvm1607 at gmail.com (Diego Monteiro)
+Date: Wed, 9 Sep 2015 17:55:38 -0300
+Subject: [Rcpp-devel] Rcpp/ Boost linking problem
+Message-ID: <CAEpw9nw3ra6LSMqt39yVONnadS3Co=22=RXxk=_KAfub3r4Qiw@mail.gmail.com>
+
+Good Evening.
+
+I am pretty new to this programming universe, but I was given a task to
+create an R/C++ package.
+
+I am trying to link a third-party library to my R/C++ code using Rcpp
+0.12.0 , I have successfully used other third party libraries on my R/C++,
+but when I try to use this one that uses boost my R gives me the following
+error:
+
+** testing if installed package can be loaded
+Error in dyn.load(file, DLLpath = DLLpath, ...) :
+  unable to load shared object
+'/home/diego/R/x86_64-pc-linux-gnu-library/3.2/TesteTerralib/libs/TesteTerralib.so':
+
+/home/diego/R/x86_64-pc-linux-gnu-library/3.2/TesteTerralib/libs/TesteTerralib.so:
+undefined symbol: _ZN5boost6system15system_categoryEv
+Error: loading failed
+Execution halted
+ERROR: loading failed
+
+
+I have boost 1.59.0 installed, but apparently it could not be linked.
+Searching online I have found that maybe adding the flag -lboost_system to
+the g++ it would work, but I don't know how to add this flag when using
+RStudio nor just R in the terminal. Could anybody tell me what should I do?
+
+Best Regards
+Diego.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150909/390b9b66/attachment.html>
+
+From edd at debian.org  Wed Sep  9 23:14:30 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 9 Sep 2015 16:14:30 -0500
+Subject: [Rcpp-devel] Rcpp/ Boost linking problem
+In-Reply-To: <CAEpw9nw3ra6LSMqt39yVONnadS3Co=22=RXxk=_KAfub3r4Qiw@mail.gmail.com>
+References: <CAEpw9nw3ra6LSMqt39yVONnadS3Co=22=RXxk=_KAfub3r4Qiw@mail.gmail.com>
+Message-ID: <22000.41270.216253.96860@max.nulle.part>
+
+
+On 9 September 2015 at 17:55, Diego Monteiro wrote:
+| Good Evening.
+| 
+| I am pretty new to this programming universe, but I was given a task to create
+| an R/C++ package.
+| 
+| I am trying to link a third-party library to my R/C++ code using Rcpp 0.12.0 ,
+| I have successfully used other third party libraries on my R/C++, but when I
+| try to use this one that uses boost my R gives me the following error:
+| 
+| ** testing if installed package can be loaded
+| Error in dyn.load(file, DLLpath = DLLpath, ...) :
+| ? unable to load shared object '/home/diego/R/x86_64-pc-linux-gnu-library/3.2/
+| TesteTerralib/libs/TesteTerralib.so':
+| ? /home/diego/R/x86_64-pc-linux-gnu-library/3.2/TesteTerralib/libs/
+| TesteTerralib.so: undefined symbol: _ZN5boost6system15system_categoryEv
+| Error: loading failed
+| Execution halted
+| ERROR: loading failed
+
+You used parts of Boost that require linking.  In case that was an accident,
+rewrite your use of Boost to only use headers. In that case Rcpp and the BH
+package make it easy.  If not, read on.
+ 
+| I have boost 1.59.0 installed, but apparently it could not be linked.
+| Searching online I have found that maybe adding the flag -lboost_system to the
+| g++ it would work, but I don't know how to add this flag when using RStudio nor
+| just R in the terminal. Could anybody tell me what should I do?
+
+These are elementary steps in building a package for -- you would declare
+this in src/Makevars. And you then have the added problem of ensuring that
+the user of your package actually _has_ Boost libraries to link against. One
+typically checks in the configure step
+
+But also consider that 
+
+ i)  none of this is specific to Rcpp, so the question is not really
+     approrpriate for this forum.
+
+ ii) this is not exactly newbie material so please talk to whoever gave you
+     the task to also ensure you get proper training.
+
+Sorry tp be the bearer of bad news but there is no real way of sugra coating this.
+
+Dirk
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From smckinney at bccrc.ca  Wed Sep  9 23:19:06 2015
+From: smckinney at bccrc.ca (Steven McKinney)
+Date: Wed, 9 Sep 2015 21:19:06 +0000
+Subject: [Rcpp-devel] Rcpp/ Boost linking problem
+In-Reply-To: <CAEpw9nw3ra6LSMqt39yVONnadS3Co=22=RXxk=_KAfub3r4Qiw@mail.gmail.com>
+References: <CAEpw9nw3ra6LSMqt39yVONnadS3Co=22=RXxk=_KAfub3r4Qiw@mail.gmail.com>
+Message-ID: <1441833546115.95180@bccrc.ca>
+
+Have you tried setting flags in HOME/.R/Makevars as described in
+
+
+https://cran.r-project.org/doc/manuals/R-admin.html#Customizing-package-compilation
+
+
+Depending on your operating system version, there are some variants for HOME/.R/Makevars file naming, described in the R Admin manual, so give that a careful read and see if that lets you accomplish your compilation and linking.
+
+
+
+Best
+
+
+Steven McKinney
+
+
+Statistician
+Molecular Oncology and Breast Cancer Program
+British Columbia Cancer Research Centre
+
+
+________________________________
+From: rcpp-devel-bounces at lists.r-forge.r-project.org <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Diego Monteiro <dvm1607 at gmail.com>
+Sent: September 9, 2015 1:55 PM
+To: rcpp-devel at lists.r-forge.r-project.org
+Subject: [Rcpp-devel] Rcpp/ Boost linking problem
+
+Good Evening.
+
+I am pretty new to this programming universe, but I was given a task to create an R/C++ package.
+
+I am trying to link a third-party library to my R/C++ code using Rcpp 0.12.0 , I have successfully used other third party libraries on my R/C++, but when I try to use this one that uses boost my R gives me the following error:
+
+** testing if installed package can be loaded
+Error in dyn.load(file, DLLpath = DLLpath, ...) :
+  unable to load shared object '/home/diego/R/x86_64-pc-linux-gnu-library/3.2/TesteTerralib/libs/TesteTerralib.so':
+  /home/diego/R/x86_64-pc-linux-gnu-library/3.2/TesteTerralib/libs/TesteTerralib.so: undefined symbol: _ZN5boost6system15system_categoryEv
+Error: loading failed
+Execution halted
+ERROR: loading failed
+
+
+I have boost 1.59.0 installed, but apparently it could not be linked.
+Searching online I have found that maybe adding the flag -lboost_system to the g++ it would work, but I don't know how to add this flag when using RStudio nor just R in the terminal. Could anybody tell me what should I do?
+
+Best Regards
+Diego.
+
+From dvm1607 at gmail.com  Wed Sep  9 23:32:42 2015
+From: dvm1607 at gmail.com (Diego Monteiro)
+Date: Wed, 9 Sep 2015 18:32:42 -0300
+Subject: [Rcpp-devel] Rcpp/ Boost linking problem
+In-Reply-To: <1441833546115.95180@bccrc.ca>
+References: <CAEpw9nw3ra6LSMqt39yVONnadS3Co=22=RXxk=_KAfub3r4Qiw@mail.gmail.com>
+ <1441833546115.95180@bccrc.ca>
+Message-ID: <CAEpw9nxYW+ueDsUEgiowQx3ySRkQ-0NxJ+3hkKQJykXBxFNtzA@mail.gmail.com>
+
+Thank you very much for the answers.
+
+I was finally able to solve my problem. PKG_LIBS was the solution, I just
+thought since release 0.11 I wouldn?t be able to use Makevars any more, I
+misread it.
+
+Again Thank you very much for the answers.
+
+2015-09-09 18:19 GMT-03:00 Steven McKinney <smckinney at bccrc.ca>:
+
+> Have you tried setting flags in HOME/.R/Makevars as described in
+>
+>
+>
+> https://cran.r-project.org/doc/manuals/R-admin.html#Customizing-package-compilation
+>
+>
+> Depending on your operating system version, there are some variants for
+> HOME/.R/Makevars file naming, described in the R Admin manual, so give that
+> a careful read and see if that lets you accomplish your compilation and
+> linking.
+>
+>
+>
+> Best
+>
+>
+> Steven McKinney
+>
+>
+> Statistician
+> Molecular Oncology and Breast Cancer Program
+> British Columbia Cancer Research Centre
+>
+>
+> ________________________________
+> From: rcpp-devel-bounces at lists.r-forge.r-project.org <
+> rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Diego
+> Monteiro <dvm1607 at gmail.com>
+> Sent: September 9, 2015 1:55 PM
+> To: rcpp-devel at lists.r-forge.r-project.org
+> Subject: [Rcpp-devel] Rcpp/ Boost linking problem
+>
+> Good Evening.
+>
+> I am pretty new to this programming universe, but I was given a task to
+> create an R/C++ package.
+>
+> I am trying to link a third-party library to my R/C++ code using Rcpp
+> 0.12.0 , I have successfully used other third party libraries on my R/C++,
+> but when I try to use this one that uses boost my R gives me the following
+> error:
+>
+> ** testing if installed package can be loaded
+> Error in dyn.load(file, DLLpath = DLLpath, ...) :
+>   unable to load shared object
+> '/home/diego/R/x86_64-pc-linux-gnu-library/3.2/TesteTerralib/libs/TesteTerralib.so':
+>
+> /home/diego/R/x86_64-pc-linux-gnu-library/3.2/TesteTerralib/libs/TesteTerralib.so:
+> undefined symbol: _ZN5boost6system15system_categoryEv
+> Error: loading failed
+> Execution halted
+> ERROR: loading failed
+>
+>
+> I have boost 1.59.0 installed, but apparently it could not be linked.
+> Searching online I have found that maybe adding the flag -lboost_system to
+> the g++ it would work, but I don't know how to add this flag when using
+> RStudio nor just R in the terminal. Could anybody tell me what should I do?
+>
+> Best Regards
+> Diego.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150909/088d78cb/attachment.html>
+
+From hmamoucheyussef at gmail.com  Thu Sep 10 09:58:39 2015
+From: hmamoucheyussef at gmail.com (Hmamouche Youssef)
+Date: Thu, 10 Sep 2015 09:58:39 +0200
+Subject: [Rcpp-devel] Couldn't have makevars files
+Message-ID: <CALp=_qFY2XKrBKSSwS0Po19m4MJ80MJNTTMG8FpF3GQs5mERDA@mail.gmail.com>
+
+Hi,
+
+When I create a Rcpp package with the function Rcpp.package.skeleton,
+I do not have the of the makevars and makevars.win files in src,
+however, the package work
+ on my computer, but i have a problem when I try to install it on other
+ machines, especially with the using of the C++11, because I must add
+ the variable  "CXX_STD = CXX11" in the Makevars.win file.
+ Here is the execution result:(There is no Makevars files in the execution):
+
+-------------------------------------------------
+> Rcpp.package.skeleton("newpackage", attributes=TRUE)
+ Creating directories ...
+ Creating DESCRIPTION ...
+ Creating NAMESPACE ...
+ Creating Read-and-delete-me ...
+ Saving functions and data ...
+ Making help files ...
+ Done.
+ Further steps are described in './newpackage/Read-and-delete-me'.
+
+ Adding Rcpp settings
+  >> added Imports: Rcpp
+  >> added LinkingTo: Rcpp
+  >> added useDynLib directive to NAMESPACE
+  >> added importFrom(Rcpp, evalCpp) directive to NAMESPACE
+  >> added example src file using Rcpp attributes
+  >> compiled Rcpp attributes
+  >> added Rd file for rcpp_hello_world
+-------------------------------------------------
+
+The ~/.R/Makevars file is as follow :
+-------------------------------------------------
+CXX=clang++ -arch x86_64 -ftemplate-depth-256
+CFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+CXXFLAGS= -stdlib=libc++ -std=c++11
+-------------------------------------------------
+
+Could anybody explain me where come from this problem ?
+
+Youssef
+Thanks in advance,
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150910/09d03035/attachment.html>
+
+From edd at debian.org  Thu Sep 10 19:30:41 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 10 Sep 2015 12:30:41 -0500
+Subject: [Rcpp-devel] Couldn't have makevars files
+In-Reply-To: <CALp=_qFY2XKrBKSSwS0Po19m4MJ80MJNTTMG8FpF3GQs5mERDA@mail.gmail.com>
+References: <CALp=_qFY2XKrBKSSwS0Po19m4MJ80MJNTTMG8FpF3GQs5mERDA@mail.gmail.com>
+Message-ID: <22001.48705.321825.496768@max.nulle.part>
+
+
+On 10 September 2015 at 09:58, Hmamouche Youssef wrote:
+| Hi,
+| 
+| When I create a Rcpp package with the function Rcpp.package.skeleton,
+| I do not have the of the makevars and makevars.win files in src, however, the package work
+|  on my computer, but i have a problem when I try to install it on other
+|  machines, especially with the using of the C++11, because I must add
+|  the variable  "CXX_STD = CXX11" in the Makevars.win file.
+|  Here is the execution result:(There is no Makevars files in the execution):
+| 
+| -------------------------------------------------
+| > Rcpp.package.skeleton("newpackage", attributes=TRUE)
+|  Creating directories ...
+|  Creating DESCRIPTION ...
+|  Creating NAMESPACE ...
+|  Creating Read-and-delete-me ...
+|  Saving functions and data ...
+|  Making help files ...
+|  Done.
+|  Further steps are described in './newpackage/Read-and-delete-me'.
+| 
+|  Adding Rcpp settings
+|   >> added Imports: Rcpp
+|   >> added LinkingTo: Rcpp
+|   >> added useDynLib directive to NAMESPACE
+|   >> added importFrom(Rcpp, evalCpp) directive to NAMESPACE
+|   >> added example src file using Rcpp attributes
+|   >> compiled Rcpp attributes
+|   >> added Rd file for rcpp_hello_world
+| -------------------------------------------------
+| 
+| The ~/.R/Makevars file is as follow :
+| -------------------------------------------------
+| CXX=clang++ -arch x86_64 -ftemplate-depth-256
+| CFLAGS=-mtune=native -g -O2 -Wall -pedantic -Wconversion
+| CXXFLAGS= -stdlib=libc++ -std=c++11
+| -------------------------------------------------
+| 
+| Could anybody explain me where come from this problem ?
+
+They are not added because they are not needed for the skeleton package.
+
+You can eiher write them by hand -- 461 CRAN packages using Rcpp provide
+examples -- or use a different generator:
+
+R> library(RcppArmadillo)
+R> RcppArmadillo.package.skeleton("youssef")
+
+Calling kitten to create basic package.
+Creating directories ...
+Creating DESCRIPTION ...
+Creating NAMESPACE ...
+Creating Read-and-delete-me ...
+Saving functions and data ...
+Making help files ...
+Done.
+Further steps are described in './youssef/Read-and-delete-me'.
+
+Adding pkgKitten overrides.
+Deleted 'Read-and-delete-me'.
+Done.
+
+Consider reading the documentation for all the packaging details.
+A good start is the 'Writing R Extensions' manual.
+
+And run 'R CMD check'. Run it frequently. And think of those kittens.
+
+
+Adding RcppArmadillo settings
+ >> added Imports: Rcpp
+ >> added LinkingTo: Rcpp, RcppArmadillo
+ >> added useDynLib and importFrom directives to NAMESPACE
+ >> added Makevars file with Rcpp settings
+ >> added Makevars.win file with RcppArmadillo settings
+ >> added example src file using armadillo classes
+ >> added example Rd file for using armadillo classes
+ >> invoked Rcpp::compileAttributes to create wrappers
+R> system("ls -l youssef/src/")
+total 16
+-rw-rw-r-- 1 edd edd   48 Sep 10 12:26 Makevars
+-rw-rw-r-- 1 edd edd   49 Sep 10 12:26 Makevars.win
+-rw-rw-r-- 1 edd edd 1453 Sep 10 12:26 rcpparma_hello_world.cpp
+-rw-rw-r-- 1 edd edd 1546 Sep 10 12:26 RcppExports.cpp
+R> 
+
+You could always remove the LinkingTo: etc for RcppArmadillo if you don't
+need Armadillo ...
+
+
+Also see the excellent "Writing R Extensions" manual, Section 1.2.4 entitled
+ "Using C++11 code" about another way of setting C++11 via DESCRIPTION:
+
+      Packages without a 'Makevars' file may specify that they require
+   C++11 by including 'C++11' in the 'SystemRequirements' field of the
+   'DESCRIPTION' file, e.g.
+
+        SystemRequirements: C++11
+
+Dirk
+
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rguy at 123mail.org  Fri Sep 11 09:53:34 2015
+From: rguy at 123mail.org (Rguy)
+Date: Fri, 11 Sep 2015 08:53:34 +0100
+Subject: [Rcpp-devel] T::get_na() where T is a Column
+Message-ID: <CAEorq2O-kxbLBKOvQAr3ut-uj4nF41GnBveRda4nWkwdD1V7hA@mail.gmail.com>
+
+I would like to call a template function including the expression
+T::get_na() with a matrix Column as the T. The toy program below
+illustrates what I am trying to do.
+
+Various error messages are generated by the compiler with, I think, the key
+one being:
+
+column_get_na.cpp:11:2: error: 'get_na' is not a member of
+'Rcpp::MatrixColumn<13>'
+
+Is it deliberate that get_na is not a member of Column? If so, what is the
+appropriate workaround in the context of calling a template function? In
+not, any plans to implement Column::get_na()?
+
+Thanks.
+
+Toy program:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+template<typename T>
+T set1na_vec(T vec) {
+vec[0] = T::get_na();
+return vec;
+}
+// [[Rcpp::export]]
+IntegerMatrix set1na_mat(IntegerMatrix mat) {
+IntegerMatrix::Column col = mat(_, 0);
+set1na_vec(col);
+return mat;
+}
+/***R
+mat = matrix(1:10, ncol=2)
+set1na_mat(mat)
+*/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150911/3bf4a597/attachment.html>
+
+From rguy at 123mail.org  Fri Sep 11 13:55:52 2015
+From: rguy at 123mail.org (Rguy)
+Date: Fri, 11 Sep 2015 12:55:52 +0100
+Subject: [Rcpp-devel] clusterExport fails on Rcpp functions
+Message-ID: <CAEorq2NJ5Dz_31QEcLK0nkUuM9r0NxSutAgsPpaHR4ZcjuuWCg@mail.gmail.com>
+
+I find that when I attempt to export Rcpp functions to a cluster using the
+R clusterExport function I get the following error (or some variant
+thereof):
+
+Error in checkForRemoteErrors(val) :
+  5 nodes produced errors; first error: NULL value passed as symbol address
+
+I am running Windows 7, and the cluster is on a quadcore machine. Exporting
+ordinary R functions is completely error-free in my setup.
+
+Has anyone else experienced this problem? Any suggestions on a fix? Thanks.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150911/8b14798d/attachment.html>
+
+From jj.allaire at gmail.com  Fri Sep 11 14:02:07 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Fri, 11 Sep 2015 08:02:07 -0400
+Subject: [Rcpp-devel] clusterExport fails on Rcpp functions
+In-Reply-To: <CAEorq2NJ5Dz_31QEcLK0nkUuM9r0NxSutAgsPpaHR4ZcjuuWCg@mail.gmail.com>
+References: <CAEorq2NJ5Dz_31QEcLK0nkUuM9r0NxSutAgsPpaHR4ZcjuuWCg@mail.gmail.com>
+Message-ID: <CAKw=oCzzU0N+SyMkT-8ij-k18edSUmy3XWzSQqx1Q1_3uVcEQA@mail.gmail.com>
+
+The problem is that Rcpp functions created via sourceCpp can't be
+serialized (their backing shared library is gone when they are
+re-serialized). The solution to this is to either:
+
+a) Rebuild them on the cluster nodes (i.e. just include a string with their
+source and then call sourceCpp on each node); or
+
+b) Move your C++ functions into an R package that's available on all the
+nodes.
+
+
+On Fri, Sep 11, 2015 at 7:55 AM, Rguy <rguy at 123mail.org> wrote:
+
+> I find that when I attempt to export Rcpp functions to a cluster using the
+> R clusterExport function I get the following error (or some variant
+> thereof):
+>
+> Error in checkForRemoteErrors(val) :
+>   5 nodes produced errors; first error: NULL value passed as symbol address
+>
+> I am running Windows 7, and the cluster is on a quadcore machine.
+> Exporting ordinary R functions is completely error-free in my setup.
+>
+> Has anyone else experienced this problem? Any suggestions on a fix? Thanks.
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150911/28310860/attachment.html>
+
+From edd at debian.org  Fri Sep 11 14:15:46 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 11 Sep 2015 07:15:46 -0500
+Subject: [Rcpp-devel] clusterExport fails on Rcpp functions
+In-Reply-To: <CAKw=oCzzU0N+SyMkT-8ij-k18edSUmy3XWzSQqx1Q1_3uVcEQA@mail.gmail.com>
+References: <CAEorq2NJ5Dz_31QEcLK0nkUuM9r0NxSutAgsPpaHR4ZcjuuWCg@mail.gmail.com>
+ <CAKw=oCzzU0N+SyMkT-8ij-k18edSUmy3XWzSQqx1Q1_3uVcEQA@mail.gmail.com>
+Message-ID: <22002.50674.284381.457244@max.nulle.part>
+
+
+On 11 September 2015 at 08:02, JJ Allaire wrote:
+| The problem is that Rcpp functions created via sourceCpp can't be serialized
+| (their backing shared library is gone when they are re-serialized). The
+| solution to this is to either:
+| 
+| a) Rebuild them on the cluster nodes (i.e. just include a string with their
+| source and then call sourceCpp on each node); or
+| 
+| b) Move your C++ functions into an R package that's available on all the nodes.
+
+And b) is what have recommend numerous times before here and on SO.
+
+It would also be nice if Mr "Rguy" could use a real name just like everybody else.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From serguei.sokol at gmail.com  Tue Sep 15 12:16:34 2015
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Tue, 15 Sep 2015 12:16:34 +0200
+Subject: [Rcpp-devel] ivec and imat don't pass by reference
+Message-ID: <55F7F002.3070709@gmail.com>
+
+Hi,
+
+If we declare the following toy function where a numeric matrix is passed by reference,
+it works as expected, the matrix m is modified "in place":
+
+cppFunction('
+mat m2(mat& m) {
+    m=m*2;
+    return(m);
+}', depends="RcppArmadillo", inc="using namespace arma;")
+m=matrix(1:4, 2)+pi
+m2(m)
+           [,1]     [,2]
+[1,]  8.283185 12.28319
+[2,] 10.283185 14.28319
+m
+           [,1]     [,2]
+[1,]  8.283185 12.28319
+[2,] 10.283185 14.28319
+
+But if we pass to imat type, the call by reference is no more functionning:
+cppFunction('
+imat im2(imat& m) {
+    m=m*2;
+    return(m);
+}', depends="RcppArmadillo", inc="using namespace arma;")
+im=matrix(1:4, 2)
+im2(im)
+      [,1] [,2]
+[1,]    2    6
+[2,]    4    8
+im
+      [,1] [,2]
+[1,]    1    3
+[2,]    2    4
+
+The original matrix im remains as it was.
+You can easyly verify that the same is true for ivec type.
+Is it intended behaviour?
+
+Serguei.
+R version 3.2.0 (2015-04-16)
+ > packageVersion("Rcpp")
+[1] ?0.12.0?
+ > packageVersion("RcppArmadillo")
+[1] ?0.5.500.2.0?
+
+
+
+From edd at debian.org  Tue Sep 15 13:53:32 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 15 Sep 2015 06:53:32 -0500
+Subject: [Rcpp-devel] ivec and imat don't pass by reference
+In-Reply-To: <55F7F002.3070709@gmail.com>
+References: <55F7F002.3070709@gmail.com>
+Message-ID: <22008.1724.309584.205865@max.nulle.part>
+
+
+On 15 September 2015 at 12:16, Serguei Sokol wrote:
+| Hi,
+| 
+| If we declare the following toy function where a numeric matrix is passed by reference,
+| it works as expected, the matrix m is modified "in place":
+| 
+| cppFunction('
+| mat m2(mat& m) {
+|     m=m*2;
+|     return(m);
+| }', depends="RcppArmadillo", inc="using namespace arma;")
+| m=matrix(1:4, 2)+pi
+| m2(m)
+|            [,1]     [,2]
+| [1,]  8.283185 12.28319
+| [2,] 10.283185 14.28319
+| m
+|            [,1]     [,2]
+| [1,]  8.283185 12.28319
+| [2,] 10.283185 14.28319
+| 
+| But if we pass to imat type, the call by reference is no more functionning:
+| cppFunction('
+| imat im2(imat& m) {
+|     m=m*2;
+|     return(m);
+| }', depends="RcppArmadillo", inc="using namespace arma;")
+| im=matrix(1:4, 2)
+| im2(im)
+|       [,1] [,2]
+| [1,]    2    6
+| [2,]    4    8
+| im
+|       [,1] [,2]
+| [1,]    1    3
+| [2,]    2    4
+| 
+| The original matrix im remains as it was.
+| You can easyly verify that the same is true for ivec type.
+| Is it intended behaviour?
+
+It is something else, which is a slight trick:  your 'm' is not an integer
+matrix, so you are forcing a copy, which breaks the reference semantics.
+
+See here using your code:
+
+R> library(Rcpp)
+R> cppFunction('imat im2(imat& m) { m=m*2; return(m); }', depends="RcppArmadillo", inc="using namespace arma;")
+R> m <- matrix(c(1L,2L,3L,4L), 2)
+R> m
+     [,1] [,2]
+[1,]    1    3
+[2,]    2    4
+R> storage.mode(m)
+[1] "integer"
+R> im2(m)
+     [,1] [,2]
+[1,]    2    6
+[2,]    4    8
+R> m
+     [,1] [,2]
+[1,]    2    6
+[2,]    4    8
+R> 
+
+So if we pass an integer matrix down, it gets changed as a side effect.  
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From serguei.sokol at gmail.com  Tue Sep 15 14:09:14 2015
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Tue, 15 Sep 2015 14:09:14 +0200
+Subject: [Rcpp-devel] ivec and imat don't pass by reference
+In-Reply-To: <22008.1724.309584.205865@max.nulle.part>
+References: <55F7F002.3070709@gmail.com>
+ <22008.1724.309584.205865@max.nulle.part>
+Message-ID: <55F80A6A.7040407@gmail.com>
+
+Le 15/09/2015 13:53, Dirk Eddelbuettel a ?crit :
+>
+> On 15 September 2015 at 12:16, Serguei Sokol wrote:
+> | Hi,
+> |
+> | If we declare the following toy function where a numeric matrix is passed by reference,
+> | it works as expected, the matrix m is modified "in place":
+> |
+> | cppFunction('
+> | mat m2(mat& m) {
+> |     m=m*2;
+> |     return(m);
+> | }', depends="RcppArmadillo", inc="using namespace arma;")
+> | m=matrix(1:4, 2)+pi
+> | m2(m)
+> |            [,1]     [,2]
+> | [1,]  8.283185 12.28319
+> | [2,] 10.283185 14.28319
+> | m
+> |            [,1]     [,2]
+> | [1,]  8.283185 12.28319
+> | [2,] 10.283185 14.28319
+> |
+> | But if we pass to imat type, the call by reference is no more functionning:
+> | cppFunction('
+> | imat im2(imat& m) {
+> |     m=m*2;
+> |     return(m);
+> | }', depends="RcppArmadillo", inc="using namespace arma;")
+> | im=matrix(1:4, 2)
+> | im2(im)
+> |       [,1] [,2]
+> | [1,]    2    6
+> | [2,]    4    8
+> | im
+> |       [,1] [,2]
+> | [1,]    1    3
+> | [2,]    2    4
+> |
+> | The original matrix im remains as it was.
+> | You can easyly verify that the same is true for ivec type.
+> | Is it intended behaviour?
+>
+> It is something else, which is a slight trick:  your 'm' is not an integer
+> matrix, so you are forcing a copy, which breaks the reference semantics.
+>
+> See here using your code:
+>
+> R> library(Rcpp)
+> R> cppFunction('imat im2(imat& m) { m=m*2; return(m); }', depends="RcppArmadillo", inc="using namespace arma;")
+> R> m <- matrix(c(1L,2L,3L,4L), 2)
+> R> m
+>       [,1] [,2]
+> [1,]    1    3
+> [2,]    2    4
+> R> storage.mode(m)
+> [1] "integer"
+> R> im2(m)
+>       [,1] [,2]
+> [1,]    2    6
+> [2,]    4    8
+> R> m
+>       [,1] [,2]
+> [1,]    2    6
+> [2,]    4    8
+> R>
+>
+> So if we pass an integer matrix down, it gets changed as a side effect.
+Not on my side, where m stays unchanged.
+Even for the first way of defining m as
+m=matrix(1:4, 2)
+I have too
+storage.mode(m)
+[1] "integer"
+
+Before the original post, I've checked that the matrix was in appropriate storage
+with
+ > .Internal(inspect(m))
+@7fc288508340 13 INTSXP g0c2 [MARK,NAM(2),ATT] (len=4, tl=0) 1,2,3,4
+ATTRIB:
+   @2538848 02 LISTSXP g0c0 [MARK]
+     TAG: @6ce018 01 SYMSXP g1c0 [MARK,LCK,gp=0x4000] "dim" (has value)
+     @7fc2884be728 13 INTSXP g0c1 [MARK,NAM(2)] (len=2, tl=0) 2,2
+
+giving well INTSXP but pass by reference was not working.
+
+So, what have I to check in my installation to find the origin of
+an unwanted copy?
+
+Serguei.
+
+
+From serguei.sokol at gmail.com  Tue Sep 15 14:22:32 2015
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Tue, 15 Sep 2015 14:22:32 +0200
+Subject: [Rcpp-devel] ivec and imat don't pass by reference
+In-Reply-To: <55F80A6A.7040407@gmail.com>
+References: <55F7F002.3070709@gmail.com>
+ <22008.1724.309584.205865@max.nulle.part> <55F80A6A.7040407@gmail.com>
+Message-ID: <55F80D88.7070703@gmail.com>
+
+Le 15/09/2015 14:09, Serguei Sokol a ?crit :
+> Le 15/09/2015 13:53, Dirk Eddelbuettel a ?crit :
+>>
+>> On 15 September 2015 at 12:16, Serguei Sokol wrote:
+>> | Hi,
+>> |
+>> | If we declare the following toy function where a numeric matrix is passed by reference,
+>> | it works as expected, the matrix m is modified "in place":
+>> |
+>> | cppFunction('
+>> | mat m2(mat& m) {
+>> |     m=m*2;
+>> |     return(m);
+>> | }', depends="RcppArmadillo", inc="using namespace arma;")
+>> | m=matrix(1:4, 2)+pi
+>> | m2(m)
+>> |            [,1]     [,2]
+>> | [1,]  8.283185 12.28319
+>> | [2,] 10.283185 14.28319
+>> | m
+>> |            [,1]     [,2]
+>> | [1,]  8.283185 12.28319
+>> | [2,] 10.283185 14.28319
+>> |
+>> | But if we pass to imat type, the call by reference is no more functionning:
+>> | cppFunction('
+>> | imat im2(imat& m) {
+>> |     m=m*2;
+>> |     return(m);
+>> | }', depends="RcppArmadillo", inc="using namespace arma;")
+>> | im=matrix(1:4, 2)
+>> | im2(im)
+>> |       [,1] [,2]
+>> | [1,]    2    6
+>> | [2,]    4    8
+>> | im
+>> |       [,1] [,2]
+>> | [1,]    1    3
+>> | [2,]    2    4
+>> |
+>> | The original matrix im remains as it was.
+>> | You can easyly verify that the same is true for ivec type.
+>> | Is it intended behaviour?
+>>
+>> It is something else, which is a slight trick:  your 'm' is not an integer
+>> matrix, so you are forcing a copy, which breaks the reference semantics.
+>>
+>> See here using your code:
+>>
+>> R> library(Rcpp)
+>> R> cppFunction('imat im2(imat& m) { m=m*2; return(m); }', depends="RcppArmadillo", inc="using namespace arma;")
+>> R> m <- matrix(c(1L,2L,3L,4L), 2)
+>> R> m
+>>       [,1] [,2]
+>> [1,]    1    3
+>> [2,]    2    4
+>> R> storage.mode(m)
+>> [1] "integer"
+>> R> im2(m)
+>>       [,1] [,2]
+>> [1,]    2    6
+>> [2,]    4    8
+>> R> m
+>>       [,1] [,2]
+>> [1,]    2    6
+>> [2,]    4    8
+>> R>
+>>
+>> So if we pass an integer matrix down, it gets changed as a side effect.
+> Not on my side, where m stays unchanged.
+> Even for the first way of defining m as
+> m=matrix(1:4, 2)
+> I have too
+> storage.mode(m)
+> [1] "integer"
+>
+> Before the original post, I've checked that the matrix was in appropriate storage
+> with
+> > .Internal(inspect(m))
+> @7fc288508340 13 INTSXP g0c2 [MARK,NAM(2),ATT] (len=4, tl=0) 1,2,3,4
+> ATTRIB:
+>   @2538848 02 LISTSXP g0c0 [MARK]
+>     TAG: @6ce018 01 SYMSXP g1c0 [MARK,LCK,gp=0x4000] "dim" (has value)
+>     @7fc2884be728 13 INTSXP g0c1 [MARK,NAM(2)] (len=2, tl=0) 2,2
+>
+> giving well INTSXP but pass by reference was not working.
+>
+> So, what have I to check in my installation to find the origin of
+> an unwanted copy?
+>
+It was not installation it was just a corrupted session.
+With a new virgin session, it works like a charm.
+Sorry for a false alert.
+
+Serguei.
+
+
+
+From john.merrill at gmail.com  Wed Sep 16 19:44:52 2015
+From: john.merrill at gmail.com (John Merrill)
+Date: Wed, 16 Sep 2015 10:44:52 -0700
+Subject: [Rcpp-devel] Adding a foreign include file to the RcppExports.cpp
+	file
+Message-ID: <CAESjWnuHRGTiLCB+LosGLdTwT0+BZGCLRi07tQiAMrorLFmHvw@mail.gmail.com>
+
+I'm trying to build an R package which exposes functions which depend on
+Google's re2 library.  In order to do that, I need to depend on
+/usr/local/include/re2.h.
+
+That's really easy in the main cpp files, since #include<re2.h> works  The
+problem arises when I use compileAttributes() to generate an
+RcppExports.cpp file: the generated file doesn't contain the relevant
+#include line.
+
+I've search all the mailing lists I could find as well as groveling through
+all the documentation I could think of.  Evidently, I've missed something
+obvious.  How does one do this?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150916/d242d804/attachment.html>
+
+From jj.allaire at gmail.com  Wed Sep 16 19:47:13 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Wed, 16 Sep 2015 13:47:13 -0400
+Subject: [Rcpp-devel] Adding a foreign include file to the
+	RcppExports.cpp file
+In-Reply-To: <CAESjWnuHRGTiLCB+LosGLdTwT0+BZGCLRi07tQiAMrorLFmHvw@mail.gmail.com>
+References: <CAESjWnuHRGTiLCB+LosGLdTwT0+BZGCLRi07tQiAMrorLFmHvw@mail.gmail.com>
+Message-ID: <CAKw=oCxxh0TP-5PGPBuUEc1bJStDYVPZ_uG9oQe0MBFpH+P3Eg@mail.gmail.com>
+
+See "Section 3.4 Types in Generated Code" of the Rcpp Attributes vignette (
+https://cran.r-project.org/web/packages/Rcpp/vignettes/Rcpp-attributes.pdf)
+
+
+On Wed, Sep 16, 2015 at 1:44 PM, John Merrill <john.merrill at gmail.com>
+wrote:
+
+> I'm trying to build an R package which exposes functions which depend on
+> Google's re2 library.  In order to do that, I need to depend on
+> /usr/local/include/re2.h.
+>
+> That's really easy in the main cpp files, since #include<re2.h> works  The
+> problem arises when I use compileAttributes() to generate an
+> RcppExports.cpp file: the generated file doesn't contain the relevant
+> #include line.
+>
+> I've search all the mailing lists I could find as well as groveling
+> through all the documentation I could think of.  Evidently, I've missed
+> something obvious.  How does one do this?
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150916/0f793beb/attachment.html>
+
+From rguy at 123mail.org  Fri Sep 18 21:54:00 2015
+From: rguy at 123mail.org (Rguy)
+Date: Fri, 18 Sep 2015 20:54:00 +0100
+Subject: [Rcpp-devel] DataFrame names
+Message-ID: <CAEorq2Me+mu+0W7dGwZ_ZYtnT_Q_Jc9V06mNSM0F1nnLxZTo4Q@mail.gmail.com>
+
+In reading the names of a data frame in an Rcpp program I find that the
+following both work:
+
+CharacterVector nmz = dfr.names();
+CharacterVector nmz = dfr.attr("names");
+
+Is there any reason to prefer one to the other, or are they considered
+equivalent?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150918/c1f5c619/attachment.html>
+
+From edd at debian.org  Sun Sep 27 17:55:09 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 27 Sep 2015 10:55:09 -0500
+Subject: [Rcpp-devel] [ANN] Test releases of RcppArmadillo (and Rcpp)
+Message-ID: <22024.4445.26870.964984@max.nulle.part>
+
+
+Conrad has a test release 6.000.1 for Armadillo out, which I wrapped up --
+and made available via the Rcpp 'drat' repo (see below).
+
+You will note the new major number; there are some API changes. In essence,
+and from Conrad's page:
+
+   faster norm() and normalise() when using ATLAS or OpenBLAS
+   added Schur decomposition: schur()
+   stricter handling of matrix objects by hist() and histc()
+   advanced constructors for using auxiliary memory by Mat, Col, Row and Cube now have the default of strict = false
+   Cube class now delays allocation of .slice() related structures until needed
+   expanded join_slices() to handle joining cubes with matrices
+
+I ran a full reverse depends check, and only one new issue came up across
+150+ tested packages. But Conrad and I looked into this and concluded that is
+more likely due to change to another dependency of that package. As always see 
+   http://arma.sourceforge.net/
+   https://github.com/RcppCore/RcppArmadillo/
+for full details.
+
+I also added Rcpp 0.12.1.1 to the drat repo which has some fixes over the
+most-recent CRAN release 0.12.1.
+
+You can install these by using the drat package:
+
+   drat::addRepo("RcppCore")
+   update.packages()
+
+or individually using
+
+   install.packages("Rcpp", repos="http://RcppCore.github.io/drat/")
+
+Comments (here, or via GitHub issue tickets) welcome!
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

@@ -1,0 +1,335 @@
+From thomasp85 at gmail.com  Fri Dec  4 12:31:27 2015
+From: thomasp85 at gmail.com (Thomas Lin Pedersen)
+Date: Fri, 4 Dec 2015 12:31:27 +0100
+Subject: [Rcpp-devel] Access package installed into user library
+Message-ID: <EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>
+
+Hi
+
+While testing my package on an Amazon cloud instance using the Bioconductor AMI (https://www.bioconductor.org/help/bioconductor-cloud-ami/ <https://www.bioconductor.org/help/bioconductor-cloud-ami/>) I ran into the following problem I had not encountered on my work computer (A Mac OS X).
+
+I have a C++ function that makes use of functionality in the igraph package, so to access this I have the following in my function:
+
+Environment igraph("package:igraph");
+Function neighbors = igraph["neighbors?];
+
+This worked fine on my work machine but gave the following error when tried on the Amazon instance:
+
+Error: cannot convert to environment
+
+I was able to reduce the error into trying to get access to a package environment that is installed outside the core package library. The instances created using the Bioconductor AMI have the following package storage structure:
+
+> .libPaths()
+[1] "/home/ubuntu/R-libs"      "/usr/local/lib/R/library"
+
+Any package residing in usr/local/lib/R/library will be loaded into the environment fine, while any package in /home/ubuntu/R-libs will throw the error.
+
+Minimal example:
+
+library(Rcpp)
+
+cppFunction('
+  void testFail() {
+    Environment testEnv("package:boot");
+  }
+')
+
+cppFunction('
+  void testSucces() {
+    Environment testEnv("package:stats");
+  }
+')
+
+testFail() # Will give error
+testSucces() # Will work
+
+The session:
+R version 3.2.2 (2015-08-14)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Ubuntu 14.04.2 LTS
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8       
+ [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C              
+[10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] Rcpp_0.12.1          BiocInstaller_1.20.0
+
+loaded via a namespace (and not attached):
+[1] tools_3.2.2
+
+Best
+
+Thomas Lin Pedersen
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151204/45197ecc/attachment.html>
+
+From edd at debian.org  Fri Dec  4 13:16:39 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 4 Dec 2015 06:16:39 -0600
+Subject: [Rcpp-devel] Access package installed into user library
+In-Reply-To: <EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>
+References: <EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>
+Message-ID: <22113.33831.630456.15271@max.nulle.part>
+
+
+On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:
+| Hi
+| 
+| While testing my package on an Amazon cloud instance using the Bioconductor AMI
+| (https://www.bioconductor.org/help/bioconductor-cloud-ami/) I ran into the
+| following problem I had not encountered on my work computer (A Mac OS X).
+| 
+| I have a C++ function that makes use of functionality in the igraph package, so
+| to access this I have the following in my function:
+| 
+| Environment igraph("package:igraph");
+| Function neighbors = igraph["neighbors?];
+| 
+| This worked fine on my work machine but gave the following error when tried on
+| the Amazon instance:
+| 
+| 
+| Error: cannot convert to environment
+| 
+| 
+| I was able to reduce the error into trying to get access to a package
+| environment that is installed outside the core package library. The instances
+| created using the Bioconductor AMI have the following package storage
+| structure:
+| 
+| 
+| > .libPaths()
+| [1] "/home/ubuntu/R-libs"      "/usr/local/lib/R/library"
+| 
+| 
+| Any package residing in usr/local/lib/R/library will be loaded into the
+| environment fine, while any package in /home/ubuntu/R-libs will throw the
+| error.
+
+So maybe don't install into /home/ubuntu/R-libs ?
+
+There are no hardcoded path in Rcpp. This strikes me as a run-time config
+(and hence not an Rcpp question for this list).
+
+Dirk
+ 
+| Minimal example:
+| 
+| library(Rcpp)
+| 
+| cppFunction('
+|   void testFail() {
+|     Environment testEnv("package:boot");
+|   }
+| ')
+| 
+| cppFunction('
+|   void testSucces() {
+|     Environment testEnv("package:stats");
+|   }
+| ')
+| 
+| testFail() # Will give error
+| testSucces() # Will work
+| 
+| The session:
+| 
+| R version 3.2.2 (2015-08-14)
+| Platform: x86_64-pc-linux-gnu (64-bit)
+| Running under: Ubuntu 14.04.2 LTS
+| 
+| locale:
+|  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8
+|  [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8
+|  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C
+| [10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+| 
+| attached base packages:
+| [1] stats     graphics  grDevices utils     datasets  methods   base
+| 
+| other attached packages:
+| [1] Rcpp_0.12.1          BiocInstaller_1.20.0
+| 
+| loaded via a namespace (and not attached):
+| [1] tools_3.2.2
+| 
+| 
+| Best
+| 
+| Thomas Lin Pedersen
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From thomasp85 at gmail.com  Fri Dec  4 14:01:29 2015
+From: thomasp85 at gmail.com (Thomas Lin Pedersen)
+Date: Fri, 4 Dec 2015 14:01:29 +0100
+Subject: [Rcpp-devel] Access package installed into user library
+In-Reply-To: <22113.33831.630456.15271@max.nulle.part>
+References: <EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>
+ <22113.33831.630456.15271@max.nulle.part>
+Message-ID: <AEEF3749-06C2-498E-8519-1FB1D4ED431D@gmail.com>
+
+
+> On 04 Dec 2015, at 13:16, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:
+> | Hi
+> | 
+> | While testing my package on an Amazon cloud instance using the Bioconductor AMI
+> | (https://www.bioconductor.org/help/bioconductor-cloud-ami/) I ran into the
+> | following problem I had not encountered on my work computer (A Mac OS X).
+> | 
+> | I have a C++ function that makes use of functionality in the igraph package, so
+> | to access this I have the following in my function:
+> | 
+> | Environment igraph("package:igraph");
+> | Function neighbors = igraph["neighbors?];
+> | 
+> | This worked fine on my work machine but gave the following error when tried on
+> | the Amazon instance:
+> | 
+> | 
+> | Error: cannot convert to environment
+> | 
+> | 
+> | I was able to reduce the error into trying to get access to a package
+> | environment that is installed outside the core package library. The instances
+> | created using the Bioconductor AMI have the following package storage
+> | structure:
+> | 
+> | 
+> | > .libPaths()
+> | [1] "/home/ubuntu/R-libs"      "/usr/local/lib/R/library"
+> | 
+> | 
+> | Any package residing in usr/local/lib/R/library will be loaded into the
+> | environment fine, while any package in /home/ubuntu/R-libs will throw the
+> | error.
+> 
+> So maybe don't install into /home/ubuntu/R-libs ?
+> 
+> There are no hardcoded path in Rcpp. This strikes me as a run-time config
+> (and hence not an Rcpp question for this list).
+> 
+> Dirk
+> 
+
+Ok - (slight embarrassment to follow) I looked at the Environment constructor and found that it basically just called as.environment, which led my to try this out in R. This also failed, but for the reason that the requested package was only loaded, not attached (It?s part of the Import field of my package). calling library() to attach the package solved the issue?
+
+The obvious follow up question is: Is there no way to use R functions from Rcpp if they are not part of the users search path (but part of the package namespace). I generally tend to avoid putting packages in Depends in order to not pollute the users search path.
+
+Thomas
+
+> | Minimal example:
+> | 
+> | library(Rcpp)
+> | 
+> | cppFunction('
+> |   void testFail() {
+> |     Environment testEnv("package:boot");
+> |   }
+> | ')
+> | 
+> | cppFunction('
+> |   void testSucces() {
+> |     Environment testEnv("package:stats");
+> |   }
+> | ')
+> | 
+> | testFail() # Will give error
+> | testSucces() # Will work
+> | 
+> | The session:
+> | 
+> | R version 3.2.2 (2015-08-14)
+> | Platform: x86_64-pc-linux-gnu (64-bit)
+> | Running under: Ubuntu 14.04.2 LTS
+> | 
+> | locale:
+> |  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8
+> |  [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8
+> |  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C
+> | [10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C
+> | 
+> | attached base packages:
+> | [1] stats     graphics  grDevices utils     datasets  methods   base
+> | 
+> | other attached packages:
+> | [1] Rcpp_0.12.1          BiocInstaller_1.20.0
+> | 
+> | loaded via a namespace (and not attached):
+> | [1] tools_3.2.2
+> | 
+> | 
+> | Best
+> | 
+> | Thomas Lin Pedersen
+> | 
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+From edd at debian.org  Fri Dec  4 14:40:08 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 4 Dec 2015 07:40:08 -0600
+Subject: [Rcpp-devel] Access package installed into user library
+In-Reply-To: <AEEF3749-06C2-498E-8519-1FB1D4ED431D@gmail.com>
+References: <EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>
+ <22113.33831.630456.15271@max.nulle.part>
+ <AEEF3749-06C2-498E-8519-1FB1D4ED431D@gmail.com>
+Message-ID: <22113.38840.412785.996251@max.nulle.part>
+
+
+On 4 December 2015 at 14:01, Thomas Lin Pedersen wrote:
+| > On 04 Dec 2015, at 13:16, Dirk Eddelbuettel <edd at debian.org> wrote:
+| > On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:
+| > | Any package residing in usr/local/lib/R/library will be loaded into the
+| > | environment fine, while any package in /home/ubuntu/R-libs will throw the
+| > | error.
+| > 
+| > So maybe don't install into /home/ubuntu/R-libs ?
+| > 
+| > There are no hardcoded path in Rcpp. This strikes me as a run-time config
+| > (and hence not an Rcpp question for this list).
+| > 
+| > Dirk
+| > 
+| 
+| Ok - (slight embarrassment to follow) I looked at the Environment constructor and found that it basically just called as.environment, which led my to try this out in R. This also failed, but for the reason that the requested package was only loaded, not attached (It?s part of the Import field of my package). calling library() to attach the package solved the issue?
+| 
+| The obvious follow up question is: Is there no way to use R functions from Rcpp if they are not part of the users search path (but part of the package namespace). I generally tend to avoid putting packages in Depends in order to not pollute the users search path.
+
+Join the r-package-devel list and discuss there.  This is now an R discussion
+beyond Rcpp because Rcpp just talks the R session it was called from.
+
+As for current best practices: use Import: with appropriate global (or better
+still if you can) per-symbol importFrom(package, funA, funB, funC) in NAMESPACE.
+
+That gets you the symbols and leaves your search path alone. You do not need
+a package as the mechanism for this just as you do for Depends:.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

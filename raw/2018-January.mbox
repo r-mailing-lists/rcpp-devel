@@ -1,0 +1,2566 @@
+From cdetermanjr at gmail.com  Tue Jan  9 16:25:22 2018
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Tue, 9 Jan 2018 09:25:22 -0600
+Subject: [Rcpp-devel] NVCC compatibility
+Message-ID: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+
+Greetings,
+
+I have been exploring GPU implementations for R.  Primarily I have been
+using OpenCL given it is so portable and everyone can use it without being
+tied to NVIDIA.  That said, NVIDIA hardware is difficult to beat and
+creating packages that leverage are arguably valuable (e.g. gputools,
+gmatrix).  In my efforts to explore how to best develop these types of
+packages I must use NVCC but I also would like to continue leveraging
+Rcpp.  Normally, any compilation with NVCC would results in the following
+warnings and error when including Rcpp.h.
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(121): warning:
+statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(74): warning:
+statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/vector_from_string.h(42):
+warning: statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(54): warning:
+statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(74): warning:
+statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(121): warning:
+statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/Environment.h(97): warning:
+statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/vector_from_string.h(42):
+warning: statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/Vector.h(324):
+warning: statement is unreachable
+
+/usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/proxy.h(99): error:
+the object has type qualifiers that are not compatible with the member
+function "Rcpp::internal::string_name_proxy<RTYPE>::get"
+            object type is: const Rcpp::internal::string_name_proxy<RTYPE>
+
+
+I stumbled upon another github user's package that tries to address this by
+a small modification in Rcpp.  You can see it here (
+https://github.com/jtilly/RcppThrust) were the user notes that removing the
+'const' in line 98 of Rcpp/vector/proxy.h allows the compilation to succeed
+(although the warnings continue).
+
+Does anyone have any thoughts regarding this modification?  Would changing
+that line cause any issues?  I'm not sure about the warnings at the moment
+but at least nvcc and Rcpp could be used in concert.
+
+Regards,
+Charles
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180109/e216e58d/attachment.html>
+
+From edd at debian.org  Tue Jan  9 16:39:57 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 9 Jan 2018 09:39:57 -0600
+Subject: [Rcpp-devel] NVCC compatibility
+In-Reply-To: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+References: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+Message-ID: <23124.57933.633959.699811@bud.eddelbuettel.com>
+
+
+On 9 January 2018 at 09:25, Charles Determan wrote:
+| Does anyone have any thoughts regarding this modification?  Would changing
+| that line cause any issues?  I'm not sure about the warnings at the moment
+| but at least nvcc and Rcpp could be used in concert.
+
+That is a question that is empirically answerable. As you are the one driving
+this I would invite you to test it on the 1200+ reverse depends packages  ;-)
+
+Thrust rings a bell but I may be more familiar with what Norm had done. I
+should look at Jan's RcppThrust then. Hm, which seems to use Norm's work.
+
+We should probably integrate this.  January is a release month though so now
+is now the greatest time to push this into master.  A local copy may be best,
+but open to revisit.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Jan  9 16:42:57 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 9 Jan 2018 09:42:57 -0600
+Subject: [Rcpp-devel] NVCC compatibility
+In-Reply-To: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+References: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+Message-ID: <23124.58113.767696.723238@bud.eddelbuettel.com>
+
+
+On 9 January 2018 at 09:25, Charles Determan wrote:
+| tied to NVIDIA.  That said, NVIDIA hardware is difficult to beat and
+| creating packages that leverage are arguably valuable (e.g. gputools,
+| gmatrix).  In my efforts to explore how to best develop these types of
+
+They are also both off CRAN now!
+
+Maintaining NVidia-using code to the satisfaction of CRAN is seemingly not
+for the faint of heart.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From cdetermanjr at gmail.com  Tue Jan  9 16:51:09 2018
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Tue, 9 Jan 2018 09:51:09 -0600
+Subject: [Rcpp-devel] NVCC compatibility
+In-Reply-To: <23124.58113.767696.723238@bud.eddelbuettel.com>
+References: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+ <23124.58113.767696.723238@bud.eddelbuettel.com>
+Message-ID: <CAKxd1KOBBUNREgMH0KDANJN46egmi07Haw_EKi9hf35q=tcFPA@mail.gmail.com>
+
+Thanks Dirk, I was not aware that both were off CRAN now.  And yes, I agree
+that maintaining NVIDIA based packages is not easy but I certainly want to
+attempt it.  It seems like my gpuR package has been well received and I
+would like to provide a CUDA based package as well.  Anything I can do to
+help make gpu computing more accessible to R users is my goal.
+
+Charles
+
+On Tue, Jan 9, 2018 at 9:42 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 9 January 2018 at 09:25, Charles Determan wrote:
+> | tied to NVIDIA.  That said, NVIDIA hardware is difficult to beat and
+> | creating packages that leverage are arguably valuable (e.g. gputools,
+> | gmatrix).  In my efforts to explore how to best develop these types of
+>
+> They are also both off CRAN now!
+>
+> Maintaining NVidia-using code to the satisfaction of CRAN is seemingly not
+> for the faint of heart.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180109/078eb0e7/attachment.html>
+
+From i.ucar86 at gmail.com  Tue Jan  9 17:17:27 2018
+From: i.ucar86 at gmail.com (=?UTF-8?B?ScOxYWtpIMOaY2Fy?=)
+Date: Tue, 9 Jan 2018 17:17:27 +0100
+Subject: [Rcpp-devel] NVCC compatibility
+In-Reply-To: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+References: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+Message-ID: <CALEXWq1fZP6HyXLXE9O-4w=JuZ+4skFUi3F4UkXC6oXDDWsnnw@mail.gmail.com>
+
+2018-01-09 16:25 GMT+01:00 Charles Determan <cdetermanjr at gmail.com>:
+> Greetings,
+>
+> I have been exploring GPU implementations for R.  Primarily I have been
+> using OpenCL given it is so portable and everyone can use it without being
+> tied to NVIDIA.  That said, NVIDIA hardware is difficult to beat and
+> creating packages that leverage are arguably valuable (e.g. gputools,
+> gmatrix).  In my efforts to explore how to best develop these types of
+> packages I must use NVCC but I also would like to continue leveraging Rcpp.
+> Normally, any compilation with NVCC would results in the following warnings
+> and error when including Rcpp.h.
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(121): warning:
+> statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(74): warning:
+> statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/vector_from_string.h(42):
+> warning: statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(54): warning:
+> statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(74): warning:
+> statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/r_cast.h(121): warning:
+> statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/Environment.h(97): warning:
+> statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/vector_from_string.h(42):
+> warning: statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/Vector.h(324):
+> warning: statement is unreachable
+>
+> /usr/local/lib/R/site-library/Rcpp/include/Rcpp/vector/proxy.h(99): error:
+> the object has type qualifiers that are not compatible with the member
+> function "Rcpp::internal::string_name_proxy<RTYPE>::get"
+>             object type is: const Rcpp::internal::string_name_proxy<RTYPE>
+>
+>
+> I stumbled upon another github user's package that tries to address this by
+> a small modification in Rcpp.  You can see it here
+> (https://github.com/jtilly/RcppThrust) were the user notes that removing the
+> 'const' in line 98 of Rcpp/vector/proxy.h allows the compilation to succeed
+> (although the warnings continue).
+
+Instead of discarding that 'const', I would try first to check whether
+adding it to the getter solves the problem without breaking anything.
+I.e.:
+
+char* get() const {
+
+instead of [1]. At least it sounds more reasonable to me.
+
+[1] https://github.com/RcppCore/Rcpp/blob/0.12.9/inst/include/Rcpp/vector/proxy.h#L128
+
+I?aki
+
+From edd at debian.org  Tue Jan  9 17:23:18 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 9 Jan 2018 10:23:18 -0600
+Subject: [Rcpp-devel] NVCC compatibility
+In-Reply-To: <CAKxd1KOBBUNREgMH0KDANJN46egmi07Haw_EKi9hf35q=tcFPA@mail.gmail.com>
+References: <CAKxd1KMffzkgnrrNehLaLxRaNv9W-z9D4o=Vid5QFCdj7PUtiA@mail.gmail.com>
+ <23124.58113.767696.723238@bud.eddelbuettel.com>
+ <CAKxd1KOBBUNREgMH0KDANJN46egmi07Haw_EKi9hf35q=tcFPA@mail.gmail.com>
+Message-ID: <23124.60534.37859.742060@bud.eddelbuettel.com>
+
+
+On 9 January 2018 at 09:51, Charles Determan wrote:
+| Thanks Dirk, I was not aware that both were off CRAN now.  And yes, I agree
+| that maintaining NVIDIA based packages is not easy but I certainly want to
+| attempt it.  It seems like my gpuR package has been well received and I
+| would like to provide a CUDA based package as well.  Anything I can do to
+| help make gpu computing more accessible to R users is my goal.
+
+Yep. I opened an issue ticket:  https://github.com/RcppCore/Rcpp/issues/797
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mseligman at suiji.org  Tue Jan  9 18:46:54 2018
+From: mseligman at suiji.org (Mark Seligman)
+Date: Tue, 09 Jan 2018 09:46:54 -0800
+Subject: [Rcpp-devel] NVCC compatibility
+In-Reply-To: <mailman.6635.1515515006.1082.rcpp-devel@lists.r-forge.r-project.org>
+References: <mailman.6635.1515515006.1082.rcpp-devel@lists.r-forge.r-project.org>
+Message-ID: <9754dd6877306dab9b96b753b5f5fa48@suiji.org>
+
+
+> Thrust rings a bell but I may be more familiar with what Norm had done. 
+> I
+> should look at Jan's RcppThrust then. Hm, which seems to use Norm's 
+> work.
+> 
+> We should probably integrate this.  January is a release month though 
+> so now
+> is now the greatest time to push this into master.  A local copy may be 
+> best,
+> but open to revisit.
+> 
+> Dirk
+
+I do fair amount of work using nvcc on Rcpp, and second Charles' 
+request.  Please let me know if I can be of assistance more generally.
+
+FWIW, the nvcc's biggest drawback seems to be the lag in tracking gcc.
+
+  - mls
+
+
+From fisikop at gmail.com  Mon Jan 15 17:08:09 2018
+From: fisikop at gmail.com (Vissarion Fisikopoulos)
+Date: Mon, 15 Jan 2018 18:08:09 +0200
+Subject: [Rcpp-devel] Rcpp project for GSoC18
+In-Reply-To: <CAKa7CYNv2YU03vEtN3m41YiebbdbL-Y610AJ_UwggRZ8aL2YRw@mail.gmail.com>
+References: <CAKa7CYMmDhmv29XH2v-jiEc25OhRfFORMmevyQydas8R0kiD3g@mail.gmail.com>
+ <23053.43495.697036.746755@bud.eddelbuettel.com>
+ <CAJ_LAMCmzSxOoettRuaVwFOvFVgYGsAOKRWX-5CX0t5EYov19Q@mail.gmail.com>
+ <CAKa7CYNv2YU03vEtN3m41YiebbdbL-Y610AJ_UwggRZ8aL2YRw@mail.gmail.com>
+Message-ID: <CAKa7CYOnSkVK_kC7n7i2wL2=GucEwtPx=34PKa2O9zqVz+dhyw@mail.gmail.com>
+
+The project idea page is up!
+
+https://github.com/rstats-gsoc/gsoc2018/wiki/Sampling-and-volume-approximation
+
+Please, let me know if some R expert is interested in co-mentoring that project.
+
+Best,
+Vissarion.
+
+On 16 November 2017 at 17:25, Vissarion Fisikopoulos <fisikop at gmail.com> wrote:
+> On 16 November 2017 at 17:14, Qiang Kou <qkou at umail.iu.edu> wrote:
+>> I think we already have the page for GSOC 2018:
+>>
+>> https://github.com/rstats-gsoc/gsoc2018/wiki/table-of-proposed-coding-projects
+>>
+>> Best,
+>>
+>> KK
+>
+> Thank you both for the feedback. I will add my project idea there.
+> Still I am in a quest of a second mentor, expert in Rcpp.
+>
+> Best,
+> Vissarion.
+>
+>> On Thu, Nov 16, 2017 at 10:08 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>>>
+>>>
+>>> On 16 November 2017 at 16:35, Vissarion Fisikopoulos wrote:
+>>> | Hello,
+>>> |
+>>> | I maintain C++ code for random sampling and volume approximation of
+>>> | polyhedra (see https://github.com/vissarion/volume_approximation).
+>>> |
+>>> | I would like to propose a GSoC project to create an R package that
+>>> | will use functions of that code inside R. In particular, the package
+>>> | will provide functionality for MCMC geometric walks (variations of
+>>> | hit-and-run) and volume computation of polyhedra. It could also use
+>>> | existing MCMC walks from R. My motivation is the availability of the
+>>> | current software tool in a broader set of users (I have requests from
+>>> | researchers that want to use the code but have no knowledge of C++).
+>>> |
+>>> | I had a discussion in GSoC mentor summit last month with the GSoC
+>>> | admin of r-project and he proposed to send a message to this list to
+>>> | find a second mentor since my knowledge in R is limited.
+>>> |
+>>> | What do you think?
+>>>
+>>> Sure, but you don't need our approval for that.  Discussion of GSoC topics
+>>> will happen as usual under the umbrella of R's particpiation in GSoC when
+>>> and
+>>> where questions are discussed.  I think this a pretty large number (10 out
+>>> of
+>>> 29 ?) of projects used Rcpp in some way. I was involved in two which
+>>> extended
+>>> existing packages in the Rcpp space.
+>>>
+>>>
+>>> That said, we should start a wiki page with possible topics:
+>>>
+>>>  - have Rcpp catch up to ALTREP: very important, possibly a lot of work
+>>>
+>>>  - smaller idea I had recently: generalize Jens's bit64 which provides
+>>>    integer64 to possibly make it "templated" and provide both int64_t and
+>>>    uint64_t.
+>>>
+>>>  - lots of others to be added...
+>>>
+>>> Where should have that page?
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+>>
+>>
+>> --
+>> Qiang Kou
+>> qkou at umail.iu.edu
+>> School of Informatics and Computing, Indiana University
+>>
+
+From alexis.sarda at gmail.com  Tue Jan 16 21:02:40 2018
+From: alexis.sarda at gmail.com (Alexis Sarda)
+Date: Tue, 16 Jan 2018 21:02:40 +0100
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+Message-ID: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+
+Hello,
+
+I am integrating RcppParallel into my R package and I'm running into
+strange problems with segmentation faults, but only during the continuous
+integration checks. I have essentially variations of the following (I hope
+GitHub gist links are ok):
+
+https://gist.github.com/asardaes/7d78af394f848a967997ff23e433c9cf
+
+On TravisCI, my Linux builds simply freeze, and the OSX builds show
+messages like:
+
+*** caught segfault ***
+address 0x100000001, cause 'memory not mapped'
+
+I would assume that my distance functions are trying to access memory they
+shouldn't, but during interactive use everything works flawlessly, and I've
+tested all of the following with no problems (which also test correctness,
+i.e. numeric consistency with respect to past results):
+
+- Local Linux R CMD check
+- Local Windows R CMD check
+- CRAN's WinBuilder check
+- AppVeyor (x32 and x64 Windows)
+- Docker R CMD check using rocker's r-devel-san
+- Local Linux R CMD check with valgrind (no leaks)
+
+It is worth mentioning that some of the examples ran during the OSX build
+show incorrect results long before the segfault occurs: some results are
+zero when they shouldn't be. I don't have access to a machine with OSX, but
+the Linux builds in TravisCI also show problems (no segfaults explicitly,
+just hangs).
+
+I am at my wit's end. Any input would be appreciated.
+
+Regards,
+Alexis.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180116/37653916/attachment.html>
+
+From simon.barthelme at gipsa-lab.fr  Wed Jan 17 13:10:08 2018
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?Q?Simon_Barthelm=c3=a9?=)
+Date: Wed, 17 Jan 2018 13:10:08 +0100
+Subject: [Rcpp-devel] using SparseSuite and RcppEigen in package
+Message-ID: <50820acc-3ddc-da0b-0190-b0404d69eafe@gipsa-lab.fr>
+
+Dear all,
+
+I'm trying to use some CHOLMOD functionality inside an R package 
+(specifically, sparse Cholesky updates/downdates). There's an 
+CHOLMOD/Eigen interface for that, but unfortunately the header I need is 
+not shipped as part of either the Matrix package or the Rcpp package. 
+The file is cholmod_modify.h, and it does appear in the src/ directory 
+of the Matrix package, but not in the include/ directory.
+
+If I include it by hand I risk version conflicts, because the rest of 
+CHOLMOD is provided by the Matrix package via RcppEigen. What's the 
+clean way of handling that? Thanks for your input!
+
+Best
+
+Simon Barthelme
+
+
+From edd at debian.org  Wed Jan 17 13:32:59 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 17 Jan 2018 06:32:59 -0600
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+Message-ID: <23135.17019.319718.955070@bud.eddelbuettel.com>
+
+
+On 16 January 2018 at 21:02, Alexis Sarda wrote:
+| Hello,
+| 
+| I am integrating RcppParallel into my R package and I'm running into
+| strange problems with segmentation faults, but only during the continuous
+| integration checks. I have essentially variations of the following (I hope
+| GitHub gist links are ok):
+| 
+| https://gist.github.com/asardaes/7d78af394f848a967997ff23e433c9cf
+| 
+| On TravisCI, my Linux builds simply freeze, and the OSX builds show
+| messages like:
+| 
+| *** caught segfault ***
+| address 0x100000001, cause 'memory not mapped'
+| 
+| I would assume that my distance functions are trying to access memory they
+| shouldn't, but during interactive use everything works flawlessly, and I've
+| tested all of the following with no problems (which also test correctness,
+| i.e. numeric consistency with respect to past results):
+| 
+| - Local Linux R CMD check
+| - Local Windows R CMD check
+| - CRAN's WinBuilder check
+| - AppVeyor (x32 and x64 Windows)
+| - Docker R CMD check using rocker's r-devel-san
+| - Local Linux R CMD check with valgrind (no leaks)
+| 
+| It is worth mentioning that some of the examples ran during the OSX build
+| show incorrect results long before the segfault occurs: some results are
+| zero when they shouldn't be. I don't have access to a machine with OSX, but
+| the Linux builds in TravisCI also show problems (no segfaults explicitly,
+| just hangs).
+| 
+| I am at my wit's end. Any input would be appreciated.
+
+Hard to tell for us, but maybe try the old and trusted route of smaller and
+smaller reproducible examples til you reproduce it?
+
+Or else if it _just_ Travis CI maybe it is a compiler version issue?  Travis
+is very conservative in its default setup but there are .travis.yaml scripts
+out there that turn on the PPA for compiler builds giving you gcc-5, gcc-6,
+... amd different clang versions.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Jan 17 13:35:47 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 17 Jan 2018 06:35:47 -0600
+Subject: [Rcpp-devel] using SparseSuite and RcppEigen in package
+In-Reply-To: <50820acc-3ddc-da0b-0190-b0404d69eafe@gipsa-lab.fr>
+References: <50820acc-3ddc-da0b-0190-b0404d69eafe@gipsa-lab.fr>
+Message-ID: <23135.17187.709763.434585@bud.eddelbuettel.com>
+
+
+On 17 January 2018 at 13:10, Simon Barthelm? wrote:
+| I'm trying to use some CHOLMOD functionality inside an R package 
+| (specifically, sparse Cholesky updates/downdates). There's an 
+| CHOLMOD/Eigen interface for that, but unfortunately the header I need is 
+| not shipped as part of either the Matrix package or the Rcpp package. 
+| The file is cholmod_modify.h, and it does appear in the src/ directory 
+| of the Matrix package, but not in the include/ directory.
+| 
+| If I include it by hand I risk version conflicts, because the rest of 
+| CHOLMOD is provided by the Matrix package via RcppEigen. What's the 
+| clean way of handling that? Thanks for your input!
+
+I know "some" (eg rstan) have completemented the BH package with local
+headers when BH was missing what they needed (as BH grew, I think we by now
+added all they need).  So you could just do that, being careful to stick with
+the same version.
+
+Or would Yixuan's RSpectra help?  https://cran.r-project.org/package=RSpectra 
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From yixuan.qiu at cos.name  Wed Jan 17 13:50:13 2018
+From: yixuan.qiu at cos.name (Yixuan Qiu)
+Date: Wed, 17 Jan 2018 07:50:13 -0500
+Subject: [Rcpp-devel] using SparseSuite and RcppEigen in package
+In-Reply-To: <23135.17187.709763.434585@bud.eddelbuettel.com>
+References: <50820acc-3ddc-da0b-0190-b0404d69eafe@gipsa-lab.fr>
+ <23135.17187.709763.434585@bud.eddelbuettel.com>
+Message-ID: <CAFr_7yGZJJkY9GB1rjPdXYA_tbB__Eebc4zU-TymnRHow=ED4g@mail.gmail.com>
+
+RSpectra does not use CHOLMOD, so probably it is not helpful here.
+
+I would suggest that you build CHOLMOD as an external library with
+headers, and then directly link Eigen and your code to the external
+CHOLMOD, ignoring the one shipped with Matrix. It is just like all
+other R packages that require external libraries.
+
+
+Best,
+Yixuan
+
+2018-01-17 7:35 GMT-05:00 Dirk Eddelbuettel <edd at debian.org>:
+>
+> On 17 January 2018 at 13:10, Simon Barthelm? wrote:
+> | I'm trying to use some CHOLMOD functionality inside an R package
+> | (specifically, sparse Cholesky updates/downdates). There's an
+> | CHOLMOD/Eigen interface for that, but unfortunately the header I need is
+> | not shipped as part of either the Matrix package or the Rcpp package.
+> | The file is cholmod_modify.h, and it does appear in the src/ directory
+> | of the Matrix package, but not in the include/ directory.
+> |
+> | If I include it by hand I risk version conflicts, because the rest of
+> | CHOLMOD is provided by the Matrix package via RcppEigen. What's the
+> | clean way of handling that? Thanks for your input!
+>
+> I know "some" (eg rstan) have completemented the BH package with local
+> headers when BH was missing what they needed (as BH grew, I think we by now
+> added all they need).  So you could just do that, being careful to stick with
+> the same version.
+>
+> Or would Yixuan's RSpectra help?  https://cran.r-project.org/package=RSpectra
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+Yixuan Qiu <yixuan.qiu at cos.name>
+Department of Statistics,
+Purdue University
+
+From simon.barthelme at gipsa-lab.fr  Wed Jan 17 15:06:18 2018
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?Q?Simon_Barthelm=c3=a9?=)
+Date: Wed, 17 Jan 2018 15:06:18 +0100
+Subject: [Rcpp-devel] using SparseSuite and RcppEigen in package
+In-Reply-To: <23135.17187.709763.434585@bud.eddelbuettel.com>
+References: <50820acc-3ddc-da0b-0190-b0404d69eafe@gipsa-lab.fr>
+ <23135.17187.709763.434585@bud.eddelbuettel.com>
+Message-ID: <fc778944-4f4a-1944-a11e-88e16d44b9a5@gipsa-lab.fr>
+
+Hi Dirk,
+
+Thanks for your suggestion - I had thought of doing that but it requires 
+tracking the versions of SuiteSparse used by Matrix, which means extra 
+maintenance work. OTOH maybe updates are rare enough that it's not worth 
+worrying about. It'd be nice if Matrix could expose more of SuiteSparse, 
+though, I'm sure I'm not the only one who needs that stuff.
+
+Best
+
+Simon
+
+
+Le 17/01/2018 ? 13:35, Dirk Eddelbuettel a ?crit?:
+> On 17 January 2018 at 13:10, Simon Barthelm? wrote:
+> | I'm trying to use some CHOLMOD functionality inside an R package
+> | (specifically, sparse Cholesky updates/downdates). There's an
+> | CHOLMOD/Eigen interface for that, but unfortunately the header I need is
+> | not shipped as part of either the Matrix package or the Rcpp package.
+> | The file is cholmod_modify.h, and it does appear in the src/ directory
+> | of the Matrix package, but not in the include/ directory.
+> |
+> | If I include it by hand I risk version conflicts, because the rest of
+> | CHOLMOD is provided by the Matrix package via RcppEigen. What's the
+> | clean way of handling that? Thanks for your input!
+>
+> I know "some" (eg rstan) have completemented the BH package with local
+> headers when BH was missing what they needed (as BH grew, I think we by now
+> added all they need).  So you could just do that, being careful to stick with
+> the same version.
+>
+> Or would Yixuan's RSpectra help?  https://cran.r-project.org/package=RSpectra
+>
+> Dirk
+>
+
+
+From kevinushey at gmail.com  Wed Jan 17 17:41:56 2018
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Wed, 17 Jan 2018 08:41:56 -0800
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <23135.17019.319718.955070@bud.eddelbuettel.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+Message-ID: <CAJXgQP1t=_X71SWYND4-SOOnr6hf2yyxucP9_O0Bac1zT8VQeA@mail.gmail.com>
+
+In your RcppParallel worker, it looks like you're trying to write to
+an Rcpp matrix; e.g. you have:
+
+    distmat_(i,j) = local_calculator->calculate(i,j);
+
+where distmat_ is a matrix. You should avoid using Rcpp classes within
+RcppParallel workers, as there's no guarantee that the methods
+available on Rcpp classes are thread-safe (and this could lead to
+these kinds of segfaults).
+
+I'll echo Dirk and say that without a minimally reproducible example
+(or access to the package source code) there's not much else we can
+say.
+
+You could try running your code with `gctorture(TRUE)` to see if that
+triggers your segfault more reliably -- if that's the case, then you
+almost surely have an protection issue somewhere (most likely the
+result of using non-threadsafe APIs within an RcppParallel worker, but
+without full context it's impossible to be sure)
+
+On Wed, Jan 17, 2018 at 4:32 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> On 16 January 2018 at 21:02, Alexis Sarda wrote:
+> | Hello,
+> |
+> | I am integrating RcppParallel into my R package and I'm running into
+> | strange problems with segmentation faults, but only during the continuous
+> | integration checks. I have essentially variations of the following (I hope
+> | GitHub gist links are ok):
+> |
+> | https://gist.github.com/asardaes/7d78af394f848a967997ff23e433c9cf
+> |
+> | On TravisCI, my Linux builds simply freeze, and the OSX builds show
+> | messages like:
+> |
+> | *** caught segfault ***
+> | address 0x100000001, cause 'memory not mapped'
+> |
+> | I would assume that my distance functions are trying to access memory they
+> | shouldn't, but during interactive use everything works flawlessly, and I've
+> | tested all of the following with no problems (which also test correctness,
+> | i.e. numeric consistency with respect to past results):
+> |
+> | - Local Linux R CMD check
+> | - Local Windows R CMD check
+> | - CRAN's WinBuilder check
+> | - AppVeyor (x32 and x64 Windows)
+> | - Docker R CMD check using rocker's r-devel-san
+> | - Local Linux R CMD check with valgrind (no leaks)
+> |
+> | It is worth mentioning that some of the examples ran during the OSX build
+> | show incorrect results long before the segfault occurs: some results are
+> | zero when they shouldn't be. I don't have access to a machine with OSX, but
+> | the Linux builds in TravisCI also show problems (no segfaults explicitly,
+> | just hangs).
+> |
+> | I am at my wit's end. Any input would be appreciated.
+>
+> Hard to tell for us, but maybe try the old and trusted route of smaller and
+> smaller reproducible examples til you reproduce it?
+>
+> Or else if it _just_ Travis CI maybe it is a compiler version issue?  Travis
+> is very conservative in its default setup but there are .travis.yaml scripts
+> out there that turn on the PPA for compiler builds giving you gcc-5, gcc-6,
+> ... amd different clang versions.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From alexis.sarda at gmail.com  Wed Jan 17 18:10:46 2018
+From: alexis.sarda at gmail.com (Alexis Sarda)
+Date: Wed, 17 Jan 2018 18:10:46 +0100
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <CAJXgQP1t=_X71SWYND4-SOOnr6hf2yyxucP9_O0Bac1zT8VQeA@mail.gmail.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+ <CAJXgQP1t=_X71SWYND4-SOOnr6hf2yyxucP9_O0Bac1zT8VQeA@mail.gmail.com>
+Message-ID: <CAA4naPDXxb7ML+NFs4sOn1p=u9FO1WH1VJVeYcFs6xbUVZAnow@mail.gmail.com>
+
+(I think I forgot to reply to all)
+
+I failed to mention that I am also using RcppArmadillo elsewhere,
+and I found the following post by the Coatless Professor saying that
+Armadillo requires at least gcc 4.7.2:
+
+http://thecoatlessprofessor.com/programming/r/selecting-an-a
+lternative-compiler-for-r-package-testing-on-travis-ci/
+
+However, my Travis builds were already using Trusty (gcc 4.8.4).
+I think WinBuilder uses gcc 4.9.3, and that one didn't fail.
+In case it is of interest, I am using Armadillo for exactly one thing:
+
+arma::vec cc_seq = arma::real(arma::ifft(fftx % ffty));
+
+and that was also being problematic in Travis
+(element-wise multiplication due to incompatible dimensions, showing
+vectors with unreasonably large dimensions).
+Using version 5 of the compilers as explained in the post above seems to
+have solved the problems.
+
+Thanks,
+Alexis.
+
+
+On Wed, Jan 17, 2018 at 5:41 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> In your RcppParallel worker, it looks like you're trying to write to
+> an Rcpp matrix; e.g. you have:
+>
+>     distmat_(i,j) = local_calculator->calculate(i,j);
+>
+> where distmat_ is a matrix. You should avoid using Rcpp classes within
+> RcppParallel workers, as there's no guarantee that the methods
+> available on Rcpp classes are thread-safe (and this could lead to
+> these kinds of segfaults).
+>
+> I'll echo Dirk and say that without a minimally reproducible example
+> (or access to the package source code) there's not much else we can
+> say.
+>
+> You could try running your code with `gctorture(TRUE)` to see if that
+> triggers your segfault more reliably -- if that's the case, then you
+> almost surely have an protection issue somewhere (most likely the
+> result of using non-threadsafe APIs within an RcppParallel worker, but
+> without full context it's impossible to be sure)
+>
+> On Wed, Jan 17, 2018 at 4:32 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> > On 16 January 2018 at 21:02, Alexis Sarda wrote:
+> > | Hello,
+> > |
+> > | I am integrating RcppParallel into my R package and I'm running into
+> > | strange problems with segmentation faults, but only during the
+> continuous
+> > | integration checks. I have essentially variations of the following (I
+> hope
+> > | GitHub gist links are ok):
+> > |
+> > | https://gist.github.com/asardaes/7d78af394f848a967997ff23e433c9cf
+> > |
+> > | On TravisCI, my Linux builds simply freeze, and the OSX builds show
+> > | messages like:
+> > |
+> > | *** caught segfault ***
+> > | address 0x100000001, cause 'memory not mapped'
+> > |
+> > | I would assume that my distance functions are trying to access memory
+> they
+> > | shouldn't, but during interactive use everything works flawlessly, and
+> I've
+> > | tested all of the following with no problems (which also test
+> correctness,
+> > | i.e. numeric consistency with respect to past results):
+> > |
+> > | - Local Linux R CMD check
+> > | - Local Windows R CMD check
+> > | - CRAN's WinBuilder check
+> > | - AppVeyor (x32 and x64 Windows)
+> > | - Docker R CMD check using rocker's r-devel-san
+> > | - Local Linux R CMD check with valgrind (no leaks)
+> > |
+> > | It is worth mentioning that some of the examples ran during the OSX
+> build
+> > | show incorrect results long before the segfault occurs: some results
+> are
+> > | zero when they shouldn't be. I don't have access to a machine with
+> OSX, but
+> > | the Linux builds in TravisCI also show problems (no segfaults
+> explicitly,
+> > | just hangs).
+> > |
+> > | I am at my wit's end. Any input would be appreciated.
+> >
+> > Hard to tell for us, but maybe try the old and trusted route of smaller
+> and
+> > smaller reproducible examples til you reproduce it?
+> >
+> > Or else if it _just_ Travis CI maybe it is a compiler version issue?
+> Travis
+> > is very conservative in its default setup but there are .travis.yaml
+> scripts
+> > out there that turn on the PPA for compiler builds giving you gcc-5,
+> gcc-6,
+> > ... amd different clang versions.
+> >
+> > Dirk
+> >
+> > --
+> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180117/205d5328/attachment-0001.html>
+
+From plummerm at iarc.fr  Wed Jan 17 18:23:18 2018
+From: plummerm at iarc.fr (Martyn Plummer)
+Date: Wed, 17 Jan 2018 17:23:18 +0000
+Subject: [Rcpp-devel] using SparseSuite and RcppEigen in package
+In-Reply-To: <fc778944-4f4a-1944-a11e-88e16d44b9a5@gipsa-lab.fr>
+References: <50820acc-3ddc-da0b-0190-b0404d69eafe@gipsa-lab.fr>
+ <23135.17187.709763.434585@bud.eddelbuettel.com>
+ <fc778944-4f4a-1944-a11e-88e16d44b9a5@gipsa-lab.fr>
+Message-ID: <1516209796.843.99.camel@iarc.fr>
+
+I think it is worth asking Martin Maechler if he could expose more
+SuiteSparse functionality through the Matrix package.
+
+Martyn
+
+On Wed, 2018-01-17 at 15:06 +0100, Simon Barthelm? wrote:
+> Hi Dirk,
+> 
+> Thanks for your suggestion - I had thought of doing that but it requires 
+> tracking the versions of SuiteSparse used by Matrix, which means extra 
+> maintenance work. OTOH maybe updates are rare enough that it's not worth 
+> worrying about. It'd be nice if Matrix could expose more of SuiteSparse, 
+> though, I'm sure I'm not the only one who needs that stuff.
+> 
+> Best
+> 
+> Simon
+> 
+> 
+> Le 17/01/2018 ? 13:35, Dirk Eddelbuettel a ?crit :
+> > On 17 January 2018 at 13:10, Simon Barthelm? wrote:
+> > > I'm trying to use some CHOLMOD functionality inside an R package
+> > > (specifically, sparse Cholesky updates/downdates). There's an
+> > > CHOLMOD/Eigen interface for that, but unfortunately the header I need is
+> > > not shipped as part of either the Matrix package or the Rcpp package.
+> > > The file is cholmod_modify.h, and it does appear in the src/ directory
+> > > of the Matrix package, but not in the include/ directory.
+> > > 
+> > > If I include it by hand I risk version conflicts, because the rest of
+> > > CHOLMOD is provided by the Matrix package via RcppEigen. What's the
+> > > clean way of handling that? Thanks for your input!
+> > 
+> > I know "some" (eg rstan) have completemented the BH package with local
+> > headers when BH was missing what they needed (as BH grew, I think we by now
+> > added all they need).  So you could just do that, being careful to stick with
+> > the same version.
+> > 
+> > Or would Yixuan's RSpectra help?  https://cran.r-project.org/package=RSpectra
+> > 
+> > Dirk
+> > 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From selivanov.dmitriy at gmail.com  Thu Jan 18 12:03:35 2018
+From: selivanov.dmitriy at gmail.com (Dmitriy Selivanov)
+Date: Thu, 18 Jan 2018 15:03:35 +0400
+Subject: [Rcpp-devel] using SparseSuite and RcppEigen in package
+In-Reply-To: <CAJdZCv0QEaUkPB=3Sq9Zt8OkMbMuKh93GtQNweH8y5xXmD1m8w@mail.gmail.com>
+References: <CAJdZCv3+66+E8SkNKZ049hM+-2jqsi8oRORHqZJbgFE9RTW7OQ@mail.gmail.com>
+ <CAJdZCv0QEaUkPB=3Sq9Zt8OkMbMuKh93GtQNweH8y5xXmD1m8w@mail.gmail.com>
+Message-ID: <CAJdZCv0GQaoAwA+1WyHHRVyHpHOrt2bS6RArUh=2FJ_nuNEj=g@mail.gmail.com>
+
+I was going to suggest the same - Martin is very responsive and open for
+improvements.
+
+18 ???. 2018 ?. 15:00 ???????????? <
+rcpp-devel-request at lists.r-forge.r-project.org> ???????:
+
+Send Rcpp-devel mailing list submissions to
+        rcpp-devel at lists.r-forge.r-project.org
+
+To subscribe or unsubscribe via the World Wide Web, visit
+        https://lists.r-forge.r-project.org/cgi-bin/mailman/
+listinfo/rcpp-devel
+
+or, via email, send a message with subject or body 'help' to
+        rcpp-devel-request at lists.r-forge.r-project.org
+
+You can reach the person managing the list at
+        rcpp-devel-owner at lists.r-forge.r-project.org
+
+When replying, please edit your Subject line so it is more specific
+than "Re: Contents of Rcpp-devel digest..."
+
+
+Today's Topics:
+
+   1. Re: using SparseSuite and RcppEigen in package (Martyn Plummer)
+
+
+----------------------------------------------------------------------
+
+Message: 1
+Date: Wed, 17 Jan 2018 17:23:18 +0000
+From: Martyn Plummer <plummerm at iarc.fr>
+To: "simon.barthelme at gipsa-lab.fr" <simon.barthelme at gipsa-lab.fr>,
+        "edd at debian.org" <edd at debian.org>,
+        "rcpp-devel at lists.r-forge.r-project.org"
+        <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] using SparseSuite and RcppEigen in package
+Message-ID: <1516209796.843.99.camel at iarc.fr>
+Content-Type: text/plain; charset="utf-8"
+
+I think it is worth asking Martin Maechler if he could expose more
+SuiteSparse functionality through the Matrix package.
+
+Martyn
+
+On Wed, 2018-01-17 at 15:06 +0100, Simon Barthelm? wrote:
+> Hi Dirk,
+>
+> Thanks for your suggestion - I had thought of doing that but it requires
+> tracking the versions of SuiteSparse used by Matrix, which means extra
+> maintenance work. OTOH maybe updates are rare enough that it's not worth
+> worrying about. It'd be nice if Matrix could expose more of SuiteSparse,
+> though, I'm sure I'm not the only one who needs that stuff.
+>
+> Best
+>
+> Simon
+>
+>
+> Le 17/01/2018 ? 13:35, Dirk Eddelbuettel a ?crit :
+> > On 17 January 2018 at 13:10, Simon Barthelm? wrote:
+> > > I'm trying to use some CHOLMOD functionality inside an R package
+> > > (specifically, sparse Cholesky updates/downdates). There's an
+> > > CHOLMOD/Eigen interface for that, but unfortunately the header I need
+is
+> > > not shipped as part of either the Matrix package or the Rcpp package.
+> > > The file is cholmod_modify.h, and it does appear in the src/ directory
+> > > of the Matrix package, but not in the include/ directory.
+> > >
+> > > If I include it by hand I risk version conflicts, because the rest of
+> > > CHOLMOD is provided by the Matrix package via RcppEigen. What's the
+> > > clean way of handling that? Thanks for your input!
+> >
+> > I know "some" (eg rstan) have completemented the BH package with local
+> > headers when BH was missing what they needed (as BH grew, I think we by
+now
+> > added all they need).  So you could just do that, being careful to
+stick with
+> > the same version.
+> >
+> > Or would Yixuan's RSpectra help?  https://cran.r-project.org/
+package=RSpectra
+> >
+> > Dirk
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+------------------------------
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+End of Rcpp-devel Digest, Vol 99, Issue 6
+*****************************************
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180118/1888bf66/attachment.html>
+
+From simon.barthelme at gipsa-lab.fr  Thu Jan 18 12:20:00 2018
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?Q?Simon_Barthelm=c3=a9?=)
+Date: Thu, 18 Jan 2018 12:20:00 +0100
+Subject: [Rcpp-devel] using SparseSuite and RcppEigen in package
+In-Reply-To: <CAJdZCv0GQaoAwA+1WyHHRVyHpHOrt2bS6RArUh=2FJ_nuNEj=g@mail.gmail.com>
+References: <CAJdZCv3+66+E8SkNKZ049hM+-2jqsi8oRORHqZJbgFE9RTW7OQ@mail.gmail.com>
+ <CAJdZCv0QEaUkPB=3Sq9Zt8OkMbMuKh93GtQNweH8y5xXmD1m8w@mail.gmail.com>
+ <CAJdZCv0GQaoAwA+1WyHHRVyHpHOrt2bS6RArUh=2FJ_nuNEj=g@mail.gmail.com>
+Message-ID: <5A6082E0.8050203@gipsa-lab.fr>
+
+Thanks everyone, I'll try and submit a pull request when I have a minute.
+
+Best
+
+Simon
+
+On 18/01/2018 12:03, Dmitriy Selivanov wrote:
+> I was going to suggest the same - Martin is very responsive and open 
+> for improvements.
+>
+> 18 ???. 2018 ?. 15:00 ???????????? 
+> <rcpp-devel-request at lists.r-forge.r-project.org 
+> <mailto:rcpp-devel-request at lists.r-forge.r-project.org>> ???????:
+>
+>     Send Rcpp-devel mailing list submissions to
+>     rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>
+>
+>     To subscribe or unsubscribe via the World Wide Web, visit
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>     <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+>
+>     or, via email, send a message with subject or body 'help' to
+>     rcpp-devel-request at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel-request at lists.r-forge.r-project.org>
+>
+>     You can reach the person managing the list at
+>     rcpp-devel-owner at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel-owner at lists.r-forge.r-project.org>
+>
+>     When replying, please edit your Subject line so it is more specific
+>     than "Re: Contents of Rcpp-devel digest..."
+>
+>
+>     Today's Topics:
+>
+>        1. Re: using SparseSuite and RcppEigen in package (Martyn Plummer)
+>
+>
+>     ----------------------------------------------------------------------
+>
+>     Message: 1
+>     Date: Wed, 17 Jan 2018 17:23:18 +0000
+>     From: Martyn Plummer <plummerm at iarc.fr <mailto:plummerm at iarc.fr>>
+>     To: "simon.barthelme at gipsa-lab.fr
+>     <mailto:simon.barthelme at gipsa-lab.fr>"
+>     <simon.barthelme at gipsa-lab.fr <mailto:simon.barthelme at gipsa-lab.fr>>,
+>             "edd at debian.org <mailto:edd at debian.org>" <edd at debian.org
+>     <mailto:edd at debian.org>>,
+>             "rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>"
+>             <rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>>
+>     Subject: Re: [Rcpp-devel] using SparseSuite and RcppEigen in package
+>     Message-ID: <1516209796.843.99.camel at iarc.fr
+>     <mailto:1516209796.843.99.camel at iarc.fr>>
+>     Content-Type: text/plain; charset="utf-8"
+>
+>     I think it is worth asking Martin Maechler if he could expose more
+>     SuiteSparse functionality through the Matrix package.
+>
+>     Martyn
+>
+>     On Wed, 2018-01-17 at 15:06 +0100, Simon Barthelm? wrote:
+>     > Hi Dirk,
+>     >
+>     > Thanks for your suggestion - I had thought of doing that but it
+>     requires
+>     > tracking the versions of SuiteSparse used by Matrix, which means
+>     extra
+>     > maintenance work. OTOH maybe updates are rare enough that it's
+>     not worth
+>     > worrying about. It'd be nice if Matrix could expose more of
+>     SuiteSparse,
+>     > though, I'm sure I'm not the only one who needs that stuff.
+>     >
+>     > Best
+>     >
+>     > Simon
+>     >
+>     >
+>     > Le 17/01/2018 ? 13:35, Dirk Eddelbuettel a ?crit :
+>     > > On 17 January 2018 at 13:10, Simon Barthelm? wrote:
+>     > > > I'm trying to use some CHOLMOD functionality inside an R package
+>     > > > (specifically, sparse Cholesky updates/downdates). There's an
+>     > > > CHOLMOD/Eigen interface for that, but unfortunately the
+>     header I need is
+>     > > > not shipped as part of either the Matrix package or the Rcpp
+>     package.
+>     > > > The file is cholmod_modify.h, and it does appear in the src/
+>     directory
+>     > > > of the Matrix package, but not in the include/ directory.
+>     > > >
+>     > > > If I include it by hand I risk version conflicts, because
+>     the rest of
+>     > > > CHOLMOD is provided by the Matrix package via RcppEigen.
+>     What's the
+>     > > > clean way of handling that? Thanks for your input!
+>     > >
+>     > > I know "some" (eg rstan) have completemented the BH package
+>     with local
+>     > > headers when BH was missing what they needed (as BH grew, I
+>     think we by now
+>     > > added all they need).  So you could just do that, being
+>     careful to stick with
+>     > > the same version.
+>     > >
+>     > > Or would Yixuan's RSpectra help?
+>     https://cran.r-project.org/package=RSpectra
+>     <https://cran.r-project.org/package=RSpectra>
+>     > >
+>     > > Dirk
+>     > >
+>     >
+>     > _______________________________________________
+>     > Rcpp-devel mailing list
+>     > Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>     >
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>     <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+>
+>     ------------------------------
+>
+>     _______________________________________________
+>     Rcpp-devel mailing list
+>     Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>     <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>
+>
+>     End of Rcpp-devel Digest, Vol 99, Issue 6
+>     *****************************************
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180118/81b387dd/attachment-0001.html>
+
+From alexis.sarda at gmail.com  Sat Jan 20 12:45:30 2018
+From: alexis.sarda at gmail.com (Alexis Sarda)
+Date: Sat, 20 Jan 2018 12:45:30 +0100
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <23135.17019.319718.955070@bud.eddelbuettel.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+Message-ID: <CAA4naPDGWmgmxi-dFnHkSKkCb0xqbpfyEfO6KMVyc+ozJWjimA@mail.gmail.com>
+
+I've found out that the problem remains on OSX builds, and apparently it is
+caused by clang itself. I used R-hub's fedora-clang-devel to test:
+
+https://artifacts.r-hub.io/dtwclust_5.1.0.9000.tar.gz-6f452fd6aeea4307921df2ab2337e6bb/dtwclust.Rcheck/00check.log
+
+The error that stands out to me is:
+
+*** Error in `/opt/R-devel/lib64/R/bin/exec/R': corrupted
+double-linked list: 0x00000000099a3870 ***
+
+
+I am essentially doing a parallel distance matrix calculation as shown in
+the Rcpp gallery, but I have several distance functions. All the classes
+that provide distance calculations have a member wrapping std::vector of
+either RcppParallel's RVector<double>, RMatrix<double>, or Armadillo's
+cx_vec. Here's the template I'm using to wrap those members:
+
+https://github.com/asardaes/dtwclust/blob/master/src/utils/TSTSList.h
+
+Could the corruption be caused by this?
+
+Regards,
+Alexis.
+
+
+On Wed, Jan 17, 2018 at 1:32 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 16 January 2018 at 21:02, Alexis Sarda wrote:
+> | Hello,
+> |
+> | I am integrating RcppParallel into my R package and I'm running into
+> | strange problems with segmentation faults, but only during the continuous
+> | integration checks. I have essentially variations of the following (I
+> hope
+> | GitHub gist links are ok):
+> |
+> | https://gist.github.com/asardaes/7d78af394f848a967997ff23e433c9cf
+> |
+> | On TravisCI, my Linux builds simply freeze, and the OSX builds show
+> | messages like:
+> |
+> | *** caught segfault ***
+> | address 0x100000001, cause 'memory not mapped'
+> |
+> | I would assume that my distance functions are trying to access memory
+> they
+> | shouldn't, but during interactive use everything works flawlessly, and
+> I've
+> | tested all of the following with no problems (which also test
+> correctness,
+> | i.e. numeric consistency with respect to past results):
+> |
+> | - Local Linux R CMD check
+> | - Local Windows R CMD check
+> | - CRAN's WinBuilder check
+> | - AppVeyor (x32 and x64 Windows)
+> | - Docker R CMD check using rocker's r-devel-san
+> | - Local Linux R CMD check with valgrind (no leaks)
+> |
+> | It is worth mentioning that some of the examples ran during the OSX build
+> | show incorrect results long before the segfault occurs: some results are
+> | zero when they shouldn't be. I don't have access to a machine with OSX,
+> but
+> | the Linux builds in TravisCI also show problems (no segfaults explicitly,
+> | just hangs).
+> |
+> | I am at my wit's end. Any input would be appreciated.
+>
+> Hard to tell for us, but maybe try the old and trusted route of smaller and
+> smaller reproducible examples til you reproduce it?
+>
+> Or else if it _just_ Travis CI maybe it is a compiler version issue?
+> Travis
+> is very conservative in its default setup but there are .travis.yaml
+> scripts
+> out there that turn on the PPA for compiler builds giving you gcc-5, gcc-6,
+> ... amd different clang versions.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180120/9a1be6af/attachment.html>
+
+From edd at debian.org  Sat Jan 20 14:46:46 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 20 Jan 2018 07:46:46 -0600
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <CAA4naPDGWmgmxi-dFnHkSKkCb0xqbpfyEfO6KMVyc+ozJWjimA@mail.gmail.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+ <CAA4naPDGWmgmxi-dFnHkSKkCb0xqbpfyEfO6KMVyc+ozJWjimA@mail.gmail.com>
+Message-ID: <23139.18502.851400.125551@bud.eddelbuettel.com>
+
+
+On 20 January 2018 at 12:45, Alexis Sarda wrote:
+| I've found out that the problem remains on OSX builds, and apparently it is
+| caused by clang itself. I used R-hub's fedora-clang-devel to test:
+| 
+| https://artifacts.r-hub.io/dtwclust_5.1.0.9000.tar.gz-6f452fd6aeea4307921df2ab2337e6bb/dtwclust.Rcheck/00check.log
+| 
+| The error that stands out to me is:
+| 
+| *** Error in `/opt/R-devel/lib64/R/bin/exec/R': corrupted
+| double-linked list: 0x00000000099a3870 ***
+| 
+| 
+| I am essentially doing a parallel distance matrix calculation as shown in
+| the Rcpp gallery, but I have several distance functions. All the classes
+| that provide distance calculations have a member wrapping std::vector of
+| either RcppParallel's RVector<double>, RMatrix<double>, or Armadillo's
+| cx_vec. Here's the template I'm using to wrap those members:
+| 
+| https://github.com/asardaes/dtwclust/blob/master/src/utils/TSTSList.h
+| 
+| Could the corruption be caused by this?
+
+It looks to me like you are just moving _actual Rcpp vectors_ around from the
+Rcpp::List into your container, and then access them using your operator
+types.  But ... that still accesses R memory through these vectors, and with
+that we may get a (rare ?) race condition on stack unwinding etc.
+
+The truly paranoid approach would be to actually make truly distinct types
+and copy (ie memcpy). That file is short, so maybe you can try it.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From alexis.sarda at gmail.com  Sat Jan 20 15:05:07 2018
+From: alexis.sarda at gmail.com (Alexis Sarda)
+Date: Sat, 20 Jan 2018 15:05:07 +0100
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <23139.18502.851400.125551@bud.eddelbuettel.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+ <CAA4naPDGWmgmxi-dFnHkSKkCb0xqbpfyEfO6KMVyc+ozJWjimA@mail.gmail.com>
+ <23139.18502.851400.125551@bud.eddelbuettel.com>
+Message-ID: <CAA4naPAD=9JaYoxZ9Pp9jK_DbAbM6z3KA4jNROyF9TRx1GsOhA@mail.gmail.com>
+
+The idea is indeed to avoid copying memory. I thought that doing something
+like the following would allow me to read the values created in R from
+within the threads:
+
+Rcpp::NumericVector vec(vector_from_R);
+std::vector<RcppParallel::RVector<double>> series;
+series.push_back(RcppParallel::RVector<double>(vec));
+// then in the threads:
+double val = series[index_for_this_thread][0];
+
+The data created on the R side is never modified by these functions, just
+read. It is possible for different threads to read the same memory, but I
+thought reading was not subject to race conditions.
+
+The segfaults are very consistent, every OSX build fails with the same
+error at the same point. The fact that it happens with clang++ but not with
+gcc++ is puzzling to me.
+
+The Rcpp::List may contain a lot of NumericVector or NumetricMatrix series,
+so I would rather not copy all of them.
+
+
+On Sat, Jan 20, 2018 at 2:46 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 20 January 2018 at 12:45, Alexis Sarda wrote:
+> | I've found out that the problem remains on OSX builds, and apparently it
+> is
+> | caused by clang itself. I used R-hub's fedora-clang-devel to test:
+> |
+> | https://artifacts.r-hub.io/dtwclust_5.1.0.9000.tar.gz-
+> 6f452fd6aeea4307921df2ab2337e6bb/dtwclust.Rcheck/00check.log
+> |
+> | The error that stands out to me is:
+> |
+> | *** Error in `/opt/R-devel/lib64/R/bin/exec/R': corrupted
+> | double-linked list: 0x00000000099a3870 ***
+> |
+> |
+> | I am essentially doing a parallel distance matrix calculation as shown in
+> | the Rcpp gallery, but I have several distance functions. All the classes
+> | that provide distance calculations have a member wrapping std::vector of
+> | either RcppParallel's RVector<double>, RMatrix<double>, or Armadillo's
+> | cx_vec. Here's the template I'm using to wrap those members:
+> |
+> | https://github.com/asardaes/dtwclust/blob/master/src/utils/TSTSList.h
+> |
+> | Could the corruption be caused by this?
+>
+> It looks to me like you are just moving _actual Rcpp vectors_ around from
+> the
+> Rcpp::List into your container, and then access them using your operator
+> types.  But ... that still accesses R memory through these vectors, and
+> with
+> that we may get a (rare ?) race condition on stack unwinding etc.
+>
+> The truly paranoid approach would be to actually make truly distinct types
+> and copy (ie memcpy). That file is short, so maybe you can try it.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180120/949ba949/attachment.html>
+
+From edd at debian.org  Sat Jan 20 16:22:19 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 20 Jan 2018 09:22:19 -0600
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <CAA4naPAD=9JaYoxZ9Pp9jK_DbAbM6z3KA4jNROyF9TRx1GsOhA@mail.gmail.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+ <CAA4naPDGWmgmxi-dFnHkSKkCb0xqbpfyEfO6KMVyc+ozJWjimA@mail.gmail.com>
+ <23139.18502.851400.125551@bud.eddelbuettel.com>
+ <CAA4naPAD=9JaYoxZ9Pp9jK_DbAbM6z3KA4jNROyF9TRx1GsOhA@mail.gmail.com>
+Message-ID: <23139.24235.288719.389245@bud.eddelbuettel.com>
+
+
+On 20 January 2018 at 15:05, Alexis Sarda wrote:
+| The idea is indeed to avoid copying memory. I thought that doing something
+| like the following would allow me to read the values created in R from
+| within the threads:
+| 
+| Rcpp::NumericVector vec(vector_from_R);
+| std::vector<RcppParallel::RVector<double>> series;
+| series.push_back(RcppParallel::RVector<double>(vec));
+| // then in the threads:
+| double val = series[index_for_this_thread][0];
+| 
+| The data created on the R side is never modified by these functions, just
+| read. It is possible for different threads to read the same memory, but I
+| thought reading was not subject to race conditions.
+| 
+| The segfaults are very consistent, every OSX build fails with the same
+| error at the same point. The fact that it happens with clang++ but not with
+| gcc++ is puzzling to me.
+| 
+| The Rcpp::List may contain a lot of NumericVector or NumetricMatrix series,
+| so I would rather not copy all of them.
+
+But the RcppParallel documentation is pretty clear on "do not touch R memory
+from multiple threads".
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From alexis.sarda at gmail.com  Sat Jan 20 19:20:50 2018
+From: alexis.sarda at gmail.com (Alexis Sarda)
+Date: Sat, 20 Jan 2018 19:20:50 +0100
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <23139.24235.288719.389245@bud.eddelbuettel.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+ <CAA4naPDGWmgmxi-dFnHkSKkCb0xqbpfyEfO6KMVyc+ozJWjimA@mail.gmail.com>
+ <23139.18502.851400.125551@bud.eddelbuettel.com>
+ <CAA4naPAD=9JaYoxZ9Pp9jK_DbAbM6z3KA4jNROyF9TRx1GsOhA@mail.gmail.com>
+ <23139.24235.288719.389245@bud.eddelbuettel.com>
+Message-ID: <CAA4naPCRGdMhzOt8LWFM2mTV5f702aZf704UyA8+K=2kuMRqQw@mail.gmail.com>
+
+After testing locally with clang, it seems the problem actually was that
+there were different classes inheriting from RcppParallel::Worker in
+different cpp files, but they all had the same names and the same
+constructors, yet different logic. There were no compilation warnings, but
+apparently clang doesn't isolate each class to the file where it is
+declared+defined, even if it doesn't appear in any header.
+
+Thanks,
+Alexis.
+
+
+On Sat, Jan 20, 2018 at 4:22 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 20 January 2018 at 15:05, Alexis Sarda wrote:
+> | The idea is indeed to avoid copying memory. I thought that doing
+> something
+> | like the following would allow me to read the values created in R from
+> | within the threads:
+> |
+> | Rcpp::NumericVector vec(vector_from_R);
+> | std::vector<RcppParallel::RVector<double>> series;
+> | series.push_back(RcppParallel::RVector<double>(vec));
+> | // then in the threads:
+> | double val = series[index_for_this_thread][0];
+> |
+> | The data created on the R side is never modified by these functions, just
+> | read. It is possible for different threads to read the same memory, but I
+> | thought reading was not subject to race conditions.
+> |
+> | The segfaults are very consistent, every OSX build fails with the same
+> | error at the same point. The fact that it happens with clang++ but not
+> with
+> | gcc++ is puzzling to me.
+> |
+> | The Rcpp::List may contain a lot of NumericVector or NumetricMatrix
+> series,
+> | so I would rather not copy all of them.
+>
+> But the RcppParallel documentation is pretty clear on "do not touch R
+> memory
+> from multiple threads".
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180120/7cca95a2/attachment.html>
+
+From edd at debian.org  Sat Jan 20 20:06:38 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 20 Jan 2018 13:06:38 -0600
+Subject: [Rcpp-devel] [RcppParallel] Segfault but only on TravisCI
+In-Reply-To: <CAA4naPCRGdMhzOt8LWFM2mTV5f702aZf704UyA8+K=2kuMRqQw@mail.gmail.com>
+References: <CAA4naPAL80qyTFC1uBGLvc=qDwGNyYPNpywTob9650jyLyRROw@mail.gmail.com>
+ <23135.17019.319718.955070@bud.eddelbuettel.com>
+ <CAA4naPDGWmgmxi-dFnHkSKkCb0xqbpfyEfO6KMVyc+ozJWjimA@mail.gmail.com>
+ <23139.18502.851400.125551@bud.eddelbuettel.com>
+ <CAA4naPAD=9JaYoxZ9Pp9jK_DbAbM6z3KA4jNROyF9TRx1GsOhA@mail.gmail.com>
+ <23139.24235.288719.389245@bud.eddelbuettel.com>
+ <CAA4naPCRGdMhzOt8LWFM2mTV5f702aZf704UyA8+K=2kuMRqQw@mail.gmail.com>
+Message-ID: <23139.37694.882127.988893@bud.eddelbuettel.com>
+
+
+On 20 January 2018 at 19:20, Alexis Sarda wrote:
+| After testing locally with clang, it seems the problem actually was that
+| there were different classes inheriting from RcppParallel::Worker in
+| different cpp files, but they all had the same names and the same
+| constructors, yet different logic. There were no compilation warnings, but
+| apparently clang doesn't isolate each class to the file where it is
+| declared+defined, even if it doesn't appear in any header.
+
+Glad to know you found it.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From drjdnielsen at gmail.com  Sat Jan 20 23:45:01 2018
+From: drjdnielsen at gmail.com (Jason Nielsen)
+Date: Sat, 20 Jan 2018 17:45:01 -0500
+Subject: [Rcpp-devel] Fwd: Element-wise matrix operations
+In-Reply-To: <CABYCE9N5-=pz6XgXvRkofg3QQsaQhNLHv=BvmqraeWmXuf9EXQ@mail.gmail.com>
+References: <CABYCE9N5-=pz6XgXvRkofg3QQsaQhNLHv=BvmqraeWmXuf9EXQ@mail.gmail.com>
+Message-ID: <CABYCE9OMCViXc=Js-o_pUmLsc0uF2M77Ae4dv7mk22N+tVcceA@mail.gmail.com>
+
+Hi all,
+
+I was wondering if there is a technical reason that element-wise matrix
+operations between Rcpp's Matrix type aren't implemented.  There is
+vector/vector, vector/scalar and matrix/scalar but no matrix/matrix.  The
+following naive code:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+NumericMatrix operator+(NumericMatrix A, NumericMatrix B) {
+  if ((A.nrow() != B.nrow()) | (A.ncol() != B.ncol()))
+    stop("Dimensions of the two matrices do not conform!");
+  NumericVector vA = as<NumericVector>(A);
+  NumericVector vB = as<NumericVector>(B);
+  NumericVector vC = vA + vB;
+  NumericMatrix C = NumericMatrix(A.nrow(), A.ncol(), vC.begin());
+  return C;
+}
+
+// [[Rcpp::export]]
+NumericMatrix MatAdd(const NumericMatrix A, const NumericMatrix B) {
+  return A+B;
+}
+
+works.  From my brief fiddling it seems there is no copying going on above
+so I don't think there is too much extra overhead in the abstraction.  My
+guess is that it just hasn't been a priority and "patches happily accepted"
+is the answer but I'm curious if there is some other less obvious reason as
+it seems to me all the heavy lifting was done to implement vector/vector.
+
+Many thanks,
+Jason
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180120/57106c8e/attachment.html>
+
+From edd at debian.org  Sat Jan 20 23:53:15 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 20 Jan 2018 16:53:15 -0600
+Subject: [Rcpp-devel] Fwd: Element-wise matrix operations
+In-Reply-To: <CABYCE9OMCViXc=Js-o_pUmLsc0uF2M77Ae4dv7mk22N+tVcceA@mail.gmail.com>
+References: <CABYCE9N5-=pz6XgXvRkofg3QQsaQhNLHv=BvmqraeWmXuf9EXQ@mail.gmail.com>
+ <CABYCE9OMCViXc=Js-o_pUmLsc0uF2M77Ae4dv7mk22N+tVcceA@mail.gmail.com>
+Message-ID: <23139.51291.771621.151957@bud.eddelbuettel.com>
+
+
+On 20 January 2018 at 17:45, Jason Nielsen wrote:
+| Hi all,
+| 
+| I was wondering if there is a technical reason that element-wise matrix
+| operations between Rcpp's Matrix type aren't implemented.  There is
+| vector/vector, vector/scalar and matrix/scalar but no matrix/matrix.  The
+| following naive code:
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| NumericMatrix operator+(NumericMatrix A, NumericMatrix B) {
+|   if ((A.nrow() != B.nrow()) | (A.ncol() != B.ncol()))
+|     stop("Dimensions of the two matrices do not conform!");
+|   NumericVector vA = as<NumericVector>(A);
+|   NumericVector vB = as<NumericVector>(B);
+|   NumericVector vC = vA + vB;
+|   NumericMatrix C = NumericMatrix(A.nrow(), A.ncol(), vC.begin());
+|   return C;
+| }
+| 
+| // [[Rcpp::export]]
+| NumericMatrix MatAdd(const NumericMatrix A, const NumericMatrix B) {
+|   return A+B;
+| }
+| 
+| works.  From my brief fiddling it seems there is no copying going on above
+| so I don't think there is too much extra overhead in the abstraction.  My
+| guess is that it just hasn't been a priority and "patches happily accepted"
+| is the answer but I'm curious if there is some other less obvious reason as
+| it seems to me all the heavy lifting was done to implement vector/vector.
+
+R code:
+
+   sample(c("History", "Lazyness"), 1)   ## just kidding. or maybe not.
+
+Years back I usually pointed at RcppArmadillo if you wanted "math with
+matrices" as we just didn't have all the operators. Now, we have been filling
+them in, so this operator+() makes some sense.  Doing them "well" in the
+template code is a bit more involved but mayne you want to poke around?
+
+I am sure some of the regulars here would be happy to help you along.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From drjdnielsen at gmail.com  Sun Jan 21 00:27:23 2018
+From: drjdnielsen at gmail.com (Jason Nielsen)
+Date: Sat, 20 Jan 2018 18:27:23 -0500
+Subject: [Rcpp-devel] Fwd: Element-wise matrix operations
+In-Reply-To: <23139.51291.771621.151957@bud.eddelbuettel.com>
+References: <CABYCE9N5-=pz6XgXvRkofg3QQsaQhNLHv=BvmqraeWmXuf9EXQ@mail.gmail.com>
+ <CABYCE9OMCViXc=Js-o_pUmLsc0uF2M77Ae4dv7mk22N+tVcceA@mail.gmail.com>
+ <23139.51291.771621.151957@bud.eddelbuettel.com>
+Message-ID: <CABYCE9Mzyza1s0Nqax2Xo_3xxGaxVH7Yn9+7Vn3_qTcy1cvhTQ@mail.gmail.com>
+
+Thank you for your quick response.  I was only thinking about the
+element-wise matrix/matrix equivalents that already have vector/vector
+implementations.  My first look was telling me that this shouldn't be
+difficult.  That said reading and using templated C++ code is a different
+story than modifying it!
+
+Jason
+
+
+On Sat, Jan 20, 2018 at 5:53 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 20 January 2018 at 17:45, Jason Nielsen wrote:
+> | Hi all,
+> |
+> | I was wondering if there is a technical reason that element-wise matrix
+> | operations between Rcpp's Matrix type aren't implemented.  There is
+> | vector/vector, vector/scalar and matrix/scalar but no matrix/matrix.  The
+> | following naive code:
+> |
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> |
+> | NumericMatrix operator+(NumericMatrix A, NumericMatrix B) {
+> |   if ((A.nrow() != B.nrow()) | (A.ncol() != B.ncol()))
+> |     stop("Dimensions of the two matrices do not conform!");
+> |   NumericVector vA = as<NumericVector>(A);
+> |   NumericVector vB = as<NumericVector>(B);
+> |   NumericVector vC = vA + vB;
+> |   NumericMatrix C = NumericMatrix(A.nrow(), A.ncol(), vC.begin());
+> |   return C;
+> | }
+> |
+> | // [[Rcpp::export]]
+> | NumericMatrix MatAdd(const NumericMatrix A, const NumericMatrix B) {
+> |   return A+B;
+> | }
+> |
+> | works.  From my brief fiddling it seems there is no copying going on
+> above
+> | so I don't think there is too much extra overhead in the abstraction.  My
+> | guess is that it just hasn't been a priority and "patches happily
+> accepted"
+> | is the answer but I'm curious if there is some other less obvious reason
+> as
+> | it seems to me all the heavy lifting was done to implement vector/vector.
+>
+> R code:
+>
+>    sample(c("History", "Lazyness"), 1)   ## just kidding. or maybe not.
+>
+> Years back I usually pointed at RcppArmadillo if you wanted "math with
+> matrices" as we just didn't have all the operators. Now, we have been
+> filling
+> them in, so this operator+() makes some sense.  Doing them "well" in the
+> template code is a bit more involved but mayne you want to poke around?
+>
+> I am sure some of the regulars here would be happy to help you along.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180120/84e33c30/attachment-0001.html>
+
+From manu.hamel at gmail.com  Sun Jan 21 15:55:16 2018
+From: manu.hamel at gmail.com (Emmanuel Hamel)
+Date: Sun, 21 Jan 2018 09:55:16 -0500
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+Message-ID: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+
+Hi,
+
+Hope you are all feeling good. I have a question. First, I use windows and
+I want to use OpenACC. For the moment, I am able to compile GPU Cuda C code
+with Microsoft visual studio and call it from a DLL in Windows. Also, I am
+able to use OpenMP with the Rcpp package. Nevertheless, I want to extend
+these possibilities for a project regarding dynamic hedging program for
+segregated funds. Hence, I would like to know if you have any tips
+regarding the use of OpenACC in Rcpp. In particular, what are the files
+that I need to modify in a RStudio project in order to be able to compile
+pragma commands with the OpenACC compiler? For the moment, I use the PGI
+compiler.
+
+Best regards,
+
+Emmanuel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180121/35dce210/attachment.html>
+
+From edd at debian.org  Sun Jan 21 16:26:35 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 21 Jan 2018 09:26:35 -0600
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+Message-ID: <23140.45355.260325.662925@bud.eddelbuettel.com>
+
+
+On 21 January 2018 at 09:55, Emmanuel Hamel wrote:
+| Hope you are all feeling good. I have a question. First, I use windows and
+
+Never the easiest platform (in my very personal view).
+
+| I want to use OpenACC. For the moment, I am able to compile GPU Cuda C code
+| with Microsoft visual studio and call it from a DLL in Windows. Also, I am
+| able to use OpenMP with the Rcpp package. Nevertheless, I want to extend
+| these possibilities for a project regarding dynamic hedging program for
+| segregated funds. Hence, I would like to know if you have any tips
+| regarding the use of OpenACC in Rcpp. In particular, what are the files
+
+I am not aware of anyone using it now.  That said, it would be nice to have.
+
+| that I need to modify in a RStudio project in order to be able to compile
+| pragma commands with the OpenACC compiler? For the moment, I use the PGI
+| compiler.
+
+That puts a third constraint up.  Which, in aggregate, makes it even less
+likely that someone is doing this already.
+
+A few people use Rcpp together with CUDA code.  Charles has been working on
+RViennaCL which is another "portable" approach for multiple backends:
+
+  https://cran.r-project.org/package=RViennaCL
+
+He may be following up here too in a day or two.
+
+Other than that, RcppParallel exists, is fairly widely used, and gives you
+higher-level abstractions for OpenMP-style parallelism.  No GPU though.
+
+So in short if you need
+  - OpenACC
+  - on Windows
+  - with PGI
+you may have to roll up your sleeves and build it.  We will help as we can.
+
+If it were me, I'd relax as many constraints here as possible.  So how about
+figuring out how to interface OpenACC on any suitable platform and compiler
+pair?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From manu.hamel at gmail.com  Sun Jan 21 16:32:09 2018
+From: manu.hamel at gmail.com (Emmanuel Hamel)
+Date: Sun, 21 Jan 2018 10:32:09 -0500
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <23140.45355.260325.662925@bud.eddelbuettel.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+Message-ID: <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+
+Hi,
+
+Thank you for your answer! I am already able to use the OpenMP-style
+without RcppParallel, thanks to some examples given in the Rcpp community.
+I will have a look at the RViennaCL.
+
+For my problem, the compiler is not important. I just mentioned the one I
+use as an example. However, I really have to use Windows.
+
+Best regards,
+
+Emmanuel
+
+
+2018-01-21 10:26 GMT-05:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 21 January 2018 at 09:55, Emmanuel Hamel wrote:
+> | Hope you are all feeling good. I have a question. First, I use windows
+> and
+>
+> Never the easiest platform (in my very personal view).
+>
+> | I want to use OpenACC. For the moment, I am able to compile GPU Cuda C
+> code
+> | with Microsoft visual studio and call it from a DLL in Windows. Also, I
+> am
+> | able to use OpenMP with the Rcpp package. Nevertheless, I want to extend
+> | these possibilities for a project regarding dynamic hedging program for
+> | segregated funds. Hence, I would like to know if you have any tips
+> | regarding the use of OpenACC in Rcpp. In particular, what are the files
+>
+> I am not aware of anyone using it now.  That said, it would be nice to
+> have.
+>
+> | that I need to modify in a RStudio project in order to be able to compile
+> | pragma commands with the OpenACC compiler? For the moment, I use the PGI
+> | compiler.
+>
+> That puts a third constraint up.  Which, in aggregate, makes it even less
+> likely that someone is doing this already.
+>
+> A few people use Rcpp together with CUDA code.  Charles has been working on
+> RViennaCL which is another "portable" approach for multiple backends:
+>
+>   https://cran.r-project.org/package=RViennaCL
+>
+> He may be following up here too in a day or two.
+>
+> Other than that, RcppParallel exists, is fairly widely used, and gives you
+> higher-level abstractions for OpenMP-style parallelism.  No GPU though.
+>
+> So in short if you need
+>   - OpenACC
+>   - on Windows
+>   - with PGI
+> you may have to roll up your sleeves and build it.  We will help as we can.
+>
+> If it were me, I'd relax as many constraints here as possible.  So how
+> about
+> figuring out how to interface OpenACC on any suitable platform and compiler
+> pair?
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180121/c5f76789/attachment.html>
+
+From cdetermanjr at gmail.com  Mon Jan 22 16:18:29 2018
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Mon, 22 Jan 2018 09:18:29 -0600
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+ <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+Message-ID: <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+
+Hi Emmanuel,
+
+As Dirk mentioned, I am involved in making GPU computing as portable and
+accessible as possible.  Depending on your needs, most functionality may
+already be implemented in my gpuR package (
+https://cran.r-project.org/package=gpuR).  It is an OpenCL backend so it
+can be installed essentially anywhere for any hardware.  It also has new
+functionality to accept custom, user provided OpenCL kernels to extend to
+non-implemented operations.  That said, I am working on setting up the CUDA
+backend.  I have had some success with Linux systems but trouble with
+Windows.  The main problem with that, as you may have discovered, is that
+NVIDIA's nvcc compiler requires the use of cl.exe on Windows systems.  This
+prevents the normal use of Rtools mingw functions.  As such, I am still
+looking in to how I can create a solid configure script for Windows systems
+so that cl.exe can be used instead of g++.  If I can be of help, feel free
+to reach out.  I need a bit more dedicated time to sort out Windows but I
+have been quite busy as of late.
+
+Regards,
+Charles
+
+On Sun, Jan 21, 2018 at 9:32 AM, Emmanuel Hamel <manu.hamel at gmail.com>
+wrote:
+
+> Hi,
+>
+> Thank you for your answer! I am already able to use the OpenMP-style
+> without RcppParallel, thanks to some examples given in the Rcpp community.
+> I will have a look at the RViennaCL.
+>
+> For my problem, the compiler is not important. I just mentioned the one I
+> use as an example. However, I really have to use Windows.
+>
+> Best regards,
+>
+> Emmanuel
+>
+>
+> 2018-01-21 10:26 GMT-05:00 Dirk Eddelbuettel <edd at debian.org>:
+>
+>>
+>> On 21 January 2018 at 09:55, Emmanuel Hamel wrote:
+>> | Hope you are all feeling good. I have a question. First, I use windows
+>> and
+>>
+>> Never the easiest platform (in my very personal view).
+>>
+>> | I want to use OpenACC. For the moment, I am able to compile GPU Cuda C
+>> code
+>> | with Microsoft visual studio and call it from a DLL in Windows. Also, I
+>> am
+>> | able to use OpenMP with the Rcpp package. Nevertheless, I want to extend
+>> | these possibilities for a project regarding dynamic hedging program for
+>> | segregated funds. Hence, I would like to know if you have any tips
+>> | regarding the use of OpenACC in Rcpp. In particular, what are the files
+>>
+>> I am not aware of anyone using it now.  That said, it would be nice to
+>> have.
+>>
+>> | that I need to modify in a RStudio project in order to be able to
+>> compile
+>> | pragma commands with the OpenACC compiler? For the moment, I use the PGI
+>> | compiler.
+>>
+>> That puts a third constraint up.  Which, in aggregate, makes it even less
+>> likely that someone is doing this already.
+>>
+>> A few people use Rcpp together with CUDA code.  Charles has been working
+>> on
+>> RViennaCL which is another "portable" approach for multiple backends:
+>>
+>>   https://cran.r-project.org/package=RViennaCL
+>>
+>> He may be following up here too in a day or two.
+>>
+>> Other than that, RcppParallel exists, is fairly widely used, and gives you
+>> higher-level abstractions for OpenMP-style parallelism.  No GPU though.
+>>
+>> So in short if you need
+>>   - OpenACC
+>>   - on Windows
+>>   - with PGI
+>> you may have to roll up your sleeves and build it.  We will help as we
+>> can.
+>>
+>> If it were me, I'd relax as many constraints here as possible.  So how
+>> about
+>> figuring out how to interface OpenACC on any suitable platform and
+>> compiler
+>> pair?
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180122/850e2e6d/attachment.html>
+
+From manu.hamel at gmail.com  Tue Jan 23 04:59:06 2018
+From: manu.hamel at gmail.com (Emmanuel Hamel)
+Date: Mon, 22 Jan 2018 22:59:06 -0500
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+ <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+ <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+Message-ID: <CANM+bMJvfuHgLTxvvMHDa=VzFgLN8tKCQYsqPTGwnNji_vW=bw@mail.gmail.com>
+
+Hi,
+
+First, I would like to say thank you because you spend time answering my
+questions and you are not paid. I appreciate a lot. I will take a look more
+seriously at OpenCL. I am mainly interested in "non-implemented
+operations". I also think that the problem is related to the fact that it
+is "difficult" to make a link between Rtools and nvcc compiler. I have
+looked at many R packages for GPU and a lot of them do not seem available
+on windows. Finally, If you find the solution of how to integrate easily
+OpenACC and Rtools in the future, let me know. I think it would be great to
+have a "RcppOpenACC" package. This would enable developers to create
+flexible code in C++ (CPU and GPU at the same time!).
+
+Best regards,
+
+Emmanuel
+
+
+2018-01-22 10:18 GMT-05:00 Charles Determan <cdetermanjr at gmail.com>:
+
+> Hi Emmanuel,
+>
+> As Dirk mentioned, I am involved in making GPU computing as portable and
+> accessible as possible.  Depending on your needs, most functionality may
+> already be implemented in my gpuR package (https://cran.r-project.org/
+> package=gpuR).  It is an OpenCL backend so it can be installed
+> essentially anywhere for any hardware.  It also has new functionality to
+> accept custom, user provided OpenCL kernels to extend to non-implemented
+> operations.  That said, I am working on setting up the CUDA backend.  I
+> have had some success with Linux systems but trouble with Windows.  The
+> main problem with that, as you may have discovered, is that NVIDIA's nvcc
+> compiler requires the use of cl.exe on Windows systems.  This prevents the
+> normal use of Rtools mingw functions.  As such, I am still looking in to
+> how I can create a solid configure script for Windows systems so that
+> cl.exe can be used instead of g++.  If I can be of help, feel free to reach
+> out.  I need a bit more dedicated time to sort out Windows but I have been
+> quite busy as of late.
+>
+> Regards,
+> Charles
+>
+> On Sun, Jan 21, 2018 at 9:32 AM, Emmanuel Hamel <manu.hamel at gmail.com>
+> wrote:
+>
+>> Hi,
+>>
+>> Thank you for your answer! I am already able to use the OpenMP-style
+>> without RcppParallel, thanks to some examples given in the Rcpp community.
+>> I will have a look at the RViennaCL.
+>>
+>> For my problem, the compiler is not important. I just mentioned the one I
+>> use as an example. However, I really have to use Windows.
+>>
+>> Best regards,
+>>
+>> Emmanuel
+>>
+>>
+>> 2018-01-21 10:26 GMT-05:00 Dirk Eddelbuettel <edd at debian.org>:
+>>
+>>>
+>>> On 21 January 2018 at 09:55, Emmanuel Hamel wrote:
+>>> | Hope you are all feeling good. I have a question. First, I use windows
+>>> and
+>>>
+>>> Never the easiest platform (in my very personal view).
+>>>
+>>> | I want to use OpenACC. For the moment, I am able to compile GPU Cuda C
+>>> code
+>>> | with Microsoft visual studio and call it from a DLL in Windows. Also,
+>>> I am
+>>> | able to use OpenMP with the Rcpp package. Nevertheless, I want to
+>>> extend
+>>> | these possibilities for a project regarding dynamic hedging program for
+>>> | segregated funds. Hence, I would like to know if you have any tips
+>>> | regarding the use of OpenACC in Rcpp. In particular, what are the files
+>>>
+>>> I am not aware of anyone using it now.  That said, it would be nice to
+>>> have.
+>>>
+>>> | that I need to modify in a RStudio project in order to be able to
+>>> compile
+>>> | pragma commands with the OpenACC compiler? For the moment, I use the
+>>> PGI
+>>> | compiler.
+>>>
+>>> That puts a third constraint up.  Which, in aggregate, makes it even less
+>>> likely that someone is doing this already.
+>>>
+>>> A few people use Rcpp together with CUDA code.  Charles has been working
+>>> on
+>>> RViennaCL which is another "portable" approach for multiple backends:
+>>>
+>>>   https://cran.r-project.org/package=RViennaCL
+>>>
+>>> He may be following up here too in a day or two.
+>>>
+>>> Other than that, RcppParallel exists, is fairly widely used, and gives
+>>> you
+>>> higher-level abstractions for OpenMP-style parallelism.  No GPU though.
+>>>
+>>> So in short if you need
+>>>   - OpenACC
+>>>   - on Windows
+>>>   - with PGI
+>>> you may have to roll up your sleeves and build it.  We will help as we
+>>> can.
+>>>
+>>> If it were me, I'd relax as many constraints here as possible.  So how
+>>> about
+>>> figuring out how to interface OpenACC on any suitable platform and
+>>> compiler
+>>> pair?
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180122/0f0f1cf4/attachment.html>
+
+From edd at debian.org  Tue Jan 23 05:19:06 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 22 Jan 2018 22:19:06 -0600
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <CANM+bMJvfuHgLTxvvMHDa=VzFgLN8tKCQYsqPTGwnNji_vW=bw@mail.gmail.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+ <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+ <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+ <CANM+bMJvfuHgLTxvvMHDa=VzFgLN8tKCQYsqPTGwnNji_vW=bw@mail.gmail.com>
+Message-ID: <23142.47034.199790.345751@bud.eddelbuettel.com>
+
+
+On 22 January 2018 at 22:59, Emmanuel Hamel wrote:
+| First, I would like to say thank you because you spend time answering my
+| questions and you are not paid. I appreciate a lot. I will take a look more
+| seriously at OpenCL. I am mainly interested in "non-implemented
+| operations". I also think that the problem is related to the fact that it
+| is "difficult" to make a link between Rtools and nvcc compiler. I have
+| looked at many R packages for GPU and a lot of them do not seem available
+| on windows. Finally, If you find the solution of how to integrate easily
+
+The Windows toolchain issue is a problem. We are fixed at g++-4.9.3 for some
+time. 
+
+| OpenACC and Rtools in the future, let me know. I think it would be great to
+| have a "RcppOpenACC" package. This would enable developers to create
+| flexible code in C++ (CPU and GPU at the same time!).
+
+I looked a little at OpenACC after you first asked as the topic seems
+interesting.  From my casual browsing it seems my machine (where g++ is
+g++-7.2 here on Ubuntu 7.10) already has it -- newer g++ included it.
+
+On Windows you will be constrained. Maybe at some point with a newer Windows
+10 you can cheat and use the Windows Subsystem for Linux (or whatever it is
+called).  In the meantime, just use AWS, a cheap laptop, or some other means.
+It is good technology -- use it, make a business case and use that to get
+your corporate windows-only constraint relaxed.  At least one can hope...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From manu.hamel at gmail.com  Tue Jan 23 05:24:34 2018
+From: manu.hamel at gmail.com (Emmanuel Hamel)
+Date: Mon, 22 Jan 2018 23:24:34 -0500
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <23142.47034.199790.345751@bud.eddelbuettel.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+ <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+ <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+ <CANM+bMJvfuHgLTxvvMHDa=VzFgLN8tKCQYsqPTGwnNji_vW=bw@mail.gmail.com>
+ <23142.47034.199790.345751@bud.eddelbuettel.com>
+Message-ID: <CANM+bM+-mdjY7bL-Rrz0rSji=vj00xZOr7TeNhqdk0+tM+smQQ@mail.gmail.com>
+
+Hi,
+
+For the moment, I compile the GPU code with Visual studio 2015 to make ?
+DLL, and then I call it from R. It is the only solution I found for the
+moment.
+
+Best regards,
+
+Emmanuel
+
+Le 22 janv. 2018 11:19 PM, "Dirk Eddelbuettel" <edd at debian.org> a ?crit :
+
+>
+> On 22 January 2018 at 22:59, Emmanuel Hamel wrote:
+> | First, I would like to say thank you because you spend time answering my
+> | questions and you are not paid. I appreciate a lot. I will take a look
+> more
+> | seriously at OpenCL. I am mainly interested in "non-implemented
+> | operations". I also think that the problem is related to the fact that it
+> | is "difficult" to make a link between Rtools and nvcc compiler. I have
+> | looked at many R packages for GPU and a lot of them do not seem available
+> | on windows. Finally, If you find the solution of how to integrate easily
+>
+> The Windows toolchain issue is a problem. We are fixed at g++-4.9.3 for
+> some
+> time.
+>
+> | OpenACC and Rtools in the future, let me know. I think it would be great
+> to
+> | have a "RcppOpenACC" package. This would enable developers to create
+> | flexible code in C++ (CPU and GPU at the same time!).
+>
+> I looked a little at OpenACC after you first asked as the topic seems
+> interesting.  From my casual browsing it seems my machine (where g++ is
+> g++-7.2 here on Ubuntu 7.10) already has it -- newer g++ included it.
+>
+> On Windows you will be constrained. Maybe at some point with a newer
+> Windows
+> 10 you can cheat and use the Windows Subsystem for Linux (or whatever it is
+> called).  In the meantime, just use AWS, a cheap laptop, or some other
+> means.
+> It is good technology -- use it, make a business case and use that to get
+> your corporate windows-only constraint relaxed.  At least one can hope...
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180122/aed8cb0b/attachment.html>
+
+From selivanov.dmitriy at gmail.com  Tue Jan 23 14:37:23 2018
+From: selivanov.dmitriy at gmail.com (Dmitriy Selivanov)
+Date: Tue, 23 Jan 2018 17:37:23 +0400
+Subject: [Rcpp-devel] OpenACC,
+	Rcpp and RStudio on Windows (Emmanuel Hamel)
+Message-ID: <CAJdZCv05BP1uKYxbhqw0X1sfCT94iSyYMTPQTodw6Tt-18=Ftg@mail.gmail.com>
+
+Hi Emmanuel. Probably you take a look to the approach taken by Microsoft
+in LightGBM R package. I do not know details (so approach could be
+irrelevant to what you've asked), but on windows they build package (even
+with gpu support) using Visual Studio toolchain. You can check here -
+https://github.com/Microsoft/LightGBM/tree/master/R-package.
+
+If you will find it useful please report back to this mailing list, so we
+will be aware of it. Thanks.
+
+
+2018-01-23 15:00 GMT+04:00 <rcpp-devel-request at lists.r-forge.r-project.org>:
+
+> Send Rcpp-devel mailing list submissions to
+>         rcpp-devel at lists.r-forge.r-project.org
+>
+> To subscribe or unsubscribe via the World Wide Web, visit
+>         https://lists.r-forge.r-project.org/cgi-bin/mailman/
+> listinfo/rcpp-devel
+>
+> or, via email, send a message with subject or body 'help' to
+>         rcpp-devel-request at lists.r-forge.r-project.org
+>
+> You can reach the person managing the list at
+>         rcpp-devel-owner at lists.r-forge.r-project.org
+>
+> When replying, please edit your Subject line so it is more specific
+> than "Re: Contents of Rcpp-devel digest..."
+>
+>
+> Today's Topics:
+>
+>    1. Re: OpenACC, Rcpp and RStudio on Windows (Emmanuel Hamel)
+>
+>
+> ----------------------------------------------------------------------
+>
+> Message: 1
+> Date: Mon, 22 Jan 2018 23:24:34 -0500
+> From: Emmanuel Hamel <manu.hamel at gmail.com>
+> To: Dirk Eddelbuettel <edd at debian.org>
+> Cc: rcpp-devel at lists.r-forge.r-project.org
+> Subject: Re: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+> Message-ID:
+>         <CANM+bM+-mdjY7bL-Rrz0rSji=vj00xZOr7TeNhqdk0+tM+smQQ at mail.
+> gmail.com>
+> Content-Type: text/plain; charset="utf-8"
+>
+> Hi,
+>
+> For the moment, I compile the GPU code with Visual studio 2015 to make ?
+> DLL, and then I call it from R. It is the only solution I found for the
+> moment.
+>
+> Best regards,
+>
+> Emmanuel
+>
+> Le 22 janv. 2018 11:19 PM, "Dirk Eddelbuettel" <edd at debian.org> a ?crit :
+>
+> >
+> > On 22 January 2018 at 22:59, Emmanuel Hamel wrote:
+> > | First, I would like to say thank you because you spend time answering
+> my
+> > | questions and you are not paid. I appreciate a lot. I will take a look
+> > more
+> > | seriously at OpenCL. I am mainly interested in "non-implemented
+> > | operations". I also think that the problem is related to the fact that
+> it
+> > | is "difficult" to make a link between Rtools and nvcc compiler. I have
+> > | looked at many R packages for GPU and a lot of them do not seem
+> available
+> > | on windows. Finally, If you find the solution of how to integrate
+> easily
+> >
+> > The Windows toolchain issue is a problem. We are fixed at g++-4.9.3 for
+> > some
+> > time.
+> >
+> > | OpenACC and Rtools in the future, let me know. I think it would be
+> great
+> > to
+> > | have a "RcppOpenACC" package. This would enable developers to create
+> > | flexible code in C++ (CPU and GPU at the same time!).
+> >
+> > I looked a little at OpenACC after you first asked as the topic seems
+> > interesting.  From my casual browsing it seems my machine (where g++ is
+> > g++-7.2 here on Ubuntu 7.10) already has it -- newer g++ included it.
+> >
+> > On Windows you will be constrained. Maybe at some point with a newer
+> > Windows
+> > 10 you can cheat and use the Windows Subsystem for Linux (or whatever it
+> is
+> > called).  In the meantime, just use AWS, a cheap laptop, or some other
+> > means.
+> > It is good technology -- use it, make a business case and use that to get
+> > your corporate windows-only constraint relaxed.  At least one can hope...
+> >
+> > Dirk
+> >
+> > --
+> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> >
+> -------------- next part --------------
+> An HTML attachment was scrubbed...
+> URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-
+> devel/attachments/20180122/aed8cb0b/attachment-0001.html>
+>
+> ------------------------------
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> End of Rcpp-devel Digest, Vol 99, Issue 12
+> ******************************************
+>
+
+
+
+-- 
+Regards
+Dmitriy Selivanov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180123/76009558/attachment.html>
+
+From qkou at umail.iu.edu  Tue Jan 23 17:28:56 2018
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Tue, 23 Jan 2018 11:28:56 -0500
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <CANM+bM+-mdjY7bL-Rrz0rSji=vj00xZOr7TeNhqdk0+tM+smQQ@mail.gmail.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+ <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+ <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+ <CANM+bMJvfuHgLTxvvMHDa=VzFgLN8tKCQYsqPTGwnNji_vW=bw@mail.gmail.com>
+ <23142.47034.199790.345751@bud.eddelbuettel.com>
+ <CANM+bM+-mdjY7bL-Rrz0rSji=vj00xZOr7TeNhqdk0+tM+smQQ@mail.gmail.com>
+Message-ID: <CAJ_LAMBOzeWFYKhLmwuKkpsYp_7KYGXB9fm+C4kbcaOEj5sqQA@mail.gmail.com>
+
+On Mon, Jan 22, 2018 at 11:24 PM, Emmanuel Hamel <manu.hamel at gmail.com>
+wrote:
+
+>
+> For the moment, I compile the GPU code with Visual studio 2015 to make ?
+> DLL, and then I call it from R. It is the only solution I found for the
+> moment.
+>
+>
+In MXNet R package, we also compile the cuda code using visual studio to
+generate the dll.
+
+This is the easiest way I know.
+
+Best,
+
+KK
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180123/1f17c9bd/attachment.html>
+
+From manu.hamel at gmail.com  Tue Jan 23 18:08:48 2018
+From: manu.hamel at gmail.com (Emmanuel Hamel)
+Date: Tue, 23 Jan 2018 12:08:48 -0500
+Subject: [Rcpp-devel] Other possibilities for Windows and GPU
+Message-ID: <CANM+bMKAQgSzTh_JdWx80JyJ2sQY7oVzWmYn6XizKH9uozcxyg@mail.gmail.com>
+
+Here is a message that I received that was not in the "email chain" ...
+
+
+Hi Emmanuel. Probably you take a look to the approach taken by Microsoft
+in LightGBM R package. I do not know details (so approach could be
+irrelevant to what you've asked), but on windows they build package (even
+with gpu support) using Visual Studio toolchain. You can check here -
+https://github.com/Microsoft/LightGBM/tree/master/R-package.
+
+If you will find it useful please report back to this mailing list, so we
+will be aware of it. Thanks.
+
+
+2018-01-23 15:00 GMT+04:00 <rcpp-devel-request at lists.r-forge.r-project.org>:
+
+> Send Rcpp-devel mailing list submissions to
+>         rcpp-devel at lists.r-forge.r-project.org
+>
+> To subscribe or unsubscribe via the World Wide Web, visit
+>         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo
+> /rcpp-devel
+>
+> or, via email, send a message with subject or body 'help' to
+>         rcpp-devel-request at lists.r-forge.r-project.org
+>
+> You can reach the person managing the list at
+>         rcpp-devel-owner at lists.r-forge.r-project.org
+>
+> When replying, please edit your Subject line so it is more specific
+> than "Re: Contents of Rcpp-devel digest..."
+>
+>
+> Today's Topics:
+
+
+2018-01-23 11:28 GMT-05:00 Qiang Kou <qkou at umail.iu.edu>:
+
+> On Mon, Jan 22, 2018 at 11:24 PM, Emmanuel Hamel <manu.hamel at gmail.com>
+> wrote:
+>
+>>
+>> For the moment, I compile the GPU code with Visual studio 2015 to make ?
+>> DLL, and then I call it from R. It is the only solution I found for the
+>> moment.
+>>
+>>
+> In MXNet R package, we also compile the cuda code using visual studio to
+> generate the dll.
+>
+> This is the easiest way I know.
+>
+> Best,
+>
+> KK
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180123/a6da31ac/attachment.html>
+
+From manu.hamel at gmail.com  Tue Jan 23 18:10:19 2018
+From: manu.hamel at gmail.com (Emmanuel Hamel)
+Date: Tue, 23 Jan 2018 12:10:19 -0500
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <CAJ_LAMBOzeWFYKhLmwuKkpsYp_7KYGXB9fm+C4kbcaOEj5sqQA@mail.gmail.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+ <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+ <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+ <CANM+bMJvfuHgLTxvvMHDa=VzFgLN8tKCQYsqPTGwnNji_vW=bw@mail.gmail.com>
+ <23142.47034.199790.345751@bud.eddelbuettel.com>
+ <CANM+bM+-mdjY7bL-Rrz0rSji=vj00xZOr7TeNhqdk0+tM+smQQ@mail.gmail.com>
+ <CAJ_LAMBOzeWFYKhLmwuKkpsYp_7KYGXB9fm+C4kbcaOEj5sqQA@mail.gmail.com>
+Message-ID: <CANM+bMKDfNuu4iuosQW+_RHfcgLi23Qu_gV+aZLkCCGDb+k2wg@mail.gmail.com>
+
+Here is a message that I received that was not in the "email chain" ...
+
+
+Hi Emmanuel. Probably you take a look to the approach taken by Microsoft
+in LightGBM R package. I do not know details (so approach could be
+irrelevant to what you've asked), but on windows they build package (even
+with gpu support) using Visual Studio toolchain. You can check here -
+https://github.com/Microsoft/LightGBM/tree/master/R-package.
+
+If you will find it useful please report back to this mailing list, so we
+will be aware of it. Thanks.
+
+
+2018-01-23 15:00 GMT+04:00 <rcpp-devel-request at lists.r-forge.r-project.org>:
+
+> Send Rcpp-devel mailing list submissions to
+>         rcpp-devel at lists.r-forge.r-project.org
+>
+> To subscribe or unsubscribe via the World Wide Web, visit
+>         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo
+> /rcpp-devel
+>
+> or, via email, send a message with subject or body 'help' to
+>         rcpp-devel-request at lists.r-forge.r-project.org
+>
+> You can reach the person managing the list at
+>         rcpp-devel-owner at lists.r-forge.r-project.org
+>
+> When replying, please edit your Subject line so it is more specific
+> than "Re: Contents of Rcpp-devel digest..."
+
+
+2018-01-23 11:28 GMT-05:00 Qiang Kou <qkou at umail.iu.edu>:
+
+> On Mon, Jan 22, 2018 at 11:24 PM, Emmanuel Hamel <manu.hamel at gmail.com>
+> wrote:
+>
+>>
+>> For the moment, I compile the GPU code with Visual studio 2015 to make ?
+>> DLL, and then I call it from R. It is the only solution I found for the
+>> moment.
+>>
+>>
+> In MXNet R package, we also compile the cuda code using visual studio to
+> generate the dll.
+>
+> This is the easiest way I know.
+>
+> Best,
+>
+> KK
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180123/93b2b1cb/attachment-0001.html>
+

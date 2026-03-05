@@ -1,0 +1,732 @@
+From djsamperi at gmail.com  Tue May 30 20:27:26 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Tue, 30 May 2023 14:27:26 -0400
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+Message-ID: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+
+Looks like the recent update to R 4.3 broke Rcpp::sourceCpp.
+
+Here is a simple example...
+
+library(Rcpp)
+Rcpp::sourceCpp(code='
+  #include <Rcpp.h>
+  using namespace Rcpp;
+  // [[Rcpp::export()]]
+  SEXP cpptest(NumericVector v) {
+    return v;
+  }'
+)
+cpptest(1:5)
+
+This works without problems under R 4.2.3, but under R 4.3 I get...
+
+using C++ compiler: 'G__~1.EXE (GCC) 12.2.0'
+C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: internal error:
+aborting at ../../binutils-2.40/ld/ldlang.c:527 in compare_section
+C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: please report this
+bug
+collect2.exe: error: ld returned 1 exit status
+g++ -std=gnu++17  -I"c:/PROGRA~1/R/R-43~1.0/include" -DNDEBUG
+-I"C:/PROGRA~1/R/R-43~1.0/library/Rcpp/include"
+-I"C:/Users/djsam/AppData/Local/Temp/RtmpKEsaiY/sourceCpp-x86_64-w64-mingw32-1.0.10"
+  -I"C:/rtools43/x86_64-w64-mingw32.static.posix/include"     -O2 -Wall
+ -mfpmath=sse -msse2 -mstackrealign  -c filebb0108a7dbf.cpp -o
+filebb0108a7dbf.o
+g++ -std=gnu++17 -shared -s -static-libgcc -o sourceCpp_2.dll tmp.def
+filebb0108a7dbf.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64
+-LC:/rtools43/x86_64-w64-mingw32.static.posix/lib
+-Lc:/PROGRA~1/R/R-43~1.0/bin/x64 -lR
+Error in Rcpp::sourceCpp(code = "\n  #include <Rcpp.h>\n  using namespace
+Rcpp;\n  // [[Rcpp::export()]]\n  SEXP cpptest(NumericVector v) {\n
+ return v;\n  }") :
+  Error occurred building shared library.
+
+Thanks,
+Dominick
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230530/8f3e268d/attachment.htm>
+
+From edd at debian.org  Tue May 30 20:37:15 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 30 May 2023 13:37:15 -0500
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+In-Reply-To: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+References: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+Message-ID: <25718.16987.368051.928253@rob.eddelbuettel.com>
+
+
+On 30 May 2023 at 14:27, Dominick Samperi wrote:
+| Looks like the recent update to R 4.3 broke Rcpp::sourceCpp.
+| 
+| Here is a simple example...
+| 
+| library(Rcpp)
+| Rcpp::sourceCpp(code='
+| ? #include <Rcpp.h>
+| ? using namespace Rcpp;
+| ? // [[Rcpp::export()]]
+| ? SEXP cpptest(NumericVector v) {
+| ? ? return v;
+| ? }'
+| )
+| cpptest(1:5)
+| 
+| This works without problems under R 4.2.3, but under R 4.3 I get...
+| 
+| using C++ compiler: 'G__~1.EXE (GCC) 12.2.0'
+| C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: internal error:
+| aborting at ../../binutils-2.40/ld/ldlang.c:527 in compare_section
+| C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: please report this bug
+| collect2.exe: error: ld returned 1 exit status
+| g++ -std=gnu++17 ?-I"c:/PROGRA~1/R/R-43~1.0/include" -DNDEBUG ? -I"C:/PROGRA~1/
+| R/R-43~1.0/library/Rcpp/include" -I"C:/Users/djsam/AppData/Local/Temp/
+| RtmpKEsaiY/sourceCpp-x86_64-w64-mingw32-1.0.10" ? -I"C:/rtools43/
+| x86_64-w64-mingw32.static.posix/include" ? ? -O2 -Wall ?-mfpmath=sse -msse2
+| -mstackrealign ?-c filebb0108a7dbf.cpp -o filebb0108a7dbf.o
+| g++ -std=gnu++17 -shared -s -static-libgcc -o sourceCpp_2.dll tmp.def
+| filebb0108a7dbf.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64 -LC:/
+| rtools43/x86_64-w64-mingw32.static.posix/lib -Lc:/PROGRA~1/R/R-43~1.0/bin/x64
+| -lR
+| Error in Rcpp::sourceCpp(code = "\n ?#include <Rcpp.h>\n ?using namespace Rcpp;
+| \n ?// [[Rcpp::export()]]\n ?SEXP cpptest(NumericVector v) {\n ? ?return v;\n
+| ?}") :
+| ? Error occurred building shared library.
+
+I don't have any access to Windows but note that CRAN of course tests Rcpp
+and its 2600+ reverse depends on Windows.
+
+On the OS I use all is well with this (and of course in general)
+
+> R.version
+               _                           
+platform       x86_64-pc-linux-gnu         
+arch           x86_64                      
+os             linux-gnu                   
+system         x86_64, linux-gnu           
+status                                     
+major          4                           
+minor          3.0                         
+year           2023                        
+month          04                          
+day            21                          
+svn rev        84292                       
+language       R                           
+version.string R version 4.3.0 (2023-04-21)
+nickname       Already Tomorrow            
+> utils::osVersion
+[1] "Ubuntu 22.10"
+> Rcpp::cppFunction("SEXP cpptest(NumericVector v) { return v; }")
+> cpptest(1:5)
+[1] 1 2 3 4 5
+> 
+
+So I suspect something is not tied down correctly at your end; maybe new R
+and old Rtools so something like that.
+
+One gets 15 h / months free at posit.cloud (formerly rstudio.cloud), that is
+good to just run a quick sanity check like this.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From ailich at usf.edu  Tue May 30 20:42:56 2023
+From: ailich at usf.edu (Alexander Ilich)
+Date: Tue, 30 May 2023 18:42:56 +0000
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+In-Reply-To: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+References: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+Message-ID: <BN0PR08MB7341A77F03753B8027C06F7CC64B9@BN0PR08MB7341.namprd08.prod.outlook.com>
+
+What version of Rcpp are you using? With R 4.3 and Rcpp 1.0.10 I have no issues.
+
+library(Rcpp)
+
+
+Rcpp::sourceCpp(code='
+  #include <Rcpp.h>
+  using namespace Rcpp;
+  // [[Rcpp::export()]]
+  SEXP cpptest(NumericVector v) {
+    return v;
+  }'
+)
+cpptest(1:5)
+#> [1] 1 2 3 4 5
+
+
+R.version
+#>                _
+#> platform       x86_64-w64-mingw32
+#> arch           x86_64
+#> os             mingw32
+#> crt            ucrt
+#> system         x86_64, mingw32
+#> status
+#> major          4
+#> minor          3.0
+#> year           2023
+#> month          04
+#> day            21
+#> svn rev        84292
+#> language       R
+#> version.string R version 4.3.0 (2023-04-21 ucrt)
+#> nickname       Already Tomorrow
+packageVersion("Rcpp")
+#> [1] '1.0.10'
+________________________________
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Dominick Samperi <djsamperi at gmail.com>
+Sent: Tuesday, May 30, 2023 2:27 PM
+To: rcpp-devel <Rcpp-devel at r-forge.wu-wien.ac.at>
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+
+Looks like the recent update to R 4.3 broke Rcpp::sourceCpp.
+
+Here is a simple example...
+
+library(Rcpp)
+Rcpp::sourceCpp(code='
+  #include <Rcpp.h>
+  using namespace Rcpp;
+  // [[Rcpp::export()]]
+  SEXP cpptest(NumericVector v) {
+    return v;
+  }'
+)
+cpptest(1:5)
+
+This works without problems under R 4.2.3, but under R 4.3 I get...
+
+using C++ compiler: 'G__~1.EXE (GCC) 12.2.0'
+C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: internal error: aborting at ../../binutils-2.40/ld/ldlang.c:527 in compare_section
+C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: please report this bug
+collect2.exe: error: ld returned 1 exit status
+g++ -std=gnu++17  -I"c:/PROGRA~1/R/R-43~1.0/include" -DNDEBUG   -I"C:/PROGRA~1/R/R-43~1.0/library/Rcpp/include" -I"C:/Users/djsam/AppData/Local/Temp/RtmpKEsaiY/sourceCpp-x86_64-w64-mingw32-1.0.10"   -I"C:/rtools43/x86_64-w64-mingw32.static.posix/include"     -O2 -Wall  -mfpmath=sse -msse2 -mstackrealign  -c filebb0108a7dbf.cpp -o filebb0108a7dbf.o
+g++ -std=gnu++17 -shared -s -static-libgcc -o sourceCpp_2.dll tmp.def filebb0108a7dbf.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64 -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib -Lc:/PROGRA~1/R/R-43~1.0/bin/x64 -lR
+Error in Rcpp::sourceCpp(code = "\n  #include <Rcpp.h>\n  using namespace Rcpp;\n  // [[Rcpp::export()]]\n  SEXP cpptest(NumericVector v) {\n    return v;\n  }") :
+  Error occurred building shared library.
+
+Thanks,
+Dominick
+
+
+[EXTERNAL EMAIL] DO NOT CLICK links or attachments unless you recognize the sender and know the content is safe.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230530/51420cd2/attachment-0001.htm>
+
+From kevinushey at gmail.com  Tue May 30 21:02:55 2023
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Tue, 30 May 2023 12:02:55 -0700
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+In-Reply-To: <BN0PR08MB7341A77F03753B8027C06F7CC64B9@BN0PR08MB7341.namprd08.prod.outlook.com>
+References: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+ <BN0PR08MB7341A77F03753B8027C06F7CC64B9@BN0PR08MB7341.namprd08.prod.outlook.com>
+Message-ID: <CAJXgQP1cx8q+Jnicr16PYkfr0MYH8=FVky7MO-NNyZmNtEw65g@mail.gmail.com>
+
+I'm also not able to reproduce, but I see a different linker invocation:
+
+g++ -shared -static-libgcc -o sourceCpp_3.dll tmp.def file43185fe94049.o
+-LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64
+-LC:/rtools43/x86_64-w64-mingw32.static.posix/lib -LC:/R/R-43~1.0/bin/x64
+-lR
+
+In particular, yours is passing both '-std=gnu++17' and '-s'. Have you
+modified your R Makevars file, or R installation's etc/Makeconf?
+
+On Tue, May 30, 2023 at 11:43?AM Alexander Ilich <ailich at usf.edu> wrote:
+
+> What version of Rcpp are you using? With R 4.3 and Rcpp 1.0.10 I have no
+> issues.
+>
+> library(Rcpp)
+>
+>
+> Rcpp::sourceCpp(code='
+>   #include <Rcpp.h>
+>   using namespace Rcpp;
+>   // [[Rcpp::export()]]
+>   SEXP cpptest(NumericVector v) {
+>     return v;
+>   }'
+> )
+> cpptest(1:5)
+> #> [1] 1 2 3 4 5
+>
+>
+> R.version
+> #>                _
+> #> platform       x86_64-w64-mingw32
+> #> arch           x86_64
+> #> os             mingw32
+> #> crt            ucrt
+> #> system         x86_64, mingw32
+> #> status
+> #> major          4
+> #> minor          3.0
+> #> year           2023
+> #> month          04
+> #> day            21
+> #> svn rev        84292
+> #> language       R
+> #> version.string R version 4.3.0 (2023-04-21 ucrt)
+> #> nickname       Already Tomorrow
+> packageVersion("Rcpp")
+> #> [1] '1.0.10'
+> ------------------------------
+> *From:* Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on
+> behalf of Dominick Samperi <djsamperi at gmail.com>
+> *Sent:* Tuesday, May 30, 2023 2:27 PM
+> *To:* rcpp-devel <Rcpp-devel at r-forge.wu-wien.ac.at>
+> *Subject:* [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+>
+> Looks like the recent update to R 4.3 broke Rcpp::sourceCpp.
+>
+> Here is a simple example...
+>
+> library(Rcpp)
+> Rcpp::sourceCpp(code='
+>   #include <Rcpp.h>
+>   using namespace Rcpp;
+>   // [[Rcpp::export()]]
+>   SEXP cpptest(NumericVector v) {
+>     return v;
+>   }'
+> )
+> cpptest(1:5)
+>
+> This works without problems under R 4.2.3, but under R 4.3 I get...
+>
+> using C++ compiler: 'G__~1.EXE (GCC) 12.2.0'
+> C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: internal error:
+> aborting at ../../binutils-2.40/ld/ldlang.c:527 in compare_section
+> C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: please report this
+> bug
+> collect2.exe: error: ld returned 1 exit status
+> g++ -std=gnu++17  -I"c:/PROGRA~1/R/R-43~1.0/include" -DNDEBUG
+> -I"C:/PROGRA~1/R/R-43~1.0/library/Rcpp/include"
+> -I"C:/Users/djsam/AppData/Local/Temp/RtmpKEsaiY/sourceCpp-x86_64-w64-mingw32-1.0.10"
+>   -I"C:/rtools43/x86_64-w64-mingw32.static.posix/include"     -O2 -Wall
+>  -mfpmath=sse -msse2 -mstackrealign  -c filebb0108a7dbf.cpp -o
+> filebb0108a7dbf.o
+> g++ -std=gnu++17 -shared -s -static-libgcc -o sourceCpp_2.dll tmp.def
+> filebb0108a7dbf.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64
+> -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib
+> -Lc:/PROGRA~1/R/R-43~1.0/bin/x64 -lR
+> Error in Rcpp::sourceCpp(code = "\n  #include <Rcpp.h>\n  using namespace
+> Rcpp;\n  // [[Rcpp::export()]]\n  SEXP cpptest(NumericVector v) {\n
+>  return v;\n  }") :
+>   Error occurred building shared library.
+>
+> Thanks,
+> Dominick
+>
+> *[EXTERNAL EMAIL]* DO NOT CLICK links or attachments unless you recognize
+> the sender and know the content is safe.
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230530/221900d5/attachment.htm>
+
+From ailich at usf.edu  Tue May 30 21:13:30 2023
+From: ailich at usf.edu (Alexander Ilich)
+Date: Tue, 30 May 2023 19:13:30 +0000
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+In-Reply-To: <CAJXgQP1cx8q+Jnicr16PYkfr0MYH8=FVky7MO-NNyZmNtEw65g@mail.gmail.com>
+References: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+ <BN0PR08MB7341A77F03753B8027C06F7CC64B9@BN0PR08MB7341.namprd08.prod.outlook.com>
+ <CAJXgQP1cx8q+Jnicr16PYkfr0MYH8=FVky7MO-NNyZmNtEw65g@mail.gmail.com>
+Message-ID: <BN0PR08MB734131800AFF48A306AE8D1FC64B9@BN0PR08MB7341.namprd08.prod.outlook.com>
+
+I could potentially be sending you down the wrong rabbit hole, but I know with R 4.3 they switched from C++11 to C++17 being the standard<https://www.tidyverse.org/blog/2023/03/cran-checks-compiled-code/>. Have you tried updating to a newer version of Rcpp?
+
+________________________________
+From: Kevin Ushey <kevinushey at gmail.com>
+Sent: Tuesday, May 30, 2023 3:02 PM
+To: Alexander Ilich <ailich at usf.edu>
+Cc: Dominick Samperi <djsamperi at gmail.com>; rcpp-devel <Rcpp-devel at r-forge.wu-wien.ac.at>
+Subject: Re: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+
+I'm also not able to reproduce, but I see a different linker invocation:
+
+g++ -shared -static-libgcc -o sourceCpp_3.dll tmp.def file43185fe94049.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64 -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib -LC:/R/R-43~1.0/bin/x64 -lR
+
+In particular, yours is passing both '-std=gnu++17' and '-s'. Have you modified your R Makevars file, or R installation's etc/Makeconf?
+
+On Tue, May 30, 2023 at 11:43?AM Alexander Ilich <ailich at usf.edu<mailto:ailich at usf.edu>> wrote:
+What version of Rcpp are you using? With R 4.3 and Rcpp 1.0.10 I have no issues.
+
+library(Rcpp)
+
+
+Rcpp::sourceCpp(code='
+  #include <Rcpp.h>
+  using namespace Rcpp;
+  // [[Rcpp::export()]]
+  SEXP cpptest(NumericVector v) {
+    return v;
+  }'
+)
+cpptest(1:5)
+#> [1] 1 2 3 4 5
+
+
+R.version
+#>                _
+#> platform       x86_64-w64-mingw32
+#> arch           x86_64
+#> os             mingw32
+#> crt            ucrt
+#> system         x86_64, mingw32
+#> status
+#> major          4
+#> minor          3.0
+#> year           2023
+#> month          04
+#> day            21
+#> svn rev        84292
+#> language       R
+#> version.string R version 4.3.0 (2023-04-21 ucrt)
+#> nickname       Already Tomorrow
+packageVersion("Rcpp")
+#> [1] '1.0.10'
+________________________________
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org<mailto:rcpp-devel-bounces at lists.r-forge.r-project.org>> on behalf of Dominick Samperi <djsamperi at gmail.com<mailto:djsamperi at gmail.com>>
+Sent: Tuesday, May 30, 2023 2:27 PM
+To: rcpp-devel <Rcpp-devel at r-forge.wu-wien.ac.at<mailto:Rcpp-devel at r-forge.wu-wien.ac.at>>
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+
+Looks like the recent update to R 4.3 broke Rcpp::sourceCpp.
+
+Here is a simple example...
+
+library(Rcpp)
+Rcpp::sourceCpp(code='
+  #include <Rcpp.h>
+  using namespace Rcpp;
+  // [[Rcpp::export()]]
+  SEXP cpptest(NumericVector v) {
+    return v;
+  }'
+)
+cpptest(1:5)
+
+This works without problems under R 4.2.3, but under R 4.3 I get...
+
+using C++ compiler: 'G__~1.EXE (GCC) 12.2.0'
+C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: internal error: aborting at ../../binutils-2.40/ld/ldlang.c:527 in compare_section
+C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: please report this bug
+collect2.exe: error: ld returned 1 exit status
+g++ -std=gnu++17  -I"c:/PROGRA~1/R/R-43~1.0/include" -DNDEBUG   -I"C:/PROGRA~1/R/R-43~1.0/library/Rcpp/include" -I"C:/Users/djsam/AppData/Local/Temp/RtmpKEsaiY/sourceCpp-x86_64-w64-mingw32-1.0.10"   -I"C:/rtools43/x86_64-w64-mingw32.static.posix/include"     -O2 -Wall  -mfpmath=sse -msse2 -mstackrealign  -c filebb0108a7dbf.cpp -o filebb0108a7dbf.o
+g++ -std=gnu++17 -shared -s -static-libgcc -o sourceCpp_2.dll tmp.def filebb0108a7dbf.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64 -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib -Lc:/PROGRA~1/R/R-43~1.0/bin/x64 -lR
+Error in Rcpp::sourceCpp(code = "\n  #include <Rcpp.h>\n  using namespace Rcpp;\n  // [[Rcpp::export()]]\n  SEXP cpptest(NumericVector v) {\n    return v;\n  }") :
+  Error occurred building shared library.
+
+Thanks,
+Dominick
+
+
+[EXTERNAL EMAIL] DO NOT CLICK links or attachments unless you recognize the sender and know the content is safe.
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org<mailto:Rcpp-devel at lists.r-forge.r-project.org>
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+[EXTERNAL EMAIL] DO NOT CLICK links or attachments unless you recognize the sender and know the content is safe.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230530/fe1d3a90/attachment-0001.htm>
+
+From djsamperi at gmail.com  Tue May 30 21:25:02 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Tue, 30 May 2023 15:25:02 -0400
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+In-Reply-To: <CAJXgQP1cx8q+Jnicr16PYkfr0MYH8=FVky7MO-NNyZmNtEw65g@mail.gmail.com>
+References: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+ <BN0PR08MB7341A77F03753B8027C06F7CC64B9@BN0PR08MB7341.namprd08.prod.outlook.com>
+ <CAJXgQP1cx8q+Jnicr16PYkfr0MYH8=FVky7MO-NNyZmNtEw65g@mail.gmail.com>
+Message-ID: <CADUbQ5jDzQWuc4jZ=fzKbXeDcBSn1-aM2nq3Uw1pG5j=1e78Vg@mail.gmail.com>
+
+Thanks for the feedback. I don't remember making such mods, and I am using
+the latest Rcpp, but to be safe I reinstalled Rtools43 and R 4.3.0 and the
+problem is resolved! Sorry about the false alarm.
+
+Actually, I had two different installations of Rcpp, one under Program
+Files\R\R-4.3.0, and
+one under the directory pointed to by R_LIBS_USER (c:\w\R\4.3). I think R
+now uses some
+directory under \Users\name\AppData for user packages by default. There may
+have been
+a small change with 4.3 in the way
+R_LIBS and R_LIBS_USER are handled, in that the latter must be used to get
+local packages
+NOT to be installed under \Users\name\AppData.
+
+Dominick
+
+
+On Tue, May 30, 2023 at 3:03?PM Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> I'm also not able to reproduce, but I see a different linker invocation:
+>
+> g++ -shared -static-libgcc -o sourceCpp_3.dll tmp.def file43185fe94049.o
+> -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64
+> -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib -LC:/R/R-43~1.0/bin/x64
+> -lR
+>
+> In particular, yours is passing both '-std=gnu++17' and '-s'. Have you
+> modified your R Makevars file, or R installation's etc/Makeconf?
+>
+> On Tue, May 30, 2023 at 11:43?AM Alexander Ilich <ailich at usf.edu> wrote:
+>
+>> What version of Rcpp are you using? With R 4.3 and Rcpp 1.0.10 I have no
+>> issues.
+>>
+>> library(Rcpp)
+>>
+>>
+>> Rcpp::sourceCpp(code='
+>>   #include <Rcpp.h>
+>>   using namespace Rcpp;
+>>   // [[Rcpp::export()]]
+>>   SEXP cpptest(NumericVector v) {
+>>     return v;
+>>   }'
+>> )
+>> cpptest(1:5)
+>> #> [1] 1 2 3 4 5
+>>
+>>
+>> R.version
+>> #>                _
+>> #> platform       x86_64-w64-mingw32
+>> #> arch           x86_64
+>> #> os             mingw32
+>> #> crt            ucrt
+>> #> system         x86_64, mingw32
+>> #> status
+>> #> major          4
+>> #> minor          3.0
+>> #> year           2023
+>> #> month          04
+>> #> day            21
+>> #> svn rev        84292
+>> #> language       R
+>> #> version.string R version 4.3.0 (2023-04-21 ucrt)
+>> #> nickname       Already Tomorrow
+>> packageVersion("Rcpp")
+>> #> [1] '1.0.10'
+>> ------------------------------
+>> *From:* Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on
+>> behalf of Dominick Samperi <djsamperi at gmail.com>
+>> *Sent:* Tuesday, May 30, 2023 2:27 PM
+>> *To:* rcpp-devel <Rcpp-devel at r-forge.wu-wien.ac.at>
+>> *Subject:* [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+>>
+>> Looks like the recent update to R 4.3 broke Rcpp::sourceCpp.
+>>
+>> Here is a simple example...
+>>
+>> library(Rcpp)
+>> Rcpp::sourceCpp(code='
+>>   #include <Rcpp.h>
+>>   using namespace Rcpp;
+>>   // [[Rcpp::export()]]
+>>   SEXP cpptest(NumericVector v) {
+>>     return v;
+>>   }'
+>> )
+>> cpptest(1:5)
+>>
+>> This works without problems under R 4.2.3, but under R 4.3 I get...
+>>
+>> using C++ compiler: 'G__~1.EXE (GCC) 12.2.0'
+>> C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: internal error:
+>> aborting at ../../binutils-2.40/ld/ldlang.c:527 in compare_section
+>> C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: please report
+>> this bug
+>> collect2.exe: error: ld returned 1 exit status
+>> g++ -std=gnu++17  -I"c:/PROGRA~1/R/R-43~1.0/include" -DNDEBUG
+>> -I"C:/PROGRA~1/R/R-43~1.0/library/Rcpp/include"
+>> -I"C:/Users/djsam/AppData/Local/Temp/RtmpKEsaiY/sourceCpp-x86_64-w64-mingw32-1.0.10"
+>>   -I"C:/rtools43/x86_64-w64-mingw32.static.posix/include"     -O2 -Wall
+>>  -mfpmath=sse -msse2 -mstackrealign  -c filebb0108a7dbf.cpp -o
+>> filebb0108a7dbf.o
+>> g++ -std=gnu++17 -shared -s -static-libgcc -o sourceCpp_2.dll tmp.def
+>> filebb0108a7dbf.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64
+>> -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib
+>> -Lc:/PROGRA~1/R/R-43~1.0/bin/x64 -lR
+>> Error in Rcpp::sourceCpp(code = "\n  #include <Rcpp.h>\n  using namespace
+>> Rcpp;\n  // [[Rcpp::export()]]\n  SEXP cpptest(NumericVector v) {\n
+>>  return v;\n  }") :
+>>   Error occurred building shared library.
+>>
+>> Thanks,
+>> Dominick
+>>
+>> *[EXTERNAL EMAIL]* DO NOT CLICK links or attachments unless you
+>> recognize the sender and know the content is safe.
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230530/3118bcc0/attachment.htm>
+
+From djsamperi at gmail.com  Tue May 30 21:32:00 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Tue, 30 May 2023 15:32:00 -0400
+Subject: [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+In-Reply-To: <CADUbQ5jDzQWuc4jZ=fzKbXeDcBSn1-aM2nq3Uw1pG5j=1e78Vg@mail.gmail.com>
+References: <CADUbQ5jUOoCu4dbxgNwCnbmXqLFc3OWsPjPCzKKy_VM_aRYDdw@mail.gmail.com>
+ <BN0PR08MB7341A77F03753B8027C06F7CC64B9@BN0PR08MB7341.namprd08.prod.outlook.com>
+ <CAJXgQP1cx8q+Jnicr16PYkfr0MYH8=FVky7MO-NNyZmNtEw65g@mail.gmail.com>
+ <CADUbQ5jDzQWuc4jZ=fzKbXeDcBSn1-aM2nq3Uw1pG5j=1e78Vg@mail.gmail.com>
+Message-ID: <CADUbQ5i5PJ36VXUDAOOdAabqKK+tOKTqvQ+q4NKHc9gyUb55vw@mail.gmail.com>
+
+Rtools43 is bleeding edge, and it is possible I was working with a stale
+version.
+
+On Tue, May 30, 2023 at 3:25?PM Dominick Samperi <djsamperi at gmail.com>
+wrote:
+
+> Thanks for the feedback. I don't remember making such mods, and I am using
+> the latest Rcpp, but to be safe I reinstalled Rtools43 and R 4.3.0 and the
+> problem is resolved! Sorry about the false alarm.
+>
+> Actually, I had two different installations of Rcpp, one under Program
+> Files\R\R-4.3.0, and
+> one under the directory pointed to by R_LIBS_USER (c:\w\R\4.3). I think R
+> now uses some
+> directory under \Users\name\AppData for user packages by default. There
+> may have been
+> a small change with 4.3 in the way
+> R_LIBS and R_LIBS_USER are handled, in that the latter must be used to get
+> local packages
+> NOT to be installed under \Users\name\AppData.
+>
+> Dominick
+>
+>
+> On Tue, May 30, 2023 at 3:03?PM Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+>> I'm also not able to reproduce, but I see a different linker invocation:
+>>
+>> g++ -shared -static-libgcc -o sourceCpp_3.dll tmp.def file43185fe94049.o
+>> -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64
+>> -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib -LC:/R/R-43~1.0/bin/x64
+>> -lR
+>>
+>> In particular, yours is passing both '-std=gnu++17' and '-s'. Have you
+>> modified your R Makevars file, or R installation's etc/Makeconf?
+>>
+>> On Tue, May 30, 2023 at 11:43?AM Alexander Ilich <ailich at usf.edu> wrote:
+>>
+>>> What version of Rcpp are you using? With R 4.3 and Rcpp 1.0.10 I have no
+>>> issues.
+>>>
+>>> library(Rcpp)
+>>>
+>>>
+>>> Rcpp::sourceCpp(code='
+>>>   #include <Rcpp.h>
+>>>   using namespace Rcpp;
+>>>   // [[Rcpp::export()]]
+>>>   SEXP cpptest(NumericVector v) {
+>>>     return v;
+>>>   }'
+>>> )
+>>> cpptest(1:5)
+>>> #> [1] 1 2 3 4 5
+>>>
+>>>
+>>> R.version
+>>> #>                _
+>>> #> platform       x86_64-w64-mingw32
+>>> #> arch           x86_64
+>>> #> os             mingw32
+>>> #> crt            ucrt
+>>> #> system         x86_64, mingw32
+>>> #> status
+>>> #> major          4
+>>> #> minor          3.0
+>>> #> year           2023
+>>> #> month          04
+>>> #> day            21
+>>> #> svn rev        84292
+>>> #> language       R
+>>> #> version.string R version 4.3.0 (2023-04-21 ucrt)
+>>> #> nickname       Already Tomorrow
+>>> packageVersion("Rcpp")
+>>> #> [1] '1.0.10'
+>>> ------------------------------
+>>> *From:* Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on
+>>> behalf of Dominick Samperi <djsamperi at gmail.com>
+>>> *Sent:* Tuesday, May 30, 2023 2:27 PM
+>>> *To:* rcpp-devel <Rcpp-devel at r-forge.wu-wien.ac.at>
+>>> *Subject:* [Rcpp-devel] Rcpp::sourceCpp Problem with R 4.3 update
+>>>
+>>> Looks like the recent update to R 4.3 broke Rcpp::sourceCpp.
+>>>
+>>> Here is a simple example...
+>>>
+>>> library(Rcpp)
+>>> Rcpp::sourceCpp(code='
+>>>   #include <Rcpp.h>
+>>>   using namespace Rcpp;
+>>>   // [[Rcpp::export()]]
+>>>   SEXP cpptest(NumericVector v) {
+>>>     return v;
+>>>   }'
+>>> )
+>>> cpptest(1:5)
+>>>
+>>> This works without problems under R 4.2.3, but under R 4.3 I get...
+>>>
+>>> using C++ compiler: 'G__~1.EXE (GCC) 12.2.0'
+>>> C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: internal error:
+>>> aborting at ../../binutils-2.40/ld/ldlang.c:527 in compare_section
+>>> C:\rtools43\x86_64-w64-mingw32.static.posix\bin/ld.exe: please report
+>>> this bug
+>>> collect2.exe: error: ld returned 1 exit status
+>>> g++ -std=gnu++17  -I"c:/PROGRA~1/R/R-43~1.0/include" -DNDEBUG
+>>> -I"C:/PROGRA~1/R/R-43~1.0/library/Rcpp/include"
+>>> -I"C:/Users/djsam/AppData/Local/Temp/RtmpKEsaiY/sourceCpp-x86_64-w64-mingw32-1.0.10"
+>>>   -I"C:/rtools43/x86_64-w64-mingw32.static.posix/include"     -O2 -Wall
+>>>  -mfpmath=sse -msse2 -mstackrealign  -c filebb0108a7dbf.cpp -o
+>>> filebb0108a7dbf.o
+>>> g++ -std=gnu++17 -shared -s -static-libgcc -o sourceCpp_2.dll tmp.def
+>>> filebb0108a7dbf.o -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib/x64
+>>> -LC:/rtools43/x86_64-w64-mingw32.static.posix/lib
+>>> -Lc:/PROGRA~1/R/R-43~1.0/bin/x64 -lR
+>>> Error in Rcpp::sourceCpp(code = "\n  #include <Rcpp.h>\n  using
+>>> namespace Rcpp;\n  // [[Rcpp::export()]]\n  SEXP cpptest(NumericVector v)
+>>> {\n    return v;\n  }") :
+>>>   Error occurred building shared library.
+>>>
+>>> Thanks,
+>>> Dominick
+>>>
+>>> *[EXTERNAL EMAIL]* DO NOT CLICK links or attachments unless you
+>>> recognize the sender and know the content is safe.
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230530/5405190b/attachment-0001.htm>
+

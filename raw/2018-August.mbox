@@ -1,0 +1,1736 @@
+From simon.dirmeier at web.de  Thu Aug 16 10:10:53 2018
+From: simon.dirmeier at web.de (Simon Dirmeier)
+Date: Thu, 16 Aug 2018 10:10:53 +0200
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+Message-ID: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+
+Dear all,
+
+I have a question about /R_PreserveObject /and/R_ReleaseObject 
+/and//thought this would be good place to post it.
+I apologize if the question is not suitable or naive.
+
+Suppose I have something like the class below for which I use 
+Rcpp-modules to extend it to R (code not shown).
+I use "insert" to add key-value pair to a map and "remove" to remove an 
+entry.
+
+I am not having memory issues or so, but the solution seems wrong to me 
+and I am concerned that it causes problems.
+Could you please give me some advice if this implementation is wrong or 
+unefficient?
+
+Thank you in advance.
+Best,
+Simon
+
+template<typename T>
+class map
+{
+public:
+ ??? map() = default;
+
+ ??? size_t size()
+ ??? {
+ ??????? return map_.size();
+ ??? }
+
+ ??? void insert(T& t, SEXP u)
+ ??? {
+ ??????? SEXP s = Rf_duplicate(VECTOR_ELT(u, i));
+ ??????? R_PreserveObject(s);
+
+ ??????? map_.insert(std::pair<T, SEXP>(t[i], s));
+ ??? }
+
+ ??? void remove(T& t)
+ ??? {
+ ??????????? auto iter = map_.equal_range(t);
+ ??????????? for (auto it = iter.first; it != iter.second; ++it)
+ ??????????? {
+ ??????????????? R_ReleaseObject(it->second);
+ ??????????? }
+ ??????????? map_.erase(t);
+ ??? }
+
+private:
+ ??? std::unordered_map<T, SEXP> map_;
+};
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180816/0253e173/attachment.html>
+
+From edd at debian.org  Thu Aug 16 14:00:47 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 16 Aug 2018 07:00:47 -0500
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+In-Reply-To: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+References: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+Message-ID: <23413.26479.935074.887353@rob.eddelbuettel.com>
+
+
+On 16 August 2018 at 10:10, Simon Dirmeier wrote:
+| Dear all,
+| 
+| I have a question about /R_PreserveObject /and/R_ReleaseObject 
+| /and//thought this would be good place to post it.
+| I apologize if the question is not suitable or naive.
+
+This is the place.
+ 
+| Suppose I have something like the class below for which I use 
+| Rcpp-modules to extend it to R (code not shown).
+| I use "insert" to add key-value pair to a map and "remove" to remove an 
+| entry.
+| 
+| I am not having memory issues or so, but the solution seems wrong to me
+
+I would agree. You are using a Standard Template Type; these manage their memory.
+
+The two functions you found are R internals for setting reference counters on
+SEXP objects. Think of them as 'free floating' objects -- the ones we receive
+from R or return to R. Yours is not one of those, and that it may contain
+SEXP does not matter as you do not seem to return these SEXPs to R.  If you
+did then you would have do that.
+
+And even then you should not need to as Rcpp maps every R with one of our
+classes.  These have now about 10 years of testing behind and _work_.  So why
+not take advantage of that?
+
+Of course, this is C so if you know what you are doing, you can whatever you
+want.  But then you would not need to ask this question :)
+
+Dirk
+
+| and I am concerned that it causes problems.
+| Could you please give me some advice if this implementation is wrong or 
+| unefficient?
+| 
+| Thank you in advance.
+| Best,
+| Simon
+| 
+| template<typename T>
+| class map
+| {
+| public:
+|  ??? map() = default;
+| 
+|  ??? size_t size()
+|  ??? {
+|  ??????? return map_.size();
+|  ??? }
+| 
+|  ??? void insert(T& t, SEXP u)
+|  ??? {
+|  ??????? SEXP s = Rf_duplicate(VECTOR_ELT(u, i));
+|  ??????? R_PreserveObject(s);
+| 
+|  ??????? map_.insert(std::pair<T, SEXP>(t[i], s));
+|  ??? }
+| 
+|  ??? void remove(T& t)
+|  ??? {
+|  ??????????? auto iter = map_.equal_range(t);
+|  ??????????? for (auto it = iter.first; it != iter.second; ++it)
+|  ??????????? {
+|  ??????????????? R_ReleaseObject(it->second);
+|  ??????????? }
+|  ??????????? map_.erase(t);
+|  ??? }
+| 
+| private:
+|  ??? std::unordered_map<T, SEXP> map_;
+| };
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.dirmeier at web.de  Thu Aug 16 15:20:33 2018
+From: simon.dirmeier at web.de (Simon Dirmeier)
+Date: Thu, 16 Aug 2018 15:20:33 +0200
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+In-Reply-To: <23413.26479.935074.887353@rob.eddelbuettel.com>
+References: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+ <23413.26479.935074.887353@rob.eddelbuettel.com>
+Message-ID: <17556ce7-b7f3-39ad-9b06-fab0e4daaaa4@web.de>
+
+Thanks, Dirk. I am just trying to understand how R works under the 
+surface :/.
+Correct me where I am wrong please: if I have another method called 
+/get/, then I would need to preserve the objects like I did until it is 
+removed from the map?
+
+template<typename T>
+class map
+{
+public:
+
+ ?? // as before
+
+ ?? SEXP get(T& t)
+ ??? {
+ ??????? return Rcpp::wrap(map_[t]);
+ ??? }
+
+private:
+ ??? std::unordered_map<T, SEXP> map_;
+};
+
+Best,
+Simon
+
+Am 16.08.18 um 14:00 schrieb Dirk Eddelbuettel:
+> On 16 August 2018 at 10:10, Simon Dirmeier wrote:
+> | Dear all,
+> |
+> | I have a question about /R_PreserveObject /and/R_ReleaseObject
+> | /and//thought this would be good place to post it.
+> | I apologize if the question is not suitable or naive.
+>
+> This is the place.
+>   
+> | Suppose I have something like the class below for which I use
+> | Rcpp-modules to extend it to R (code not shown).
+> | I use "insert" to add key-value pair to a map and "remove" to remove an
+> | entry.
+> |
+> | I am not having memory issues or so, but the solution seems wrong to me
+>
+> I would agree. You are using a Standard Template Type; these manage their memory.
+>
+> The two functions you found are R internals for setting reference counters on
+> SEXP objects. Think of them as 'free floating' objects -- the ones we receive
+> from R or return to R. Yours is not one of those, and that it may contain
+> SEXP does not matter as you do not seem to return these SEXPs to R.  If you
+> did then you would have do that.
+>
+> And even then you should not need to as Rcpp maps every R with one of our
+> classes.  These have now about 10 years of testing behind and _work_.  So why
+> not take advantage of that?
+>
+> Of course, this is C so if you know what you are doing, you can whatever you
+> want.  But then you would not need to ask this question :)
+>
+> Dirk
+>
+> | and I am concerned that it causes problems.
+> | Could you please give me some advice if this implementation is wrong or
+> | unefficient?
+> |
+> | Thank you in advance.
+> | Best,
+> | Simon
+> |
+> | template<typename T>
+> | class map
+> | {
+> | public:
+> |  ??? map() = default;
+> |
+> |  ??? size_t size()
+> |  ??? {
+> |  ??????? return map_.size();
+> |  ??? }
+> |
+> |  ??? void insert(T& t, SEXP u)
+> |  ??? {
+> |  ??????? SEXP s = Rf_duplicate(VECTOR_ELT(u, i));
+> |  ??????? R_PreserveObject(s);
+> |
+> |  ??????? map_.insert(std::pair<T, SEXP>(t[i], s));
+> |  ??? }
+> |
+> |  ??? void remove(T& t)
+> |  ??? {
+> |  ??????????? auto iter = map_.equal_range(t);
+> |  ??????????? for (auto it = iter.first; it != iter.second; ++it)
+> |  ??????????? {
+> |  ??????????????? R_ReleaseObject(it->second);
+> |  ??????????? }
+> |  ??????????? map_.erase(t);
+> |  ??? }
+> |
+> | private:
+> |  ??? std::unordered_map<T, SEXP> map_;
+> | };
+> |
+> |
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180816/3383f2f5/attachment.html>
+
+From edd at debian.org  Thu Aug 16 15:59:23 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 16 Aug 2018 08:59:23 -0500
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+In-Reply-To: <17556ce7-b7f3-39ad-9b06-fab0e4daaaa4@web.de>
+References: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+ <23413.26479.935074.887353@rob.eddelbuettel.com>
+ <17556ce7-b7f3-39ad-9b06-fab0e4daaaa4@web.de>
+Message-ID: <23413.33595.470194.348559@rob.eddelbuettel.com>
+
+
+On 16 August 2018 at 15:20, Simon Dirmeier wrote:
+| Thanks, Dirk. I am just trying to understand how R works under the 
+| surface :/.
+| Correct me where I am wrong please: if I have another method called 
+| /get/, then I would need to preserve the objects like I did until it is 
+| removed from the map?
+| 
+| template<typename T>
+| class map
+| {
+| public:
+| 
+|  ?? // as before
+| 
+|  ?? SEXP get(T& t)
+|  ??? {
+|  ??????? return Rcpp::wrap(map_[t]);
+|  ??? }
+| 
+| private:
+|  ??? std::unordered_map<T, SEXP> map_;
+| };
+
+You don't need to do anything else because of Rcpp. Using `wrap()` to convert
+"whatever" (as long it is supported / has a converter) is the way to go, as
+our documentation states in several places and as many other packages do.
+
+Dirk
+ 
+| Best,
+| Simon
+| 
+| Am 16.08.18 um 14:00 schrieb Dirk Eddelbuettel:
+| > On 16 August 2018 at 10:10, Simon Dirmeier wrote:
+| > | Dear all,
+| > |
+| > | I have a question about /R_PreserveObject /and/R_ReleaseObject
+| > | /and//thought this would be good place to post it.
+| > | I apologize if the question is not suitable or naive.
+| >
+| > This is the place.
+| >   
+| > | Suppose I have something like the class below for which I use
+| > | Rcpp-modules to extend it to R (code not shown).
+| > | I use "insert" to add key-value pair to a map and "remove" to remove an
+| > | entry.
+| > |
+| > | I am not having memory issues or so, but the solution seems wrong to me
+| >
+| > I would agree. You are using a Standard Template Type; these manage their memory.
+| >
+| > The two functions you found are R internals for setting reference counters on
+| > SEXP objects. Think of them as 'free floating' objects -- the ones we receive
+| > from R or return to R. Yours is not one of those, and that it may contain
+| > SEXP does not matter as you do not seem to return these SEXPs to R.  If you
+| > did then you would have do that.
+| >
+| > And even then you should not need to as Rcpp maps every R with one of our
+| > classes.  These have now about 10 years of testing behind and _work_.  So why
+| > not take advantage of that?
+| >
+| > Of course, this is C so if you know what you are doing, you can whatever you
+| > want.  But then you would not need to ask this question :)
+| >
+| > Dirk
+| >
+| > | and I am concerned that it causes problems.
+| > | Could you please give me some advice if this implementation is wrong or
+| > | unefficient?
+| > |
+| > | Thank you in advance.
+| > | Best,
+| > | Simon
+| > |
+| > | template<typename T>
+| > | class map
+| > | {
+| > | public:
+| > |  ??? map() = default;
+| > |
+| > |  ??? size_t size()
+| > |  ??? {
+| > |  ??????? return map_.size();
+| > |  ??? }
+| > |
+| > |  ??? void insert(T& t, SEXP u)
+| > |  ??? {
+| > |  ??????? SEXP s = Rf_duplicate(VECTOR_ELT(u, i));
+| > |  ??????? R_PreserveObject(s);
+| > |
+| > |  ??????? map_.insert(std::pair<T, SEXP>(t[i], s));
+| > |  ??? }
+| > |
+| > |  ??? void remove(T& t)
+| > |  ??? {
+| > |  ??????????? auto iter = map_.equal_range(t);
+| > |  ??????????? for (auto it = iter.first; it != iter.second; ++it)
+| > |  ??????????? {
+| > |  ??????????????? R_ReleaseObject(it->second);
+| > |  ??????????? }
+| > |  ??????????? map_.erase(t);
+| > |  ??? }
+| > |
+| > | private:
+| > |  ??? std::unordered_map<T, SEXP> map_;
+| > | };
+| > |
+| > |
+| > |
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| >
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Thu Aug 16 17:43:49 2018
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 16 Aug 2018 08:43:49 -0700
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+In-Reply-To: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+References: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+Message-ID: <CAJXgQP2XSJ3DTF+NJmJcFhzxqYU123T1C_tTeosszzgHojytLA@mail.gmail.com>
+
+I think the main problem is that it's easy to use your class incorrectly.
+For example:
+
+- What happens if your map is destructed? The SEXPs it is handling are
+effectively leaked.
+- What if you copy your map? Since SEXPs are pointers, you now have two
+maps containing the same pointers, and if you were to attempt to remove a
+SEXP from both maps problems would occur.
+
+Rather than attempting to manage the lifetime of these R objects in your
+map's methods, it's better to have wrapper classes that manage the lifetime
+of a single SEXP -- ie, what Rcpp does with its classes.
+
+You might consider just using e.g. std::unordered_map<T, Rcpp::RObject> if
+you need to map some arbitrary types to R objects.
+
+Best,
+Kevin
+
+On Thu, Aug 16, 2018 at 1:11 AM Simon Dirmeier <simon.dirmeier at web.de>
+wrote:
+
+> Dear all,
+> I have a question about *R_PreserveObject *and* R_ReleaseObject *and thought
+> this would be good place to post it.
+> I apologize if the question is not suitable or naive.
+>
+> Suppose I have something like the class below for which I use Rcpp-modules
+> to extend it to R (code not shown).
+> I use "insert" to add key-value pair to a map and "remove" to remove an
+> entry.
+>
+> I am not having memory issues or so, but the solution seems wrong to me
+> and I am concerned that it causes problems.
+> Could you please give me some advice if this implementation is wrong or
+> unefficient?
+>
+> Thank you in advance.
+> Best,
+> Simon
+>
+> template<typename T>
+> class map
+> {
+> public:
+>     map() = default;
+>
+>     size_t size()
+>     {
+>         return map_.size();
+>     }
+>
+>     void insert(T& t, SEXP u)
+>     {
+>         SEXP s = Rf_duplicate(VECTOR_ELT(u, i));
+>         R_PreserveObject(s);
+>
+>         map_.insert(std::pair<T, SEXP>(t[i], s));
+>     }
+>
+>     void remove(T& t)
+>     {
+>             auto iter = map_.equal_range(t);
+>             for (auto it = iter.first; it != iter.second; ++it)
+>             {
+>                 R_ReleaseObject(it->second);
+>             }
+>             map_.erase(t);
+>     }
+>
+> private:
+>     std::unordered_map<T, SEXP> map_;
+> };
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180816/f1c08446/attachment-0001.html>
+
+From edd at debian.org  Thu Aug 16 17:52:17 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 16 Aug 2018 10:52:17 -0500
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+In-Reply-To: <CAJXgQP2XSJ3DTF+NJmJcFhzxqYU123T1C_tTeosszzgHojytLA@mail.gmail.com>
+References: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+ <CAJXgQP2XSJ3DTF+NJmJcFhzxqYU123T1C_tTeosszzgHojytLA@mail.gmail.com>
+Message-ID: <23413.40369.832916.49286@rob.eddelbuettel.com>
+
+
+On 16 August 2018 at 08:43, Kevin Ushey wrote:
+| I think the main problem is that it's easy to use your class incorrectly.
+| For example:
+| 
+| - What happens if your map is destructed? The SEXPs it is handling are
+| effectively leaked.
+| - What if you copy your map? Since SEXPs are pointers, you now have two
+| maps containing the same pointers, and if you were to attempt to remove a
+| SEXP from both maps problems would occur.
+| 
+| Rather than attempting to manage the lifetime of these R objects in your
+| map's methods, it's better to have wrapper classes that manage the lifetime
+| of a single SEXP -- ie, what Rcpp does with its classes.
+| 
+| You might consider just using e.g. std::unordered_map<T, Rcpp::RObject> if
+| you need to map some arbitrary types to R objects.
+
++1, or "what he said" which I generally have on auto-loop for Kevin anyway ...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Aug 16 17:55:34 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 16 Aug 2018 10:55:34 -0500
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+In-Reply-To: <17556ce7-b7f3-39ad-9b06-fab0e4daaaa4@web.de>
+References: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+ <23413.26479.935074.887353@rob.eddelbuettel.com>
+ <17556ce7-b7f3-39ad-9b06-fab0e4daaaa4@web.de>
+Message-ID: <23413.40566.950128.88470@rob.eddelbuettel.com>
+
+
+On 16 August 2018 at 15:20, Simon Dirmeier wrote:
+| Thanks, Dirk. I am just trying to understand how R works under the 
+| surface :/.
+
+That is a noble and good goal.
+
+You may get there faster (and/or appreciate sooner just how helpful Rcpp is)
+if you did in plain C(++) and the C API of R only leaving Rcpp out. And which
+is entirely doable. We "only" have a usage penetration of around 40+ per cent
+of CRAN packages with src/ directories so it is of course entirely possibly
+to do without, and a good learning exercise if you are into this type of
+question.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.dirmeier at web.de  Fri Aug 17 09:39:06 2018
+From: simon.dirmeier at web.de (Simon Dirmeier)
+Date: Fri, 17 Aug 2018 09:39:06 +0200
+Subject: [Rcpp-devel] R_PreserveObject and R_ReleaseObject
+In-Reply-To: <23413.40369.832916.49286@rob.eddelbuettel.com>
+References: <59eb7e8f-34ee-d544-8da7-21a9992454aa@web.de>
+ <CAJXgQP2XSJ3DTF+NJmJcFhzxqYU123T1C_tTeosszzgHojytLA@mail.gmail.com>
+ <23413.40369.832916.49286@rob.eddelbuettel.com>
+Message-ID: <245ba723-7461-69c2-c9f7-0f0db1a20ceb@web.de>
+
+Thanks Dirk and Kevin. That cleared a lot of things up.
+
+Best,
+Simon
+
+Am 16.08.18 um 17:52 schrieb Dirk Eddelbuettel:
+> On 16 August 2018 at 08:43, Kevin Ushey wrote:
+> | I think the main problem is that it's easy to use your class incorrectly.
+> | For example:
+> |
+> | - What happens if your map is destructed? The SEXPs it is handling are
+> | effectively leaked.
+> | - What if you copy your map? Since SEXPs are pointers, you now have two
+> | maps containing the same pointers, and if you were to attempt to remove a
+> | SEXP from both maps problems would occur.
+> |
+> | Rather than attempting to manage the lifetime of these R objects in your
+> | map's methods, it's better to have wrapper classes that manage the lifetime
+> | of a single SEXP -- ie, what Rcpp does with its classes.
+> |
+> | You might consider just using e.g. std::unordered_map<T, Rcpp::RObject> if
+> | you need to map some arbitrary types to R objects.
+>
+> +1, or "what he said" which I generally have on auto-loop for Kevin anyway ...
+>
+> Dirk
+>
+
+
+From rhelp at eoos.dds.nl  Mon Aug 20 09:01:21 2018
+From: rhelp at eoos.dds.nl (Jan van der Laan)
+Date: Mon, 20 Aug 2018 09:01:21 +0200
+Subject: [Rcpp-devel] Passing pointers to objects between libs results in
+ weird UBSAN warning
+Message-ID: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+
+
+One of my packges gives a message with the undefined behaviour sanitiser 
+(UBSAN). I have difficulty tracking down/understanding the cause of this 
+message. However, I have been able to create a small example that 
+generates the same warning. The mail below is a bit on the long side, 
+and, I hope it is readable as it mixes quite a lot code with text. I am 
+sorry for that. A probably better readable version can be found at 
+https://github.com/djvanderlaan/lvec_ubsan where also the complete 
+source code and the docker image used for testing can be found.
+
+My example consists of two packages: pkg1 and pkg2. The package pkg2 
+links to pkg1. Package pkg1 defines a template class `FooBar<T>` which 
+inherits from virtual class `Foo`. Pointers to the these objects are 
+passed back to R using a `Rcpp:XPtr` object:
+
+     ========== pkg1/src/construct.cpp ================
+     #include "../inst/include/pkg1.h"
+
+     // [[Rcpp::export]]
+     RcppExport SEXP new_foobar(int i) {
+       BEGIN_RCPP
+       FooBar<int>* x = new FooBar<int>(i);
+       return Rcpp::XPtr<Foo>(x, true);
+       END_RCPP
+     }
+
+     // [[Rcpp::export]]
+     RcppExport SEXP new_foobard(double i) {
+       BEGIN_RCPP
+       FooBar<double>* x = new FooBar<double>(i);
+       return Rcpp::XPtr<Foo>(x, true);
+       END_RCPP
+     }
+     ========== END pkg1/src/construct.cpp ================
+
+All headers of pkg1 are `inst/include`; these are included by `pkg2`:
+
+     ========== pkg1/inst/include/pkg1.h ================
+     #include <Rcpp.h>
+
+     // ==== VISITOR
+     template<typename T> class FooBar;
+
+     class FooBarVisitor {
+       public:
+         virtual void visit(FooBar<double>& vec) = 0;
+         virtual void visit(FooBar<int>& vec) = 0;
+     };
+
+     // ==== FOO
+     class Foo {
+       public:
+         Foo() {};
+         virtual ~Foo() {};
+
+         virtual void visit(FooBarVisitor* visitor) = 0;
+     };
+
+     // ==== FOOBAR
+     template<typename T>
+     class FooBar : public Foo {
+       public:
+         FooBar(T i = 0) : Foo(), i_(i) {};
+         ~FooBar() {};
+
+         T i() const { return i_;}
+         void i(T i) { i_ = i;}
+
+         void visit(FooBarVisitor* visitor) {
+           visitor->visit(*this);
+         }
+       private:
+         T i_;
+     };
+     #endif
+     ========== END pkg1/inst/include/pkg1.h ================
+
+The XPtr is passed to c++ code in pkg2 and methods of the Foo object are 
+called:
+
+     ========== pkg2/src/construct.cpp ================
+     #include <Rcpp.h>
+     #include <pkg1.h>
+
+     // [[Rcpp::export]]
+     RcppExport int get_foobar(SEXP xp) {
+       Rcpp::XPtr<Foo> x(xp);
+       Foo* y1 = x;
+       FooBar<int>* y2 = dynamic_cast<FooBar<int>*>(y1);
+       return y2->i();
+     }
+     ========== END pkg2/src/construct.cpp ================
+
+This generates the following UBSAN messages:
+
+
+     ========== WARNING MESSAGES ================
+     Testing pkg2
+     <U+221A> | OK F W S | Context
+     / |  0       | fooconstruct.cpp:9:21: runtime error: <null> address 
+0x000003c21810 which does not point to an object of type 'Foo'
+     0x000003c21810: note: object is of type 'FooBar<int>'
+      00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20 
+00 00 00 00 00 00 00  01 03 00 00
+                   ^~~~~~~~~~~~~~~~~~~~~~~
+                   vptr for 'FooBar<int>'
+     construct.cpp:10:14: runtime error: member call on address 
+0x000003c21810 which does not point to an object of type 'FooBar<int>'
+     0x000003c21810: note: object is of type 'FooBar<int>'
+      00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20 
+00 00 00 00 00 00 00  01 03 00 00
+                   ^~~~~~~~~~~~~~~~~~~~~~~
+                   vptr for 'FooBar<int>'
+     /usr/local/lib/R/library/pkg1/include/pkg1.h:33:26: runtime error: 
+member access within address 0x000003c21810 which does not point to an 
+object of type 'const FooBar<int>'
+     0x000003c21810: note: object is of type 'FooBar<int>'
+      00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20 
+00 00 00 00 00 00 00  01 03 00 00
+                   ^~~~~~~~~~~~~~~~~~~~~~~
+                   vptr for 'FooBar<int>'
+     <U+221A> |  1       | foo
+     ========== END WARNING MESSAGES ================
+
+
+I have had real problem reproducing this error. Also searching for the 
+error give little clues as to what the problem is. The following message 
+on the Rcpp-devel list seems somewhat similar: 
+http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2017-July/009656.html. 
+I thought that it might be caused by the fact that I am passing pointers 
+to template classes between libraries. I also couldn't find much about 
+that. I did find some messages on passing pointers to STL objects 
+between libraries. That should be ok, as long as the same compiler is 
+used for both libraries. Although that might technically still make it 
+undefined behaviour.
+
+So, help!?
+
+Jan
+
+
+
+
+
+
+From iucar at fedoraproject.org  Mon Aug 20 15:35:31 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 20 Aug 2018 15:35:31 +0200
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+Message-ID: <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+
+El lun., 20 ago. 2018 a las 9:01, Jan van der Laan
+(<rhelp at eoos.dds.nl>) escribi?:
+>
+>
+> One of my packges gives a message with the undefined behaviour sanitiser
+> (UBSAN). I have difficulty tracking down/understanding the cause of this
+> message. However, I have been able to create a small example that
+> generates the same warning. The mail below is a bit on the long side,
+> and, I hope it is readable as it mixes quite a lot code with text. I am
+> sorry for that. A probably better readable version can be found at
+> https://github.com/djvanderlaan/lvec_ubsan where also the complete
+> source code and the docker image used for testing can be found.
+>
+> My example consists of two packages: pkg1 and pkg2. The package pkg2
+> links to pkg1. Package pkg1 defines a template class `FooBar<T>` which
+> inherits from virtual class `Foo`. Pointers to the these objects are
+> passed back to R using a `Rcpp:XPtr` object:
+>
+>      ========== pkg1/src/construct.cpp ================
+>      #include "../inst/include/pkg1.h"
+>
+>      // [[Rcpp::export]]
+>      RcppExport SEXP new_foobar(int i) {
+>        BEGIN_RCPP
+>        FooBar<int>* x = new FooBar<int>(i);
+>        return Rcpp::XPtr<Foo>(x, true);
+>        END_RCPP
+>      }
+
+Note that RcppExport SEXP should be just SEXP. BEGIN_RCPP and END_RCPP
+should be dropped too.
+
+>      // [[Rcpp::export]]
+>      RcppExport SEXP new_foobard(double i) {
+>        BEGIN_RCPP
+>        FooBar<double>* x = new FooBar<double>(i);
+>        return Rcpp::XPtr<Foo>(x, true);
+>        END_RCPP
+>      }
+>      ========== END pkg1/src/construct.cpp ================
+>
+> All headers of pkg1 are `inst/include`; these are included by `pkg2`:
+>
+>      ========== pkg1/inst/include/pkg1.h ================
+>      #include <Rcpp.h>
+>
+>      // ==== VISITOR
+>      template<typename T> class FooBar;
+>
+>      class FooBarVisitor {
+>        public:
+>          virtual void visit(FooBar<double>& vec) = 0;
+>          virtual void visit(FooBar<int>& vec) = 0;
+>      };
+>
+>      // ==== FOO
+>      class Foo {
+>        public:
+>          Foo() {};
+>          virtual ~Foo() {};
+>
+>          virtual void visit(FooBarVisitor* visitor) = 0;
+>      };
+>
+>      // ==== FOOBAR
+>      template<typename T>
+>      class FooBar : public Foo {
+>        public:
+>          FooBar(T i = 0) : Foo(), i_(i) {};
+>          ~FooBar() {};
+>
+>          T i() const { return i_;}
+>          void i(T i) { i_ = i;}
+>
+>          void visit(FooBarVisitor* visitor) {
+>            visitor->visit(*this);
+>          }
+>        private:
+>          T i_;
+>      };
+>      #endif
+>      ========== END pkg1/inst/include/pkg1.h ================
+>
+> The XPtr is passed to c++ code in pkg2 and methods of the Foo object are
+> called:
+>
+>      ========== pkg2/src/construct.cpp ================
+>      #include <Rcpp.h>
+>      #include <pkg1.h>
+>
+>      // [[Rcpp::export]]
+>      RcppExport int get_foobar(SEXP xp) {
+>        Rcpp::XPtr<Foo> x(xp);
+>        Foo* y1 = x;
+>        FooBar<int>* y2 = dynamic_cast<FooBar<int>*>(y1);
+>        return y2->i();
+>      }
+>      ========== END pkg2/src/construct.cpp ================
+>
+> This generates the following UBSAN messages:
+>
+>
+>      ========== WARNING MESSAGES ================
+>      Testing pkg2
+>      <U+221A> | OK F W S | Context
+>      / |  0       | fooconstruct.cpp:9:21: runtime error: <null> address
+> 0x000003c21810 which does not point to an object of type 'Foo'
+>      0x000003c21810: note: object is of type 'FooBar<int>'
+>       00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20
+> 00 00 00 00 00 00 00  01 03 00 00
+>                    ^~~~~~~~~~~~~~~~~~~~~~~
+>                    vptr for 'FooBar<int>'
+>      construct.cpp:10:14: runtime error: member call on address
+> 0x000003c21810 which does not point to an object of type 'FooBar<int>'
+>      0x000003c21810: note: object is of type 'FooBar<int>'
+>       00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20
+> 00 00 00 00 00 00 00  01 03 00 00
+>                    ^~~~~~~~~~~~~~~~~~~~~~~
+>                    vptr for 'FooBar<int>'
+>      /usr/local/lib/R/library/pkg1/include/pkg1.h:33:26: runtime error:
+> member access within address 0x000003c21810 which does not point to an
+> object of type 'const FooBar<int>'
+>      0x000003c21810: note: object is of type 'FooBar<int>'
+>       00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20
+> 00 00 00 00 00 00 00  01 03 00 00
+>                    ^~~~~~~~~~~~~~~~~~~~~~~
+>                    vptr for 'FooBar<int>'
+>      <U+221A> |  1       | foo
+>      ========== END WARNING MESSAGES ================
+>
+>
+> I have had real problem reproducing this error. Also searching for the
+> error give little clues as to what the problem is. The following message
+> on the Rcpp-devel list seems somewhat similar:
+> http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2017-July/009656.html.
+> I thought that it might be caused by the fact that I am passing pointers
+> to template classes between libraries. I also couldn't find much about
+> that. I did find some messages on passing pointers to STL objects
+> between libraries. That should be ok, as long as the same compiler is
+> used for both libraries. Although that might technically still make it
+> undefined behaviour.
+
+pkg2 compiles a shared library using pkg1's headers, but it does not
+link against libpkg1.so (in general, this is not possible in R). So
+both libpkg2.so and libpkg1.so define two copies of the same types,
+Foo and FooBar. pkg2 allocates FooBar from libpkg1.so and then
+dynamically casts it as FooBar from libpkg2.so. This is why clang
+complains. It has to do with how RTTI comparisons are done across
+dynamic objects (see, e.g.,
+https://whatofhow.wordpress.com/2015/03/17/odr-rtti-dso/).
+
+I'd say that these errors can be safely ignored, because types are
+exactly the same. Anyway, shouldn't it be easier to export get_foobar
+in pkg1?
+
+I?aki
+
+>
+> So, help!?
+>
+> Jan
+>
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+I?aki Ucar
+
+From edd at debian.org  Mon Aug 20 16:01:31 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 20 Aug 2018 09:01:31 -0500
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+Message-ID: <23418.51643.674626.309116@rob.eddelbuettel.com>
+
+
+On 20 August 2018 at 15:35, I?aki Ucar wrote:
+| El lun., 20 ago. 2018 a las 9:01, Jan van der Laan
+| (<rhelp at eoos.dds.nl>) escribi?:
+| >
+| >
+| > One of my packges gives a message with the undefined behaviour sanitiser
+| > (UBSAN). I have difficulty tracking down/understanding the cause of this
+| > message. However, I have been able to create a small example that
+| > generates the same warning. The mail below is a bit on the long side,
+| > and, I hope it is readable as it mixes quite a lot code with text. I am
+| > sorry for that. A probably better readable version can be found at
+| > https://github.com/djvanderlaan/lvec_ubsan where also the complete
+| > source code and the docker image used for testing can be found.
+| >
+| > My example consists of two packages: pkg1 and pkg2. The package pkg2
+| > links to pkg1. Package pkg1 defines a template class `FooBar<T>` which
+| > inherits from virtual class `Foo`. Pointers to the these objects are
+| > passed back to R using a `Rcpp:XPtr` object:
+| >
+| >      ========== pkg1/src/construct.cpp ================
+| >      #include "../inst/include/pkg1.h"
+| >
+| >      // [[Rcpp::export]]
+| >      RcppExport SEXP new_foobar(int i) {
+| >        BEGIN_RCPP
+| >        FooBar<int>* x = new FooBar<int>(i);
+| >        return Rcpp::XPtr<Foo>(x, true);
+| >        END_RCPP
+| >      }
+| 
+| Note that RcppExport SEXP should be just SEXP. BEGIN_RCPP and END_RCPP
+| should be dropped too.
+
++1
+
+Or else don't use [[Rcpp::export]] and Rcpp::compileAttributes().
+
+Dirk
+ 
+| >      // [[Rcpp::export]]
+| >      RcppExport SEXP new_foobard(double i) {
+| >        BEGIN_RCPP
+| >        FooBar<double>* x = new FooBar<double>(i);
+| >        return Rcpp::XPtr<Foo>(x, true);
+| >        END_RCPP
+| >      }
+| >      ========== END pkg1/src/construct.cpp ================
+| >
+| > All headers of pkg1 are `inst/include`; these are included by `pkg2`:
+| >
+| >      ========== pkg1/inst/include/pkg1.h ================
+| >      #include <Rcpp.h>
+| >
+| >      // ==== VISITOR
+| >      template<typename T> class FooBar;
+| >
+| >      class FooBarVisitor {
+| >        public:
+| >          virtual void visit(FooBar<double>& vec) = 0;
+| >          virtual void visit(FooBar<int>& vec) = 0;
+| >      };
+| >
+| >      // ==== FOO
+| >      class Foo {
+| >        public:
+| >          Foo() {};
+| >          virtual ~Foo() {};
+| >
+| >          virtual void visit(FooBarVisitor* visitor) = 0;
+| >      };
+| >
+| >      // ==== FOOBAR
+| >      template<typename T>
+| >      class FooBar : public Foo {
+| >        public:
+| >          FooBar(T i = 0) : Foo(), i_(i) {};
+| >          ~FooBar() {};
+| >
+| >          T i() const { return i_;}
+| >          void i(T i) { i_ = i;}
+| >
+| >          void visit(FooBarVisitor* visitor) {
+| >            visitor->visit(*this);
+| >          }
+| >        private:
+| >          T i_;
+| >      };
+| >      #endif
+| >      ========== END pkg1/inst/include/pkg1.h ================
+| >
+| > The XPtr is passed to c++ code in pkg2 and methods of the Foo object are
+| > called:
+| >
+| >      ========== pkg2/src/construct.cpp ================
+| >      #include <Rcpp.h>
+| >      #include <pkg1.h>
+| >
+| >      // [[Rcpp::export]]
+| >      RcppExport int get_foobar(SEXP xp) {
+| >        Rcpp::XPtr<Foo> x(xp);
+| >        Foo* y1 = x;
+| >        FooBar<int>* y2 = dynamic_cast<FooBar<int>*>(y1);
+| >        return y2->i();
+| >      }
+| >      ========== END pkg2/src/construct.cpp ================
+| >
+| > This generates the following UBSAN messages:
+| >
+| >
+| >      ========== WARNING MESSAGES ================
+| >      Testing pkg2
+| >      <U+221A> | OK F W S | Context
+| >      / |  0       | fooconstruct.cpp:9:21: runtime error: <null> address
+| > 0x000003c21810 which does not point to an object of type 'Foo'
+| >      0x000003c21810: note: object is of type 'FooBar<int>'
+| >       00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20
+| > 00 00 00 00 00 00 00  01 03 00 00
+| >                    ^~~~~~~~~~~~~~~~~~~~~~~
+| >                    vptr for 'FooBar<int>'
+| >      construct.cpp:10:14: runtime error: member call on address
+| > 0x000003c21810 which does not point to an object of type 'FooBar<int>'
+| >      0x000003c21810: note: object is of type 'FooBar<int>'
+| >       00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20
+| > 00 00 00 00 00 00 00  01 03 00 00
+| >                    ^~~~~~~~~~~~~~~~~~~~~~~
+| >                    vptr for 'FooBar<int>'
+| >      /usr/local/lib/R/library/pkg1/include/pkg1.h:33:26: runtime error:
+| > member access within address 0x000003c21810 which does not point to an
+| > object of type 'const FooBar<int>'
+| >      0x000003c21810: note: object is of type 'FooBar<int>'
+| >       00 00 00 00  58 1c 79 fd 48 7f 00 00  0a 00 00 00 00 00 00 00  20
+| > 00 00 00 00 00 00 00  01 03 00 00
+| >                    ^~~~~~~~~~~~~~~~~~~~~~~
+| >                    vptr for 'FooBar<int>'
+| >      <U+221A> |  1       | foo
+| >      ========== END WARNING MESSAGES ================
+| >
+| >
+| > I have had real problem reproducing this error. Also searching for the
+| > error give little clues as to what the problem is. The following message
+| > on the Rcpp-devel list seems somewhat similar:
+| > http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2017-July/009656.html.
+| > I thought that it might be caused by the fact that I am passing pointers
+| > to template classes between libraries. I also couldn't find much about
+| > that. I did find some messages on passing pointers to STL objects
+| > between libraries. That should be ok, as long as the same compiler is
+| > used for both libraries. Although that might technically still make it
+| > undefined behaviour.
+| 
+| pkg2 compiles a shared library using pkg1's headers, but it does not
+| link against libpkg1.so (in general, this is not possible in R). So
+| both libpkg2.so and libpkg1.so define two copies of the same types,
+| Foo and FooBar. pkg2 allocates FooBar from libpkg1.so and then
+| dynamically casts it as FooBar from libpkg2.so. This is why clang
+| complains. It has to do with how RTTI comparisons are done across
+| dynamic objects (see, e.g.,
+| https://whatofhow.wordpress.com/2015/03/17/odr-rtti-dso/).
+| 
+| I'd say that these errors can be safely ignored, because types are
+| exactly the same. Anyway, shouldn't it be easier to export get_foobar
+| in pkg1?
+
+The only thought I had so far (and I had no time to play with the code) is to
+maybe wrap Rcpp::Shield<> around the XPtr object.
+
+Dirk
+
+| 
+| I?aki
+| 
+| >
+| > So, help!?
+| >
+| > Jan
+| >
+| >
+| >
+| >
+| >
+| > _______________________________________________
+| > Rcpp-devel mailing list
+| > Rcpp-devel at lists.r-forge.r-project.org
+| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| 
+| 
+| -- 
+| I?aki Ucar
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rhelp at eoos.dds.nl  Mon Aug 20 16:18:10 2018
+From: rhelp at eoos.dds.nl (Jan van der Laan)
+Date: Mon, 20 Aug 2018 16:18:10 +0200
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+Message-ID: <0fd0232c-a90b-3cc1-835c-fedd96135076@eoos.dds.nl>
+
+
+
+On 20-08-18 15:35, I?aki Ucar wrote:
+> El lun., 20 ago. 2018 a las 9:01, Jan van der Laan
+> (<rhelp at eoos.dds.nl>) escribi?:
+>>
+
+[SNIP]
+
+>>       ========== pkg1/src/construct.cpp ================
+>>       #include "../inst/include/pkg1.h"
+>>
+>>       // [[Rcpp::export]]
+>>       RcppExport SEXP new_foobar(int i) {
+>>         BEGIN_RCPP
+>>         FooBar<int>* x = new FooBar<int>(i);
+>>         return Rcpp::XPtr<Foo>(x, true);
+>>         END_RCPP
+>>       }
+> 
+> Note that RcppExport SEXP should be just SEXP. BEGIN_RCPP and END_RCPP
+> should be dropped too.
+
+You are right. Thanks. Mixing up old and new code.
+
+[SNIP]
+
+
+> 
+> pkg2 compiles a shared library using pkg1's headers, but it does not
+> link against libpkg1.so (in general, this is not possible in R). So
+> both libpkg2.so and libpkg1.so define two copies of the same types,
+> Foo and FooBar. pkg2 allocates FooBar from libpkg1.so and then
+> dynamically casts it as FooBar from libpkg2.so. This is why clang
+> complains. It has to do with how RTTI comparisons are done across
+> dynamic objects (see, e.g.,
+> https://whatofhow.wordpress.com/2015/03/17/odr-rtti-dso/).
+
+This is roughly what I suspected. However, if I understand that article 
+correctly problems should only occur with clang (which I am using; 
+didn't mention that) and not with g++. However, the problems also occur 
+with g++ 
+(https://www.stats.ox.ac.uk/pub/bdr/memtests/gcc-UBSAN/ldat/ldat-Ex.Rout).
+
+
+> 
+> I'd say that these errors can be safely ignored, because types are
+> exactly the same. Anyway, shouldn't it be easier to export get_foobar
+> in pkg1?
+
+Don't know how easy it is to convince the CRAN members to ignore the 
+warnings. Of course, in this simple case, it is easier to define 
+get_foobar in pkg1, but in the general case, for performance reasons, I 
+would like to be able to access FooBar from other packages from c++ code.
+
+
+Thanks for the response.
+
+Jan
+
+
+
+
+
+
+
+> 
+> I?aki
+> 
+>>
+>> So, help!?
+>>
+>> Jan
+>>
+>>
+>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+> 
+> 
+
+From rhelp at eoos.dds.nl  Mon Aug 20 16:26:22 2018
+From: rhelp at eoos.dds.nl (Jan van der Laan)
+Date: Mon, 20 Aug 2018 16:26:22 +0200
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <23418.51643.674626.309116@rob.eddelbuettel.com>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+ <23418.51643.674626.309116@rob.eddelbuettel.com>
+Message-ID: <f2f3a61a-ea6c-7ef7-3884-39d930adc71a@eoos.dds.nl>
+
+Hi Dirk,
+
+The suggestion of I?aki has been changed in the github code and also the 
+visitor stuff is not needed to trigger the exception.
+
+
+On 20-08-18 16:01, Dirk Eddelbuettel wrote:
+
+> 
+> The only thought I had so far (and I had no time to play with the code) is to
+> maybe wrap Rcpp::Shield<> around the XPtr object.
+
+I have to say that I am currently on the subway with a spotty internet 
+connection, so searching is hard, but I have trouble finding 
+documentation for shield. From what I could find, it would call a 
+PROTECT on contruction and UNPROTECT on destruction. Is that correct. 
+Should I do that in pkg1 or pkg2?
+
+Thanks.
+
+Jan
+
+> 
+> Dirk
+> 
+
+
+
+
+From edd at debian.org  Mon Aug 20 17:39:43 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 20 Aug 2018 10:39:43 -0500
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <f2f3a61a-ea6c-7ef7-3884-39d930adc71a@eoos.dds.nl>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+ <23418.51643.674626.309116@rob.eddelbuettel.com>
+ <f2f3a61a-ea6c-7ef7-3884-39d930adc71a@eoos.dds.nl>
+Message-ID: <23418.57535.310752.481443@rob.eddelbuettel.com>
+
+
+On 20 August 2018 at 16:26, Jan van der Laan wrote:
+| Hi Dirk,
+| 
+| The suggestion of I?aki has been changed in the github code and also the 
+| visitor stuff is not needed to trigger the exception.
+| 
+| 
+| On 20-08-18 16:01, Dirk Eddelbuettel wrote:
+| 
+| > 
+| > The only thought I had so far (and I had no time to play with the code) is to
+| > maybe wrap Rcpp::Shield<> around the XPtr object.
+| 
+| I have to say that I am currently on the subway with a spotty internet 
+| connection, so searching is hard, but I have trouble finding 
+| documentation for shield. From what I could find, it would call a
+
+There is very little of that :-/
+
+| PROTECT on contruction and UNPROTECT on destruction. Is that correct. 
+| Should I do that in pkg1 or pkg2?
+
+I would. In essence in C++ you the ctor and dtor "for free" and we use that
+to wrap objects.  And generally speaking that is better stronger than the
+PROTECT and UNPROTECT as we can rely on the scope resolution to have it
+triggered. So I would try it. Then again, it may not help, but we find it
+made the Rcpp code better.
+
+Dirk
+
+| Thanks.
+| 
+| Jan
+| 
+| > 
+| > Dirk
+| > 
+| 
+| 
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Mon Aug 20 17:44:09 2018
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Mon, 20 Aug 2018 08:44:09 -0700
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <23418.57535.310752.481443@rob.eddelbuettel.com>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+ <23418.51643.674626.309116@rob.eddelbuettel.com>
+ <f2f3a61a-ea6c-7ef7-3884-39d930adc71a@eoos.dds.nl>
+ <23418.57535.310752.481443@rob.eddelbuettel.com>
+Message-ID: <CAJXgQP3eT0c+b9MFeY9YHpeuJHh8Wj_jCBRmabE+BJ8XBAUrcg@mail.gmail.com>
+
+FWIW, there's an associated bug report here:
+
+    https://github.com/google/sanitizers/issues/911
+
+that indicates that ubsan emits false positives when attempting to diagnose
+functions opened through dlopen(), which IIUC is the standard way that R
+loads symbols from compiled libraries in R packages.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180820/904dd962/attachment.html>
+
+From iucar at fedoraproject.org  Mon Aug 20 17:59:19 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 20 Aug 2018 17:59:19 +0200
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <0fd0232c-a90b-3cc1-835c-fedd96135076@eoos.dds.nl>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+ <0fd0232c-a90b-3cc1-835c-fedd96135076@eoos.dds.nl>
+Message-ID: <CALEXWq0XAN77m9c9NtR_fjbska5rciNHNYkHVDPFk0hcTU_yYQ@mail.gmail.com>
+
+El lun., 20 ago. 2018 a las 16:18, Jan van der Laan
+(<rhelp at eoos.dds.nl>) escribi?:
+>
+> > pkg2 compiles a shared library using pkg1's headers, but it does not
+> > link against libpkg1.so (in general, this is not possible in R). So
+> > both libpkg2.so and libpkg1.so define two copies of the same types,
+> > Foo and FooBar. pkg2 allocates FooBar from libpkg1.so and then
+> > dynamically casts it as FooBar from libpkg2.so. This is why clang
+> > complains. It has to do with how RTTI comparisons are done across
+> > dynamic objects (see, e.g.,
+> > https://whatofhow.wordpress.com/2015/03/17/odr-rtti-dso/).
+>
+> This is roughly what I suspected. However, if I understand that article
+> correctly problems should only occur with clang (which I am using;
+> didn't mention that) and not with g++. However, the problems also occur
+> with g++
+> (https://www.stats.ox.ac.uk/pub/bdr/memtests/gcc-UBSAN/ldat/ldat-Ex.Rout).
+
+I don't know, maybe things have changed in recent versions of gcc.
+
+> > I'd say that these errors can be safely ignored, because types are
+> > exactly the same. Anyway, shouldn't it be easier to export get_foobar
+> > in pkg1?
+>
+> Don't know how easy it is to convince the CRAN members to ignore the
+> warnings. Of course, in this simple case, it is easier to define
+> get_foobar in pkg1, but in the general case, for performance reasons, I
+> would like to be able to access FooBar from other packages from c++ code.
+
+I've just submitted a PR to your repo that fixes the issue:
+https://github.com/djvanderlaan/lvec_ubsan/pull/1
+
+Copy&paste of the explanation there, for the interest of this list:
+
+Instead of using useDynLib in the NAMESPACE, this patch loads the
+library using library.dynam in .onLoad. In this way, we can take
+advantage of library.dynam's dots, which are mapped into the
+subsequent dyn.load call. This call has local=TRUE by default, i.e.,
+dlopen is called with the RTLD_LOCALattribute. Instead, local=FALSE
+sets RTLD_GLOBAL, which makes type_info from pkg1 available globally,
+and thus the RTTI error goes away.
+
+I?aki
+
+>
+>
+> Thanks for the response.
+>
+> Jan
+>
+>
+>
+>
+>
+>
+>
+> >
+> > I?aki
+> >
+> >>
+> >> So, help!?
+> >>
+> >> Jan
+> >>
+> >>
+> >>
+> >>
+> >>
+> >> _______________________________________________
+> >> Rcpp-devel mailing list
+> >> Rcpp-devel at lists.r-forge.r-project.org
+> >> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+> >
+> >
+
+
+
+-- 
+I?aki Ucar
+
+From rhelp at eoos.dds.nl  Mon Aug 20 22:16:10 2018
+From: rhelp at eoos.dds.nl (Jan van der Laan)
+Date: Mon, 20 Aug 2018 22:16:10 +0200
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <CALEXWq0XAN77m9c9NtR_fjbska5rciNHNYkHVDPFk0hcTU_yYQ@mail.gmail.com>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+ <0fd0232c-a90b-3cc1-835c-fedd96135076@eoos.dds.nl>
+ <CALEXWq0XAN77m9c9NtR_fjbska5rciNHNYkHVDPFk0hcTU_yYQ@mail.gmail.com>
+Message-ID: <517aa020-3240-ee8a-e8bc-7a059784e7e7@eoos.dds.nl>
+
+
+
+On 20-08-18 17:59, I?aki Ucar wrote:
+> El lun., 20 ago. 2018 a las 16:18, Jan van der Laan
+> (<rhelp at eoos.dds.nl>) escribi?:
+>>> pkg2 compiles a shared library using pkg1's headers, but it does not
+>>> link against libpkg1.so (in general, this is not possible in R). So
+>>> both libpkg2.so and libpkg1.so define two copies of the same types,
+>>> Foo and FooBar. pkg2 allocates FooBar from libpkg1.so and then
+>>> dynamically casts it as FooBar from libpkg2.so. This is why clang
+>>> complains. It has to do with how RTTI comparisons are done across
+>>> dynamic objects (see, e.g.,
+>>> https://whatofhow.wordpress.com/2015/03/17/odr-rtti-dso/).
+>> This is roughly what I suspected. However, if I understand that article
+>> correctly problems should only occur with clang (which I am using;
+>> didn't mention that) and not with g++. However, the problems also occur
+>> with g++
+>> (https://www.stats.ox.ac.uk/pub/bdr/memtests/gcc-UBSAN/ldat/ldat-Ex.Rout).
+> I don't know, maybe things have changed in recent versions of gcc.
+>
+>>> I'd say that these errors can be safely ignored, because types are
+>>> exactly the same. Anyway, shouldn't it be easier to export get_foobar
+>>> in pkg1?
+>> Don't know how easy it is to convince the CRAN members to ignore the
+>> warnings. Of course, in this simple case, it is easier to define
+>> get_foobar in pkg1, but in the general case, for performance reasons, I
+>> would like to be able to access FooBar from other packages from c++ code.
+> I've just submitted a PR to your repo that fixes the issue:
+> https://github.com/djvanderlaan/lvec_ubsan/pull/1
+>
+> Copy&paste of the explanation there, for the interest of this list:
+>
+> Instead of using useDynLib in the NAMESPACE, this patch loads the
+> library using library.dynam in .onLoad. In this way, we can take
+> advantage of library.dynam's dots, which are mapped into the
+> subsequent dyn.load call. This call has local=TRUE by default, i.e.,
+> dlopen is called with the RTLD_LOCALattribute. Instead, local=FALSE
+> sets RTLD_GLOBAL, which makes type_info from pkg1 available globally,
+> and thus the RTTI error goes away.
+
+OK, this seems to fix it. Not sure if the CRAN people like it when I 
+register my symbols globally as this could bite other packages with the 
+same symbol names. If I understand correctly; I am trying to read in on 
+this stuff :-S
+
+Tomorrow I will check with lvec and ldat.
+
+Thanks.
+
+Jan
+
+
+
+
+
+
+
+>
+> I?aki
+>
+>>
+>> Thanks for the response.
+>>
+>> Jan
+>>
+>>
+>>
+>>
+>>
+>>
+>>
+>>> I?aki
+>>>
+>>>> So, help!?
+>>>>
+>>>> Jan
+>>>>
+>>>>
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Rcpp-devel mailing list
+>>>> Rcpp-devel at lists.r-forge.r-project.org
+>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>>
+>
+>
+
+
+From iucar at fedoraproject.org  Mon Aug 20 22:32:03 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 20 Aug 2018 22:32:03 +0200
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <517aa020-3240-ee8a-e8bc-7a059784e7e7@eoos.dds.nl>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+ <0fd0232c-a90b-3cc1-835c-fedd96135076@eoos.dds.nl>
+ <CALEXWq0XAN77m9c9NtR_fjbska5rciNHNYkHVDPFk0hcTU_yYQ@mail.gmail.com>
+ <517aa020-3240-ee8a-e8bc-7a059784e7e7@eoos.dds.nl>
+Message-ID: <CALEXWq2dnryM+oGre69E1Rpz7DyjDq+046Hb5jQgzsQMZ8MwLQ@mail.gmail.com>
+
+El lun., 20 ago. 2018 a las 22:16, Jan van der Laan
+(<rhelp at eoos.dds.nl>) escribi?:
+>
+> On 20-08-18 17:59, I?aki Ucar wrote:
+> > El lun., 20 ago. 2018 a las 16:18, Jan van der Laan
+> > (<rhelp at eoos.dds.nl>) escribi?:
+> >>> pkg2 compiles a shared library using pkg1's headers, but it does not
+> >>> link against libpkg1.so (in general, this is not possible in R). So
+> >>> both libpkg2.so and libpkg1.so define two copies of the same types,
+> >>> Foo and FooBar. pkg2 allocates FooBar from libpkg1.so and then
+> >>> dynamically casts it as FooBar from libpkg2.so. This is why clang
+> >>> complains. It has to do with how RTTI comparisons are done across
+> >>> dynamic objects (see, e.g.,
+> >>> https://whatofhow.wordpress.com/2015/03/17/odr-rtti-dso/).
+> >> This is roughly what I suspected. However, if I understand that article
+> >> correctly problems should only occur with clang (which I am using;
+> >> didn't mention that) and not with g++. However, the problems also occur
+> >> with g++
+> >> (https://www.stats.ox.ac.uk/pub/bdr/memtests/gcc-UBSAN/ldat/ldat-Ex.Rout).
+> > I don't know, maybe things have changed in recent versions of gcc.
+> >
+> >>> I'd say that these errors can be safely ignored, because types are
+> >>> exactly the same. Anyway, shouldn't it be easier to export get_foobar
+> >>> in pkg1?
+> >> Don't know how easy it is to convince the CRAN members to ignore the
+> >> warnings. Of course, in this simple case, it is easier to define
+> >> get_foobar in pkg1, but in the general case, for performance reasons, I
+> >> would like to be able to access FooBar from other packages from c++ code.
+> > I've just submitted a PR to your repo that fixes the issue:
+> > https://github.com/djvanderlaan/lvec_ubsan/pull/1
+> >
+> > Copy&paste of the explanation there, for the interest of this list:
+> >
+> > Instead of using useDynLib in the NAMESPACE, this patch loads the
+> > library using library.dynam in .onLoad. In this way, we can take
+> > advantage of library.dynam's dots, which are mapped into the
+> > subsequent dyn.load call. This call has local=TRUE by default, i.e.,
+> > dlopen is called with the RTLD_LOCALattribute. Instead, local=FALSE
+> > sets RTLD_GLOBAL, which makes type_info from pkg1 available globally,
+> > and thus the RTTI error goes away.
+>
+> OK, this seems to fix it. Not sure if the CRAN people like it when I
+> register my symbols globally as this could bite other packages with the
+> same symbol names. If I understand correctly; I am trying to read in on
+> this stuff :-S
+
+This is something that could be done on CRAN in those machines that
+perform UBSAN checks. I suggested it here:
+
+https://stat.ethz.ch/pipermail/r-devel/2018-August/076636.html
+
+One thing you could do is to try to detect whether lvec is being
+compiled with sanitizers and then set that flag. But probably it's not
+worth it so much trouble.
+
+I?aki
+
+>
+> Tomorrow I will check with lvec and ldat.
+>
+> Thanks.
+>
+> Jan
+>
+>
+>
+>
+>
+>
+>
+> >
+> > I?aki
+> >
+> >>
+> >> Thanks for the response.
+> >>
+> >> Jan
+> >>
+> >>
+> >>
+> >>
+> >>
+> >>
+> >>
+> >>> I?aki
+> >>>
+> >>>> So, help!?
+> >>>>
+> >>>> Jan
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>> _______________________________________________
+> >>>> Rcpp-devel mailing list
+> >>>> Rcpp-devel at lists.r-forge.r-project.org
+> >>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >>>
+> >>>
+> >
+> >
+>
+
+
+-- 
+I?aki Ucar
+
+From edd at debian.org  Mon Aug 20 22:47:51 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 20 Aug 2018 15:47:51 -0500
+Subject: [Rcpp-devel] Passing pointers to objects between libs results
+ in weird UBSAN warning
+In-Reply-To: <517aa020-3240-ee8a-e8bc-7a059784e7e7@eoos.dds.nl>
+References: <2c7e506a-bae9-1c91-4738-214290379517@eoos.dds.nl>
+ <CALEXWq2yDszV5UoT7y1m7fzikjA4Nvq_S5ntay0dvMy2kie3HQ@mail.gmail.com>
+ <0fd0232c-a90b-3cc1-835c-fedd96135076@eoos.dds.nl>
+ <CALEXWq0XAN77m9c9NtR_fjbska5rciNHNYkHVDPFk0hcTU_yYQ@mail.gmail.com>
+ <517aa020-3240-ee8a-e8bc-7a059784e7e7@eoos.dds.nl>
+Message-ID: <23419.10487.945483.806903@rob.eddelbuettel.com>
+
+
+On 20 August 2018 at 22:16, Jan van der Laan wrote:
+| > Instead of using useDynLib in the NAMESPACE, this patch loads the
+| > library using library.dynam in .onLoad. In this way, we can take
+| > advantage of library.dynam's dots, which are mapped into the
+| > subsequent dyn.load call. This call has local=TRUE by default, i.e.,
+| > dlopen is called with the RTLD_LOCALattribute. Instead, local=FALSE
+| > sets RTLD_GLOBAL, which makes type_info from pkg1 available globally,
+| > and thus the RTTI error goes away.
+
+A looooong time ago I had the same issue with package Rmpi because the Open
+MPI library used three different shared libraries and, as I recall, one
+needed the RTLD_GLOBAL to have visibilty.
+
+Rmpi still does that:
+
+  src/Rmpi.c
+  77:    if (!dlopen("libmpi.so.1", RTLD_GLOBAL | RTLD_LAZY) 
+  78:     && !dlopen("libmpi.so.0", RTLD_GLOBAL | RTLD_LAZY)
+  79:     && !dlopen("libmpi.so", RTLD_GLOBAL | RTLD_LAZY)) {
+
+So as a last resort, you could do something like that. But I don't recommend
+setting you your own system for shared libraries etc. That way lies madness.
+
+| OK, this seems to fix it. Not sure if the CRAN people like it when I 
+| register my symbols globally as this could bite other packages with the 
+| same symbol names. If I understand correctly; I am trying to read in on 
+| this stuff :-S
+| 
+| Tomorrow I will check with lvec and ldat.
+
+These are all cool packages and we should work on making them easily
+interoperable. I like how yours build on top of each other.
+
+Thanks also to I?aki for the very on-target help.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

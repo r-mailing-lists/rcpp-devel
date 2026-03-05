@@ -1,0 +1,4547 @@
+From mark.clements at ki.se  Fri Jan  2 21:45:08 2015
+From: mark.clements at ki.se (Mark Clements)
+Date: Fri, 2 Jan 2015 20:45:08 +0000
+Subject: [Rcpp-devel] Best Practice for Optimize Functions in RCPP
+References: <CAG1NpbwxjXyob2ORZQAavuJVtEiFe5fFNkfUgmudaR1Tm5izDQ@mail.gmail.com>
+ <92361E8E-98EE-46C4-BED4-8364A40E6E2A@ucsd.edu>
+ <21657.29324.609754.98750@max.nulle.part>
+Message-ID: <6E62DCB74E59D246B410609BB7A9D723C982146E@KIMSX04.user.ki.se>
+
+Alternatively, one could use the code for Brent_fmin() from the stats
+library (e.g.
+https://github.com/lgautier/R-3-0-branch-alt/blob/master/src/library/stats/src/optimize.c).
+I have done this for the rstpm2 library
+(https://github.com/mclements/rstpm2/blob/develop/src/c_optim.cpp).
+
+This does use a C API, so I would not argue that it is "best practice".
+However, using templates and function objects, this can be comparatively
+general.
+
+An inline example is below.
+
+require(Rcpp)
+require(inline)
+src <- "
+#include <Rcpp.h>
+#include <float.h> /* DBL_EPSILON */
+// From the URLs above, insert the definition for:
+// double Brent_fmin(double ax, double bx, double (*f)(double, void *),
+//          void *info, double tol);
+//
+// An example
+struct Model {
+    double a,b;
+    double operator()(double x) {
+        return pow(log(x) - a,2) + b;
+    }
+};
+Model model = {1.0,2.0};
+// template to use a function object (functor) with Brent_fmin()
+template<class T>
+    double Brent_fmin_functor(double x, void * par) {
+    T * model = (T *) par;
+    return model->operator()(x);
+}
+//[[Rcpp::export]]
+double test_optimise() {
+    return Brent_fmin(0.001,10.0,&Brent_fmin_functor<Model>,(void *)
+&model,1.0e-10);
+}
+"
+sourceCpp(code=src)
+test_optimise()
+
+Kindly, Mark.
+
+On 12/23/2014 02:48 PM, Dirk Eddelbuettel wrote:
+> On 23 December 2014 at 08:21, Hao Ye wrote:
+> | There are also some minima-finding functions in GSL that you may want to look
+> | into. The source for RcppGSL might help with a fully c++ version.
+>
+> Yes. And there are a bazillion optimisation packages on CRAN:  
+>     http://cran.r-project.org/web/views/Optimization.html
+> Several of these are already used in a Rcpp context.
+>
+> Also, I once needed something similar to what Avi described here, and just 'ripped
+> out' a simple one-dim optimizer (to compute implied vols for a lot of option
+> price series quickly, so I took the optmizier from QuantLib) -- and blogged
+> about it: http://dirk.eddelbuettel.com/blog/2012/10/25/  This isn't all that
+> hard, and we can probably help Simon here.  
+>
+> A different (and harder to grok at first) take is in RcppDE where I reworked
+> the DEoptim optimization package (and "ported" from C to C++ wit RcppArmadillo)
+> and allowed use of user-supplied functions to optimize for -- given as C++
+> functions.   This is likely to confuse Simon now, but some other people have
+> used this scheme.
+>
+> Dirk
+>
+
+
+From sorenh at math.aau.dk  Sat Jan  3 00:13:17 2015
+From: sorenh at math.aau.dk (=?iso-8859-1?Q?S=F8ren_H=F8jsgaard?=)
+Date: Fri, 2 Jan 2015 23:13:17 +0000
+Subject: [Rcpp-devel] Possible error in setequal ??
+Message-ID: <7E8037094A0C2146AA3E6F94DAE621C3A16BDD48@AD-EXCHMBX2-1.aau.dk>
+
+Dear all,
+
+There might be an error in setequal() from sugar. Consider this
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+//[[Rcpp::export]]
+bool seteq1(CharacterVector x, CharacterVector y){
+  return setequal(x,y);
+}
+
+//[[Rcpp::export]]
+bool seteq2(CharacterVector x, CharacterVector y){
+  return
+	(((CharacterVector) setdiff(x,y)).length()==0) &
+	(((CharacterVector) setdiff(y,x)).length()==0) ;
+}
+
+The examples below does not give what I expect when calling seteq1 whereas seteq2 gives what I expect. Am I completely wrong here?
+
+Regards
+S?ren
+
+seteq1(c(1,2,3), c(3,2,1))
+seteq1(c("a","b"), c("a","b"))
+seteq1(c(1,2,3), c(3,2))
+seteq1(c("a","b"), c("a","b","k"))
+
+seteq2(c(1,2,3), c(3,2,1))
+seteq2(c("a","b"), c("a","b"))
+seteq2(c(1,2,3), c(3,2))
+seteq2(c("a","b"), c("a","b","k"))
+
+> seteq1(c(1,2,3), c(3,2,1))
+[1] FALSE
+
+> seteq1(c("a","b"), c("a","b"))
+[1] FALSE
+
+> seteq1(c(1,2,3), c(3,2))
+[1] FALSE
+
+> seteq1(c("a","b"), c("a","b","k"))
+[1] FALSE
+
+> seteq2(c(1,2,3), c(3,2,1))
+[1] TRUE
+
+> seteq2(c("a","b"), c("a","b"))
+[1] TRUE
+
+> seteq2(c(1,2,3), c(3,2))
+[1] FALSE
+
+> seteq2(c("a","b"), c("a","b","k"))
+[1] FALSE
+
+
+From kevinushey at gmail.com  Sat Jan  3 03:22:10 2015
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Fri, 2 Jan 2015 18:22:10 -0800
+Subject: [Rcpp-devel] Possible error in setequal ??
+In-Reply-To: <7E8037094A0C2146AA3E6F94DAE621C3A16BDD48@AD-EXCHMBX2-1.aau.dk>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BDD48@AD-EXCHMBX2-1.aau.dk>
+Message-ID: <CAJXgQP1+OXYAt8W2w5-9NqBaP+_iG5n=Ts3KPJdbU4u4=KuY+g@mail.gmail.com>
+
+Hi S?ren,
+
+Thanks for the bug report -- it looks like you're right, `setequal` is
+broken, and we never knew about it because we don't have any unit
+tests for it. Whoops!
+
+I'll take a look at what's going on and commit a fix + tests soon --
+for now, you can use the workaround with `setdiff` which appears to
+behave correctly.
+
+Cheers,
+Kevin
+
+On Fri, Jan 2, 2015 at 3:13 PM, S?ren H?jsgaard <sorenh at math.aau.dk> wrote:
+> Dear all,
+>
+> There might be an error in setequal() from sugar. Consider this
+>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> //[[Rcpp::export]]
+> bool seteq1(CharacterVector x, CharacterVector y){
+>   return setequal(x,y);
+> }
+>
+> //[[Rcpp::export]]
+> bool seteq2(CharacterVector x, CharacterVector y){
+>   return
+>         (((CharacterVector) setdiff(x,y)).length()==0) &
+>         (((CharacterVector) setdiff(y,x)).length()==0) ;
+> }
+>
+> The examples below does not give what I expect when calling seteq1 whereas seteq2 gives what I expect. Am I completely wrong here?
+>
+> Regards
+> S?ren
+>
+> seteq1(c(1,2,3), c(3,2,1))
+> seteq1(c("a","b"), c("a","b"))
+> seteq1(c(1,2,3), c(3,2))
+> seteq1(c("a","b"), c("a","b","k"))
+>
+> seteq2(c(1,2,3), c(3,2,1))
+> seteq2(c("a","b"), c("a","b"))
+> seteq2(c(1,2,3), c(3,2))
+> seteq2(c("a","b"), c("a","b","k"))
+>
+>> seteq1(c(1,2,3), c(3,2,1))
+> [1] FALSE
+>
+>> seteq1(c("a","b"), c("a","b"))
+> [1] FALSE
+>
+>> seteq1(c(1,2,3), c(3,2))
+> [1] FALSE
+>
+>> seteq1(c("a","b"), c("a","b","k"))
+> [1] FALSE
+>
+>> seteq2(c(1,2,3), c(3,2,1))
+> [1] TRUE
+>
+>> seteq2(c("a","b"), c("a","b"))
+> [1] TRUE
+>
+>> seteq2(c(1,2,3), c(3,2))
+> [1] FALSE
+>
+>> seteq2(c("a","b"), c("a","b","k"))
+> [1] FALSE
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From qkou at umail.iu.edu  Sat Jan  3 03:23:31 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Fri, 2 Jan 2015 21:23:31 -0500
+Subject: [Rcpp-devel] Possible error in setequal ??
+In-Reply-To: <CAJXgQP1+OXYAt8W2w5-9NqBaP+_iG5n=Ts3KPJdbU4u4=KuY+g@mail.gmail.com>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BDD48@AD-EXCHMBX2-1.aau.dk>
+ <CAJXgQP1+OXYAt8W2w5-9NqBaP+_iG5n=Ts3KPJdbU4u4=KuY+g@mail.gmail.com>
+Message-ID: <CAJ_LAMDaPMBLmXTYSAj1q9QZ+2pfuV0N7=H6PURMi2fit77=kQ@mail.gmail.com>
+
+I think the bug is from [1].
+
+This line doesn't make much sense.
+
+Best,
+
+KK
+
+
+[1]
+https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/sugar/functions/setdiff.h#L80
+
+On Fri, Jan 2, 2015 at 9:22 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+
+> Hi S?ren,
+>
+> Thanks for the bug report -- it looks like you're right, `setequal` is
+> broken, and we never knew about it because we don't have any unit
+> tests for it. Whoops!
+>
+> I'll take a look at what's going on and commit a fix + tests soon --
+> for now, you can use the workaround with `setdiff` which appears to
+> behave correctly.
+>
+> Cheers,
+> Kevin
+>
+> On Fri, Jan 2, 2015 at 3:13 PM, S?ren H?jsgaard <sorenh at math.aau.dk>
+> wrote:
+> > Dear all,
+> >
+> > There might be an error in setequal() from sugar. Consider this
+> >
+> > #include <Rcpp.h>
+> > using namespace Rcpp;
+> >
+> > //[[Rcpp::export]]
+> > bool seteq1(CharacterVector x, CharacterVector y){
+> >   return setequal(x,y);
+> > }
+> >
+> > //[[Rcpp::export]]
+> > bool seteq2(CharacterVector x, CharacterVector y){
+> >   return
+> >         (((CharacterVector) setdiff(x,y)).length()==0) &
+> >         (((CharacterVector) setdiff(y,x)).length()==0) ;
+> > }
+> >
+> > The examples below does not give what I expect when calling seteq1
+> whereas seteq2 gives what I expect. Am I completely wrong here?
+> >
+> > Regards
+> > S?ren
+> >
+> > seteq1(c(1,2,3), c(3,2,1))
+> > seteq1(c("a","b"), c("a","b"))
+> > seteq1(c(1,2,3), c(3,2))
+> > seteq1(c("a","b"), c("a","b","k"))
+> >
+> > seteq2(c(1,2,3), c(3,2,1))
+> > seteq2(c("a","b"), c("a","b"))
+> > seteq2(c(1,2,3), c(3,2))
+> > seteq2(c("a","b"), c("a","b","k"))
+> >
+> >> seteq1(c(1,2,3), c(3,2,1))
+> > [1] FALSE
+> >
+> >> seteq1(c("a","b"), c("a","b"))
+> > [1] FALSE
+> >
+> >> seteq1(c(1,2,3), c(3,2))
+> > [1] FALSE
+> >
+> >> seteq1(c("a","b"), c("a","b","k"))
+> > [1] FALSE
+> >
+> >> seteq2(c(1,2,3), c(3,2,1))
+> > [1] TRUE
+> >
+> >> seteq2(c("a","b"), c("a","b"))
+> > [1] TRUE
+> >
+> >> seteq2(c(1,2,3), c(3,2))
+> > [1] FALSE
+> >
+> >> seteq2(c("a","b"), c("a","b","k"))
+> > [1] FALSE
+> >
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150102/72daa278/attachment.html>
+
+From qkou at umail.iu.edu  Sat Jan  3 03:26:16 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Fri, 2 Jan 2015 21:26:16 -0500
+Subject: [Rcpp-devel] Possible error in setequal ??
+In-Reply-To: <CAJ_LAMDaPMBLmXTYSAj1q9QZ+2pfuV0N7=H6PURMi2fit77=kQ@mail.gmail.com>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BDD48@AD-EXCHMBX2-1.aau.dk>
+ <CAJXgQP1+OXYAt8W2w5-9NqBaP+_iG5n=Ts3KPJdbU4u4=KuY+g@mail.gmail.com>
+ <CAJ_LAMDaPMBLmXTYSAj1q9QZ+2pfuV0N7=H6PURMi2fit77=kQ@mail.gmail.com>
+Message-ID: <CAJ_LAMA2Yd3eYVxO3vPArkZ42JwZGuGjPypRjFHKok2=G+XK-w@mail.gmail.com>
+
+It seems fixed after removing that line [1].
+
+> library(Rcpp)
+> sourceCpp("seteq.cpp")
+> seteq1(c(1,2,3), c(3,2,1))
+[1] TRUE
+> seteq1(c(1,2,3), c(3,2,1))
+[1] TRUE
+> seteq1(c("a","b"), c("a","b"))
+[1] TRUE
+> seteq1(c(1,2,3), c(3,2))
+[1] FALSE
+> seteq1(c("a","b"), c("a","b","k"))
+[1] FALSE
+> seteq1(c("a","b"), c("a","b","b"))
+[1] TRUE
+
+[1]
+https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/sugar/functions/setdiff.h#L80
+
+
+On Fri, Jan 2, 2015 at 9:23 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+
+> I think the bug is from [1].
+>
+> This line doesn't make much sense.
+>
+> Best,
+>
+> KK
+>
+>
+> [1]
+> https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/sugar/functions/setdiff.h#L80
+>
+> On Fri, Jan 2, 2015 at 9:22 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+>> Hi S?ren,
+>>
+>> Thanks for the bug report -- it looks like you're right, `setequal` is
+>> broken, and we never knew about it because we don't have any unit
+>> tests for it. Whoops!
+>>
+>> I'll take a look at what's going on and commit a fix + tests soon --
+>> for now, you can use the workaround with `setdiff` which appears to
+>> behave correctly.
+>>
+>> Cheers,
+>> Kevin
+>>
+>> On Fri, Jan 2, 2015 at 3:13 PM, S?ren H?jsgaard <sorenh at math.aau.dk>
+>> wrote:
+>> > Dear all,
+>> >
+>> > There might be an error in setequal() from sugar. Consider this
+>> >
+>> > #include <Rcpp.h>
+>> > using namespace Rcpp;
+>> >
+>> > //[[Rcpp::export]]
+>> > bool seteq1(CharacterVector x, CharacterVector y){
+>> >   return setequal(x,y);
+>> > }
+>> >
+>> > //[[Rcpp::export]]
+>> > bool seteq2(CharacterVector x, CharacterVector y){
+>> >   return
+>> >         (((CharacterVector) setdiff(x,y)).length()==0) &
+>> >         (((CharacterVector) setdiff(y,x)).length()==0) ;
+>> > }
+>> >
+>> > The examples below does not give what I expect when calling seteq1
+>> whereas seteq2 gives what I expect. Am I completely wrong here?
+>> >
+>> > Regards
+>> > S?ren
+>> >
+>> > seteq1(c(1,2,3), c(3,2,1))
+>> > seteq1(c("a","b"), c("a","b"))
+>> > seteq1(c(1,2,3), c(3,2))
+>> > seteq1(c("a","b"), c("a","b","k"))
+>> >
+>> > seteq2(c(1,2,3), c(3,2,1))
+>> > seteq2(c("a","b"), c("a","b"))
+>> > seteq2(c(1,2,3), c(3,2))
+>> > seteq2(c("a","b"), c("a","b","k"))
+>> >
+>> >> seteq1(c(1,2,3), c(3,2,1))
+>> > [1] FALSE
+>> >
+>> >> seteq1(c("a","b"), c("a","b"))
+>> > [1] FALSE
+>> >
+>> >> seteq1(c(1,2,3), c(3,2))
+>> > [1] FALSE
+>> >
+>> >> seteq1(c("a","b"), c("a","b","k"))
+>> > [1] FALSE
+>> >
+>> >> seteq2(c(1,2,3), c(3,2,1))
+>> > [1] TRUE
+>> >
+>> >> seteq2(c("a","b"), c("a","b"))
+>> > [1] TRUE
+>> >
+>> >> seteq2(c(1,2,3), c(3,2))
+>> > [1] FALSE
+>> >
+>> >> seteq2(c("a","b"), c("a","b","k"))
+>> > [1] FALSE
+>> >
+>> > _______________________________________________
+>> > Rcpp-devel mailing list
+>> > Rcpp-devel at lists.r-forge.r-project.org
+>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+>
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150102/a5005aca/attachment-0001.html>
+
+From kevinushey at gmail.com  Sat Jan  3 03:28:14 2015
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Fri, 2 Jan 2015 18:28:14 -0800
+Subject: [Rcpp-devel] Possible error in setequal ??
+In-Reply-To: <CAJ_LAMA2Yd3eYVxO3vPArkZ42JwZGuGjPypRjFHKok2=G+XK-w@mail.gmail.com>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BDD48@AD-EXCHMBX2-1.aau.dk>
+ <CAJXgQP1+OXYAt8W2w5-9NqBaP+_iG5n=Ts3KPJdbU4u4=KuY+g@mail.gmail.com>
+ <CAJ_LAMDaPMBLmXTYSAj1q9QZ+2pfuV0N7=H6PURMi2fit77=kQ@mail.gmail.com>
+ <CAJ_LAMA2Yd3eYVxO3vPArkZ42JwZGuGjPypRjFHKok2=G+XK-w@mail.gmail.com>
+Message-ID: <CAJXgQP3MW=HN=DW5_AzK_CE6mXmvNUGnb_8JB4uTA2YkjXMF6Q@mail.gmail.com>
+
+Hi Qiang,
+
+I think you're right -- I just took a peek and that looks like the
+offending bit. I'm going to strip it out, run tests and then commit if
+everything looks good.
+
+Thanks!
+Kevin
+
+On Fri, Jan 2, 2015 at 6:26 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+> It seems fixed after removing that line [1].
+>
+>> library(Rcpp)
+>> sourceCpp("seteq.cpp")
+>> seteq1(c(1,2,3), c(3,2,1))
+> [1] TRUE
+>> seteq1(c(1,2,3), c(3,2,1))
+> [1] TRUE
+>> seteq1(c("a","b"), c("a","b"))
+> [1] TRUE
+>> seteq1(c(1,2,3), c(3,2))
+> [1] FALSE
+>> seteq1(c("a","b"), c("a","b","k"))
+> [1] FALSE
+>> seteq1(c("a","b"), c("a","b","b"))
+> [1] TRUE
+>
+> [1]
+> https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/sugar/functions/setdiff.h#L80
+>
+>
+> On Fri, Jan 2, 2015 at 9:23 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+>>
+>> I think the bug is from [1].
+>>
+>> This line doesn't make much sense.
+>>
+>> Best,
+>>
+>> KK
+>>
+>>
+>> [1]
+>> https://github.com/RcppCore/Rcpp/blob/master/inst/include/Rcpp/sugar/functions/setdiff.h#L80
+>>
+>> On Fri, Jan 2, 2015 at 9:22 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+>>>
+>>> Hi S?ren,
+>>>
+>>> Thanks for the bug report -- it looks like you're right, `setequal` is
+>>> broken, and we never knew about it because we don't have any unit
+>>> tests for it. Whoops!
+>>>
+>>> I'll take a look at what's going on and commit a fix + tests soon --
+>>> for now, you can use the workaround with `setdiff` which appears to
+>>> behave correctly.
+>>>
+>>> Cheers,
+>>> Kevin
+>>>
+>>> On Fri, Jan 2, 2015 at 3:13 PM, S?ren H?jsgaard <sorenh at math.aau.dk>
+>>> wrote:
+>>> > Dear all,
+>>> >
+>>> > There might be an error in setequal() from sugar. Consider this
+>>> >
+>>> > #include <Rcpp.h>
+>>> > using namespace Rcpp;
+>>> >
+>>> > //[[Rcpp::export]]
+>>> > bool seteq1(CharacterVector x, CharacterVector y){
+>>> >   return setequal(x,y);
+>>> > }
+>>> >
+>>> > //[[Rcpp::export]]
+>>> > bool seteq2(CharacterVector x, CharacterVector y){
+>>> >   return
+>>> >         (((CharacterVector) setdiff(x,y)).length()==0) &
+>>> >         (((CharacterVector) setdiff(y,x)).length()==0) ;
+>>> > }
+>>> >
+>>> > The examples below does not give what I expect when calling seteq1
+>>> > whereas seteq2 gives what I expect. Am I completely wrong here?
+>>> >
+>>> > Regards
+>>> > S?ren
+>>> >
+>>> > seteq1(c(1,2,3), c(3,2,1))
+>>> > seteq1(c("a","b"), c("a","b"))
+>>> > seteq1(c(1,2,3), c(3,2))
+>>> > seteq1(c("a","b"), c("a","b","k"))
+>>> >
+>>> > seteq2(c(1,2,3), c(3,2,1))
+>>> > seteq2(c("a","b"), c("a","b"))
+>>> > seteq2(c(1,2,3), c(3,2))
+>>> > seteq2(c("a","b"), c("a","b","k"))
+>>> >
+>>> >> seteq1(c(1,2,3), c(3,2,1))
+>>> > [1] FALSE
+>>> >
+>>> >> seteq1(c("a","b"), c("a","b"))
+>>> > [1] FALSE
+>>> >
+>>> >> seteq1(c(1,2,3), c(3,2))
+>>> > [1] FALSE
+>>> >
+>>> >> seteq1(c("a","b"), c("a","b","k"))
+>>> > [1] FALSE
+>>> >
+>>> >> seteq2(c(1,2,3), c(3,2,1))
+>>> > [1] TRUE
+>>> >
+>>> >> seteq2(c("a","b"), c("a","b"))
+>>> > [1] TRUE
+>>> >
+>>> >> seteq2(c(1,2,3), c(3,2))
+>>> > [1] FALSE
+>>> >
+>>> >> seteq2(c("a","b"), c("a","b","k"))
+>>> > [1] FALSE
+>>> >
+>>> > _______________________________________________
+>>> > Rcpp-devel mailing list
+>>> > Rcpp-devel at lists.r-forge.r-project.org
+>>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+>>
+>>
+>> --
+>> Qiang Kou
+>> qkou at umail.iu.edu
+>> School of Informatics and Computing, Indiana University
+>>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+
+From fgnu32 at gmail.com  Sat Jan  3 16:52:37 2015
+From: fgnu32 at gmail.com (Fg Nu)
+Date: Sat, 3 Jan 2015 21:22:37 +0530
+Subject: [Rcpp-devel] Rcpp Attributes vs Rcpp Modules
+Message-ID: <CABk3YGnfKGvTZLeHKkn69YJ1eAcEgCsSV6X3x5uQCB85SUdyBw@mail.gmail.com>
+
+I recently asked a question about Rcpp Attributes subsuming the
+functionality of the inline package here:
+http://stackoverflow.com/questions/27744383/is-the-inline-package-redundant-yet-for-rcpp
+Dirk confirmed that Rcpp Attributes are fully functional vis-a-vis the
+inline package.
+
+As a follow on question, I wanted to know when, if ever, Rcpp
+Attributes can fully replace the use of Rcpp Modules. I am aware that
+Rcpp Attributes can be used to export standalone functions, but as
+mentioned in the Rcpp Modules vignette
+(http://cran.r-project.org/web/packages/Rcpp/vignettes/Rcpp-modules.pdf):
+
+"[...] but read on for Rcpp modules which contains to provide features
+not covered by Rcpp attributes, particularly when it comes to binding
+entire C++ classes and more."
+
+it cannot export entire class definitions. Is this planned
+functionality? What are the challenges to implementing this using
+Attributes? What are some of the other things that Modules can do that
+Attributes cannot?
+
+Thanks.
+
+From edd at debian.org  Sat Jan  3 17:57:17 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 3 Jan 2015 10:57:17 -0600
+Subject: [Rcpp-devel] Possible error in setequal ??
+In-Reply-To: <CAJXgQP3MW=HN=DW5_AzK_CE6mXmvNUGnb_8JB4uTA2YkjXMF6Q@mail.gmail.com>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BDD48@AD-EXCHMBX2-1.aau.dk>
+ <CAJXgQP1+OXYAt8W2w5-9NqBaP+_iG5n=Ts3KPJdbU4u4=KuY+g@mail.gmail.com>
+ <CAJ_LAMDaPMBLmXTYSAj1q9QZ+2pfuV0N7=H6PURMi2fit77=kQ@mail.gmail.com>
+ <CAJ_LAMA2Yd3eYVxO3vPArkZ42JwZGuGjPypRjFHKok2=G+XK-w@mail.gmail.com>
+ <CAJXgQP3MW=HN=DW5_AzK_CE6mXmvNUGnb_8JB4uTA2YkjXMF6Q@mail.gmail.com>
+Message-ID: <21672.8045.513980.701800@max.nulle.part>
+
+
+Qiang, Kevin,
+
+On 2 January 2015 at 18:28, Kevin Ushey wrote:
+| I think you're right -- I just took a peek and that looks like the
+| offending bit. I'm going to strip it out, run tests and then commit if
+| everything looks good.
+
+Big Thank you! to both of you. 
+
+I folded the pull request into main; we should now be in better shape for
+setequal.
+
+Cheers, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Jan  3 18:01:42 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 3 Jan 2015 11:01:42 -0600
+Subject: [Rcpp-devel] Rcpp Attributes vs Rcpp Modules
+In-Reply-To: <CABk3YGnfKGvTZLeHKkn69YJ1eAcEgCsSV6X3x5uQCB85SUdyBw@mail.gmail.com>
+References: <CABk3YGnfKGvTZLeHKkn69YJ1eAcEgCsSV6X3x5uQCB85SUdyBw@mail.gmail.com>
+Message-ID: <21672.8310.193931.805244@max.nulle.part>
+
+
+On 3 January 2015 at 21:22, Fg Nu wrote:
+| I recently asked a question about Rcpp Attributes subsuming the
+| functionality of the inline package here:
+| http://stackoverflow.com/questions/27744383/is-the-inline-package-redundant-yet-for-rcpp
+| Dirk confirmed that Rcpp Attributes are fully functional vis-a-vis the
+| inline package.
+
+That may not be exactly what I said.  The gist of it is: "Use Attributes".
+There is no good reason to use inline, besides re-running older examples.  
+
+[ It so happened that the book went to press when Attributes had just emerged
+and is therefore still full of inline examples. Everything else we did for
+documentation since then -- notably the Rcpp Gallery is full of use case for
+Attributes, as it should be. ]
+ 
+| As a follow on question, I wanted to know when, if ever, Rcpp
+| Attributes can fully replace the use of Rcpp Modules. I am aware that
+| Rcpp Attributes can be used to export standalone functions, but as
+| mentioned in the Rcpp Modules vignette
+| (http://cran.r-project.org/web/packages/Rcpp/vignettes/Rcpp-modules.pdf):
+| 
+| "[...] but read on for Rcpp modules which contains to provide features
+| not covered by Rcpp attributes, particularly when it comes to binding
+| entire C++ classes and more."
+| 
+| it cannot export entire class definitions. Is this planned
+| functionality? What are the challenges to implementing this using
+| Attributes? What are some of the other things that Modules can do that
+| Attributes cannot?
+
+Attributes can be used with Modules.  Just place your Modules code in a file
+and sourceCpp() it.
+
+Will Attributes and inline overlap, Modules is a little different and can be
+used with either.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From dtsmith at mindspring.com  Sat Jan  3 18:31:03 2015
+From: dtsmith at mindspring.com (Dale Smith)
+Date: Sat, 3 Jan 2015 12:31:03 -0500
+Subject: [Rcpp-devel]  Laid Off but Found a New Job using R/Rcpp
+In-Reply-To: <21672.8310.193931.805244@max.nulle.part>
+References: <CABk3YGnfKGvTZLeHKkn69YJ1eAcEgCsSV6X3x5uQCB85SUdyBw@mail.gmail.com>
+ <21672.8310.193931.805244@max.nulle.part>
+Message-ID: <8FB28DAD-C413-4C1B-B7D6-096A33043DA1@mindspring.com>
+
+All,
+
+I was laid off from Fiserv on December 2nd. I found a job with an Atlanta company which does voice recognition. My title will be the grab-bag of Data Scientist. Look for me to subscribe and be active from January 6th onward.
+
+Nexidia is a heavy user of R and Matlab, so my growing Rcpp skills will come in handy, as well as the machine learning courses I?ve taken via Coursera.
+
+I?m not leaving finance permanently, but am broadening my background with R, machine learning, and high performance computing.
+
+Dale Smith
+
+
+From sorenh at math.aau.dk  Sun Jan  4 10:53:57 2015
+From: sorenh at math.aau.dk (=?iso-8859-1?Q?S=F8ren_H=F8jsgaard?=)
+Date: Sun, 4 Jan 2015 09:53:57 +0000
+Subject: [Rcpp-devel] Rcpp sugar preserving attributes
+Message-ID: <7E8037094A0C2146AA3E6F94DAE621C3A16BE786@AD-EXCHMBX2-1.aau.dk>
+
+Dear all,
+
+I have noticed an issue with preserving attributes (or rather attributes that are not preserved). Consider this code where I take the log of an array:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+//[[Rcpp::export]]
+NumericVector fun1(NumericVector x){
+  return log( x );
+}
+
+//[[Rcpp::export]]
+NumericVector fun2(NumericVector x){
+  NumericVector out=clone(x), tmp=log(x);
+  for (int i=0;i<x.size();++i)out[i] = tmp[i];
+  return out;
+}
+
+/*** R
+x <- HairEyeColor; x
+fun1(x)
+fun2(x)
+ */
+
+
+> fun1(x)
+ [1] 3.4657359 3.9702919 2.3025851 1.0986123 2.3978953 3.9120230 2.3025851 3.4011974 2.3025851 3.2188758 1.9459101
+[12] 1.6094379 1.0986123 2.7080502 1.9459101 2.0794415 3.5835189 4.1896547 2.7725887 1.3862944 2.1972246 3.5263605
+[23] 1.9459101 4.1588831 1.6094379 3.3672958 1.9459101 1.6094379 0.6931472 2.6390573 1.9459101 2.0794415
+
+> fun2(x)
+, , Sex = Male
+
+       Eye
+Hair        Brown      Blue     Hazel     Green
+  Black 3.4657359 2.3978953 2.3025851 1.0986123
+  Brown 3.9702919 3.9120230 3.2188758 2.7080502
+  Red   2.3025851 2.3025851 1.9459101 1.9459101
+  Blond 1.0986123 3.4011974 1.6094379 2.0794415
+
+, , Sex = Female
+
+       Eye
+Hair        Brown      Blue     Hazel     Green
+  Black 3.5835189 2.1972246 1.6094379 0.6931472
+  Brown 4.1896547 3.5263605 3.3672958 2.6390573
+  Red   2.7725887 1.9459101 1.9459101 1.9459101
+  Blond 1.3862944 4.1588831 1.6094379 2.0794415
+
+fun2 is kludgy! Is there a more elegant way of preserving attributes using Rcpp sugar? 
+
+All the best
+S?ren
+
+
+
+
+From bbonit at tin.it  Sun Jan  4 10:56:59 2015
+From: bbonit at tin.it (bbonit at tin.it)
+Date: Sun, 4 Jan 2015 10:56:59 +0100 (CET)
+Subject: [Rcpp-devel] Call C++ Function into R function called in Rcpp
+Message-ID: <14ab4605492.bbonit@tin.it>
+
+
+Dear list first of all happy new year.
+I have a question .. I would like to call rcpp function  (so c++ function) into 
+R function (optim for example) called into rcpp. I had prototype an example code and post 
+below.  (Using Rcpp::InternalFunction(&amp;foo))
+Is it correct the way I had used? There is another more efficient and safety way 
+Thank You in advance list 
+Best regards
+Gianluca Bonitta
+
+
+library(inline)
+
+inc <- ' NumericVector foo(const Rcpp::NumericVector &amp;x) { 
+        return - pow(x,2);
+                        } '
+code<- '
+   Rcpp:: NumericVector start(Sexp_start);
+   Rcpp:: Environment stats("package:stats"); 
+   Rcpp:: Function optim = stats["optim"];    
+   Rcpp:: List Opt;
+
+   Opt=optim(_["par"]     = start,
+             _["fn"]      = Rcpp::InternalFunction(&amp;foo),
+             _["method"]  = "BFGS");
+return Opt;
+'
+fun.cpp <- cxxfunction(signature( Sexp_start = "NumericVector"),
+                                           code, 
+                                           include    = inc,
+                                           plugin     = "Rcpp" )
+fun.cpp (Sexp_start=0.1)
+
+#### R code ####
+fun. <- function(x) x^2
+optim(0.1,fun.,method  = "BFGS")  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150104/6c7f3600/attachment.html>
+
+From bbonit at tin.it  Sun Jan  4 10:59:23 2015
+From: bbonit at tin.it (bbonit at tin.it)
+Date: Sun, 4 Jan 2015 10:59:23 +0100 (CET)
+Subject: [Rcpp-devel] Call ++ funtion into R function called in rcpp
+Message-ID: <14ab4628599.bbonit@tin.it>
+
+Dear list first of all happy new year.
+I have a question .. I would like to call rcpp function  (so c++ 
+function) into 
+R function (optim for example) 
+called into rcpp. I had prototype an example code and post 
+below.  (Using Rcpp::InternalFunction(&foo))
+Is it correct the way I had used? There is another more efficient and 
+safety way 
+Thank You in advance list 
+Best regards
+Gianluca Bonitta
+
+
+library(inline)
+
+inc <- ' NumericVector foo(const Rcpp::NumericVector &x) { 
+        return - pow(x,2);
+                        } '
+code<- '
+   Rcpp:: NumericVector start(Sexp_start);
+   Rcpp:: Environment stats("package:stats"); 
+   Rcpp:: Function optim = stats["optim"];    
+   Rcpp:: List Opt;
+
+   Opt=optim(_["par"]     = start,
+             _["fn"]      = Rcpp::InternalFunction(&foo),
+             _["method"]  = "BFGS");
+return Opt;
+'
+fun.cpp <- cxxfunction(signature( Sexp_start = "NumericVector"),
+                                           code, 
+                                           include    = inc,
+                                           plugin     = "Rcpp" )
+fun.cpp (Sexp_start=0.1)
+
+#### R code ####
+fun. <- function(x) x^2
+optim(0.1,fun.,method  = "BFGS")
+
+From edd at debian.org  Sun Jan  4 16:29:15 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 4 Jan 2015 09:29:15 -0600
+Subject: [Rcpp-devel] Call C++ Function into R function called in Rcpp
+In-Reply-To: <14ab4605492.bbonit@tin.it>
+References: <14ab4605492.bbonit@tin.it>
+Message-ID: <21673.23627.815412.682871@max.nulle.part>
+
+
+On 4 January 2015 at 10:56, bbonit at tin.it wrote:
+| Dear list first of all happy new year.
+| I have a question .. I would like to call rcpp function  (so c++ function) into
+| R function (optim for example) called into rcpp. I had prototype an example
+| code and post
+| below.  (Using Rcpp::InternalFunction(&foo))
+| Is it correct the way I had used? There is another more efficient and safety
+| way
+
+The RcppDE package goes about this in another way and leaves out the R side.
+It offers an (evolutionary) optimization algorithm (via a C++ rewrite of what
+DEoptim had at the time in C) which permits you to supply C++ functions to
+optimize over.  It was a good exercise, and the ability to pass around
+user-supplied C++ functions is a nice Rcpp trick.  (I now need to update
+RcppDE to the current code in DEoptim....)
+
+What you suggest below is probably doable, but probably of little interest as
+you may spend too much time (in aggregate) going back and forth between
+between R and C++.
+
+So if I were you, I'd rather go to a decent optimization package available at
+the C++ level --- as for example nlopt which happens to be available in R and
+on CRAN via the nloptR package for which I helped Jelper a little with the
+packaging logic --- and access the C++ optimization algoritms directly. 
+
+Dirk
+
+
+| Thank You in advance list
+| Best regards
+| Gianluca Bonitta
+| 
+| 
+| library(inline)
+| 
+| inc <- ' NumericVector foo(const Rcpp::NumericVector &x) {
+|         return - pow(x,2);
+|                         } '
+| code<- '
+|    Rcpp:: NumericVector start(Sexp_start);
+|    Rcpp:: Environment stats("package:stats");
+|    Rcpp:: Function optim = stats["optim"];   
+|    Rcpp:: List Opt;
+| 
+|    Opt=optim(_["par"]     = start,
+|              _["fn"]      = Rcpp::InternalFunction(&foo),
+|              _["method"]  = "BFGS");
+| return Opt;
+| '
+| fun.cpp <- cxxfunction(signature( Sexp_start = "NumericVector"),
+|                                            code,
+|                                            include    = inc,
+|                                            plugin     = "Rcpp" )
+| fun.cpp (Sexp_start=0.1)
+| 
+| #### R code ####
+| fun. <- function(x) x^2
+| optim(0.1,fun.,method  = "BFGS") 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sun Jan  4 16:32:12 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 4 Jan 2015 09:32:12 -0600
+Subject: [Rcpp-devel] Rcpp sugar preserving attributes
+In-Reply-To: <7E8037094A0C2146AA3E6F94DAE621C3A16BE786@AD-EXCHMBX2-1.aau.dk>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BE786@AD-EXCHMBX2-1.aau.dk>
+Message-ID: <21673.23804.231660.883332@max.nulle.part>
+
+
+S?ren,
+
+Happy New Year!
+
+On 4 January 2015 at 09:53, S?ren H?jsgaard wrote:
+| Dear all,
+| 
+| I have noticed an issue with preserving attributes (or rather attributes that are not preserved). Consider this code where I take the log of an array:
+
+Quite possible. 
+
+Attributes are just attached to objects, and we may well drop them along the
+way.  Which is a bug.  Maybe you can start rewriting this in a way that
+preserves attributes?  log is one of many 'math' functions implemented via
+macro expansion so if you get it right for you get it right for many...
+
+Dirk
+
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| //[[Rcpp::export]]
+| NumericVector fun1(NumericVector x){
+|   return log( x );
+| }
+| 
+| //[[Rcpp::export]]
+| NumericVector fun2(NumericVector x){
+|   NumericVector out=clone(x), tmp=log(x);
+|   for (int i=0;i<x.size();++i)out[i] = tmp[i];
+|   return out;
+| }
+| 
+| /*** R
+| x <- HairEyeColor; x
+| fun1(x)
+| fun2(x)
+|  */
+| 
+| 
+| > fun1(x)
+|  [1] 3.4657359 3.9702919 2.3025851 1.0986123 2.3978953 3.9120230 2.3025851 3.4011974 2.3025851 3.2188758 1.9459101
+| [12] 1.6094379 1.0986123 2.7080502 1.9459101 2.0794415 3.5835189 4.1896547 2.7725887 1.3862944 2.1972246 3.5263605
+| [23] 1.9459101 4.1588831 1.6094379 3.3672958 1.9459101 1.6094379 0.6931472 2.6390573 1.9459101 2.0794415
+| 
+| > fun2(x)
+| , , Sex = Male
+| 
+|        Eye
+| Hair        Brown      Blue     Hazel     Green
+|   Black 3.4657359 2.3978953 2.3025851 1.0986123
+|   Brown 3.9702919 3.9120230 3.2188758 2.7080502
+|   Red   2.3025851 2.3025851 1.9459101 1.9459101
+|   Blond 1.0986123 3.4011974 1.6094379 2.0794415
+| 
+| , , Sex = Female
+| 
+|        Eye
+| Hair        Brown      Blue     Hazel     Green
+|   Black 3.5835189 2.1972246 1.6094379 0.6931472
+|   Brown 4.1896547 3.5263605 3.3672958 2.6390573
+|   Red   2.7725887 1.9459101 1.9459101 1.9459101
+|   Blond 1.3862944 4.1588831 1.6094379 2.0794415
+| 
+| fun2 is kludgy! Is there a more elegant way of preserving attributes using Rcpp sugar? 
+| 
+| All the best
+| S?ren
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From sorenh at math.aau.dk  Sun Jan  4 20:58:06 2015
+From: sorenh at math.aau.dk (=?iso-8859-1?Q?S=F8ren_H=F8jsgaard?=)
+Date: Sun, 4 Jan 2015 19:58:06 +0000
+Subject: [Rcpp-devel] Rcpp sugar preserving attributes
+In-Reply-To: <21673.23804.231660.883332@max.nulle.part>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BE786@AD-EXCHMBX2-1.aau.dk>
+ <21673.23804.231660.883332@max.nulle.part>
+Message-ID: <7E8037094A0C2146AA3E6F94DAE621C3A16BEB49@AD-EXCHMBX2-1.aau.dk>
+
+Thanks! Probably a stupid question, but where are these functions defined? In math.h I see
+
+VECTORIZED_MATH_1(log,::log)
+
+but - where to look for the implementation?
+
+Cheers
+S?ren
+
+
+|-----Original Message-----
+|From: Dirk Eddelbuettel [mailto:edd at debian.org]
+|Sent: 4. januar 2015 16:32
+|To: S?ren H?jsgaard
+|Cc: rcpp-devel at lists.r-forge.r-project.org
+|Subject: Re: [Rcpp-devel] Rcpp sugar preserving attributes
+|
+|
+|S?ren,
+|
+|Happy New Year!
+|
+|On 4 January 2015 at 09:53, S?ren H?jsgaard wrote:
+|| Dear all,
+||
+|| I have noticed an issue with preserving attributes (or rather
+|attributes that are not preserved). Consider this code where I take the
+|log of an array:
+|
+|Quite possible.
+|
+|Attributes are just attached to objects, and we may well drop them along
+|the way.  Which is a bug.  Maybe you can start rewriting this in a way
+|that preserves attributes?  log is one of many 'math' functions
+|implemented via macro expansion so if you get it right for you get it
+|right for many...
+|
+|Dirk
+|
+||
+|| #include <Rcpp.h>
+|| using namespace Rcpp;
+||
+|| //[[Rcpp::export]]
+|| NumericVector fun1(NumericVector x){
+||   return log( x );
+|| }
+||
+|| //[[Rcpp::export]]
+|| NumericVector fun2(NumericVector x){
+||   NumericVector out=clone(x), tmp=log(x);
+||   for (int i=0;i<x.size();++i)out[i] = tmp[i];
+||   return out;
+|| }
+||
+|| /*** R
+|| x <- HairEyeColor; x
+|| fun1(x)
+|| fun2(x)
+||  */
+||
+||
+|| > fun1(x)
+||  [1] 3.4657359 3.9702919 2.3025851 1.0986123 2.3978953 3.9120230
+|| 2.3025851 3.4011974 2.3025851 3.2188758 1.9459101 [12] 1.6094379
+|| 1.0986123 2.7080502 1.9459101 2.0794415 3.5835189 4.1896547 2.7725887
+|| 1.3862944 2.1972246 3.5263605 [23] 1.9459101 4.1588831 1.6094379
+|| 3.3672958 1.9459101 1.6094379 0.6931472 2.6390573 1.9459101 2.0794415
+||
+|| > fun2(x)
+|| , , Sex = Male
+||
+||        Eye
+|| Hair        Brown      Blue     Hazel     Green
+||   Black 3.4657359 2.3978953 2.3025851 1.0986123
+||   Brown 3.9702919 3.9120230 3.2188758 2.7080502
+||   Red   2.3025851 2.3025851 1.9459101 1.9459101
+||   Blond 1.0986123 3.4011974 1.6094379 2.0794415
+||
+|| , , Sex = Female
+||
+||        Eye
+|| Hair        Brown      Blue     Hazel     Green
+||   Black 3.5835189 2.1972246 1.6094379 0.6931472
+||   Brown 4.1896547 3.5263605 3.3672958 2.6390573
+||   Red   2.7725887 1.9459101 1.9459101 1.9459101
+||   Blond 1.3862944 4.1588831 1.6094379 2.0794415
+||
+|| fun2 is kludgy! Is there a more elegant way of preserving attributes
+|using Rcpp sugar?
+||
+|| All the best
+|| S?ren
+||
+||
+||
+|| _______________________________________________
+|| Rcpp-devel mailing list
+|| Rcpp-devel at lists.r-forge.r-project.org
+|| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-deve
+|| l
+|
+|--
+|http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sun Jan  4 21:50:32 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 4 Jan 2015 14:50:32 -0600
+Subject: [Rcpp-devel] Rcpp sugar preserving attributes
+In-Reply-To: <7E8037094A0C2146AA3E6F94DAE621C3A16BEB49@AD-EXCHMBX2-1.aau.dk>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BE786@AD-EXCHMBX2-1.aau.dk>
+ <21673.23804.231660.883332@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3A16BEB49@AD-EXCHMBX2-1.aau.dk>
+Message-ID: <21673.42904.629766.336163@max.nulle.part>
+
+
+On 4 January 2015 at 19:58, S?ren H?jsgaard wrote:
+| Thanks! Probably a stupid question, but where are these functions defined? In math.h I see
+| 
+| VECTORIZED_MATH_1(log,::log)
+| 
+| but - where to look for the implementation?
+
+You mean where VECTORIZED_MATH is defined?  
+
+Let me introduce you to my friend 'ag' (with a top of the hat to Kevin ...)
+
+edd at max:~/git/rcpp/inst/include/Rcpp/sugar(master)$ ag VECTORIZED_MATH 
+block/Vectorized_Math.h
+83:#define VECTORIZED_MATH_1(__NAME__,__SYMBOL__)                               \
+
+functions/math.h
+25:VECTORIZED_MATH_1(exp,::exp)
+26:VECTORIZED_MATH_1(acos,::acos)
+27:VECTORIZED_MATH_1(asin,::asin)
+28:VECTORIZED_MATH_1(atan,::atan)
+29:VECTORIZED_MATH_1(ceil,::ceil)
+30:VECTORIZED_MATH_1(ceiling,::ceil)
+31:VECTORIZED_MATH_1(cos,::cos)
+32:VECTORIZED_MATH_1(cosh,::cosh)
+33:VECTORIZED_MATH_1(floor,::floor)
+34:VECTORIZED_MATH_1(log,::log)
+35:VECTORIZED_MATH_1(log10,::log10)
+36:VECTORIZED_MATH_1(sqrt,::sqrt)
+37:VECTORIZED_MATH_1(sin,::sin)
+38:VECTORIZED_MATH_1(sinh,::sinh)
+39:VECTORIZED_MATH_1(tan,::tan)
+40:VECTORIZED_MATH_1(tanh,::tanh)
+42:VECTORIZED_MATH_1(abs,::fabs)
+44:VECTORIZED_MATH_1(gamma      , ::Rf_gammafn     )
+45:VECTORIZED_MATH_1(lgamma     , ::Rf_lgammafn    )
+46:VECTORIZED_MATH_1(digamma    , ::Rf_digamma     )
+47:VECTORIZED_MATH_1(trigamma   , ::Rf_trigamma    )
+48:VECTORIZED_MATH_1(tetragamma , ::Rf_tetragamma  )
+49:VECTORIZED_MATH_1(pentagamma , ::Rf_pentagamma  )
+50:VECTORIZED_MATH_1(expm1      , ::expm1          )
+51:VECTORIZED_MATH_1(log1p      , ::log1p          )
+59:VECTORIZED_MATH_1(factorial  , ::Rcpp::internal::factorial   )
+60:VECTORIZED_MATH_1(lfactorial , ::Rcpp::internal::lfactorial  )
+68:VECTORIZED_MATH_1(trunc, ::Rf_ftrunc)                // truncates to zero (cf Writing R Extension, 6.7.3 Numerical Utilities)
+edd at max:~/git/rcpp/inst/include/Rcpp/sugar(master)$ 
+
+[ ag is "just" a version of 'grep -r' on steroids, which knows to skip .git,
+.svn etc pp -- recommended. In Debian/Ubuntu in package silversearcher-ag as
+there already was a package called ag. ]
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From sorenh at math.aau.dk  Sun Jan  4 22:27:55 2015
+From: sorenh at math.aau.dk (=?iso-8859-1?Q?S=F8ren_H=F8jsgaard?=)
+Date: Sun, 4 Jan 2015 21:27:55 +0000
+Subject: [Rcpp-devel] Rcpp sugar preserving attributes
+In-Reply-To: <21673.42904.629766.336163@max.nulle.part>
+References: <7E8037094A0C2146AA3E6F94DAE621C3A16BE786@AD-EXCHMBX2-1.aau.dk>
+ <21673.23804.231660.883332@max.nulle.part>
+ <7E8037094A0C2146AA3E6F94DAE621C3A16BEB49@AD-EXCHMBX2-1.aau.dk>
+ <21673.42904.629766.336163@max.nulle.part>
+Message-ID: <7E8037094A0C2146AA3E6F94DAE621C3A16BEBCC@AD-EXCHMBX2-1.aau.dk>
+
+Hi Dirk,
+
+Cunning piece of code you pointed me to ('ag' seems like a good friend):
+
+#define VECTORIZED_MATH_1(__NAME__,__SYMBOL__)                               \
+namespace Rcpp{                                                              \
+        template <bool NA, typename T>                                           \
+        inline sugar::Vectorized<__SYMBOL__,NA,T>                                \
+        __NAME__( const VectorBase<REALSXP,NA,T>& t ){                           \
+                return sugar::Vectorized<__SYMBOL__,NA,T>( t ) ;                     \
+        }                                                                        \
+        inline sugar::Vectorized<__SYMBOL__,true,NumericVector>                  \
+        __NAME__( SEXP x){ return __NAME__( NumericVector( x ) ) ; }             \
+        template <bool NA, typename T>                                           \
+        inline sugar::Vectorized_INTSXP<__SYMBOL__,NA,T>                         \
+        __NAME__( const VectorBase<INTSXP,NA,T>& t      ){                           \
+                return sugar::Vectorized_INTSXP<__SYMBOL__,NA,T>( t ) ;              \
+        }                                                                        \
+}
+
+Thanks!
+S?ren
+
+|-----Original Message-----
+|From: Dirk Eddelbuettel [mailto:edd at debian.org]
+|Sent: 4. januar 2015 21:51
+|To: S?ren H?jsgaard
+|Cc: Dirk Eddelbuettel; rcpp-devel at lists.r-forge.r-project.org
+|Subject: RE: [Rcpp-devel] Rcpp sugar preserving attributes
+|
+|
+|On 4 January 2015 at 19:58, S?ren H?jsgaard wrote:
+|| Thanks! Probably a stupid question, but where are these functions
+|| defined? In math.h I see
+||
+|| VECTORIZED_MATH_1(log,::log)
+||
+|| but - where to look for the implementation?
+|
+|You mean where VECTORIZED_MATH is defined?
+|
+|Let me introduce you to my friend 'ag' (with a top of the hat to Kevin
+|...)
+|
+|edd at max:~/git/rcpp/inst/include/Rcpp/sugar(master)$ ag VECTORIZED_MATH
+|block/Vectorized_Math.h
+|83:#define VECTORIZED_MATH_1(__NAME__,__SYMBOL__)
+|\
+|
+|functions/math.h
+|25:VECTORIZED_MATH_1(exp,::exp)
+|26:VECTORIZED_MATH_1(acos,::acos)
+|27:VECTORIZED_MATH_1(asin,::asin)
+|28:VECTORIZED_MATH_1(atan,::atan)
+|29:VECTORIZED_MATH_1(ceil,::ceil)
+|30:VECTORIZED_MATH_1(ceiling,::ceil)
+|31:VECTORIZED_MATH_1(cos,::cos)
+|32:VECTORIZED_MATH_1(cosh,::cosh)
+|33:VECTORIZED_MATH_1(floor,::floor)
+|34:VECTORIZED_MATH_1(log,::log)
+|35:VECTORIZED_MATH_1(log10,::log10)
+|36:VECTORIZED_MATH_1(sqrt,::sqrt)
+|37:VECTORIZED_MATH_1(sin,::sin)
+|38:VECTORIZED_MATH_1(sinh,::sinh)
+|39:VECTORIZED_MATH_1(tan,::tan)
+|40:VECTORIZED_MATH_1(tanh,::tanh)
+|42:VECTORIZED_MATH_1(abs,::fabs)
+|44:VECTORIZED_MATH_1(gamma      , ::Rf_gammafn     )
+|45:VECTORIZED_MATH_1(lgamma     , ::Rf_lgammafn    )
+|46:VECTORIZED_MATH_1(digamma    , ::Rf_digamma     )
+|47:VECTORIZED_MATH_1(trigamma   , ::Rf_trigamma    )
+|48:VECTORIZED_MATH_1(tetragamma , ::Rf_tetragamma  )
+|49:VECTORIZED_MATH_1(pentagamma , ::Rf_pentagamma  )
+|50:VECTORIZED_MATH_1(expm1      , ::expm1          )
+|51:VECTORIZED_MATH_1(log1p      , ::log1p          )
+|59:VECTORIZED_MATH_1(factorial  , ::Rcpp::internal::factorial   )
+|60:VECTORIZED_MATH_1(lfactorial , ::Rcpp::internal::lfactorial  )
+|68:VECTORIZED_MATH_1(trunc, ::Rf_ftrunc)                // truncates to
+|zero (cf Writing R Extension, 6.7.3 Numerical Utilities)
+|edd at max:~/git/rcpp/inst/include/Rcpp/sugar(master)$
+|
+|[ ag is "just" a version of 'grep -r' on steroids, which knows to skip
+|.git, .svn etc pp -- recommended. In Debian/Ubuntu in package
+|silversearcher-ag as there already was a package called ag. ]
+|
+|Dirk
+|
+|--
+|http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simonruw at gmail.com  Mon Jan  5 03:16:59 2015
+From: simonruw at gmail.com (Simon Riddell)
+Date: Sun, 4 Jan 2015 18:16:59 -0800
+Subject: [Rcpp-devel] Best Practice for Optimize Functions in RCPP
+In-Reply-To: <6E62DCB74E59D246B410609BB7A9D723C982146E@KIMSX04.user.ki.se>
+References: <CAG1NpbwxjXyob2ORZQAavuJVtEiFe5fFNkfUgmudaR1Tm5izDQ@mail.gmail.com>
+ <92361E8E-98EE-46C4-BED4-8364A40E6E2A@ucsd.edu>
+ <21657.29324.609754.98750@max.nulle.part>
+ <6E62DCB74E59D246B410609BB7A9D723C982146E@KIMSX04.user.ki.se>
+Message-ID: <CAG1Npby2BU3Uro51XepBDXPsZhCkf=C0EO1wG-m6HbZH4Ozdyw@mail.gmail.com>
+
+Dear all,
+
+Thank you for your responses. I will look into the resources and code you
+have shared and hopefully I can figure something out! I appreciate your
+time and help.
+
+Simon
+
+On Fri, Jan 2, 2015 at 12:45 PM, Mark Clements <mark.clements at ki.se> wrote:
+
+> Alternatively, one could use the code for Brent_fmin() from the stats
+> library (e.g.
+>
+> https://github.com/lgautier/R-3-0-branch-alt/blob/master/src/library/stats/src/optimize.c
+> ).
+> I have done this for the rstpm2 library
+> (https://github.com/mclements/rstpm2/blob/develop/src/c_optim.cpp).
+>
+> This does use a C API, so I would not argue that it is "best practice".
+> However, using templates and function objects, this can be comparatively
+> general.
+>
+> An inline example is below.
+>
+> require(Rcpp)
+> require(inline)
+> src <- "
+> #include <Rcpp.h>
+> #include <float.h> /* DBL_EPSILON */
+> // From the URLs above, insert the definition for:
+> // double Brent_fmin(double ax, double bx, double (*f)(double, void *),
+> //          void *info, double tol);
+> //
+> // An example
+> struct Model {
+>     double a,b;
+>     double operator()(double x) {
+>         return pow(log(x) - a,2) + b;
+>     }
+> };
+> Model model = {1.0,2.0};
+> // template to use a function object (functor) with Brent_fmin()
+> template<class T>
+>     double Brent_fmin_functor(double x, void * par) {
+>     T * model = (T *) par;
+>     return model->operator()(x);
+> }
+> //[[Rcpp::export]]
+> double test_optimise() {
+>     return Brent_fmin(0.001,10.0,&Brent_fmin_functor<Model>,(void *)
+> &model,1.0e-10);
+> }
+> "
+> sourceCpp(code=src)
+> test_optimise()
+>
+> Kindly, Mark.
+>
+> On 12/23/2014 02:48 PM, Dirk Eddelbuettel wrote:
+> > On 23 December 2014 at 08:21, Hao Ye wrote:
+> > | There are also some minima-finding functions in GSL that you may want
+> to look
+> > | into. The source for RcppGSL might help with a fully c++ version.
+> >
+> > Yes. And there are a bazillion optimisation packages on CRAN:
+> >     http://cran.r-project.org/web/views/Optimization.html
+> > Several of these are already used in a Rcpp context.
+> >
+> > Also, I once needed something similar to what Avi described here, and
+> just 'ripped
+> > out' a simple one-dim optimizer (to compute implied vols for a lot of
+> option
+> > price series quickly, so I took the optmizier from QuantLib) -- and
+> blogged
+> > about it: http://dirk.eddelbuettel.com/blog/2012/10/25/  This isn't all
+> that
+> > hard, and we can probably help Simon here.
+> >
+> > A different (and harder to grok at first) take is in RcppDE where I
+> reworked
+> > the DEoptim optimization package (and "ported" from C to C++ wit
+> RcppArmadillo)
+> > and allowed use of user-supplied functions to optimize for -- given as
+> C++
+> > functions.   This is likely to confuse Simon now, but some other people
+> have
+> > used this scheme.
+> >
+> > Dirk
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Simon Alexander Riddell
+London School of Economics
+MSc in Political Economy
+linkedin.com/in/simonriddell <http://uk.linkedin.com/in/simonriddell>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150104/ee1b1b1e/attachment-0001.html>
+
+From tkeitt at utexas.edu  Wed Jan  7 23:02:23 2015
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Wed, 7 Jan 2015 16:02:23 -0600
+Subject: [Rcpp-devel] Including Rcpp.h before intrusive wrapping
+Message-ID: <CANnL8gqPaXETiLCdBakUfx4_oGsSFwFUGFxzwb_G=jUKN0z_xQ@mail.gmail.com>
+
+I noticed belatedly that some of my code implements intrusive as-wrap after
+including Rcpp.h. It appears to have no effect. Is it still a requirement
+to define these before including Rcpp.h? Curious.
+
+THK
+
+-- 
+http://www.keittlab.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150107/3692cd6b/attachment.html>
+
+From janusjlarsen at gmail.com  Fri Jan  9 11:50:43 2015
+From: janusjlarsen at gmail.com (janus Larsen)
+Date: Fri, 9 Jan 2015 11:50:43 +0100
+Subject: [Rcpp-devel] Setting time zone on Rcpp::Datetime
+Message-ID: <CAK-c3U=QczC=Nw3ywdeds3Mg_w7yTJN3_HLB7dv_JU-04YnreA@mail.gmail.com>
+
+Hi,
+How do I set the timezone on an Rcpp::Datetime?
+Thanks in advance,
+Sunaj
+
+This returns "1970-01-01 01:00:00 CET" (computer setting), but I want GMT...
+// [[Rcpp::export]]
+Rcpp::Datetime test() {
+  double d=0;
+  return(d);
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150109/8e2dc212/attachment.html>
+
+From edd at debian.org  Fri Jan  9 13:22:33 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 9 Jan 2015 06:22:33 -0600
+Subject: [Rcpp-devel] Setting time zone on Rcpp::Datetime
+In-Reply-To: <CAK-c3U=QczC=Nw3ywdeds3Mg_w7yTJN3_HLB7dv_JU-04YnreA@mail.gmail.com>
+References: <CAK-c3U=QczC=Nw3ywdeds3Mg_w7yTJN3_HLB7dv_JU-04YnreA@mail.gmail.com>
+Message-ID: <21679.51209.686158.63353@max.nulle.part>
+
+
+On 9 January 2015 at 11:50, janus Larsen wrote:
+| Hi,
+| How do I set the timezone on an?Rcpp::Datetime?
+| Thanks in advance,
+| Sunaj
+| 
+| This returns?"1970-01-01 01:00:00 CET" (computer setting), but I want GMT...
+
+R does the formatting in its session based on your locale. 
+
+That is generally the right thing:
+
+| // [[Rcpp::export]]
+| Rcpp::Datetime test() {
+| ? double d=0;
+| ? return(d);
+| }
+
+Small corrections to your code to actually export the function (under a safer
+name):
+
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+Rcpp::Datetime timetest(double d=0) {
+  return(d);
+}
+
+Then:
+
+R> sourceCpp("/tmp/timeQ.cpp")
+R> timetest()                       # my default is Chicago, or -5
+[1] "1969-12-31 18:00:00 CST"
+R> as.numeric(timetest())
+[1] 0
+R> Sys.setenv("TZ"="Europe/London") 
+R> timetest()                       # I can select another one 
+[1] "1970-01-01 01:00:00 BST"
+R> Sys.setenv("TZ"="UTC")
+R> timetest()                       # incl UTC
+[1] "1970-01-01 UTC"
+R> 
+R> format(timetest(), tz="America/Chicago")
+[1] "1969-12-31 18:00:00"
+R> 
+
+So you need to change the timezone _at the level of your app_ which can be as
+simple as writing a new Date formatter in R as per my last line.
+
+Dirk 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From federico.andreis at gmail.com  Fri Jan  9 15:10:36 2015
+From: federico.andreis at gmail.com (Federico Andreis)
+Date: Fri, 9 Jan 2015 15:10:36 +0100
+Subject: [Rcpp-devel] Integrals with Rcpp
+Message-ID: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+
+Dear all,
+
+I was wondering what, in your opinion, would be the best way to handle the
+computation of definite integrals using Rcpp.
+
+To be more precise, I need to evaluate a double integral that turns out to
+be somewhat nasty (really slow computation and presumably inaccurate
+results using the R cubature package).
+
+Should I write the integration algorithm from scratch, or is there any
+external library you would suggest?
+
+I've already found the post on Stackoverflow 'using C function from other
+package in Rcpp' that dealt with an integration problem as well, but it
+looked too general for my problem and also, it's one year old, maybe
+something else has turned up in the meanwhile..
+
+Thanks in advance, and congrats for the great work with Rcpp!
+
+/federico
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150109/945b8140/attachment.html>
+
+From edd at debian.org  Fri Jan  9 15:38:56 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 9 Jan 2015 08:38:56 -0600
+Subject: [Rcpp-devel] Integrals with Rcpp
+In-Reply-To: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+References: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+Message-ID: <21679.59392.994629.627409@max.nulle.part>
+
+
+On 9 January 2015 at 15:10, Federico Andreis wrote:
+| Dear all,
+| 
+| I was wondering what, in your opinion, would be the best way to handle the
+| computation of definite integrals using Rcpp.
+| 
+| To be more precise, I need to evaluate a double integral that turns out to be
+| somewhat nasty (really slow computation and presumably inaccurate results using
+| the R cubature package).
+| 
+| Should I write the integration algorithm from scratch, or is there any external
+| library you would suggest?
+| 
+| I've already found the post on Stackoverflow 'using C function from other
+| package in Rcpp' that dealt with an integration problem as well, but it looked
+| too general for my problem and also, it's one year old, maybe something else
+| has turned up in the meanwhile..
+
+>From the top of my head, I think there are several CRAN package doing
+something like cubature with related names.  It is not something I use day
+to day so maybe somebody else will chime in...
+
+In general, though, one (easy ?) approach is to solve the problem with
+standalone C/C++ code [ possibly entirely outside of of R ] and then learn
+(here and elsewhere) how to connect that to R via Rcpp. It is
+straightforward.  
+
+Alternatively, and starting from the other end, learn how to access C / C++
+code in another package and do it with C++ code from R via Rcpp.
+
+Or use the middle ground.  There are lots of ways in which Rcpp can help you here.
+
+Dirk
+ 
+| Thanks in advance, and congrats for the great work with Rcpp!
+| 
+| /federico
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Fri Jan  9 15:42:19 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Fri, 9 Jan 2015 09:42:19 -0500
+Subject: [Rcpp-devel] Integrals with Rcpp
+In-Reply-To: <21679.59392.994629.627409@max.nulle.part>
+References: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+ <21679.59392.994629.627409@max.nulle.part>
+Message-ID: <CAJ_LAMAAenFfLHwg0FpG0huLGVi9Dy8yV6nML9k1SSCGarK7zQ@mail.gmail.com>
+
+Hi,
+
+The backend of cubature package is the cubature C library from MIT. The
+same author with nlopt.
+
+Can you give a little more detail about the double integral?  Cubature
+should not be that slow from my experience.
+
+Best,
+
+KK
+
+
+On Fri, Jan 9, 2015 at 9:38 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 9 January 2015 at 15:10, Federico Andreis wrote:
+> | Dear all,
+> |
+> | I was wondering what, in your opinion, would be the best way to handle
+> the
+> | computation of definite integrals using Rcpp.
+> |
+> | To be more precise, I need to evaluate a double integral that turns out
+> to be
+> | somewhat nasty (really slow computation and presumably inaccurate
+> results using
+> | the R cubature package).
+> |
+> | Should I write the integration algorithm from scratch, or is there any
+> external
+> | library you would suggest?
+> |
+> | I've already found the post on Stackoverflow 'using C function from other
+> | package in Rcpp' that dealt with an integration problem as well, but it
+> looked
+> | too general for my problem and also, it's one year old, maybe something
+> else
+> | has turned up in the meanwhile..
+>
+> From the top of my head, I think there are several CRAN package doing
+> something like cubature with related names.  It is not something I use day
+> to day so maybe somebody else will chime in...
+>
+> In general, though, one (easy ?) approach is to solve the problem with
+> standalone C/C++ code [ possibly entirely outside of of R ] and then learn
+> (here and elsewhere) how to connect that to R via Rcpp. It is
+> straightforward.
+>
+> Alternatively, and starting from the other end, learn how to access C / C++
+> code in another package and do it with C++ code from R via Rcpp.
+>
+> Or use the middle ground.  There are lots of ways in which Rcpp can help
+> you here.
+>
+> Dirk
+>
+> | Thanks in advance, and congrats for the great work with Rcpp!
+> |
+> | /federico
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150109/80def168/attachment.html>
+
+From federico.andreis at gmail.com  Fri Jan  9 16:26:36 2015
+From: federico.andreis at gmail.com (Federico Andreis)
+Date: Fri, 9 Jan 2015 16:26:36 +0100
+Subject: [Rcpp-devel] Integrals with Rcpp
+In-Reply-To: <CAJ_LAMAAenFfLHwg0FpG0huLGVi9Dy8yV6nML9k1SSCGarK7zQ@mail.gmail.com>
+References: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+ <21679.59392.994629.627409@max.nulle.part>
+ <CAJ_LAMAAenFfLHwg0FpG0huLGVi9Dy8yV6nML9k1SSCGarK7zQ@mail.gmail.com>
+Message-ID: <CAOEqqmAFD9UPKJPjaGE8LGE39r9YffnxNd7yc0jGTcBV7VeNTw@mail.gmail.com>
+
+Dear Dirk, thanks for your answer, I'll keep studying and decide what way
+to follow.
+
+Dear Qiang, here's the code for the function (I already did some work to
+the math behind the density itself in order to quicken a bit)
+
+library(cubature)
+library(zipfR)
+
+dcbinom <- Vectorize(function(x,nu,pp) { # density function
+
+  stopifnot(pp>0&pp<1&x<=nu+1&nu>0)
+  if (x<=0|x>=nu+1) 0
+  else {
+    ifelse(x>(nu+1)/2&x<nu&pp>.5, {
+      aa <- exp(-2*lbeta(x,nu-x+1))
+      bb <- function(s)
+(s[1]*s[2])^(nu-x)*((1-s[1])*(1-s[2]))^(x-1)*(log((1-s[2])/s[2])-log((1-s[1])/s[1]))
+
+      aa*adaptIntegrate(bb,c(0,0),c(1,1-pp))$integral
+    },
+{
+  aa <- exp(-2*lbeta(x,nu-x+1))
+  bb <- function(s)
+(s[1]*s[2])^(x-1)*((1-s[1])*(1-s[2]))^(nu-x)*(log((1-s[2])/s[2])-log((1-s[1])/s[1]))
+
+  aa*adaptIntegrate(bb,c(pp,1E-10),c(1-1E-10,pp))$integral
+
+})}
+})
+
+
+Now, this is *quite* fast if I want to obtain a single density value.
+Still, if I need to use it repeatedly to, e.g., draw the density using
+curve(), it gets quite slow:
+
+> system.time(curve(dcbinom(x,nu=10,pp=.2),xlim=c(0,11)))   user  system elapsed
+   1.48    0.00    1.48
+
+
+> system.time(curve(dcbinom(x,nu=1,pp=.7),xlim=c(0,2)))   user  system elapsed
+   4.25    0.00    4.25
+
+Moreover, I have the feeling that something's wrong with the numerical
+values when approaching the limits of the support, i.e. (0, nu+1).
+
+
+Any suggestion?
+
+Thanks again!
+
+On Fri, Jan 9, 2015 at 3:42 PM, Qiang Kou <qkou at umail.iu.edu> wrote:
+
+> Hi,
+>
+> The backend of cubature package is the cubature C library from MIT. The
+> same author with nlopt.
+>
+> Can you give a little more detail about the double integral?  Cubature
+> should not be that slow from my experience.
+>
+> Best,
+>
+> KK
+>
+>
+> On Fri, Jan 9, 2015 at 9:38 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 9 January 2015 at 15:10, Federico Andreis wrote:
+>> | Dear all,
+>> |
+>> | I was wondering what, in your opinion, would be the best way to handle
+>> the
+>> | computation of definite integrals using Rcpp.
+>> |
+>> | To be more precise, I need to evaluate a double integral that turns out
+>> to be
+>> | somewhat nasty (really slow computation and presumably inaccurate
+>> results using
+>> | the R cubature package).
+>> |
+>> | Should I write the integration algorithm from scratch, or is there any
+>> external
+>> | library you would suggest?
+>> |
+>> | I've already found the post on Stackoverflow 'using C function from
+>> other
+>> | package in Rcpp' that dealt with an integration problem as well, but it
+>> looked
+>> | too general for my problem and also, it's one year old, maybe something
+>> else
+>> | has turned up in the meanwhile..
+>>
+>> From the top of my head, I think there are several CRAN package doing
+>> something like cubature with related names.  It is not something I use day
+>> to day so maybe somebody else will chime in...
+>>
+>> In general, though, one (easy ?) approach is to solve the problem with
+>> standalone C/C++ code [ possibly entirely outside of of R ] and then learn
+>> (here and elsewhere) how to connect that to R via Rcpp. It is
+>> straightforward.
+>>
+>> Alternatively, and starting from the other end, learn how to access C /
+>> C++
+>> code in another package and do it with C++ code from R via Rcpp.
+>>
+>> Or use the middle ground.  There are lots of ways in which Rcpp can help
+>> you here.
+>>
+>> Dirk
+>>
+>> | Thanks in advance, and congrats for the great work with Rcpp!
+>> |
+>> | /federico
+>> | _______________________________________________
+>> | Rcpp-devel mailing list
+>> | Rcpp-devel at lists.r-forge.r-project.org
+>> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150109/0ce285d5/attachment-0001.html>
+
+From janusjlarsen at gmail.com  Mon Jan 12 13:10:11 2015
+From: janusjlarsen at gmail.com (janus Larsen)
+Date: Mon, 12 Jan 2015 13:10:11 +0100
+Subject: [Rcpp-devel] Setting time zone on Rcpp::Datetime
+In-Reply-To: <21679.51209.686158.63353@max.nulle.part>
+References: <CAK-c3U=QczC=Nw3ywdeds3Mg_w7yTJN3_HLB7dv_JU-04YnreA@mail.gmail.com>
+ <21679.51209.686158.63353@max.nulle.part>
+Message-ID: <CAK-c3Unmc1LgjgNA8jkEawLUH4E0=7QEuFV_m=AbZ+B=BZDoFA@mail.gmail.com>
+
+Hi again,
+
+Thanks Dirk for your reply. So there is no way of doing this on the C side?
+
+The thing is that I'm returning a large object that contains a lot of
+information (about an unstructured 3D model) and some of the fields are
+DateTimes. I could of cource wrap the call to the C function in an R
+function that then corrects the dates to GMT (or sets the timezone before
+calling the C function), but it just not that nice... Previously I had this
+code written using <RDefines.h> where I could set the timezone on the
+returned posIXct object:
+
+SEXP long2DateTime(long dt) {
+SEXP result;
+result = PROTECT(allocVector(REALSXP, 1));
+REAL(result)[0] = dt;
+SEXP gmt = PROTECT(allocVector(STRSXP,1));
+SET_STRING_ELT(gmt, 0, mkChar("GMT"));
+SEXP tzone = PROTECT(allocVector(STRSXP,1));
+SET_STRING_ELT(tzone, 0, mkChar("tzone"));
+setAttrib(result, tzone, gmt);
+SEXP datetimeclass = PROTECT(allocVector(STRSXP,2));
+SET_STRING_ELT(datetimeclass, 0, mkChar("POSIXt"));
+SET_STRING_ELT(datetimeclass, 1, mkChar("POSIXct"));
+setAttrib(result, R_ClassSymbol, datetimeclass);
+UNPROTECT(4);
+return result;
+}
+
+
+Janus
+
+On Fri, Jan 9, 2015 at 1:22 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 9 January 2015 at 11:50, janus Larsen wrote:
+> | Hi,
+> | How do I set the timezone on an Rcpp::Datetime?
+> | Thanks in advance,
+> | Sunaj
+> |
+> | This returns "1970-01-01 01:00:00 CET" (computer setting), but I want
+> GMT...
+>
+> R does the formatting in its session based on your locale.
+>
+> That is generally the right thing:
+>
+> | // [[Rcpp::export]]
+> | Rcpp::Datetime test() {
+> |   double d=0;
+> |   return(d);
+> | }
+>
+> Small corrections to your code to actually export the function (under a
+> safer
+> name):
+>
+> #include <Rcpp.h>
+>
+> // [[Rcpp::export]]
+> Rcpp::Datetime timetest(double d=0) {
+>   return(d);
+> }
+>
+> Then:
+>
+> R> sourceCpp("/tmp/timeQ.cpp")
+> R> timetest()                       # my default is Chicago, or -5
+> [1] "1969-12-31 18:00:00 CST"
+> R> as.numeric(timetest())
+> [1] 0
+> R> Sys.setenv("TZ"="Europe/London")
+> R> timetest()                       # I can select another one
+> [1] "1970-01-01 01:00:00 BST"
+> R> Sys.setenv("TZ"="UTC")
+> R> timetest()                       # incl UTC
+> [1] "1970-01-01 UTC"
+> R>
+> R> format(timetest(), tz="America/Chicago")
+> [1] "1969-12-31 18:00:00"
+> R>
+>
+> So you need to change the timezone _at the level of your app_ which can be
+> as
+> simple as writing a new Date formatter in R as per my last line.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150112/721f9b3a/attachment.html>
+
+From edd at debian.org  Mon Jan 12 13:34:42 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 12 Jan 2015 06:34:42 -0600
+Subject: [Rcpp-devel] Setting time zone on Rcpp::Datetime
+In-Reply-To: <CAK-c3Unmc1LgjgNA8jkEawLUH4E0=7QEuFV_m=AbZ+B=BZDoFA@mail.gmail.com>
+References: <CAK-c3U=QczC=Nw3ywdeds3Mg_w7yTJN3_HLB7dv_JU-04YnreA@mail.gmail.com>
+ <21679.51209.686158.63353@max.nulle.part>
+ <CAK-c3Unmc1LgjgNA8jkEawLUH4E0=7QEuFV_m=AbZ+B=BZDoFA@mail.gmail.com>
+Message-ID: <21683.48994.81386.766211@max.nulle.part>
+
+
+On 12 January 2015 at 13:10, janus Larsen wrote:
+| Hi again,
+| 
+| Thanks Dirk for your reply. So there is no way of doing this on the C side?
+| 
+| The thing is that I'm returning a large object that contains a lot of
+| information (about an unstructured 3D model) and some of the fields are
+| DateTimes. I could of cource wrap the call to the C function in an R function
+| that then corrects the dates to GMT (or sets the timezone before calling the C
+| function), but it just not that nice... Previously I had this code written
+| using <RDefines.h> where I could set the timezone on the returned posIXct
+| object:
+| 
+| SEXP long2DateTime(long dt) {
+| SEXP result;
+| result = PROTECT(allocVector(REALSXP, 1));
+| REAL(result)[0] = dt;
+| SEXP gmt = PROTECT(allocVector(STRSXP,1));
+| SET_STRING_ELT(gmt, 0, mkChar("GMT"));
+| SEXP tzone = PROTECT(allocVector(STRSXP,1));
+| SET_STRING_ELT(tzone, 0, mkChar("tzone"));
+| setAttrib(result, tzone, gmt);
+| SEXP datetimeclass = PROTECT(allocVector(STRSXP,2));
+| SET_STRING_ELT(datetimeclass, 0, mkChar("POSIXt"));
+| SET_STRING_ELT(datetimeclass, 1, mkChar("POSIXct"));
+| setAttrib(result, R_ClassSymbol, datetimeclass);
+| UNPROTECT(4);
+| return result;
+| }
+
+Oh dear. See eg http://gallery.rcpp.org/articles/creating-xts-from-c++/ or
+the other few xts related answers on the Rcpp Gallery.
+
+Dirk
+ 
+| Janus
+| 
+| On Fri, Jan 9, 2015 at 1:22 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+|    
+|     On 9 January 2015 at 11:50, janus Larsen wrote:
+|     | Hi,
+|     | How do I set the timezone on an?Rcpp::Datetime?
+|     | Thanks in advance,
+|     | Sunaj
+|     |
+|     | This returns?"1970-01-01 01:00:00 CET" (computer setting), but I want
+|     GMT...
+| 
+|     R does the formatting in its session based on your locale.
+| 
+|     That is generally the right thing:
+|    
+|     | // [[Rcpp::export]]
+|     | Rcpp::Datetime test() {
+|     | ? double d=0;
+|     | ? return(d);
+|     | }
+| 
+|     Small corrections to your code to actually export the function (under a
+|     safer
+|     name):
+| 
+|     #include <Rcpp.h>
+| 
+|     // [[Rcpp::export]]
+|     Rcpp::Datetime timetest(double d=0) {
+|     ? return(d);
+|     }
+| 
+|     Then:
+| 
+|     R> sourceCpp("/tmp/timeQ.cpp")
+|     R> timetest()? ? ? ? ? ? ? ? ? ? ? ?# my default is Chicago, or -5
+|     [1] "1969-12-31 18:00:00 CST"
+|     R> as.numeric(timetest())
+|     [1] 0
+|     R> Sys.setenv("TZ"="Europe/London")
+|     R> timetest()? ? ? ? ? ? ? ? ? ? ? ?# I can select another one
+|     [1] "1970-01-01 01:00:00 BST"
+|     R> Sys.setenv("TZ"="UTC")
+|     R> timetest()? ? ? ? ? ? ? ? ? ? ? ?# incl UTC
+|     [1] "1970-01-01 UTC"
+|     R>
+|     R> format(timetest(), tz="America/Chicago")
+|     [1] "1969-12-31 18:00:00"
+|     R>
+| 
+|     So you need to change the timezone _at the level of your app_ which can be
+|     as
+|     simple as writing a new Date formatter in R as per my last line.
+|    
+|     Dirk
+| 
+|     --
+|     http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aslett at stats.ox.ac.uk  Mon Jan 12 14:44:09 2015
+From: aslett at stats.ox.ac.uk (Louis Aslett)
+Date: Mon, 12 Jan 2015 13:44:09 +0000
+Subject: [Rcpp-devel] Rcpp modules and S3 dispatch on rbind/cbind
+Message-ID: <CADTpfYnZ+hCxvVrGOe41KSfUbdxMkPirhmU+_kK_mmF=9bf1bg@mail.gmail.com>
+
+I've encountered a problem when trying to perform S3 method dispatch
+for rbind() with an Rcpp module I've written.  Obviously Rcpp modules
+are S4, but as per many Google-able discussions, rbind/cbind can't
+support S4 method dispatch due to the first argument being a
+dot-dot-dot one, so S3 on the first argument type is the best that can
+be done.  I think this is good enough for my problem as my types can't
+be mixed with base types so I've a fairly short list of possible first
+argument types and can disentangle in my own code.
+
+I won't bog the list down with my real problem which is hundreds of
+lines of code ... I've managed to narrow it down to the following
+minimal working example which produces the same issue (description to
+follow below).
+
+== Start content of test.cpp ==
+#include <Rcpp.h>
+using namespace Rcpp;
+
+class TestClass1 {
+  public:
+    TestClass1() {}
+    void hello() const {
+      Rcout << "Hello world!" << std::endl;
+    }
+};
+
+class TestClass2 {
+  public:
+    TestClass2() {}
+    void hello() const {
+      Rcout << "Hello world!" << std::endl;
+    }
+};
+
+RCPP_MODULE(test_mod) {
+  class_<TestClass1>( "TestClass1" )
+  .constructor()
+  .method("hello", &TestClass1::hello)
+  ;
+
+  class_<TestClass2>( "TestClass2" )
+  .constructor()
+  .method("hello", &TestClass2::hello)
+  ;
+}
+== End content of test.cpp==
+
+== Start example R script ==
+Rcpp::sourceCpp('test.cpp')
+
+# Define S3 method for the Rcpp class types
+rbind.Rcpp_TestClass1 <- function(...) {
+  args <- list(...)
+  cat("Calling type 1 hello\n")
+  args[[1]]$hello()
+}
+rbind.Rcpp_TestClass2 <- function(...) {
+  args <- list(...)
+  cat("Calling type 2 hello\n")
+  args[[1]]$hello()
+}
+
+a <- new(TestClass1)
+b <- new(TestClass2)
+
+# OK, this goes to plan ... I can has an Rcpp module, many of same
+# type or mix with R types
+rbind(a)
+rbind(a,a)
+rbind(a,2,matrix(1:4,2))
+rbind(b)
+rbind(b,b)
+rbind(b,2,matrix(1:4,2))
+
+# ... but I can't mix two Rcpp module types
+rbind(a,b)
+rbind(b,a)
+
+# Get rid of one of the S3 methods and it works to mix Rcpp module types
+rm(rbind.Rcpp_TestClass2)
+rbind(a,b)
+== End example R script ==
+
+The output for the problem part is:
+
+> # ... but I can't mix two Rcpp module types
+> rbind(a,b)
+Error in rbind(a, b) : environments cannot be coerced to other types
+> rbind(b,a)
+Error in rbind(b, a) : environments cannot be coerced to other types
+
+All other lines in the script behave as expected.
+
+So in a nut shell the problem seems to be that one can't have first
+argument S3 method dispatch defined for more than one Rcpp module type
+at a time.  I am mystified why this should be?  Any insights greatly
+appreciated!
+
+All the best,
+
+Louis
+
+
+PS In case this arrives twice in error I resent from my subscribed address.
+
+From 11.6729 at stis.ac.id  Mon Jan 12 17:10:26 2015
+From: 11.6729 at stis.ac.id (Jodi Jhouranda Siregar)
+Date: Mon, 12 Jan 2015 23:10:26 +0700
+Subject: [Rcpp-devel] Error compiling Rinside qt in windows
+Message-ID: <CAGQ++V0xfMNe0O7HJ8=yMoUyPXCusctXZ+xK_n=FfK1Y7sLTWg@mail.gmail.com>
+
+I made simple qt with rinside software and it works smootly in my linux pc.
+and when i try to complie it in windows. it does'nt work.  any solution?
+regards.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150112/b4b49b92/attachment.html>
+
+From maxime.to at outlook.fr  Mon Jan 12 20:03:29 2015
+From: maxime.to at outlook.fr (Maxime To)
+Date: Mon, 12 Jan 2015 20:03:29 +0100
+Subject: [Rcpp-devel] RCPP, Rstudio, parallel
+Message-ID: <DUB128-W809EBCCDA7DB9884D9B46889430@phx.gbl>
+
+Hi all,
+
+I have a problem using simultaneously RCPP and Snow with Rstudio. The problem only appears when I use Rstudio, and the code runs well when using RGUI.
+I wrote a cpp function that I want to run in parallel. So I use Snow and compile the function on each node as follow:
+
+library(parallel)
+library(Rcpp)
+library(RcppArmadillo)
+cl = makeCluster(nnodes, type = "SOCK")
+clusterEvalQ(cl, library(Rcpp))
+  clusterEvalQ(cl, library(RcppArmadillo))
+  clusterEvalQ(cl, setwd(my_path))
+  clusterEvalQ(cl[i], sourceCpp("Rcpp/function.cpp"))
+
+The produced error is the following:
+
+Error in checkForRemoteErrors(lapply(cl, recvResult)) : 
+  one node produced an error: Error 1 occurred building shared library.
+
+Have you ever had this problem? Is it necessary to configure Rstudio in a particular way in order to make it work?
+Thanks,
+
+Maxime
+ 		 	   		  
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150112/34a8cc6e/attachment.html>
+
+From edd at debian.org  Mon Jan 12 20:10:50 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 12 Jan 2015 13:10:50 -0600
+Subject: [Rcpp-devel] Error compiling Rinside qt in windows
+In-Reply-To: <CAGQ++V0xfMNe0O7HJ8=yMoUyPXCusctXZ+xK_n=FfK1Y7sLTWg@mail.gmail.com>
+References: <CAGQ++V0xfMNe0O7HJ8=yMoUyPXCusctXZ+xK_n=FfK1Y7sLTWg@mail.gmail.com>
+Message-ID: <21684.7226.487302.199157@max.nulle.part>
+
+
+On 12 January 2015 at 23:10, Jodi Jhouranda Siregar wrote:
+| I made simple qt with rinside software and it works smootly in my linux pc. and
+| when i try to complie it in windows. it does'nt work. ?any solution?
+
+This is documented: you may need to compile Qt with the same
+compiler that R uses; I once did that from the Qt sources and got working
+binaries that way.
+
+Otherwise hard for us to help you given the "it doesn't work" detail, or
+lack thereof, in your email.
+
+Dirk  
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Mon Jan 12 20:13:16 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 12 Jan 2015 13:13:16 -0600
+Subject: [Rcpp-devel] RCPP, Rstudio, parallel
+In-Reply-To: <DUB128-W809EBCCDA7DB9884D9B46889430@phx.gbl>
+References: <DUB128-W809EBCCDA7DB9884D9B46889430@phx.gbl>
+Message-ID: <21684.7372.23007.714173@max.nulle.part>
+
+
+On 12 January 2015 at 20:03, Maxime To wrote:
+| Hi all,
+| 
+| I have a problem using simultaneously RCPP and Snow with Rstudio. The problem
+| only appears when I use Rstudio, and the code runs well when using RGUI.
+| I wrote a cpp function that I want to run in parallel. So I use Snow and
+| compile the function on each node as follow:
+| 
+| library(parallel)
+| library(Rcpp)
+| library(RcppArmadillo)
+| cl = makeCluster(nnodes, type = "SOCK")
+| clusterEvalQ(cl, library(Rcpp))
+| clusterEvalQ(cl, library(RcppArmadillo))
+| clusterEvalQ(cl, setwd(my_path))
+| clusterEvalQ(cl[i], sourceCpp("Rcpp/function.cpp"))
+| 
+| The produced error is the following:
+| 
+| Error in checkForRemoteErrors(lapply(cl, recvResult)) :
+| one node produced an error: Error 1 occurred building shared library.
+| 
+| Have you ever had this problem? Is it necessary to configure Rstudio in a
+| particular way in order to make it work?
+
+That is a "using snow (or package parallel) from within RStudio" question
+which has nothing to do with Rcpp.  Please do not abuse this list.
+
+Wrap your code in a package, including the c++ sources, and install the
+package on each node. Then load that package on each node from snow or
+parallel.  
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From markleeds2 at gmail.com  Tue Jan 13 07:27:22 2015
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Tue, 13 Jan 2015 01:27:22 -0500
+Subject: [Rcpp-devel] regular expression in Rcpp
+Message-ID: <CAHz+bWa7Kqv_2-PbjgQxR=z1TH++8SKNPQ+rj2RUNEQ9iuOdcg@mail.gmail.com>
+
+Hi All: I was trying to do something with regular expressions in Rcpp so I
+piggy backed
+heavily off of Dirk's boost.regex example in the Rcpp Gallery where he
+takes streams of digits and checks them for machine and human readability.
+
+My problem is actually pretty different and simpler. Essentially, if a
+character string ends in "rhofixed" or "norhofixed", then that part of the
+character string should be removed. The R code below illiustrates what I'm
+trying to do.
+
+But, when I write the Rcpp code to do the same thing and  set
+Sys.setenv("PKG_LIBS"="-lboost_regex"), I don't get the same result. I
+don't know if  it's due to the regex engine being different in boost or I
+could be doing something else wrong. Thanks for any help.
+
+=====================================================================
+# R CODE TO ILLUSTRATE WHAT I WANT
+=====================================================================
+
+s <- c("lngimbintrhofixed","lngimbnointnorhofixed","test")
+result <- sub("(no)?rhofixed$","",s)
+print(result)
+
+ print(result)
+[1] "lngimbint"   "lngimbnoint" "test"
+
+#=====================================================================
+Rcpp CODE ATTEMPT HEAVILY BASED OFF DIRK"S EXAMPLE
+#=====================================================================
+
+#include <Rcpp.h>
+#include <string>
+#include <boost/regex.hpp>
+
+using namespace Rcpp;
+using namespace std;
+
+bool validate_modelstring(const std::string& s) {
+  static const boost::regex e("^(.*)((no)?rhofixed)$");
+     return(boost::regex_match(s, e));
+}
+
+const std::string model_format("\\1");
+const boost::regex e("\\A^(.*)((no)?rhofixed)$\\z");
+
+std::string filtered_rhopart(const std::string& s) {
+     return boost::regex_replace(s, e, model_format, boost::match_default |
+boost::format_sed);
+}
+
+// [[Rcpp::export]]
+Rcpp::DataFrame regexTest(std::vector<std::string> s) {
+
+     int n = s.size();
+     std::vector<bool> valid(n);
+     std::vector<string> outmodel(n);
+
+     for (int i=0; i<n; i++) {
+          valid[i]  = validate_modelstring(s[i]);
+          if (valid[i]) {
+          outmodel[i] = filtered_rhopart(s[i]);
+     } else {
+        outmodel[i] = s[i];
+     }
+     }
+
+     return Rcpp::DataFrame::create(Rcpp::Named("input") = s,
+                    Rcpp::Named("valid") = valid,
+                    Rcpp::Named("output") = outmodel);
+}
+
+/*** R
+s <- c("lngimbintrhofixed","lngimbnointnorhofixed","test")
+regexTest(s)
+*/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150113/ea45d590/attachment.html>
+
+From jeff.ct.wong at gmail.com  Tue Jan 13 09:16:34 2015
+From: jeff.ct.wong at gmail.com (Jeffrey Wong)
+Date: Tue, 13 Jan 2015 00:16:34 -0800
+Subject: [Rcpp-devel] Advice on making interface into existing C++ library
+Message-ID: <CAC9zf=5iV8ViM4kQGgE29ja3WCsfjp+m4Mq9h-8ncu9Vfu=pHg@mail.gmail.com>
+
+Hello,
+
+I am very interested in making libFM accessible through R via Rcpp
+
+https://github.com/srendle/libfm
+
+The makefile for libFM will compile the libFM.cpp file in the src/libFM
+directory and dump the result in a bin/ directory, which is normally
+accessed through command line.  What would be the best way for making this
+accessible through Rcpp?
+
+-- 
+Jeffrey Wong
+My portfolio: http://jeffreycwong.com <http://jeffreyctwong.com>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150113/d1915c99/attachment.html>
+
+From edd at debian.org  Tue Jan 13 13:17:38 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 13 Jan 2015 06:17:38 -0600
+Subject: [Rcpp-devel] regular expression in Rcpp
+In-Reply-To: <CAHz+bWa7Kqv_2-PbjgQxR=z1TH++8SKNPQ+rj2RUNEQ9iuOdcg@mail.gmail.com>
+References: <CAHz+bWa7Kqv_2-PbjgQxR=z1TH++8SKNPQ+rj2RUNEQ9iuOdcg@mail.gmail.com>
+Message-ID: <21685.3298.644644.754112@max.nulle.part>
+
+
+On 13 January 2015 at 01:27, Mark Leeds wrote:
+| Hi All: I was trying to do something with regular expressions in Rcpp so I
+| piggy backed
+| heavily off of Dirk's boost.regex example in the Rcpp Gallery where he takes
+| streams of digits and checks them for machine and human readability.
+| 
+| My problem is actually pretty different and simpler. Essentially, if a
+| character string ends in "rhofixed" or "norhofixed", then that part of the
+| character string should be removed. The R code below illiustrates what I'm
+| trying to do.
+| 
+| But, when I write the Rcpp code to do the same thing and? set Sys.setenv
+| ("PKG_LIBS"="-lboost_regex"), I don't get the same result. I don't know if?
+| it's due to the regex engine being different in boost or I could be doing
+
+Yes it is indeed different. Boost regex are their own thing. Use its
+documentation. 
+
+Alternatively, you could try linking to the Perl or POSIX ones which R
+supports.  I have no ready-made example though...
+
+Dirk
+
+| something else wrong. Thanks for any help.
+| 
+| =====================================================================
+| # R CODE TO ILLUSTRATE WHAT I WANT
+| =====================================================================
+| 
+| s <- c("lngimbintrhofixed","lngimbnointnorhofixed","test")
+| result <- sub("(no)?rhofixed$","",s)
+| print(result)
+| 
+| ?print(result)
+| [1] "lngimbint"?? "lngimbnoint" "test"??????
+| 
+| #=====================================================================
+| Rcpp CODE ATTEMPT HEAVILY BASED OFF DIRK"S EXAMPLE
+| #=====================================================================
+| 
+| #include <Rcpp.h>
+| #include <string>
+| #include <boost/regex.hpp>
+| 
+| using namespace Rcpp;
+| using namespace std;
+| 
+| bool validate_modelstring(const std::string& s) {
+| ? static const boost::regex e("^(.*)((no)?rhofixed)$");
+| ???? return(boost::regex_match(s, e));
+| }
+| 
+| const std::string model_format("\\1");
+| const boost::regex e("\\A^(.*)((no)?rhofixed)$\\z");
+| 
+| std::string filtered_rhopart(const std::string& s) {
+| ???? return boost::regex_replace(s, e, model_format, boost::match_default |
+| boost::format_sed);
+| }
+| 
+| // [[Rcpp::export]]
+| Rcpp::DataFrame regexTest(std::vector<std::string> s) {
+| ???????
+| ???? int n = s.size();???
+| ???? std::vector<bool> valid(n);
+| ???? std::vector<string> outmodel(n);
+| ???
+| ???? for (int i=0; i<n; i++) {
+| ????????? valid[i]? = validate_modelstring(s[i]);
+| ????????? if (valid[i]) {
+| ??? ????? outmodel[i] = filtered_rhopart(s[i]);
+| ??? ?} else {
+| ??? ??? outmodel[i] = s[i];
+| ??? ?}????????
+| ???? }
+| 
+| ???? return Rcpp::DataFrame::create(Rcpp::Named("input") = s,
+| ??? ??? ??? ??? ??? Rcpp::Named("valid") = valid,
+| ??? ??? ??? ??? ??? Rcpp::Named("output") = outmodel);
+| }
+| 
+| /*** R
+| s <- c("lngimbintrhofixed","lngimbnointnorhofixed","test")
+| regexTest(s)
+| */
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Jan 13 13:21:00 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 13 Jan 2015 06:21:00 -0600
+Subject: [Rcpp-devel] Advice on making interface into existing C++
+	library
+In-Reply-To: <CAC9zf=5iV8ViM4kQGgE29ja3WCsfjp+m4Mq9h-8ncu9Vfu=pHg@mail.gmail.com>
+References: <CAC9zf=5iV8ViM4kQGgE29ja3WCsfjp+m4Mq9h-8ncu9Vfu=pHg@mail.gmail.com>
+Message-ID: <21685.3500.389136.880470@max.nulle.part>
+
+
+On 13 January 2015 at 00:16, Jeffrey Wong wrote:
+| Hello,
+| 
+| I am very interested in making libFM accessible through R via Rcpp
+| 
+| https://github.com/srendle/libfm
+| 
+| The makefile for libFM will compile the libFM.cpp file in the src/libFM
+| directory and dump the result in a bin/ directory, which is normally accessed
+| through command line.? What would be the best way for making this accessible
+| through Rcpp??
+
+I'd start with the src/libfm/Makefile, see what it compiles into libfm (ie
+*.cpp and tools/{transpose,convert.cpp}) and just copy that to src/ of your
+package.  R takes care of the rest.
+
+Working with an external library is doable but harder.  Other R packages do
+it, can't think of an Rcpp-using package that does though.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From matdzb at gmail.com  Tue Jan 13 15:41:57 2015
+From: matdzb at gmail.com (Matt D.)
+Date: Tue, 13 Jan 2015 15:41:57 +0100
+Subject: [Rcpp-devel] regular expression in Rcpp
+In-Reply-To: <CAHz+bWa7Kqv_2-PbjgQxR=z1TH++8SKNPQ+rj2RUNEQ9iuOdcg@mail.gmail.com>
+References: <CAHz+bWa7Kqv_2-PbjgQxR=z1TH++8SKNPQ+rj2RUNEQ9iuOdcg@mail.gmail.com>
+Message-ID: <54B52EB5.9050605@gmail.com>
+
+On 1/13/2015 07:27, Mark Leeds wrote:
+> Hi All: I was trying to do something with regular expressions in Rcpp 
+> so I piggy backed
+> heavily off of Dirk's boost.regex example in the Rcpp Gallery where he 
+> takes streams of digits and checks them for machine and human 
+> readability.
+Hi!
+>
+> My problem is actually pretty different and simpler. Essentially, if a 
+> character string ends in "rhofixed" or "norhofixed", then that part of 
+> the character string should be removed. The R code below illiustrates 
+> what I'm trying to do.
+>
+> But, when I write the Rcpp code to do the same thing and  set 
+> Sys.setenv("PKG_LIBS"="-lboost_regex"), I don't get the same result. I 
+> don't know if  it's due to the regex engine being different in boost 
+> or I could be doing something else wrong. Thanks for any help.
+It does indeed seems simpler than an usual use case for regex. Hence, 
+perhaps you can go about it differently:
+- use `boost::algorithm::ends_with` (from 
+<boost/algorithm/string/predicate.hpp>) to check whether your predicate 
+(i.e., a character string ends in "rhofixed" or "norhofixed") holds
+- if so, use the `erase` member function 
+(http://en.cppreference.com/w/cpp/string/basic_string/substr) to get rid 
+of the substring (note: if one of the aforementioned predicates is 
+satisfied, then you can trivially infer how long is the substring 
+subject to removal -- and can thus use, say, the iterator-pair version, 
+stepping backward from `std::end(your_string)` as needed).
+
+HTH!
+
+Best,
+
+Matt
+
+
+From markleeds2 at gmail.com  Tue Jan 13 16:55:19 2015
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Tue, 13 Jan 2015 10:55:19 -0500
+Subject: [Rcpp-devel] regular expression in Rcpp
+In-Reply-To: <54B52EB5.9050605@gmail.com>
+References: <CAHz+bWa7Kqv_2-PbjgQxR=z1TH++8SKNPQ+rj2RUNEQ9iuOdcg@mail.gmail.com>
+ <54B52EB5.9050605@gmail.com>
+Message-ID: <CAHz+bWYR_adEqgVm6yPN24ZdZrWM3bPFXs4OL3oq=F5v+7eswQ@mail.gmail.com>
+
+Thanks Matt and Dirk. Both suggestions are good. I'll try one of them ( not
+sure which
+yet ) and let you know how it works out. Definitely it's not as as easy a
+problem as I originally thought. Thanks again.
+
+
+Mark
+
+On Tue, Jan 13, 2015 at 9:41 AM, Matt D. <matdzb at gmail.com> wrote:
+
+> On 1/13/2015 07:27, Mark Leeds wrote:
+>
+>> Hi All: I was trying to do something with regular expressions in Rcpp so
+>> I piggy backed
+>> heavily off of Dirk's boost.regex example in the Rcpp Gallery where he
+>> takes streams of digits and checks them for machine and human readability.
+>>
+> Hi!
+>
+>>
+>> My problem is actually pretty different and simpler. Essentially, if a
+>> character string ends in "rhofixed" or "norhofixed", then that part of the
+>> character string should be removed. The R code below illiustrates what I'm
+>> trying to do.
+>>
+>> But, when I write the Rcpp code to do the same thing and  set
+>> Sys.setenv("PKG_LIBS"="-lboost_regex"), I don't get the same result. I
+>> don't know if  it's due to the regex engine being different in boost or I
+>> could be doing something else wrong. Thanks for any help.
+>>
+> It does indeed seems simpler than an usual use case for regex. Hence,
+> perhaps you can go about it differently:
+> - use `boost::algorithm::ends_with` (from <boost/algorithm/string/predicate.hpp>)
+> to check whether your predicate (i.e., a character string ends in
+> "rhofixed" or "norhofixed") holds
+> - if so, use the `erase` member function (http://en.cppreference.com/w/
+> cpp/string/basic_string/substr) to get rid of the substring (note: if one
+> of the aforementioned predicates is satisfied, then you can trivially infer
+> how long is the substring subject to removal -- and can thus use, say, the
+> iterator-pair version, stepping backward from `std::end(your_string)` as
+> needed).
+>
+> HTH!
+>
+> Best,
+>
+> Matt
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150113/089d0595/attachment.html>
+
+From jeff.ct.wong at gmail.com  Tue Jan 13 17:51:02 2015
+From: jeff.ct.wong at gmail.com (Jeffrey Wong)
+Date: Tue, 13 Jan 2015 08:51:02 -0800
+Subject: [Rcpp-devel] Advice on making interface into existing C++
+	library
+In-Reply-To: <21685.3500.389136.880470@max.nulle.part>
+References: <CAC9zf=5iV8ViM4kQGgE29ja3WCsfjp+m4Mq9h-8ncu9Vfu=pHg@mail.gmail.com>
+ <21685.3500.389136.880470@max.nulle.part>
+Message-ID: <CAC9zf=7-ixdXHiccv3qTvz9UABgeUVWTi+ndBTwF2pYxSDGbYg@mail.gmail.com>
+
+Thanks Dirk, would I still create a rcpp skeleton package and dump the
+*.cpp files into src, then just use Rcpp::export? What about all the .h
+files in that library?
+
+Thanks
+
+On Tuesday, January 13, 2015, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 13 January 2015 at 00:16, Jeffrey Wong wrote:
+> | Hello,
+> |
+> | I am very interested in making libFM accessible through R via Rcpp
+> |
+> | https://github.com/srendle/libfm
+> |
+> | The makefile for libFM will compile the libFM.cpp file in the src/libFM
+> | directory and dump the result in a bin/ directory, which is normally
+> accessed
+> | through command line.  What would be the best way for making this
+> accessible
+> | through Rcpp?
+>
+> I'd start with the src/libfm/Makefile, see what it compiles into libfm (ie
+> *.cpp and tools/{transpose,convert.cpp}) and just copy that to src/ of your
+> package.  R takes care of the rest.
+>
+> Working with an external library is doable but harder.  Other R packages do
+> it, can't think of an Rcpp-using package that does though.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> <javascript:;>
+>
+
+
+-- 
+Jeffrey Wong
+My portfolio: http://jeffreycwong.com <http://jeffreyctwong.com>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150113/835c304f/attachment.html>
+
+From baptiste.auguie at gmail.com  Tue Jan 13 19:14:31 2015
+From: baptiste.auguie at gmail.com (Baptiste Auguie)
+Date: Tue, 13 Jan 2015 15:14:31 -0300
+Subject: [Rcpp-devel] Integrals with Rcpp
+In-Reply-To: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+References: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+Message-ID: <CANLFJPoZdpgq3-nk=CNufQuBdj-5Nb39y3pbev-EkSk58iOH+w@mail.gmail.com>
+
+Hi,
+
+I might be the author of the SO question you refer to. In the planar
+package I've tried a number of different strategies for numerical
+integration, but the most efficient I managed was at the C++ level, with
+direct call to the cubature library,
+https://github.com/baptiste/planar/blob/master/src/gaussian_beam.cpp#L478
+
+At the time, I wrote for myself a minimal example,
+https://github.com/baptiste/cubature/blob/master/minimal.c
+
+HTH,
+
+baptiste
+
+On 9 January 2015 at 11:10, Federico Andreis <federico.andreis at gmail.com>
+wrote:
+
+> Dear all,
+>
+> I was wondering what, in your opinion, would be the best way to handle the
+> computation of definite integrals using Rcpp.
+>
+> To be more precise, I need to evaluate a double integral that turns out to
+> be somewhat nasty (really slow computation and presumably inaccurate
+> results using the R cubature package).
+>
+> Should I write the integration algorithm from scratch, or is there any
+> external library you would suggest?
+>
+> I've already found the post on Stackoverflow 'using C function from other
+> package in Rcpp' that dealt with an integration problem as well, but it
+> looked too general for my problem and also, it's one year old, maybe
+> something else has turned up in the meanwhile..
+>
+> Thanks in advance, and congrats for the great work with Rcpp!
+>
+> /federico
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150113/2e39b136/attachment-0001.html>
+
+From federico.andreis at gmail.com  Wed Jan 14 09:56:30 2015
+From: federico.andreis at gmail.com (Federico Andreis)
+Date: Wed, 14 Jan 2015 09:56:30 +0100
+Subject: [Rcpp-devel] Integrals with Rcpp
+In-Reply-To: <CANLFJPoZdpgq3-nk=CNufQuBdj-5Nb39y3pbev-EkSk58iOH+w@mail.gmail.com>
+References: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+ <CANLFJPoZdpgq3-nk=CNufQuBdj-5Nb39y3pbev-EkSk58iOH+w@mail.gmail.com>
+Message-ID: <CAOEqqmCEDY=3kj=qHjY7P3dm-0r8xB7FswXXLt8Ozq_kKJC6AA@mail.gmail.com>
+
+Thanks a lot, Baptiste!
+
+I'll check your code asap.
+
+Cheers,
+
+/f
+
+On Tue, Jan 13, 2015 at 7:14 PM, Baptiste Auguie <baptiste.auguie at gmail.com>
+wrote:
+
+> Hi,
+>
+> I might be the author of the SO question you refer to. In the planar
+> package I've tried a number of different strategies for numerical
+> integration, but the most efficient I managed was at the C++ level, with
+> direct call to the cubature library,
+> https://github.com/baptiste/planar/blob/master/src/gaussian_beam.cpp#L478
+>
+> At the time, I wrote for myself a minimal example,
+> https://github.com/baptiste/cubature/blob/master/minimal.c
+>
+> HTH,
+>
+> baptiste
+>
+> On 9 January 2015 at 11:10, Federico Andreis <federico.andreis at gmail.com>
+> wrote:
+>
+>> Dear all,
+>>
+>> I was wondering what, in your opinion, would be the best way to handle
+>> the computation of definite integrals using Rcpp.
+>>
+>> To be more precise, I need to evaluate a double integral that turns out
+>> to be somewhat nasty (really slow computation and presumably inaccurate
+>> results using the R cubature package).
+>>
+>> Should I write the integration algorithm from scratch, or is there any
+>> external library you would suggest?
+>>
+>> I've already found the post on Stackoverflow 'using C function from other
+>> package in Rcpp' that dealt with an integration problem as well, but it
+>> looked too general for my problem and also, it's one year old, maybe
+>> something else has turned up in the meanwhile..
+>>
+>> Thanks in advance, and congrats for the great work with Rcpp!
+>>
+>> /federico
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150114/9f8f822d/attachment.html>
+
+From edd at debian.org  Wed Jan 14 14:00:48 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 14 Jan 2015 07:00:48 -0600
+Subject: [Rcpp-devel] Advice on making interface into existing C++
+	library
+In-Reply-To: <CAC9zf=7-ixdXHiccv3qTvz9UABgeUVWTi+ndBTwF2pYxSDGbYg@mail.gmail.com>
+References: <CAC9zf=5iV8ViM4kQGgE29ja3WCsfjp+m4Mq9h-8ncu9Vfu=pHg@mail.gmail.com>
+ <21685.3500.389136.880470@max.nulle.part>
+ <CAC9zf=7-ixdXHiccv3qTvz9UABgeUVWTi+ndBTwF2pYxSDGbYg@mail.gmail.com>
+Message-ID: <21686.26752.714394.143796@max.nulle.part>
+
+
+On 13 January 2015 at 08:51, Jeffrey Wong wrote:
+| Thanks Dirk, would I still create a rcpp skeleton package and dump the *.cpp
+| files into src, then just use Rcpp::export? What about all the .h files in that
+| library?
+
+Yes you need those too, either in the same directory or in one the compiler
+is told as about as eg via PKG_CXXFLAGS = -I../../inst/include  as we often
+do when export headers for use by other packages.
+
+Rcpp has 321 reverse dependencies on CRAN. That is 321 worked, and working,
+examples of how to do this.  Use them to your advantage.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Jan 14 14:01:47 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 14 Jan 2015 07:01:47 -0600
+Subject: [Rcpp-devel] Integrals with Rcpp
+In-Reply-To: <CANLFJPoZdpgq3-nk=CNufQuBdj-5Nb39y3pbev-EkSk58iOH+w@mail.gmail.com>
+References: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+ <CANLFJPoZdpgq3-nk=CNufQuBdj-5Nb39y3pbev-EkSk58iOH+w@mail.gmail.com>
+Message-ID: <21686.26811.770383.691872@max.nulle.part>
+
+
+On 13 January 2015 at 15:14, Baptiste Auguie wrote:
+| Hi,
+| 
+| I might be the author of the SO question you refer to. In the planar package
+| I've tried a number of different strategies for numerical integration, but the
+| most efficient I managed was at the C++ level, with direct call to the cubature
+| library,
+| https://github.com/baptiste/planar/blob/master/src/gaussian_beam.cpp#L478
+| 
+| At the time, I wrote for myself a minimal example,?https://github.com/baptiste/
+| cubature/blob/master/minimal.c
+
+You did just say you were turning this into a piece for the Rcpp Gallery,
+didn't you?  ;-)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From baptiste.auguie at gmail.com  Wed Jan 14 15:12:54 2015
+From: baptiste.auguie at gmail.com (Baptiste Auguie)
+Date: Wed, 14 Jan 2015 11:12:54 -0300
+Subject: [Rcpp-devel] Integrals with Rcpp
+In-Reply-To: <21686.26811.770383.691872@max.nulle.part>
+References: <CAOEqqmC2KmgrmV2p4PWSDUK9uW2p2nUWiMJKtzvfvoYxDmBq-w@mail.gmail.com>
+ <CANLFJPoZdpgq3-nk=CNufQuBdj-5Nb39y3pbev-EkSk58iOH+w@mail.gmail.com>
+ <21686.26811.770383.691872@max.nulle.part>
+Message-ID: <CANLFJPoBL1tgR+j9nTAKBoNFboEWXVHN2gikpa287vrSh+M4xg@mail.gmail.com>
+
+On 14 January 2015 at 10:01, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 13 January 2015 at 15:14, Baptiste Auguie wrote:
+> | Hi,
+> |
+> | I might be the author of the SO question you refer to. In the planar
+> package
+> | I've tried a number of different strategies for numerical integration,
+> but the
+> | most efficient I managed was at the C++ level, with direct call to the
+> cubature
+> | library,
+> |
+> https://github.com/baptiste/planar/blob/master/src/gaussian_beam.cpp#L478
+> |
+> | At the time, I wrote for myself a minimal example,
+> https://github.com/baptiste/
+> | cubature/blob/master/minimal.c
+>
+> You did just say you were turning this into a piece for the Rcpp Gallery,
+> didn't you?  ;-)
+>
+>
+Good point, I'll try to find the time.
+
+b.
+
+Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150114/2066289e/attachment.html>
+
+From aslett at stats.ox.ac.uk  Wed Jan 14 15:55:53 2015
+From: aslett at stats.ox.ac.uk (Louis Aslett)
+Date: Wed, 14 Jan 2015 14:55:53 +0000
+Subject: [Rcpp-devel] Rcpp modules and S3 dispatch on rbind/cbind
+In-Reply-To: <CADTpfYnZ+hCxvVrGOe41KSfUbdxMkPirhmU+_kK_mmF=9bf1bg@mail.gmail.com>
+References: <CADTpfYnZ+hCxvVrGOe41KSfUbdxMkPirhmU+_kK_mmF=9bf1bg@mail.gmail.com>
+Message-ID: <CADTpfYmH60JkmT7-u2CRy_YwMRAc2U4g3mrGQ4v46JaJvxnyoA@mail.gmail.com>
+
+Just for the list record I think I've figured this out.  It turns out
+that there is an S4 approach to this now, whereby one actually sets
+appropriate methods for the rbind2 and cbind2 functions in the methods
+package and then call:
+
+
+On 12 January 2015 at 13:44, Louis Aslett <aslett at stats.ox.ac.uk> wrote:
+> I've encountered a problem when trying to perform S3 method dispatch
+> for rbind() with an Rcpp module I've written.  Obviously Rcpp modules
+> are S4, but as per many Google-able discussions, rbind/cbind can't
+> support S4 method dispatch due to the first argument being a
+> dot-dot-dot one, so S3 on the first argument type is the best that can
+> be done.  I think this is good enough for my problem as my types can't
+> be mixed with base types so I've a fairly short list of possible first
+> argument types and can disentangle in my own code.
+>
+> I won't bog the list down with my real problem which is hundreds of
+> lines of code ... I've managed to narrow it down to the following
+> minimal working example which produces the same issue (description to
+> follow below).
+>
+> == Start content of test.cpp ==
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> class TestClass1 {
+>   public:
+>     TestClass1() {}
+>     void hello() const {
+>       Rcout << "Hello world!" << std::endl;
+>     }
+> };
+>
+> class TestClass2 {
+>   public:
+>     TestClass2() {}
+>     void hello() const {
+>       Rcout << "Hello world!" << std::endl;
+>     }
+> };
+>
+> RCPP_MODULE(test_mod) {
+>   class_<TestClass1>( "TestClass1" )
+>   .constructor()
+>   .method("hello", &TestClass1::hello)
+>   ;
+>
+>   class_<TestClass2>( "TestClass2" )
+>   .constructor()
+>   .method("hello", &TestClass2::hello)
+>   ;
+> }
+> == End content of test.cpp==
+>
+> == Start example R script ==
+> Rcpp::sourceCpp('test.cpp')
+>
+> # Define S3 method for the Rcpp class types
+> rbind.Rcpp_TestClass1 <- function(...) {
+>   args <- list(...)
+>   cat("Calling type 1 hello\n")
+>   args[[1]]$hello()
+> }
+> rbind.Rcpp_TestClass2 <- function(...) {
+>   args <- list(...)
+>   cat("Calling type 2 hello\n")
+>   args[[1]]$hello()
+> }
+>
+> a <- new(TestClass1)
+> b <- new(TestClass2)
+>
+> # OK, this goes to plan ... I can has an Rcpp module, many of same
+> # type or mix with R types
+> rbind(a)
+> rbind(a,a)
+> rbind(a,2,matrix(1:4,2))
+> rbind(b)
+> rbind(b,b)
+> rbind(b,2,matrix(1:4,2))
+>
+> # ... but I can't mix two Rcpp module types
+> rbind(a,b)
+> rbind(b,a)
+>
+> # Get rid of one of the S3 methods and it works to mix Rcpp module types
+> rm(rbind.Rcpp_TestClass2)
+> rbind(a,b)
+> == End example R script ==
+>
+> The output for the problem part is:
+>
+>> # ... but I can't mix two Rcpp module types
+>> rbind(a,b)
+> Error in rbind(a, b) : environments cannot be coerced to other types
+>> rbind(b,a)
+> Error in rbind(b, a) : environments cannot be coerced to other types
+>
+> All other lines in the script behave as expected.
+>
+> So in a nut shell the problem seems to be that one can't have first
+> argument S3 method dispatch defined for more than one Rcpp module type
+> at a time.  I am mystified why this should be?  Any insights greatly
+> appreciated!
+>
+> All the best,
+>
+> Louis
+>
+>
+> PS In case this arrives twice in error I resent from my subscribed address.
+
+From aslett at stats.ox.ac.uk  Wed Jan 14 16:00:47 2015
+From: aslett at stats.ox.ac.uk (Louis Aslett)
+Date: Wed, 14 Jan 2015 15:00:47 +0000
+Subject: [Rcpp-devel] Rcpp modules and S3 dispatch on rbind/cbind
+In-Reply-To: <CADTpfYnZ+hCxvVrGOe41KSfUbdxMkPirhmU+_kK_mmF=9bf1bg@mail.gmail.com>
+References: <CADTpfYnZ+hCxvVrGOe41KSfUbdxMkPirhmU+_kK_mmF=9bf1bg@mail.gmail.com>
+Message-ID: <CADTpfYkB+4_hhHeFJOPi42h2D0F4QGmvnEjRHL+ZwU5AkLK2kQ@mail.gmail.com>
+
+Sorry hit send prematurely ....
+
+Just for the list record I think I've figured this out.  It turns out
+that there is an S4 approach to this now, whereby one actually sets
+appropriate methods for the rbind2 and cbind2 functions in the methods
+package and then call:
+
+methods:::bind_activation(on = TRUE)
+
+This then recursively calls rbind2 and cbind2 with pairs of arguments
+whenever the base rbind/cbind are called with S4 arguments matching
+the signature.  Of course, it means all the other functions such as
+nrow/ncol/rownames/... must be overridden too for the classes used, in
+order that the knitting together that the methods package does will
+work correctly.  See the rbind.R source file in the methods package
+for details.
+
+Hope that helps if anyone encounters this in future,
+
+Louis
+
+
+On 12 January 2015 at 13:44, Louis Aslett <aslett at stats.ox.ac.uk> wrote:
+> I've encountered a problem when trying to perform S3 method dispatch
+> for rbind() with an Rcpp module I've written.  Obviously Rcpp modules
+> are S4, but as per many Google-able discussions, rbind/cbind can't
+> support S4 method dispatch due to the first argument being a
+> dot-dot-dot one, so S3 on the first argument type is the best that can
+> be done.  I think this is good enough for my problem as my types can't
+> be mixed with base types so I've a fairly short list of possible first
+> argument types and can disentangle in my own code.
+>
+> I won't bog the list down with my real problem which is hundreds of
+> lines of code ... I've managed to narrow it down to the following
+> minimal working example which produces the same issue (description to
+> follow below).
+>
+> == Start content of test.cpp ==
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> class TestClass1 {
+>   public:
+>     TestClass1() {}
+>     void hello() const {
+>       Rcout << "Hello world!" << std::endl;
+>     }
+> };
+>
+> class TestClass2 {
+>   public:
+>     TestClass2() {}
+>     void hello() const {
+>       Rcout << "Hello world!" << std::endl;
+>     }
+> };
+>
+> RCPP_MODULE(test_mod) {
+>   class_<TestClass1>( "TestClass1" )
+>   .constructor()
+>   .method("hello", &TestClass1::hello)
+>   ;
+>
+>   class_<TestClass2>( "TestClass2" )
+>   .constructor()
+>   .method("hello", &TestClass2::hello)
+>   ;
+> }
+> == End content of test.cpp==
+>
+> == Start example R script ==
+> Rcpp::sourceCpp('test.cpp')
+>
+> # Define S3 method for the Rcpp class types
+> rbind.Rcpp_TestClass1 <- function(...) {
+>   args <- list(...)
+>   cat("Calling type 1 hello\n")
+>   args[[1]]$hello()
+> }
+> rbind.Rcpp_TestClass2 <- function(...) {
+>   args <- list(...)
+>   cat("Calling type 2 hello\n")
+>   args[[1]]$hello()
+> }
+>
+> a <- new(TestClass1)
+> b <- new(TestClass2)
+>
+> # OK, this goes to plan ... I can has an Rcpp module, many of same
+> # type or mix with R types
+> rbind(a)
+> rbind(a,a)
+> rbind(a,2,matrix(1:4,2))
+> rbind(b)
+> rbind(b,b)
+> rbind(b,2,matrix(1:4,2))
+>
+> # ... but I can't mix two Rcpp module types
+> rbind(a,b)
+> rbind(b,a)
+>
+> # Get rid of one of the S3 methods and it works to mix Rcpp module types
+> rm(rbind.Rcpp_TestClass2)
+> rbind(a,b)
+> == End example R script ==
+>
+> The output for the problem part is:
+>
+>> # ... but I can't mix two Rcpp module types
+>> rbind(a,b)
+> Error in rbind(a, b) : environments cannot be coerced to other types
+>> rbind(b,a)
+> Error in rbind(b, a) : environments cannot be coerced to other types
+>
+> All other lines in the script behave as expected.
+>
+> So in a nut shell the problem seems to be that one can't have first
+> argument S3 method dispatch defined for more than one Rcpp module type
+> at a time.  I am mystified why this should be?  Any insights greatly
+> appreciated!
+>
+> All the best,
+>
+> Louis
+>
+>
+> PS In case this arrives twice in error I resent from my subscribed address.
+
+From edd at debian.org  Wed Jan 14 16:12:11 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 14 Jan 2015 09:12:11 -0600
+Subject: [Rcpp-devel] Rcpp modules and S3 dispatch on rbind/cbind
+In-Reply-To: <CADTpfYkB+4_hhHeFJOPi42h2D0F4QGmvnEjRHL+ZwU5AkLK2kQ@mail.gmail.com>
+References: <CADTpfYnZ+hCxvVrGOe41KSfUbdxMkPirhmU+_kK_mmF=9bf1bg@mail.gmail.com>
+ <CADTpfYkB+4_hhHeFJOPi42h2D0F4QGmvnEjRHL+ZwU5AkLK2kQ@mail.gmail.com>
+Message-ID: <21686.34635.661880.600406@max.nulle.part>
+
+
+On 14 January 2015 at 15:00, Louis Aslett wrote:
+| Sorry hit send prematurely ....
+| 
+| Just for the list record I think I've figured this out.  It turns out
+| that there is an S4 approach to this now, whereby one actually sets
+
+Sweet, and well done. 
+
+I had meant to reply and suggest something like that -- Modules, after all,
+are "just" extensions of S4 and don;t add anything to R proper (as they can't
+go there anyway).  But I do so little S4 that my usual approach is to hide my
+head in the sand til Martin Morgan comes along and explains it :)
+
+| appropriate methods for the rbind2 and cbind2 functions in the methods
+| package and then call:
+| 
+| methods:::bind_activation(on = TRUE)
+| 
+| This then recursively calls rbind2 and cbind2 with pairs of arguments
+| whenever the base rbind/cbind are called with S4 arguments matching
+| the signature.  Of course, it means all the other functions such as
+| nrow/ncol/rownames/... must be overridden too for the classes used, in
+| order that the knitting together that the methods package does will
+| work correctly.  See the rbind.R source file in the methods package
+| for details.
+| 
+| Hope that helps if anyone encounters this in future,
+
+I think you also just volunteered a little demo for the Rcpp Gallery :)
+
+[ Only half joking.  We seem to have a buglet at the knitr / jekyll side of
+things as this works via sourceCpp but not in the default Rcpp Gallery
+setup. ]
+
+Dirk
+
+ 
+| Louis
+| 
+| 
+| On 12 January 2015 at 13:44, Louis Aslett <aslett at stats.ox.ac.uk> wrote:
+| > I've encountered a problem when trying to perform S3 method dispatch
+| > for rbind() with an Rcpp module I've written.  Obviously Rcpp modules
+| > are S4, but as per many Google-able discussions, rbind/cbind can't
+| > support S4 method dispatch due to the first argument being a
+| > dot-dot-dot one, so S3 on the first argument type is the best that can
+| > be done.  I think this is good enough for my problem as my types can't
+| > be mixed with base types so I've a fairly short list of possible first
+| > argument types and can disentangle in my own code.
+| >
+| > I won't bog the list down with my real problem which is hundreds of
+| > lines of code ... I've managed to narrow it down to the following
+| > minimal working example which produces the same issue (description to
+| > follow below).
+| >
+| > == Start content of test.cpp ==
+| > #include <Rcpp.h>
+| > using namespace Rcpp;
+| >
+| > class TestClass1 {
+| >   public:
+| >     TestClass1() {}
+| >     void hello() const {
+| >       Rcout << "Hello world!" << std::endl;
+| >     }
+| > };
+| >
+| > class TestClass2 {
+| >   public:
+| >     TestClass2() {}
+| >     void hello() const {
+| >       Rcout << "Hello world!" << std::endl;
+| >     }
+| > };
+| >
+| > RCPP_MODULE(test_mod) {
+| >   class_<TestClass1>( "TestClass1" )
+| >   .constructor()
+| >   .method("hello", &TestClass1::hello)
+| >   ;
+| >
+| >   class_<TestClass2>( "TestClass2" )
+| >   .constructor()
+| >   .method("hello", &TestClass2::hello)
+| >   ;
+| > }
+| > == End content of test.cpp==
+| >
+| > == Start example R script ==
+| > Rcpp::sourceCpp('test.cpp')
+| >
+| > # Define S3 method for the Rcpp class types
+| > rbind.Rcpp_TestClass1 <- function(...) {
+| >   args <- list(...)
+| >   cat("Calling type 1 hello\n")
+| >   args[[1]]$hello()
+| > }
+| > rbind.Rcpp_TestClass2 <- function(...) {
+| >   args <- list(...)
+| >   cat("Calling type 2 hello\n")
+| >   args[[1]]$hello()
+| > }
+| >
+| > a <- new(TestClass1)
+| > b <- new(TestClass2)
+| >
+| > # OK, this goes to plan ... I can has an Rcpp module, many of same
+| > # type or mix with R types
+| > rbind(a)
+| > rbind(a,a)
+| > rbind(a,2,matrix(1:4,2))
+| > rbind(b)
+| > rbind(b,b)
+| > rbind(b,2,matrix(1:4,2))
+| >
+| > # ... but I can't mix two Rcpp module types
+| > rbind(a,b)
+| > rbind(b,a)
+| >
+| > # Get rid of one of the S3 methods and it works to mix Rcpp module types
+| > rm(rbind.Rcpp_TestClass2)
+| > rbind(a,b)
+| > == End example R script ==
+| >
+| > The output for the problem part is:
+| >
+| >> # ... but I can't mix two Rcpp module types
+| >> rbind(a,b)
+| > Error in rbind(a, b) : environments cannot be coerced to other types
+| >> rbind(b,a)
+| > Error in rbind(b, a) : environments cannot be coerced to other types
+| >
+| > All other lines in the script behave as expected.
+| >
+| > So in a nut shell the problem seems to be that one can't have first
+| > argument S3 method dispatch defined for more than one Rcpp module type
+| > at a time.  I am mystified why this should be?  Any insights greatly
+| > appreciated!
+| >
+| > All the best,
+| >
+| > Louis
+| >
+| >
+| > PS In case this arrives twice in error I resent from my subscribed address.
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From janusjlarsen at gmail.com  Mon Jan 19 09:02:43 2015
+From: janusjlarsen at gmail.com (janus Larsen)
+Date: Mon, 19 Jan 2015 09:02:43 +0100
+Subject: [Rcpp-devel] Fwd:  Setting time zone on Rcpp::Datetime
+In-Reply-To: <CAK-c3U=M_i=Rm0AfOQeNWa-rLhcrGV0qH+1meb3DYigbydqYmg@mail.gmail.com>
+References: <CAK-c3U=QczC=Nw3ywdeds3Mg_w7yTJN3_HLB7dv_JU-04YnreA@mail.gmail.com>
+ <21679.51209.686158.63353@max.nulle.part>
+ <CAK-c3Unmc1LgjgNA8jkEawLUH4E0=7QEuFV_m=AbZ+B=BZDoFA@mail.gmail.com>
+ <21683.48994.81386.766211@max.nulle.part>
+ <CAK-c3U=M_i=Rm0AfOQeNWa-rLhcrGV0qH+1meb3DYigbydqYmg@mail.gmail.com>
+Message-ID: <CAK-c3UkrzxaB_mv_ZzU35rcTcPdvo3FPMM7ZhjNnh6U6ivAJpg@mail.gmail.com>
+
+Thx - that did the trick. But why the 'Oh dear'?
+
+// [[Rcpp::export]]
+Rcpp::NumericVector getDT(int dt) {
+  Rcpp::NumericVector res(1);
+  res[0] = dt;
+  res.attr("tzone") = "GMT";
+  res.attr("class") = CharacterVector::create("POSIXct", "POSIXt");;
+  return res;
+}
+
+On Mon, Jan 12, 2015 at 1:34 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 12 January 2015 at 13:10, janus Larsen wrote:
+> | Hi again,
+> |
+> | Thanks Dirk for your reply. So there is no way of doing this on the C
+> side?
+> |
+> | The thing is that I'm returning a large object that contains a lot of
+> | information (about an unstructured 3D model) and some of the fields are
+> | DateTimes. I could of cource wrap the call to the C function in an R
+> function
+> | that then corrects the dates to GMT (or sets the timezone before calling
+> the C
+> | function), but it just not that nice... Previously I had this code
+> written
+> | using <RDefines.h> where I could set the timezone on the returned posIXct
+> | object:
+> |
+> | SEXP long2DateTime(long dt) {
+> | SEXP result;
+> | result = PROTECT(allocVector(REALSXP, 1));
+> | REAL(result)[0] = dt;
+> | SEXP gmt = PROTECT(allocVector(STRSXP,1));
+> | SET_STRING_ELT(gmt, 0, mkChar("GMT"));
+> | SEXP tzone = PROTECT(allocVector(STRSXP,1));
+> | SET_STRING_ELT(tzone, 0, mkChar("tzone"));
+> | setAttrib(result, tzone, gmt);
+> | SEXP datetimeclass = PROTECT(allocVector(STRSXP,2));
+> | SET_STRING_ELT(datetimeclass, 0, mkChar("POSIXt"));
+> | SET_STRING_ELT(datetimeclass, 1, mkChar("POSIXct"));
+> | setAttrib(result, R_ClassSymbol, datetimeclass);
+> | UNPROTECT(4);
+> | return result;
+> | }
+>
+> Oh dear. See eg http://gallery.rcpp.org/articles/creating-xts-from-c++/ or
+> the other few xts related answers on the Rcpp Gallery.
+>
+> Dirk
+>
+> | Janus
+> |
+> | On Fri, Jan 9, 2015 at 1:22 PM, Dirk Eddelbuettel <edd at debian.org>
+> wrote:
+> |
+> |
+> |     On 9 January 2015 at 11:50, janus Larsen wrote:
+> |     | Hi,
+> |     | How do I set the timezone on an Rcpp::Datetime?
+> |     | Thanks in advance,
+> |     | Sunaj
+> |     |
+> |     | This returns "1970-01-01 01:00:00 CET" (computer setting), but I
+> want
+> |     GMT...
+> |
+> |     R does the formatting in its session based on your locale.
+> |
+> |     That is generally the right thing:
+> |
+> |     | // [[Rcpp::export]]
+> |     | Rcpp::Datetime test() {
+> |     |   double d=0;
+> |     |   return(d);
+> |     | }
+> |
+> |     Small corrections to your code to actually export the function
+> (under a
+> |     safer
+> |     name):
+> |
+> |     #include <Rcpp.h>
+> |
+> |     // [[Rcpp::export]]
+> |     Rcpp::Datetime timetest(double d=0) {
+> |       return(d);
+> |     }
+> |
+> |     Then:
+> |
+> |     R> sourceCpp("/tmp/timeQ.cpp")
+> |     R> timetest()                       # my default is Chicago, or -5
+> |     [1] "1969-12-31 18:00:00 CST"
+> |     R> as.numeric(timetest())
+> |     [1] 0
+> |     R> Sys.setenv("TZ"="Europe/London")
+> |     R> timetest()                       # I can select another one
+> |     [1] "1970-01-01 01:00:00 BST"
+> |     R> Sys.setenv("TZ"="UTC")
+> |     R> timetest()                       # incl UTC
+> |     [1] "1970-01-01 UTC"
+> |     R>
+> |     R> format(timetest(), tz="America/Chicago")
+> |     [1] "1969-12-31 18:00:00"
+> |     R>
+> |
+> |     So you need to change the timezone _at the level of your app_ which
+> can be
+> |     as
+> |     simple as writing a new Date formatter in R as per my last line.
+> |
+> |     Dirk
+> |
+> |     --
+> |     http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> |
+> |
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150119/849827e0/attachment.html>
+
+From edd at debian.org  Mon Jan 19 14:52:30 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 19 Jan 2015 07:52:30 -0600
+Subject: [Rcpp-devel] Fwd:  Setting time zone on Rcpp::Datetime
+In-Reply-To: <CAK-c3UkrzxaB_mv_ZzU35rcTcPdvo3FPMM7ZhjNnh6U6ivAJpg@mail.gmail.com>
+References: <CAK-c3U=QczC=Nw3ywdeds3Mg_w7yTJN3_HLB7dv_JU-04YnreA@mail.gmail.com>
+ <21679.51209.686158.63353@max.nulle.part>
+ <CAK-c3Unmc1LgjgNA8jkEawLUH4E0=7QEuFV_m=AbZ+B=BZDoFA@mail.gmail.com>
+ <21683.48994.81386.766211@max.nulle.part>
+ <CAK-c3U=M_i=Rm0AfOQeNWa-rLhcrGV0qH+1meb3DYigbydqYmg@mail.gmail.com>
+ <CAK-c3UkrzxaB_mv_ZzU35rcTcPdvo3FPMM7ZhjNnh6U6ivAJpg@mail.gmail.com>
+Message-ID: <21693.3102.384863.868850@max.nulle.part>
+
+
+On 19 January 2015 at 09:02, janus Larsen wrote:
+| Thx - that did the trick. But why the 'Oh dear'?
+
+Your initial code is a pretty clear exhibit of why the C API is more painful.  
+
+Compare your current example with the one you posted first below.  "Oh dear."
+
+Dirk
+
+| // [[Rcpp::export]]
+| Rcpp::NumericVector getDT(int dt) {
+| ? Rcpp::NumericVector res(1);
+| ? res[0] = dt;
+| ? res.attr("tzone") = "GMT";?
+| ? res.attr("class") = CharacterVector::create("POSIXct", "POSIXt");;
+| ? return res;
+| }
+| 
+| On Mon, Jan 12, 2015 at 1:34 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| 
+|     On 12 January 2015 at 13:10, janus Larsen wrote:
+|     | Hi again,
+|     |
+|     | Thanks Dirk for your reply. So there is no way of doing this on the C
+|     side?
+|     |
+|     | The thing is that I'm returning a large object that contains a lot of
+|     | information (about an unstructured 3D model) and some of the fields are
+|     | DateTimes. I could of cource wrap the call to the C function in an R
+|     function
+|     | that then corrects the dates to GMT (or sets the timezone before calling
+|     the C
+|     | function), but it just not that nice... Previously I had this code
+|     written
+|     | using <RDefines.h> where I could set the timezone on the returned posIXct
+|     | object:
+|     |
+|     | SEXP long2DateTime(long dt) {
+|     | SEXP result;
+|     | result = PROTECT(allocVector(REALSXP, 1));
+|     | REAL(result)[0] = dt;
+|     | SEXP gmt = PROTECT(allocVector(STRSXP,1));
+|     | SET_STRING_ELT(gmt, 0, mkChar("GMT"));
+|     | SEXP tzone = PROTECT(allocVector(STRSXP,1));
+|     | SET_STRING_ELT(tzone, 0, mkChar("tzone"));
+|     | setAttrib(result, tzone, gmt);
+|     | SEXP datetimeclass = PROTECT(allocVector(STRSXP,2));
+|     | SET_STRING_ELT(datetimeclass, 0, mkChar("POSIXt"));
+|     | SET_STRING_ELT(datetimeclass, 1, mkChar("POSIXct"));
+|     | setAttrib(result, R_ClassSymbol, datetimeclass);
+|     | UNPROTECT(4);
+|     | return result;
+|     | }
+| 
+|     Oh dear. See eg http://gallery.rcpp.org/articles/creating-xts-from-c++/ or
+|     the other few xts related answers on the Rcpp Gallery.
+|    
+|     Dirk
+|    
+|     | Janus
+|     |
+|     | On Fri, Jan 9, 2015 at 1:22 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+|     |
+|     |
+|     |? ? ?On 9 January 2015 at 11:50, janus Larsen wrote:
+|     |? ? ?| Hi,
+|     |? ? ?| How do I set the timezone on an?Rcpp::Datetime?
+|     |? ? ?| Thanks in advance,
+|     |? ? ?| Sunaj
+|     |? ? ?|
+|     |? ? ?| This returns?"1970-01-01 01:00:00 CET" (computer setting), but I
+|     want
+|     |? ? ?GMT...
+|     |
+|     |? ? ?R does the formatting in its session based on your locale.
+|     |
+|     |? ? ?That is generally the right thing:
+|     |
+|     |? ? ?| // [[Rcpp::export]]
+|     |? ? ?| Rcpp::Datetime test() {
+|     |? ? ?| ? double d=0;
+|     |? ? ?| ? return(d);
+|     |? ? ?| }
+|     |
+|     |? ? ?Small corrections to your code to actually export the function (under
+|     a
+|     |? ? ?safer
+|     |? ? ?name):
+|     |
+|     |? ? ?#include <Rcpp.h>
+|     |
+|     |? ? ?// [[Rcpp::export]]
+|     |? ? ?Rcpp::Datetime timetest(double d=0) {
+|     |? ? ?? return(d);
+|     |? ? ?}
+|     |
+|     |? ? ?Then:
+|     |
+|     |? ? ?R> sourceCpp("/tmp/timeQ.cpp")
+|     |? ? ?R> timetest()? ? ? ? ? ? ? ? ? ? ? ?# my default is Chicago, or -5
+|     |? ? ?[1] "1969-12-31 18:00:00 CST"
+|     |? ? ?R> as.numeric(timetest())
+|     |? ? ?[1] 0
+|     |? ? ?R> Sys.setenv("TZ"="Europe/London")
+|     |? ? ?R> timetest()? ? ? ? ? ? ? ? ? ? ? ?# I can select another one
+|     |? ? ?[1] "1970-01-01 01:00:00 BST"
+|     |? ? ?R> Sys.setenv("TZ"="UTC")
+|     |? ? ?R> timetest()? ? ? ? ? ? ? ? ? ? ? ?# incl UTC
+|     |? ? ?[1] "1970-01-01 UTC"
+|     |? ? ?R>
+|     |? ? ?R> format(timetest(), tz="America/Chicago")
+|     |? ? ?[1] "1969-12-31 18:00:00"
+|     |? ? ?R>
+|     |
+|     |? ? ?So you need to change the timezone _at the level of your app_ which
+|     can be
+|     |? ? ?as
+|     |? ? ?simple as writing a new Date formatter in R as per my last line.
+|     |
+|     |? ? ?Dirk
+|     |
+|     |? ? ?--
+|     |? ? ?http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+|     |
+|     |
+| 
+|     --
+|     http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+| 
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rnieuws at gmail.com  Mon Jan 19 19:36:16 2015
+From: rnieuws at gmail.com (=?UTF-8?Q?Andr=C3=A9_de_Boer?=)
+Date: Mon, 19 Jan 2015 19:36:16 +0100
+Subject: [Rcpp-devel] registerPlugin("QuantLib",.....)
+Message-ID: <CAO06FDdZf7T-=uBUdKqvHQT_fqzO9OsznYcTf8XGd6eyG6CYxA@mail.gmail.com>
+
+Hi,
+
+I try to run this code in RStudio
+
+// Original Klaus Spanderen  R/Finance 2013: Applied Finance with R
+library(Rcpp)
+library(inline)
+
+registerPlugin("QuantLib",
+  Rcpp:::Rcpp.plugin.maker(include.before='#include <ql/quantlib.hpp>',
+                           libs="-lQuantLib"))
+
+blackFormulaCall <- cxxfunction(
+  signature(strike="numeric", fwd="numeric",
+            stdDev="numeric", discount="numeric"),
+  body='
+    using namespace QuantLib;
+    return wrap(blackFormula(Option::Call,
+                             as<Real>(strike), as<Real>(fwd),
+                             as<Real>(stdDev), as<Real>(discount)));',
+  plugin="QuantLib")
+
+But I get this error:
+
+Error in compileCode(f, code, language = language, verbose = verbose) :
+  Compilation ERROR, function(s)/method(s) not created! Warning message:
+running command 'make -f "C:/PROGRA~1/R/R-31~1.2/etc/x64/Makeconf" -f
+"C:/PROGRA~1/R/R-31~1.2/share/make/winshlib.mk"
+SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)'
+SHLIB="file29c067ef2ad7.dll" WIN=64 TCLBIN=64
+OBJECTS="file29c067ef2ad7.o"' had status 127
+In addition: Warning message:
+running command 'C:/PROGRA~1/R/R-31~1.2/bin/x64/R CMD SHLIB
+file29c067ef2ad7.cpp 2> file29c067ef2ad7.cpp.err.txt' had status 1
+
+I have a working version of quantlib-1.4, but how do I tell the
+compiler where to find it?
+
+Thanks in advance,
+Andr?
+
+From edd at debian.org  Mon Jan 19 19:58:16 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 19 Jan 2015 12:58:16 -0600
+Subject: [Rcpp-devel] registerPlugin("QuantLib",.....)
+In-Reply-To: <CAO06FDdZf7T-=uBUdKqvHQT_fqzO9OsznYcTf8XGd6eyG6CYxA@mail.gmail.com>
+References: <CAO06FDdZf7T-=uBUdKqvHQT_fqzO9OsznYcTf8XGd6eyG6CYxA@mail.gmail.com>
+Message-ID: <21693.21448.801262.261141@max.nulle.part>
+
+
+On 19 January 2015 at 19:36, Andr? de Boer wrote:
+| Hi,
+| 
+| I try to run this code in RStudio
+| 
+| // Original Klaus Spanderen  R/Finance 2013: Applied Finance with R
+| library(Rcpp)
+| library(inline)
+| 
+| registerPlugin("QuantLib",
+|   Rcpp:::Rcpp.plugin.maker(include.before='#include <ql/quantlib.hpp>',
+|                            libs="-lQuantLib"))
+| 
+| blackFormulaCall <- cxxfunction(
+|   signature(strike="numeric", fwd="numeric",
+|             stdDev="numeric", discount="numeric"),
+|   body='
+|     using namespace QuantLib;
+|     return wrap(blackFormula(Option::Call,
+|                              as<Real>(strike), as<Real>(fwd),
+|                              as<Real>(stdDev), as<Real>(discount)));',
+|   plugin="QuantLib")
+| 
+| But I get this error:
+| 
+| Error in compileCode(f, code, language = language, verbose = verbose) :
+|   Compilation ERROR, function(s)/method(s) not created! Warning message:
+| running command 'make -f "C:/PROGRA~1/R/R-31~1.2/etc/x64/Makeconf" -f
+| "C:/PROGRA~1/R/R-31~1.2/share/make/winshlib.mk"
+| SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)'
+| SHLIB="file29c067ef2ad7.dll" WIN=64 TCLBIN=64
+| OBJECTS="file29c067ef2ad7.o"' had status 127
+| In addition: Warning message:
+| running command 'C:/PROGRA~1/R/R-31~1.2/bin/x64/R CMD SHLIB
+| file29c067ef2ad7.cpp 2> file29c067ef2ad7.cpp.err.txt' had status 1
+| 
+| I have a working version of quantlib-1.4, but how do I tell the
+| compiler where to find it?
+
+Windows is, as usual, harder.  On the other OSs, we can rely on
+quantlib-config.  
+
+In RQuantLib we have this in Makevars.win:
+
+  ## The environment variable QUANTLIB_ROOT has to point to an existing build of QuantLib
+  ## With R 2.12.0 and later, we also support 32 and 64 bit builds and need to differentiate
+  PKG_CXXFLAGS=-I$(QUANTLIB_ROOT) -I../inst/include -I. -I$(BOOSTLIB) $(SHLIB_OPENMP_CFLAGS) -fpermissive 
+  PKG_LIBS=-L$(QUANTLIB_ROOT)/lib${R_ARCH} -lQuantLib $(SHLIB_OPENMP_CFLAGS) 
+
+I think you'd need to make up a Windows variant of the plugin.  Note that
+there is also an rquantlib-devel mailing list...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rnieuws at gmail.com  Tue Jan 20 09:01:16 2015
+From: rnieuws at gmail.com (=?UTF-8?Q?Andr=C3=A9_de_Boer?=)
+Date: Tue, 20 Jan 2015 09:01:16 +0100
+Subject: [Rcpp-devel] registerPlugin("QuantLib",.....)
+In-Reply-To: <21693.21448.801262.261141@max.nulle.part>
+References: <CAO06FDdZf7T-=uBUdKqvHQT_fqzO9OsznYcTf8XGd6eyG6CYxA@mail.gmail.com>
+ <21693.21448.801262.261141@max.nulle.part>
+Message-ID: <CAO06FDf5K3riZGRm8GCt9mpXGhDNW1yk5ph4yGhfZGOatc7qnA@mail.gmail.com>
+
+Thanks Dirk for the reaction,
+
+For my understanding: I have to compile RQuantLib with the right Makevars.win?
+
+In my search on the www I found your slides for the QuantLib user meeting 2014.
+Running the RQuantLib example results in: Error in LdFlags(FALSE) :
+Cannot supply LdFlags as none set.
+While the RcppArmadillo example gives no problem.
+
+Thanks in advance,
+Andr?
+
+> sessionInfo()
+R version 3.1.2 (2014-10-31)
+Platform: x86_64-w64-mingw32/x64 (64-bit)
+
+locale:
+[1] LC_COLLATE=Dutch_Netherlands.1252  LC_CTYPE=Dutch_Netherlands.1252
+[3] LC_MONETARY=Dutch_Netherlands.1252 LC_NUMERIC=C
+[5] LC_TIME=Dutch_Netherlands.1252
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] RQuantLib_0.4.0
+
+loaded via a namespace (and not attached):
+[1] Rcpp_0.11.2             RcppArmadillo_0.4.400.0 tools_3.1.2
+
+2015-01-19 19:58 GMT+01:00 Dirk Eddelbuettel <edd at debian.org>:
+>
+> On 19 January 2015 at 19:36, Andr? de Boer wrote:
+> | Hi,
+> |
+> | I try to run this code in RStudio
+> |
+> | // Original Klaus Spanderen  R/Finance 2013: Applied Finance with R
+> | library(Rcpp)
+> | library(inline)
+> |
+> | registerPlugin("QuantLib",
+> |   Rcpp:::Rcpp.plugin.maker(include.before='#include <ql/quantlib.hpp>',
+> |                            libs="-lQuantLib"))
+> |
+> | blackFormulaCall <- cxxfunction(
+> |   signature(strike="numeric", fwd="numeric",
+> |             stdDev="numeric", discount="numeric"),
+> |   body='
+> |     using namespace QuantLib;
+> |     return wrap(blackFormula(Option::Call,
+> |                              as<Real>(strike), as<Real>(fwd),
+> |                              as<Real>(stdDev), as<Real>(discount)));',
+> |   plugin="QuantLib")
+> |
+> | But I get this error:
+> |
+> | Error in compileCode(f, code, language = language, verbose = verbose) :
+> |   Compilation ERROR, function(s)/method(s) not created! Warning message:
+> | running command 'make -f "C:/PROGRA~1/R/R-31~1.2/etc/x64/Makeconf" -f
+> | "C:/PROGRA~1/R/R-31~1.2/share/make/winshlib.mk"
+> | SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)'
+> | SHLIB="file29c067ef2ad7.dll" WIN=64 TCLBIN=64
+> | OBJECTS="file29c067ef2ad7.o"' had status 127
+> | In addition: Warning message:
+> | running command 'C:/PROGRA~1/R/R-31~1.2/bin/x64/R CMD SHLIB
+> | file29c067ef2ad7.cpp 2> file29c067ef2ad7.cpp.err.txt' had status 1
+> |
+> | I have a working version of quantlib-1.4, but how do I tell the
+> | compiler where to find it?
+>
+> Windows is, as usual, harder.  On the other OSs, we can rely on
+> quantlib-config.
+>
+> In RQuantLib we have this in Makevars.win:
+>
+>   ## The environment variable QUANTLIB_ROOT has to point to an existing build of QuantLib
+>   ## With R 2.12.0 and later, we also support 32 and 64 bit builds and need to differentiate
+>   PKG_CXXFLAGS=-I$(QUANTLIB_ROOT) -I../inst/include -I. -I$(BOOSTLIB) $(SHLIB_OPENMP_CFLAGS) -fpermissive
+>   PKG_LIBS=-L$(QUANTLIB_ROOT)/lib${R_ARCH} -lQuantLib $(SHLIB_OPENMP_CFLAGS)
+>
+> I think you'd need to make up a Windows variant of the plugin.  Note that
+> there is also an rquantlib-devel mailing list...
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Jan 20 13:10:00 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 20 Jan 2015 06:10:00 -0600
+Subject: [Rcpp-devel] registerPlugin("QuantLib",.....)
+In-Reply-To: <CAO06FDf5K3riZGRm8GCt9mpXGhDNW1yk5ph4yGhfZGOatc7qnA@mail.gmail.com>
+References: <CAO06FDdZf7T-=uBUdKqvHQT_fqzO9OsznYcTf8XGd6eyG6CYxA@mail.gmail.com>
+ <21693.21448.801262.261141@max.nulle.part>
+ <CAO06FDf5K3riZGRm8GCt9mpXGhDNW1yk5ph4yGhfZGOatc7qnA@mail.gmail.com>
+Message-ID: <21694.17816.57743.858190@max.nulle.part>
+
+
+On 20 January 2015 at 09:01, Andr? de Boer wrote:
+| Thanks Dirk for the reaction,
+| 
+| For my understanding: I have to compile RQuantLib with the right Makevars.win?
+
+Yes, that should work reliably. Make your new code part of new files in
+RQuantLib.  Or create a new local package structured like RQuantLib with its
+Makevars.win. 
+ 
+| In my search on the www I found your slides for the QuantLib user meeting 2014.
+| Running the RQuantLib example results in: Error in LdFlags(FALSE) :
+| Cannot supply LdFlags as none set.
+| While the RcppArmadillo example gives no problem.
+
+RcppArmadillo has a working plugin for Windows. As per last email, "Windows
+is harder".  I hope to improve RQuantLib for more direct use of sourceCpp()
+etc, but it needs work---for which I have not yet had time.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From yusfil_r at yahoo.com  Thu Jan 22 20:28:42 2015
+From: yusfil_r at yahoo.com (Yusfil Khoir Pulungan)
+Date: Thu, 22 Jan 2015 19:28:42 +0000 (UTC)
+Subject: [Rcpp-devel] RInside and Qt Error
+Message-ID: <1081757700.2552547.1421954922325.JavaMail.yahoo@jws10902.mail.sg3.yahoo.com>
+
+I get this error when making simple GUI using RInside, Qt, netbeans. How to fix it ?
+"C:/MinGW/msys/1.0/bin/make" -f nbproject/Makefile-Debug.mk QMAKE=/C/Qt/4.8.6/bin/qmake.exe SUBPROJECTS= .build-confmake[1]: Entering directory 'C:/Users/Yusfil Pulungan/Documents/NetBeansProjects/QtRTest'c:/Qt/4.8.6/bin/qmake.exe VPATH=. -spec win32-g++ -o qttmp-Debug.mk nbproject/qt-Debug.promv -f qttmp-Debug.mk nbproject/qt-Debug.mk"c:/MinGW/msys/1.0/bin/make" -f nbproject/qt-Debug.mk dist/Debug/MinGW-Windows/QtRTest.exemake[2]: Entering directory 'C:/Users/Yusfil Pulungan/Documents/NetBeansProjects/QtRTest'g++ -mthreads -Wl,-subsystem,windows -o dist/Debug/MinGW-Windows/QtRTest.exe build/Debug/MinGW-Windows/main.o build/Debug/MinGW-Windows/qtdensity.o build/Debug/MinGW-Windows/moc_qtdensity.o ?-L'c:/Qt/4.8.6/lib' -lmingw32 -lqtmaind build/Debug/MinGW-Windows/QtRTest_resource_res.o -lQtGuid4 -lQtCored4?build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb1EE6xsputnEPKci':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:61: undefined reference to `Rprintf'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb0EE6xsputnEPKci':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:65: undefined reference to `REprintf'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb1EE8overflowEi':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:70: undefined reference to `Rprintf'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb0EE8overflowEi':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:74: undefined reference to `REprintf'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb1EE4syncEv':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:79: undefined reference to `R_FlushConsole'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb0EE4syncEv':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:83: undefined reference to `R_FlushConsole'collect2.exe: error: ld returned 1 exit statusmake[2]: *** [dist/Debug/MinGW-Windows/QtRTest.exe] Error 1make[1]: *** [.build-conf] Error 2make: *** [.build-impl] Error 2nbproject/qt-Debug.mk:78: recipe for target 'dist/Debug/MinGW-Windows/QtRTest.exe' failedmake[2]: Leaving directory 'C:/Users/Yusfil Pulungan/Documents/NetBeansProjects/QtRTest'nbproject/Makefile-Debug.mk:66: recipe for target '.build-conf' failedmake[1]: Leaving directory 'C:/Users/Yusfil Pulungan/Documents/NetBeansProjects/QtRTest'nbproject/Makefile-impl.mk:39: recipe for target '.build-impl' failed
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150122/b48b2694/attachment.html>
+
+From edd at debian.org  Thu Jan 22 20:52:21 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 22 Jan 2015 13:52:21 -0600
+Subject: [Rcpp-devel] RInside and Qt Error
+In-Reply-To: <1081757700.2552547.1421954922325.JavaMail.yahoo@jws10902.mail.sg3.yahoo.com>
+References: <1081757700.2552547.1421954922325.JavaMail.yahoo@jws10902.mail.sg3.yahoo.com>
+Message-ID: <21697.21749.250715.795027@max.nulle.part>
+
+
+On 22 January 2015 at 19:28, Yusfil Khoir Pulungan wrote:
+| I get this error when making simple GUI using RInside, Qt, netbeans. How to fix
+| it ?
+
+a) I would forget netbeans and used the _supported_ and _shipped_ qmake /
+   Makefile combination.  I have used this in the past on Windows; I did it
+   so far back that I had to build Qt using the MinGW compiler R uses.  That
+   gotter, but make sure 
+   - you use the Qt version for MinGW
+   - you use the correct Rtools etc pp and get lucky that it plays along with Qt
+
+b) You use the cmake files contributed by Peter, and also shipped. These
+   should work too, but I am less familar with them.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From yusfil_r at yahoo.com  Thu Jan 22 22:01:18 2015
+From: yusfil_r at yahoo.com (Yusfil Khoir Pulungan)
+Date: Thu, 22 Jan 2015 21:01:18 +0000 (UTC)
+Subject: [Rcpp-devel] RInside and Qt Error
+In-Reply-To: <21697.21749.250715.795027@max.nulle.part>
+References: <21697.21749.250715.795027@max.nulle.part>
+Message-ID: <1574878040.2554565.1421960478265.JavaMail.yahoo@jws10929.mail.sg3.yahoo.com>
+
+I use netbeans to build Qt applications and uses MinGW as compiler. But I have not been able to resolve this error:
+
+build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb1EE6xsputnEPKci':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:61: undefined reference to `Rprintf'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb0EE6xsputnEPKci':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:65: undefined reference to `REprintf'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb1EE8overflowEi':nbproject/qt-Debug.mk:78: recipe for target `dist/Debug/MinGW-Windows/QtRTest.exe' failedC:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:70: undefined reference to `Rprintf'make.exe[2]: Leaving directory `/c/Users/Yusfil Pulungan/Documents/NetBeansProjects/QtRTest'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb0EE8overflowEi':nbproject/Makefile-Debug.mk:66: recipe for target `.build-conf' failedC:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:74: undefined reference to `REprintf'make.exe[1]: Leaving directory `/c/Users/Yusfil Pulungan/Documents/NetBeansProjects/QtRTest'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb1EE4syncEv':nbproject/Makefile-impl.mk:39: recipe for target `.build-impl' failedC:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:79: undefined reference to `R_FlushConsole'build/Debug/MinGW-Windows/qtdensity.o: In function `ZN4Rcpp10RstreambufILb0EE4syncEv':C:\Users\Yusfil Pulungan\Documents\NetBeansProjects\QtRTest/../../../../../Program Files/R/R-3.1.2/library/Rcpp/include/Rcpp/iostream/Rstreambuf.h:83: undefined reference to `R_FlushConsole'collect2.exe: error: ld returned 1 exit statusmake.exe[2]: *** [dist/Debug/MinGW-Windows/QtRTest.exe] Error 1make.exe[1]: *** [.build-conf] Error 2make.exe": *** [.build-impl] Error 2
+ 
+
+     On Friday, 23 January 2015, 2:52, Dirk Eddelbuettel <edd at debian.org> wrote:
+   
+
+ 
+On 22 January 2015 at 19:28, Yusfil Khoir Pulungan wrote:
+| I get this error when making simple GUI using RInside, Qt, netbeans. How to fix
+| it ?
+
+a) I would forget netbeans and used the _supported_ and _shipped_ qmake /
+? Makefile combination.? I have used this in the past on Windows; I did it
+? so far back that I had to build Qt using the MinGW compiler R uses.? That
+? gotter, but make sure 
+? - you use the Qt version for MinGW
+? - you use the correct Rtools etc pp and get lucky that it plays along with Qt
+
+b) You use the cmake files contributed by Peter, and also shipped. These
+? should work too, but I am less familar with them.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+   
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150122/66d205b5/attachment.html>
+
+From llis at unm.edu  Fri Jan 23 01:29:38 2015
+From: llis at unm.edu (Li Li)
+Date: Fri, 23 Jan 2015 00:29:38 +0000
+Subject: [Rcpp-devel] How to use functions from a R library in .cpp file
+Message-ID: <1421972978175.62547@unm.edu>
+
+Hi,
+
+
+I am trying to use the function "pmnorm" from R package "mnormt" in a .cpp file.
+
+I was wondering if anyone could help me with the following code so that I can use "pmnorm" somewhere in my sample function "epsilonij".
+
+
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+using namespace arma;
+
+// [[Rcpp::export]]
+
+double epsilonij (double nu_i_lj, Rcpp::NumericVector w, ){
+  ....
+}
+
+
+Thanks.
+
+
+Li
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150123/6dbf8bba/attachment-0001.html>
+
+From yixuan.qiu at cos.name  Fri Jan 23 01:44:31 2015
+From: yixuan.qiu at cos.name (Yixuan Qiu)
+Date: Thu, 22 Jan 2015 19:44:31 -0500
+Subject: [Rcpp-devel] How to use functions from a R library in .cpp file
+In-Reply-To: <1421972978175.62547@unm.edu>
+References: <1421972978175.62547@unm.edu>
+Message-ID: <CAFr_7yGHFr4-EJ97wBhbV_Fwx1d3RQsQRJbs1odOVW6YBosNkg@mail.gmail.com>
+
+Hello,
+There is an example showing the usage of Environment and Function in the
+Rcpp Quick Reference Guide that is distributed with the package.
+For your problem, it's something as follows:
+
+NumericVector test()
+{
+    Environment pkg("package:mnormt");
+    Function pmnorm = pkg["pmnorm"];
+    NumericVector x = NumericVector::create(1, 0, 1);
+    NumericVector mean = NumericVector::create(0, 0, 0);
+    NumericMatrix cov(3, 3);
+    cov(0, 0) = cov(1, 1) = cov(2, 2) = 1;
+    return pmnorm(x, mean, cov);
+}
+
+
+
+Best,
+Yixuan
+
+
+
+2015-01-22 19:29 GMT-05:00 Li Li <llis at unm.edu>:
+
+>  Hi,
+>
+>
+>  I am trying to use the function "pmnorm" from R package "mnormt" in a
+> .cpp file.
+>
+> I was wondering if anyone could help me with the following code so that I
+> can use "pmnorm" somewhere in my sample function "epsilonij".
+>
+>
+>  #include <RcppArmadillo.h>
+> // [[Rcpp::depends(RcppArmadillo)]]
+> using namespace arma;
+>
+> // [[Rcpp::export]]
+>
+> double epsilonij (double nu_i_lj, Rcpp::NumericVector w, ){
+>   ....
+> }
+>
+>
+>  Thanks.
+>
+>
+>  Li
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Yixuan Qiu <yixuan.qiu at cos.name>
+Department of Statistics,
+Purdue University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150122/4b31931b/attachment.html>
+
+From llis at unm.edu  Fri Jan 23 19:01:35 2015
+From: llis at unm.edu (Li Li)
+Date: Fri, 23 Jan 2015 18:01:35 +0000
+Subject: [Rcpp-devel] How to use functions from a R library in .cpp file
+In-Reply-To: <CAFr_7yGHFr4-EJ97wBhbV_Fwx1d3RQsQRJbs1odOVW6YBosNkg@mail.gmail.com>
+References: <1421972978175.62547@unm.edu>
+ <CAFr_7yGHFr4-EJ97wBhbV_Fwx1d3RQsQRJbs1odOVW6YBosNkg@mail.gmail.com>
+Message-ID: <C563CACC-277B-4A26-9306-E9605134DE19@unm.edu>
+
+Dear Yixuan,
+
+Thank you very much.
+
+I embedded the following into the program and it worked. The only thing changed was that I added "Rcpp::? so it could read in a cpp file.
+
+Rcpp::NumericVector test()
+{
+    Rcpp::Environment pkg("package:mvtnorm");
+    Rcpp::Function pmvnorm = pkg["pmvnorm"];
+    Rcpp::NumericVector lower = Rcpp::NumericVector::create(1, 0, 1);
+    Rcpp::NumericVector upper = Rcpp::NumericVector::create(2, 1, 2);
+
+    Rcpp::NumericVector mean = Rcpp::NumericVector::create(0, 0, 0);
+    Rcpp::NumericMatrix cov(3, 3);
+    cov(0, 0) = cov(1, 1) = cov(2, 2) = 1;
+    return pmvnorm(lower,upper, mean, cov);
+}
+
+Best,
+
+Li
+On Jan 22, 2015, at 5:44 PM, Yixuan Qiu <yixuan.qiu at cos.name<mailto:yixuan.qiu at cos.name>> wrote:
+
+NumericVector test()
+{
+    Environment pkg("package:mnormt");
+    Function pmnorm = pkg["pmnorm"];
+    NumericVector x = NumericVector::create(1, 0, 1);
+    NumericVector mean = NumericVector::create(0, 0, 0);
+    NumericMatrix cov(3, 3);
+    cov(0, 0) = cov(1, 1) = cov(2, 2) = 1;
+    return pmnorm(x, mean, cov);
+}
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150123/11a32175/attachment.html>
+
+From 11.6729 at stis.ac.id  Sat Jan 24 06:05:32 2015
+From: 11.6729 at stis.ac.id (Jodi Jhouranda Siregar)
+Date: Sat, 24 Jan 2015 12:05:32 +0700
+Subject: [Rcpp-devel] Qt , Rinside, and Windows integration
+Message-ID: <CAGQ++V1NvejvUj0GKHvKTWH7UAbp00sjyif1btD_bZkzfhoUhA@mail.gmail.com>
+
+this is my .pro file, is there anything wrong?  and i got this error
+message " 'sh' is not recognized as an internal or external command,
+operable program or batch file."
+
+#-------------------------------------------------
+
+#
+
+# Project created by QtCreator 2014-12-25T20:51:27
+
+#
+
+#-------------------------------------------------
+
+
+QT       += core gui
+
+
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+
+
+TARGET = RinsideProject
+
+TEMPLATE = app
+
+
+
+SOURCES += main.cpp mainwindow.cpp
+
+
+HEADERS  += mainwindow.h
+
+
+FORMS    += mainwindow.ui
+
+
+INCLUDEPATH += C:\R\R-3.1.2\bin\include
+
+INCLUDEPATH += C:\Users\Administrator\Documents\R\win-library\3.1\Rcpp\include
+
+INCLUDEPATH += C:\Users\Administrator\Documents\R\win-library\3.1\RInside\include
+
+
+LIBS += -LC:\R\R-3.1.2\bin\i386\ -LR
+
+LIBS += -lC:\Users\Administrator\Documents\R\win-library\3.1\RInside\lib\i386\
+-LRInside
+
+LIBS += -LC:\Users\Administrator\Documents\R\win-library\3.1\Rcpp\libs\i386\
+-LRcpp
+
+
+## comment this out if you need a different version of R,
+
+## and set set R_HOME accordingly as an environment variable
+
+R_HOME  =       C:\R\R-3.1.2
+
+#message("R_HOME is" $$R_HOME)
+
+
+## include headers and libraries for R
+
+RCPPFLAGS = 		$$system($$R_HOME/bin/R CMD config --cppflags)
+
+RLDFLAGS = 		$$system($$R_HOME/bin/R CMD config --ldflags)
+
+RBLAS = 		$$system($$R_HOME/bin/R CMD config BLAS_LIBS)
+
+RLAPACK = 		$$system($$R_HOME/bin/R CMD config LAPACK_LIBS)
+
+
+## if you need to set an rpath to R itself, also uncomment
+
+RRPATH =		-Wl,-rpath,$$R_HOME/lib
+
+
+## include headers and libraries for Rcpp interface classes
+
+RCPPINCL = 		$$system($$R_HOME/bin/Rscript -e \"Rcpp:::CxxFlags\(\)\")
+
+RCPPLIBS = 		$$system($$R_HOME/bin/Rscript -e \"Rcpp:::LdFlags\(\)\")
+
+
+## for some reason when building with Qt we get this each time
+
+##   /usr/local/lib/R/site-library/Rcpp/include/Rcpp/module/Module_generated_ctor_signature.h:25:
+warning: unused parameter ?classname
+
+## so we turn unused parameter warnings off
+
+## no longer needed with Rcpp 0.9.3 or later
+
+#RCPPWARNING =		-Wno-unused-parameter
+
+
+## include headers and libraries for RInside embedding classes
+
+RINSIDEINCL = 		$$system($$R_HOME/bin/Rscript -e \"RInside:::CxxFlags\(\)\")
+
+RINSIDELIBS = 		$$system($$R_HOME/bin/Rscript -e \"RInside:::LdFlags\(\)\")
+
+
+## compiler etc settings used in default make rules
+
+QMAKE_CXXFLAGS +=	$$RCPPWARNING $$RCPPFLAGS $$RCPPINCL $$RINSIDEINCL
+
+QMAKE_LIBS +=           $$RLDFLAGS $$RBLAS $$RLAPACK $$RINSIDELIBS $$RCPPLIBS
+
+
+## addition clean targets
+
+QMAKE_CLEAN +=	       mainwindow.cpp Makefile
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150124/45403e76/attachment-0001.html>
+
+From edd at debian.org  Sat Jan 24 18:01:54 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 24 Jan 2015 11:01:54 -0600
+Subject: [Rcpp-devel] Qt , Rinside, and Windows integration
+In-Reply-To: <CAGQ++V1NvejvUj0GKHvKTWH7UAbp00sjyif1btD_bZkzfhoUhA@mail.gmail.com>
+References: <CAGQ++V1NvejvUj0GKHvKTWH7UAbp00sjyif1btD_bZkzfhoUhA@mail.gmail.com>
+Message-ID: <21699.53250.236329.23320@max.nulle.part>
+
+
+On 24 January 2015 at 12:05, Jodi Jhouranda Siregar wrote:
+| this is my .pro file, is there anything wrong? ?and i got this error message "
+| 'sh' is not recognized as an internal or external command,
+| operable program or batch file."
+
+It has been a while since I had the "pleasure" of working on Windows, but I
+think one easy way to overcome this is to use a MSys shell with bash.
+
+This all works.  But it may require a different workflow that you are used to
+on Windows.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Jan 24 18:07:59 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 24 Jan 2015 11:07:59 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp 0.11.4
+Message-ID: <21699.53615.100266.668858@max.nulle.part>
+
+
+A new release Rcpp 0.11.4 is now on CRAN. 
+
+A short blog post about it is at
+
+   http://dirk.eddelbuettel.com/blog/    
+   http://dirk.eddelbuettel.com/blog/2015/01/24#rcpp_0.11.4
+
+and included as text (without links) below.
+
+This release represents contributions from ten different people, which is a
+new high. As always, thanks for everybody for testing, suggestions and input.
+
+On behalf of Rcpp Core,  Dirk
+
+PS RcppAnnoy + RcppGSL also had new releases; we're working on RcppArmadillo.
+
+
+
+   Rcpp 0.11.4
+
+   A new release 0.11.4 of Rcpp is now on the CRAN network for GNU R, and an
+   updated Debian package will be uploaded in due course.
+
+   Rcpp has become the most popular way of enhancing GNU R with C++ code. As
+   of today, 323 packages on CRAN depend on Rcpp for making analyses go
+   faster and further; BioConductor adds another 41 packages, and casual
+   searches on GitHub suggests dozens mores.
+
+   This release once again adds a large number of small bug fixes, polishes
+   and enhancements. And like the last time, these changes were made by a
+   group of seven different contributors (counting code commits) plus three
+   more providing concrete suggestions. This shows that the Rcpp development
+   and maintenance rests a large number of (broad) shoulders.
+
+   See below for a detailed list of changes extracted from the NEWS file.
+
+    Changes in Rcpp version 0.11.4 (2015-01-20)
+
+       * Changes in Rcpp API:
+
+            * The ListOf<T> class gains the .attr and .names methods common
+              to other Rcpp vectors.
+
+            * The [dpq]nbinom_mu() scalar functions are now available via the
+              R:: namespace when R 3.1.2 or newer is used.
+
+            * Add an additional test for AIX before attempting to include
+              execinfo.h.
+
+            * Rcpp::stop now supports improved printf-like syntax using the
+              small tinyformat header-only library (following a similar
+              implementation in Rcpp11)
+
+            * Pairlist objects are now protected via an additional Shield<>
+              as suggested by Martin Morgan on the rcpp-devel list.
+
+            * Sorting is now prohibited at compile time for objects of type
+              List, RawVector and ExpressionVector.
+
+            * Vectors now have a Vector::const_iterator that is 'const
+              correct' thanks to fix by Romain following a bug report in
+              rcpp-devel by Martyn Plummer.
+
+            * The mean() sugar function now uses a more robust two-pass
+              method, and new unit tests for mean() were added at the same
+              time.
+
+            * The mean() and var() functions now support all core vector
+              types.
+
+            * The setequal() sugar function has been corrected via suggestion
+              by Qiang Kou following a bug report by So/ren Ho/jsgaard.
+
+            * The macros major, minor, and makedev no longer leak in from the
+              (Linux) system header sys/sysmacros.h.
+
+            * The push_front() string function was corrected.
+
+       * Changes in Rcpp Attributes:
+
+            * Only look for plugins in the package's namespace (rather than
+              entire search path).
+
+            * Also scan header files for definitions of functions to be
+              considerd by Attributes.
+
+            * Correct the regular expression for source files which are
+              scanned.
+
+       * Changes in Rcpp unit tests
+
+            * Added a new binary test which will load a pre-built package to
+              ensure that the Application Binary Interface (ABI) did not
+              change; this test will (mostly or) only run at Travis where we
+              have reasonable control over the platform running the test and
+              can provide a binary.
+
+            * New unit tests for sugar functions mean, setequal and var were
+              added as noted above.
+
+       * Changes in Rcpp Examples:
+
+            * For the (old) examples ConvolveBenchmarks and OpenMP, the
+              respective Makefile was renamed to GNUmakefile to please R CMD
+              check as well as the CRAN Maintainers.
+
+   Thanks to CRANberries, you can also look at a diff to the previous release
+   As always, even fuller details are on the Rcpp Changelog page and the Rcpp
+   page which also leads to the downloads page, the browseable doxygen docs
+   and zip files of doxygen output for the standard formats. A local
+   directory has source and documentation too. Questions, comments etc should
+   go to the rcpp-devel mailing list off the R-Forge page.
+
+   This post by Dirk Eddelbuettel originated on his Thinking inside the box
+   blog. Please report excessive re-aggregation in third-party for-profit
+   settings.
+
+                                                  /code/rcpp | permanent link
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From s.boehringer at lumc.nl  Fri Jan 30 17:55:26 2015
+From: s.boehringer at lumc.nl (Stefan Boehringer (lumc))
+Date: Fri, 30 Jan 2015 17:55:26 +0100
+Subject: [Rcpp-devel] Using C++ class exposed by Module in R class
+Message-ID: <54CBB77E.2040604@lumc.nl>
+
+Dear all,
+
+I have the following problem:
+I define a Referenceclass as follows
+
+myClassObject = setRefClass('myClass', contains = c('class1', 'class2'),
+    fields = list(
+        reconstruction = 'ClassFromModule',
+    ),
+    methods = list(
+    )
+);
+
+ClassFromModule is a C++ exposed by a Rcpp Module. I had somewhat
+irreproducible results with this approach.
+On installing I get the following error message:
+
+Error in refClassInformation(Class, contains, fields, methods, where) :
+  class "ClassFromModule" for field 'reconstruction' is not defined
+
+I can forward define the class by inserting:
+setRefClass('ClassFromModule');
+before the class definition.
+
+Error in envRefInferField(x, what, getClass(class(x)), selfEnv) :
+  ?reconstructionsAll? is not a valid field or method name for reference
+class ?Rcpp_ClassFromModule?
+
+This problem appeared at some moment as I have an installed version of
+the package that did compile. However, I have not clue (and
+understanding) what the expected behavior would be.
+
+
+Is there a recipe available?
+
+Thank you very much in advance, best,
+
+    Stefan
+
+
+
+-- 
+http://s-boehringer.org
+
+
+

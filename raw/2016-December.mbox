@@ -1,0 +1,3713 @@
+From xian at unm.edu  Mon Dec  5 11:10:54 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Mon, 5 Dec 2016 03:10:54 -0700
+Subject: [Rcpp-devel] RFC: Rcpp modules vs. RefClass
+Message-ID: <CADNH-PtXsJx8gPYTCcz7bCPs0trvqgyWVx5WBJp1BrUshaQOAQ@mail.gmail.com>
+
+On Wed, Nov 30, 2016 at 8:23 AM, Whit Armstrong <armstrong.whit at gmail.com>
+wrote:
+
+> My point regarding the clang parser is that one really shouldn't have to
+> write any R or Rcpp wrappers at all.
+>
+
+I realize this is a bit academic, but I suppose my position reduces to
+"RefClass + Rcpp = no wrappers at all".
+
+For many (most?) people, a central point of Rcpp is to A) make things
+faster with minimal effort while B) still use R. RefClasses add native
+reference semantics to R, and one motivation for my original question is
+their relative newness.  Indeed, it looks like JMC did a big doc rework
+this Sept (
+https://github.com/wch/r-source/commits/trunk/src/library/methods/man/refClass.Rd).
+Of course, RefClasses aren't as rich in, er, nuance as Cpp classes, but
+that may be a feature for many folks.
+
+With this in mind, I assert that using a RefClass to define an object's
+data & methods, and then pushing "expensive" functionality to Cpp via Rcpp
+attributes, is the minimum possible "effort" required to (for expensive and
+effort suitably defined): A) achieve by-reference semantics using B)
+compiled-language speedup that C) doesn't mutate the args of user-facing
+functions.
+
+One annoyance using the RefClass + Rcpp approach is messy argument passing.
+With the Rcpp modules approach, Cpp data members of course need not be
+passed to Cpp member functions  (though some still had to be set via R, of
+course). With a RefClass, one possibility is to prepare one or more named
+lists to pass to Rcpp functions. These lists then, kinda-sorta, fill the
+role of a cpp class's self pointer.
+
+I wrote up a minimal example to verify that this approach isn't too costly.
+It's too painfully simple to test *much*, but it perhaps provides a useful
+starting point:
+https://github.com/helmingstay/test_code/tree/master/convolver
+
+For production code, my thought is to prep the relevant lists during
+initialize() and then lock() them... I haven't gotten there yet :)
+
+-Christian
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161205/3c254888/attachment.html>
+
+From ron.wehrens at gmail.com  Mon Dec 12 14:35:56 2016
+From: ron.wehrens at gmail.com (Ron Wehrens)
+Date: Mon, 12 Dec 2016 14:35:56 +0100
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+Message-ID: <601dd3a2-1aa8-3ed0-8c84-0533aae9e682@gmail.com>
+
+We are in the process of updating the kohonen package and are 
+considering to move to Rcpp.
+
+As part of this process we are running timing comparisons between the 
+three ways to call C/C++ code from R. 1) using the .C interface, 2) 
+using the .Call interface, and 3) using Rcpp. Here we notice something 
+strange that we can capture in the following minimalistic example:
+
+Consider the task of computing the minimal distance (sum of squares) 
+between the columns of two data matrices. For this, we have an 
+implementation for .C, .Call, and Rcpp (see below for the code of .Call 
+and Rcpp). If we compare the timings for these three, we notice that 
+Rcpp is much slower than the .C and .Call version (see the graphics at 
+https://github.com/jwkruisselbrink/rcpp-timings). When checking this 
+further, we notice that if the ISNAN checks are removed from all three 
+versions, Rcpp catches up with the .Call version.
+
+
+
+The questions are therefor: How can this be? What is going on with ISNAN 
+in Rcpp? What can we do about it? Or are we doing something very wrong here?
+
+
+
+Best regards,
+
+
+
+Johannes Kruisselbrink and Ron Wehrens
+
+
+
+Source is available here: https://github.com/jwkruisselbrink/rcpp-timings
+
+
+
+/****************** Start Rcpp ***********************/ #include 
+<Rcpp.h> using namespace Rcpp;
+// [[Rcpp::export]]
+
+double RcppDist(NumericMatrix sData1,
+   NumericMatrix sData2,
+   int numObjects,
+   int numVars,
+   int numCodes) {
+   int i, j, k;
+   double dist, tmp, mindist,
+     *data = REAL(sData1),
+     *codes = REAL(sData2);
+   mindist = 10000.0;
+
+   for (i = 0; i < numObjects; i++) {
+     for (j = 0; j < numCodes; j++) {
+       dist = 0;
+       for (k = 0; k < numVars; k++) {
+         if (!ISNAN(data[i * numVars + k])) {
+           tmp = data[i * numVars + k] - codes[j * numVars + k];
+           dist += tmp * tmp;
+         }
+       }
+       if (dist < mindist) {
+         mindist = dist;
+       }
+     }
+   }
+
+   return mindist;
+}
+
+/****************** End Rcpp ***********************/
+
+
+
+/****************** Start Call ***********************/
+
+
+#include <R.h>
+#include <Rinternals.h>
+
+SEXP CallDist(
+   SEXP sData,
+   SEXP sCodes,
+   SEXP sNumObjects,
+   SEXP sNumVars,
+   SEXP sNumCodes
+) {
+   int
+     i, j, k,
+     numObjects = *INTEGER(sNumObjects),
+     numCodes = *INTEGER(sNumCodes),
+     numVars = *INTEGER(sNumVars);
+   double
+     dist, tmp, *mindist,
+     *data = REAL(sData),
+     *codes = REAL(sCodes);
+   SEXP output = PROTECT(allocVector(REALSXP, 1));
+   mindist = REAL(output);
+   *mindist = 10000.0;
+
+   for (i = 0; i < numObjects; i++) {
+     for (j = 0; j < numCodes; j++) {
+       dist = 0;
+       for (k = 0; k < numVars; k++) {
+         if (!ISNAN(data[i * numVars + k])) {
+           tmp = data[i * numVars + k] - codes[j * numVars + k];
+           dist += tmp * tmp;
+         }
+       }
+       if (dist < *mindist) {
+         *mindist = dist;
+       }
+     }
+   }
+
+   UNPROTECT(1);
+   return output;
+}
+
+/****************** End Call ***********************/
+
+
+
+From edd at debian.org  Mon Dec 12 15:55:05 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 12 Dec 2016 08:55:05 -0600
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+In-Reply-To: <601dd3a2-1aa8-3ed0-8c84-0533aae9e682@gmail.com>
+References: <601dd3a2-1aa8-3ed0-8c84-0533aae9e682@gmail.com>
+Message-ID: <22606.47689.562638.425969@max.nulle.part>
+
+
+Why do you do this:
+
+On 12 December 2016 at 14:35, Ron Wehrens wrote:
+| double RcppDist(NumericMatrix sData1,
+|    NumericMatrix sData2,
+|    int numObjects,
+|    int numVars,
+|    int numCodes) {
+|    int i, j, k;
+|    double dist, tmp, mindist,
+|      *data = REAL(sData1),
+|      *codes = REAL(sData2);
+|    mindist = 10000.0;
+| 
+|    for (i = 0; i < numObjects; i++) {
+|      for (j = 0; j < numCodes; j++) {
+|        dist = 0;
+|        for (k = 0; k < numVars; k++) {
+|          if (!ISNAN(data[i * numVars + k])) {
+|            tmp = data[i * numVars + k] - codes[j * numVars + k];
+
+Why not drop data and codes and use  sData1(i,k) - sData2(j,k)  ?
+
+That still doesn't explain the slowdowns though.  Could you prepare a
+_complete_ yet minimal example along with mock data?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kh.guy at hotmail.com  Mon Dec 12 18:32:32 2016
+From: kh.guy at hotmail.com (khagay nagdimov)
+Date: Mon, 12 Dec 2016 17:32:32 +0000
+Subject: [Rcpp-devel] Rcpp question regarding compilation of another package
+Message-ID: <MWHPR07MB3120839702064162E837D28B89980@MWHPR07MB3120.namprd07.prod.outlook.com>
+
+Hello!
+
+
+I am trying to create a package that uses Rcpp to translate code from SeqLib ( https://github.com/walaj/SeqLib) into R. I have compiled SeqLib but, I still have problems referencing the function definitions. The current structure of my R package is shown here: https://github.com/KhagayN/SeqLibr
+
+
+My makevars links to the location of the header files and to the static libraries. To my understanding, the header files linked via PKG_CXXFLAGS point to the header files and PKG_LIBS points to the static libraries. Then, in rcpp_hello_world.cpp, I reference a function called Open within the FastqReader class within the SeqLib namespace but, when I run load_all() I get an effor saying:
+
+
+Error in dyn.load(dllfile);
+
+   unable to load shared object 'subsetSeqLib.so': undefined symbol: _ZN6SeqLib11FastqReader40OpenERKSs, which references that Open function from FastqReader. I don't understand why this is happening since I am linked to the static libraries that have the definition of that function.
+
+
+Thanks for all the help.
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161212/b365598e/attachment.html>
+
+From johannes at kruisselbrink.eu  Tue Dec 13 12:38:45 2016
+From: johannes at kruisselbrink.eu (Johannes Kruisselbrink)
+Date: Tue, 13 Dec 2016 12:38:45 +0100
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+Message-ID: <1d6cc7f8-d328-f511-1cb6-0d52ecc52db9@kruisselbrink.eu>
+
+Here is a further reduced example (see below). Now it is a function to 
+count NaNs in a vector, and it shows the same behaviour. Code is also 
+available at 
+https://github.com/jwkruisselbrink/rcpp-timings/tree/master/minimal.
+
+Regarding your question:
+| Why not drop data and codes and use  sData1(i,k) - sData2(j,k)
+
+Well, I wanted to rule out that Rcpp sugar was causing the slowdown. If 
+it isn't we'll put it back in after having a fix for this issue.
+
+/=============== call.c ===============/
+
+#include <R.h>
+#include <Rinternals.h>
+
+SEXP CountNans(SEXP sX, SEXP sLength) {
+   int i, n = *INTEGER(sLength);
+   int *nanCount;
+   double *x = REAL(sX);
+
+   SEXP output = PROTECT(allocVector(INTSXP, 1));
+   nanCount = INTEGER(output);
+   *nanCount = 0;
+   for (i = 0; i < n; i++) {
+     if (ISNAN(x[i])) {
+       *nanCount += 1;
+     }
+   }
+   UNPROTECT(1);
+   return output;
+}
+
+/=============== rcpp.cpp ===============/
+
+#include <R.h>
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+int CountNans(NumericVector x) {
+   int n = x.length();
+   int nanCount = 0;
+   for (int i = 0; i < n; i++) {
+     if (ISNAN(x[i])) {
+       nanCount++;
+     }
+   }
+   return nanCount;
+}
+
+/=============== R code ===============/
+
+library(Rcpp)
+library(microbenchmark)
+library(ggplot2)
+
+sourceCpp('rcpp.cpp')
+
+if (is.loaded(paste("call", .Platform$dynlib.ext, sep=""))) {
+   dyn.unload(paste("call", .Platform$dynlib.ext, sep=""))
+}
+system(paste("R CMD SHLIB call.c", sep=""))
+dyn.load(paste("call", .Platform$dynlib.ext, sep=""))
+
+n <- as.integer(100000)
+x <- rnorm(n)
+mb <- microbenchmark(
+   rcpp <- CountNans(x),
+   call <- .Call("CountNans", x, n),
+   times = 10000
+)
+
+autoplot(mb)
+
+
+
+From romain at r-enthusiasts.com  Tue Dec 13 12:50:39 2016
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Tue, 13 Dec 2016 12:50:39 +0100
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+In-Reply-To: <1d6cc7f8-d328-f511-1cb6-0d52ecc52db9@kruisselbrink.eu>
+References: <1d6cc7f8-d328-f511-1cb6-0d52ecc52db9@kruisselbrink.eu>
+Message-ID: <1C4F9481-2B6C-4347-A77D-1857EF7B3D52@r-enthusiasts.com>
+
+I?d be interesting to see what this more C++idomatic version would perform 
+
+nanCount = std::count_if( x.begin(), x.end(), ISNAN ) ;
+
+Because despite all the inlining efforts that has been put in the implementation of NumericVector, its operator[] might not perform as well as using [] on a double*. 
+
+Romain
+
+
+> Le 13 d?c. 2016 ? 12:38, Johannes Kruisselbrink <johannes at kruisselbrink.eu> a ?crit :
+> 
+> Here is a further reduced example (see below). Now it is a function to count NaNs in a vector, and it shows the same behaviour. Code is also available at https://github.com/jwkruisselbrink/rcpp-timings/tree/master/minimal.
+> 
+> Regarding your question:
+> | Why not drop data and codes and use  sData1(i,k) - sData2(j,k)
+> 
+> Well, I wanted to rule out that Rcpp sugar was causing the slowdown. If it isn't we'll put it back in after having a fix for this issue.
+> 
+> /=============== call.c ===============/
+> 
+> #include <R.h>
+> #include <Rinternals.h>
+> 
+> SEXP CountNans(SEXP sX, SEXP sLength) {
+>  int i, n = *INTEGER(sLength);
+>  int *nanCount;
+>  double *x = REAL(sX);
+> 
+>  SEXP output = PROTECT(allocVector(INTSXP, 1));
+>  nanCount = INTEGER(output);
+>  *nanCount = 0;
+>  for (i = 0; i < n; i++) {
+>    if (ISNAN(x[i])) {
+>      *nanCount += 1;
+>    }
+>  }
+>  UNPROTECT(1);
+>  return output;
+> }
+> 
+> /=============== rcpp.cpp ===============/
+> 
+> #include <R.h>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> 
+> // [[Rcpp::export]]
+> int CountNans(NumericVector x) {
+>  int n = x.length();
+>  int nanCount = 0;
+>  for (int i = 0; i < n; i++) {
+>    if (ISNAN(x[i])) {
+>      nanCount++;
+>    }
+>  }
+>  return nanCount;
+> }
+> 
+> /=============== R code ===============/
+> 
+> library(Rcpp)
+> library(microbenchmark)
+> library(ggplot2)
+> 
+> sourceCpp('rcpp.cpp')
+> 
+> if (is.loaded(paste("call", .Platform$dynlib.ext, sep=""))) {
+>  dyn.unload(paste("call", .Platform$dynlib.ext, sep=""))
+> }
+> system(paste("R CMD SHLIB call.c", sep=""))
+> dyn.load(paste("call", .Platform$dynlib.ext, sep=""))
+> 
+> n <- as.integer(100000)
+> x <- rnorm(n)
+> mb <- microbenchmark(
+>  rcpp <- CountNans(x),
+>  call <- .Call("CountNans", x, n),
+>  times = 10000
+> )
+> 
+> autoplot(mb)
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From xian at unm.edu  Tue Dec 13 14:04:39 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Tue, 13 Dec 2016 06:04:39 -0700
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+Message-ID: <CADNH-Pt5_cQFV28Uhmiuuz8cJLWbf=7d1kQqgpT0p7gGBq8g6g@mail.gmail.com>
+
+> |    for (i = 0; i < numObjects; i++) {
+> |      for (j = 0; j < numCodes; j++) {
+> |        dist = 0;
+> |        for (k = 0; k < numVars; k++) {
+> |          if (!ISNAN(data[i * numVars + k])) {
+> |            tmp = data[i * numVars + k] - codes[j * numVars + k];
+>
+> Why not drop data and codes and use  sData1(i,k) - sData2(j,k)  ?
+
+Or better yet, just use the original code with NumericMatrix:
+sData1[i * numVars + k] does the right thing.
+I don't get any timing difference based on this change.
+
+Using Rcpp sugar
+(https://cran.r-project.org/package=Rcpp/vignettes/Rcpp-sugar.pdf),
+and moving the call outside the loop, appears to do the right thing.
+
+## modified example
+## see edits here:
+https://github.com/helmingstay/rcpp-timings/blob/master/diff/rcppdist.cpp#L24
+git clone https://github.com/helmingstay/rcpp-timings
+cd rcpp-timings/diff
+R --vanilla < glue.R
+
+best,
+Christian
+
+>
+> That still doesn't explain the slowdowns though.  Could you prepare a
+> _complete_ yet minimal example along with mock data?
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+http://www.x14n.org
+
+From edd at debian.org  Tue Dec 13 14:31:11 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 13 Dec 2016 07:31:11 -0600
+Subject: [Rcpp-devel] Rcpp question regarding compilation of another
+	package
+In-Reply-To: <MWHPR07MB3120839702064162E837D28B89980@MWHPR07MB3120.namprd07.prod.outlook.com>
+References: <MWHPR07MB3120839702064162E837D28B89980@MWHPR07MB3120.namprd07.prod.outlook.com>
+Message-ID: <22607.63519.49831.569715@max.nulle.part>
+
+
+Thanks for posting here, and showing complete references. Your earlier
+StackOverflow questions went nowhere.  Hopefully we can tackle this here.
+
+On 12 December 2016 at 17:32, khagay nagdimov wrote:
+| I am trying to create a package that uses Rcpp to translate code from SeqLib ( 
+| https://github.com/walaj/SeqLib) into R. I have compiled SeqLib but, I still
+| have problems referencing the function definitions. The current structure of my
+| R package is shown here: https://github.com/KhagayN/SeqLibr
+
+A bit of a mess. The repo is full of object files (.o), editor backups (*~),
+editor temp files (#*#).  But at least you are using the right editor.
+
+I have no experience with git submodules and cannot say wether SeqLib again
+in SeqLibR is a good idea.
+ 
+| My makevars links to the location of the header files and to the static
+| libraries. To my understanding, the header files linked via PKG_CXXFLAGS point
+| to the header files and PKG_LIBS points to the static libraries. Then, in
+
+The Makevars is suspicious:
+
+    ## the following flags are for PreProcessor.
+    PKG_CPPFLAGS= -I../bwa/ -I../ -I../src/SeqLib/* 
+
+First, the ../bwa/ directory does not work.  R includes _everything below
+inst/_ but only a few known directories at the top-level.  This is why we all
+put headers into inst/include/ --- so I would make **very strongly** suggest
+you move bwa/ into inst/include/bwa and then use -I../inst/include/bwa.
+
+Second, you are in src/ so ../src/ makes no sense. Make that -ISeqLib/
+
+Third, there is no notion of wildcards in include directories.  So -ISeqLib/
+
+Fourth, for SeqLib you do
+
+   ( cd SeqLib; ./configure; make; make install; )
+
+and you _almost surely_ should not run 'make install'.  The rest of your
+src/Makevars is trying to use the static library from that directory; make
+install would attempt to write the library somewhere else.  "Writing R
+Extensions* _explicitly_ prohibits that for good reason.
+
+I stop here.  Other failures related to loading object are likely due to
+these issues which you probably want to correct first.
+
+Dirk
+
+
+| rcpp_hello_world.cpp, I reference a function called Open within the FastqReader
+| class within the SeqLib namespace but, when I run load_all() I get an effor
+| saying:
+| 
+| 
+| Error in dyn.load(dllfile);
+| 
+|    unable to load shared object 'subsetSeqLib.so': undefined symbol:
+| _ZN6SeqLib11FastqReader40OpenERKSs, which references that Open function from
+| FastqReader. I don't understand why this is happening since I am linked to the
+| static libraries that have the definition of that function.
+| 
+| 
+| Thanks for all the help. 
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From wdunlap at tibco.com  Tue Dec 13 17:59:34 2016
+From: wdunlap at tibco.com (William Dunlap)
+Date: Tue, 13 Dec 2016 08:59:34 -0800
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+In-Reply-To: <CADNH-Pt5_cQFV28Uhmiuuz8cJLWbf=7d1kQqgpT0p7gGBq8g6g@mail.gmail.com>
+References: <CADNH-Pt5_cQFV28Uhmiuuz8cJLWbf=7d1kQqgpT0p7gGBq8g6g@mail.gmail.com>
+Message-ID: <CAF8bMcY6GVdBdEqxnF_gOvSsW6sMZ+eZPpVfWW3T5vOt6TT2Rw@mail.gmail.com>
+
+Could the c++ slowdown be due to the fact that Rinternals.h defines ISNAN
+differently for C and C++?  For C it uses the compiler's isnan macro, for
+C++ it calls the function R_isnancpp.
+
+Bill Dunlap
+TIBCO Software
+wdunlap tibco.com
+
+On Tue, Dec 13, 2016 at 5:04 AM, Christian Gunning <xian at unm.edu> wrote:
+
+> > |    for (i = 0; i < numObjects; i++) {
+> > |      for (j = 0; j < numCodes; j++) {
+> > |        dist = 0;
+> > |        for (k = 0; k < numVars; k++) {
+> > |          if (!ISNAN(data[i * numVars + k])) {
+> > |            tmp = data[i * numVars + k] - codes[j * numVars + k];
+> >
+> > Why not drop data and codes and use  sData1(i,k) - sData2(j,k)  ?
+>
+> Or better yet, just use the original code with NumericMatrix:
+> sData1[i * numVars + k] does the right thing.
+> I don't get any timing difference based on this change.
+>
+> Using Rcpp sugar
+> (https://cran.r-project.org/package=Rcpp/vignettes/Rcpp-sugar.pdf),
+> and moving the call outside the loop, appears to do the right thing.
+>
+> ## modified example
+> ## see edits here:
+> https://github.com/helmingstay/rcpp-timings/blob/
+> master/diff/rcppdist.cpp#L24
+> git clone https://github.com/helmingstay/rcpp-timings
+> cd rcpp-timings/diff
+> R --vanilla < glue.R
+>
+> best,
+> Christian
+>
+> >
+> > That still doesn't explain the slowdowns though.  Could you prepare a
+> > _complete_ yet minimal example along with mock data?
+> >
+> > Dirk
+> >
+> > --
+> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> >
+>
+> --
+> A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+> http://www.x14n.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161213/2f893f65/attachment.html>
+
+From kh.guy at hotmail.com  Tue Dec 13 18:50:24 2016
+From: kh.guy at hotmail.com (khagay nagdimov)
+Date: Tue, 13 Dec 2016 17:50:24 +0000
+Subject: [Rcpp-devel] Rcpp question regarding compilation of another
+ package
+In-Reply-To: <22607.63519.49831.569715@max.nulle.part>
+References: <MWHPR07MB3120839702064162E837D28B89980@MWHPR07MB3120.namprd07.prod.outlook.com>,
+ <22607.63519.49831.569715@max.nulle.part>
+Message-ID: <MWHPR07MB31202D108695EF4AA4837E1C899B0@MWHPR07MB3120.namprd07.prod.outlook.com>
+
+Thank you Dirk for all the help, it is very much appreciated.
+
+
+I have made the changes you recommend and pushed them onto the GitHub page (https://github.com/KhagayN/SeqLibr). I realized that the bwa directory isn't necessary because src/SeqLib/bwa is an entire copy of it. I changed the PKG_CPPFLAGS to reflect that bwa directory via -ISeqLib/bwa/
+
+
+Do you think that is acceptable? I will follow your guidance.
+
+
+If so, I get an error after running load_all()
+   Error in dyn.load(dllfile)
+
+unable to load shared object 'subsetSeqLib.so': mem_opt_init
+
+
+That function is defined in src/SeqLib/bwa/bwamem.c.
+
+
+________________________________
+From: Dirk Eddelbuettel <edd at debian.org>
+Sent: Tuesday, December 13, 2016 8:31:11 AM
+To: khagay nagdimov
+Cc: rcpp-devel at lists.r-forge.r-project.org
+Subject: Re: [Rcpp-devel] Rcpp question regarding compilation of another package
+
+
+Thanks for posting here, and showing complete references. Your earlier
+StackOverflow questions went nowhere.  Hopefully we can tackle this here.
+
+On 12 December 2016 at 17:32, khagay nagdimov wrote:
+| I am trying to create a package that uses Rcpp to translate code from SeqLib (
+| https://github.com/walaj/SeqLib) into R. I have compiled SeqLib but, I still
+| have problems referencing the function definitions. The current structure of my
+| R package is shown here: https://github.com/KhagayN/SeqLibr
+
+A bit of a mess. The repo is full of object files (.o), editor backups (*~),
+editor temp files (#*#).  But at least you are using the right editor.
+
+I have no experience with git submodules and cannot say wether SeqLib again
+in SeqLibR is a good idea.
+
+| My makevars links to the location of the header files and to the static
+| libraries. To my understanding, the header files linked via PKG_CXXFLAGS point
+| to the header files and PKG_LIBS points to the static libraries. Then, in
+
+The Makevars is suspicious:
+
+    ## the following flags are for PreProcessor.
+    PKG_CPPFLAGS= -I../bwa/ -I../ -I../src/SeqLib/*
+
+First, the ../bwa/ directory does not work.  R includes _everything below
+inst/_ but only a few known directories at the top-level.  This is why we all
+put headers into inst/include/ --- so I would make **very strongly** suggest
+you move bwa/ into inst/include/bwa and then use -I../inst/include/bwa.
+
+Second, you are in src/ so ../src/ makes no sense. Make that -ISeqLib/
+
+Third, there is no notion of wildcards in include directories.  So -ISeqLib/
+
+Fourth, for SeqLib you do
+
+   ( cd SeqLib; ./configure; make; make install; )
+
+and you _almost surely_ should not run 'make install'.  The rest of your
+src/Makevars is trying to use the static library from that directory; make
+install would attempt to write the library somewhere else.  "Writing R
+Extensions* _explicitly_ prohibits that for good reason.
+
+I stop here.  Other failures related to loading object are likely due to
+these issues which you probably want to correct first.
+
+Dirk
+
+
+| rcpp_hello_world.cpp, I reference a function called Open within the FastqReader
+| class within the SeqLib namespace but, when I run load_all() I get an effor
+| saying:
+|
+|
+| Error in dyn.load(dllfile);
+|
+|    unable to load shared object 'subsetSeqLib.so': undefined symbol:
+| _ZN6SeqLib11FastqReader40OpenERKSs, which references that Open function from
+| FastqReader. I don't understand why this is happening since I am linked to the
+| static libraries that have the definition of that function.
+|
+|
+| Thanks for all the help.
+|
+|
+|
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161213/55b366f1/attachment-0001.html>
+
+From aminashahzadi at gmail.com  Wed Dec 14 03:51:48 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Wed, 14 Dec 2016 15:51:48 +1300
+Subject: [Rcpp-devel] a variable for loop
+Message-ID: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+
+Hello Friends and Prof. Dirk
+
+I am pasting here a code which has a for loop depending on another for
+loop.
+I am getting zeros for cube c. I tried and searched a lot but did not get
+an example of this type. Would you please help in this regard?
+
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+
+arma::cube  exam(arma::vec a,  arma::mat b)
+{
+  int m = a.size();
+  int n = b.n_rows;
+  arma::cube c = zeros<cube>(n, m, n);
+  for(int i=0; i<n; i++) {
+    for(int j=0; j<m; j++) {
+      for(int k=0; k<i; k++) {
+          if(k==0) {
+            c(i, j ,k) = c(i, j, k) + b(i, j);
+          }
+          else{
+            c(i, j, k) = c(i, j, k) +  c(i-1, j, k) *b(i, j);
+          }
+         }
+        }
+      }
+  return c;
+}
+
+
+Thank You
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161214/b6645368/attachment.html>
+
+From avraham.adler at gmail.com  Wed Dec 14 04:46:07 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Tue, 13 Dec 2016 22:46:07 -0500
+Subject: [Rcpp-devel] a variable for loop
+In-Reply-To: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+References: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+Message-ID: <CAL6gwnJduy6gsopQm2-vPHjMxz3m=8BTnF2UxLKOUvOn3sCBOA@mail.gmail.com>
+
+On Tue, Dec 13, 2016 at 9:51 PM, Amina Shahzadi <aminashahzadi at gmail.com>
+wrote:
+
+> Hello Friends and Prof. Dirk
+>
+> I am pasting here a code which has a for loop depending on another for
+> loop.
+> I am getting zeros for cube c. I tried and searched a lot but did not get
+> an example of this type. Would you please help in this regard?
+>
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> using namespace arma;
+> //[[Rcpp::depends(RcppArmadillo)]]
+> //[[Rcpp::export]]
+>
+>
+> arma::cube  exam(arma::vec a,  arma::mat b)
+> {
+>   int m = a.size();
+>   int n = b.n_rows;
+>   arma::cube c = zeros<cube>(n, m, n);
+>   for(int i=0; i<n; i++) {
+>     for(int j=0; j<m; j++) {
+>       for(int k=0; k<i; k++) {
+>           if(k==0) {
+>             c(i, j ,k) = c(i, j, k) + b(i, j);
+>           }
+>           else{
+>             c(i, j, k) = c(i, j, k) +  c(i-1, j, k) *b(i, j);
+>           }
+>          }
+>         }
+>       }
+>   return c;
+> }
+>
+>
+> Thank You
+> --
+> *Amina Shahzadi*
+>
+
+
+Hello.
+
+I haven't run your code, but it strikes me that I cannot see where are you
+capturing the number of columns of b. It's a bit confusing as I was always
+taught a matrix has m rows and n columns. Be that as it may, your k==0 loop
+looks like it's trying to copy over the original matrix to the first slice,
+but how do you know that b has m columns, which is what you're assuming by
+letting j loop to m. Unless you are assuming a square matrix?
+
+Even if you are, if your matrix is not the same length as your vector, I
+think there is an issue with your loop boundaries, unless I've
+misunderstood something, which is certainly possible.
+
+For example, assume a is {1, 2, 3} and b is the 2 x 2 of row 1: [1 2] and
+row 2: [3 4]. Thus m = 3 and n = 2.
+
+Step 1: i = j = k = 0: c(0, 0, 0) becomes b(0, 0) or 1.
+
+Step 2: i = 0, j = 1, k = 0: c(0, 1, 0) becomes b(0, 1) or 2.
+
+Step 3: i = 0, j = 2, k = 0: c(0, 2, 0) becomes b(0, 2) ?!?! There is no
+b(0, 2), it's only a 2x2 matrix?
+
+
+Similar to your previous questions, instead of posting code, can you please
+describe in words what it is you are trying to do? That may help.
+
+Avi
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161213/cb9a93d9/attachment.html>
+
+From aminashahzadi at gmail.com  Wed Dec 14 07:24:18 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Wed, 14 Dec 2016 19:24:18 +1300
+Subject: [Rcpp-devel] a variable for loop
+In-Reply-To: <CAL6gwnJduy6gsopQm2-vPHjMxz3m=8BTnF2UxLKOUvOn3sCBOA@mail.gmail.com>
+References: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+ <CAL6gwnJduy6gsopQm2-vPHjMxz3m=8BTnF2UxLKOUvOn3sCBOA@mail.gmail.com>
+Message-ID: <CAMbX5wmxMJZJOjn-DOuWT474cn4640Nj0Xa8Oo1ZhUX+8kPfQw@mail.gmail.com>
+
+Hello Avraham --Happy to see you
+
+My code is trying to produce a cube c which is going to be constructed by a
+vector a and matrix b.
+And the number of rows in b and size of a must be same.
+
+So we can assume that if a is a vector of size 3, Then b must be 2 x 3 or 3
+X 3 etc.
+
+Thank you Avraham for quick response. I hope this will make my question
+more clear.
+
+Best regards
+
+
+On Wed, Dec 14, 2016 at 4:46 PM, Avraham Adler <avraham.adler at gmail.com>
+wrote:
+
+> On Tue, Dec 13, 2016 at 9:51 PM, Amina Shahzadi <aminashahzadi at gmail.com>
+> wrote:
+>
+>> Hello Friends and Prof. Dirk
+>>
+>> I am pasting here a code which has a for loop depending on another for
+>> loop.
+>> I am getting zeros for cube c. I tried and searched a lot but did not get
+>> an example of this type. Would you please help in this regard?
+>>
+>>
+>> #include <RcppArmadillo.h>
+>> using namespace Rcpp;
+>> using namespace RcppArmadillo;
+>> using namespace arma;
+>> //[[Rcpp::depends(RcppArmadillo)]]
+>> //[[Rcpp::export]]
+>>
+>>
+>> arma::cube  exam(arma::vec a,  arma::mat b)
+>> {
+>>   int m = a.size();
+>>   int n = b.n_rows;
+>>   arma::cube c = zeros<cube>(n, m, n);
+>>   for(int i=0; i<n; i++) {
+>>     for(int j=0; j<m; j++) {
+>>       for(int k=0; k<i; k++) {
+>>           if(k==0) {
+>>             c(i, j ,k) = c(i, j, k) + b(i, j);
+>>           }
+>>           else{
+>>             c(i, j, k) = c(i, j, k) +  c(i-1, j, k) *b(i, j);
+>>           }
+>>          }
+>>         }
+>>       }
+>>   return c;
+>> }
+>>
+>>
+>> Thank You
+>> --
+>> *Amina Shahzadi*
+>>
+>
+>
+> Hello.
+>
+> I haven't run your code, but it strikes me that I cannot see where are you
+> capturing the number of columns of b. It's a bit confusing as I was always
+> taught a matrix has m rows and n columns. Be that as it may, your k==0 loop
+> looks like it's trying to copy over the original matrix to the first slice,
+> but how do you know that b has m columns, which is what you're assuming by
+> letting j loop to m. Unless you are assuming a square matrix?
+>
+> Even if you are, if your matrix is not the same length as your vector, I
+> think there is an issue with your loop boundaries, unless I've
+> misunderstood something, which is certainly possible.
+>
+> For example, assume a is {1, 2, 3} and b is the 2 x 2 of row 1: [1 2] and
+> row 2: [3 4]. Thus m = 3 and n = 2.
+>
+> Step 1: i = j = k = 0: c(0, 0, 0) becomes b(0, 0) or 1.
+>
+> Step 2: i = 0, j = 1, k = 0: c(0, 1, 0) becomes b(0, 1) or 2.
+>
+> Step 3: i = 0, j = 2, k = 0: c(0, 2, 0) becomes b(0, 2) ?!?! There is no
+> b(0, 2), it's only a 2x2 matrix?
+>
+>
+> Similar to your previous questions, instead of posting code, can you
+> please describe in words what it is you are trying to do? That may help.
+>
+> Avi
+>
+>
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161214/914a891b/attachment.html>
+
+From johannes at kruisselbrink.eu  Wed Dec 14 07:26:39 2016
+From: johannes at kruisselbrink.eu (Johannes Kruisselbrink)
+Date: Wed, 14 Dec 2016 07:26:39 +0100
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+In-Reply-To: <CADNH-Pt5_cQFV28Uhmiuuz8cJLWbf=7d1kQqgpT0p7gGBq8g6g@mail.gmail.com>
+References: <CADNH-Pt5_cQFV28Uhmiuuz8cJLWbf=7d1kQqgpT0p7gGBq8g6g@mail.gmail.com>
+Message-ID: <e1361350-bb9a-ca23-896f-2d3b02325e05@kruisselbrink.eu>
+
+Moving the call outside the main loop would be effective for some 
+scenarios (i.e, the scenarios where the data objects do not contain 
+NaNs). However, once they do we still want to compute a distance based 
+on the values and "correct" for the NaNs in some way, so skipping the 
+entire object is not really an option. Including a switch between the 
+cases of objects with and objects without NaNs is probably something 
+worthwhile (that and using more rcpp-sugar).
+
+Nevertheless, the question still remains why the rcpp isNaN call is so 
+much slower.
+
+On 12/13/2016 2:04 PM, xian at unm.edu (Christian Gunning) wrote:
+>> |    for (i = 0; i < numObjects; i++) {
+>> |      for (j = 0; j < numCodes; j++) {
+>> |        dist = 0;
+>> |        for (k = 0; k < numVars; k++) {
+>> |          if (!ISNAN(data[i * numVars + k])) {
+>> |            tmp = data[i * numVars + k] - codes[j * numVars + k];
+>>
+>> Why not drop data and codes and use  sData1(i,k) - sData2(j,k)  ?
+> Or better yet, just use the original code with NumericMatrix:
+> sData1[i * numVars + k] does the right thing.
+> I don't get any timing difference based on this change.
+>
+> Using Rcpp sugar
+> (https://cran.r-project.org/package=Rcpp/vignettes/Rcpp-sugar.pdf),
+> and moving the call outside the loop, appears to do the right thing.
+>
+> ## modified example
+> ## see edits here:
+> https://github.com/helmingstay/rcpp-timings/blob/master/diff/rcppdist.cpp#L24
+> git clone https://github.com/helmingstay/rcpp-timings
+> cd rcpp-timings/diff
+> R --vanilla < glue.R
+
+From avraham.adler at gmail.com  Wed Dec 14 07:27:34 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Wed, 14 Dec 2016 06:27:34 +0000
+Subject: [Rcpp-devel] a variable for loop
+In-Reply-To: <CAMbX5wmxMJZJOjn-DOuWT474cn4640Nj0Xa8Oo1ZhUX+8kPfQw@mail.gmail.com>
+References: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+ <CAL6gwnJduy6gsopQm2-vPHjMxz3m=8BTnF2UxLKOUvOn3sCBOA@mail.gmail.com>
+ <CAMbX5wmxMJZJOjn-DOuWT474cn4640Nj0Xa8Oo1ZhUX+8kPfQw@mail.gmail.com>
+Message-ID: <CAL6gwnKKK_WL6cXnPb+wrFBk0=gMHa2GD3WA0C5kL2EKHaVqgw@mail.gmail.com>
+
+On Wed, Dec 14, 2016 at 1:24 AM Amina Shahzadi <aminashahzadi at gmail.com>
+wrote:
+
+> Hello Avraham --Happy to see you
+>
+> My code is trying to produce a cube c which is going to be constructed by
+> a vector a and matrix b.
+> And the number of rows in b and size of a must be same.
+>
+> So we can assume that if a is a vector of size 3, Then b must be 2 x 3 or
+> 3 X 3 etc.
+>
+> Thank you Avraham for quick response. I hope this will make my question
+> more clear.
+>
+> Best regards
+>
+>
+> On Wed, Dec 14, 2016 at 4:46 PM, Avraham Adler <avraham.adler at gmail.com>
+> wrote:
+>
+> On Tue, Dec 13, 2016 at 9:51 PM, Amina Shahzadi <aminashahzadi at gmail.com>
+> wrote:
+>
+> Hello Friends and Prof. Dirk
+>
+> I am pasting here a code which has a for loop depending on another for
+> loop.
+> I am getting zeros for cube c. I tried and searched a lot but did not get
+> an example of this type. Would you please help in this regard?
+>
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> using namespace arma;
+> //[[Rcpp::depends(RcppArmadillo)]]
+> //[[Rcpp::export]]
+>
+>
+> arma::cube  exam(arma::vec a,  arma::mat b)
+> {
+>   int m = a.size();
+>   int n = b.n_rows;
+>   arma::cube c = zeros<cube>(n, m, n);
+>   for(int i=0; i<n; i++) {
+>     for(int j=0; j<m; j++) {
+>       for(int k=0; k<i; k++) {
+>           if(k==0) {
+>             c(i, j ,k) = c(i, j, k) + b(i, j);
+>           }
+>           else{
+>             c(i, j, k) = c(i, j, k) +  c(i-1, j, k) *b(i, j);
+>           }
+>          }
+>         }
+>       }
+>   return c;
+> }
+>
+>
+> Thank You
+> --
+> *Amina Shahzadi*
+>
+>
+>
+>
+> Hello.
+>
+> I haven't run your code, but it strikes me
+>
+> that I cannot see where are you capturing the number of columns of b.
+>
+> It's a bit confusing as I was always taught a matrix has m rows and n
+>
+> columns. Be that as it may, your k==0 loop looks like it's trying to
+>
+> copy over the original matrix to the first slice, but how do you know
+>
+> that b has m columns, which is what you're assuming by letting j loop to
+>
+> m. Unless you are assuming a square matrix?
+>
+> Even if you are, if your matrix is not the same length as your vector, I
+> think there is an issue with your loop boundaries, unless I've
+> misunderstood something, which is certainly possible.
+>
+> For example, assume a is {1, 2, 3} and b is the 2 x 2 of row 1: [1 2] and
+> row 2: [3 4]. Thus m = 3 and n = 2.
+>
+> Step 1: i = j = k = 0: c(0, 0, 0) becomes b(0, 0) or 1.
+>
+> Step 2: i = 0, j = 1, k = 0: c(0, 1, 0) becomes b(0, 1) or 2.
+>
+> Step 3: i = 0, j = 2, k = 0: c(0, 2, 0) becomes b(0, 2) ?!?! There is no
+> b(0, 2), it's only a 2x2 matrix?
+>
+>
+> Similar to your previous questions, instead of posting code, can you
+> please describe in words what it is you are trying to do? That may help.
+>
+> Avi
+>
+>
+>
+>
+>
+>
+> --
+> *Amina Shahzadi*
+>
+>
+> Constructed how? Can you provide a simple set of inputs and the expected
+output?
+
+Avi
+-- 
+Sent from Gmail Mobile
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161214/86ee1011/attachment.html>
+
+From aminashahzadi at gmail.com  Wed Dec 14 07:46:19 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Wed, 14 Dec 2016 19:46:19 +1300
+Subject: [Rcpp-devel] a variable for loop
+In-Reply-To: <CAL6gwnKKK_WL6cXnPb+wrFBk0=gMHa2GD3WA0C5kL2EKHaVqgw@mail.gmail.com>
+References: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+ <CAL6gwnJduy6gsopQm2-vPHjMxz3m=8BTnF2UxLKOUvOn3sCBOA@mail.gmail.com>
+ <CAMbX5wmxMJZJOjn-DOuWT474cn4640Nj0Xa8Oo1ZhUX+8kPfQw@mail.gmail.com>
+ <CAL6gwnKKK_WL6cXnPb+wrFBk0=gMHa2GD3WA0C5kL2EKHaVqgw@mail.gmail.com>
+Message-ID: <CAMbX5wn4diVkyL4autCK9G9514iZ9PHUpxdspfCS-jpQdyq2yA@mail.gmail.com>
+
+Oh sorry. No. of columns in b and size of a must always be same.
+I have made an r code to show the output.
+
+
+a = c(1, 2, 3)
+b = matrix(1:30, nrow=10, ncol=3)
+c = array(as.double(0), dim=c(10, 3, 10))
+for(i in 1:10){
+  for(j in 1:3){
+    for(k in 1:i){
+      if(k==1) c[i, j, k] = b[i, j]
+      else c[i, j, k] = c[i-1, j, k-1] * b[i, j]
+    }
+  }
+}
+
+Output:
+
+> c, , 1
+
+      [,1] [,2] [,3]
+ [1,]    1   11   21
+ [2,]    2   12   22
+ [3,]    3   13   23
+ [4,]    4   14   24
+ [5,]    5   15   25
+ [6,]    6   16   26
+ [7,]    7   17   27
+ [8,]    8   18   28
+ [9,]    9   19   29
+[10,]   10   20   30
+
+, , 2
+
+      [,1] [,2] [,3]
+ [1,]    0    0    0
+ [2,]    2  132  462
+ [3,]    6  156  506
+ [4,]   12  182  552
+ [5,]   20  210  600
+ [6,]   30  240  650
+ [7,]   42  272  702
+ [8,]   56  306  756
+ [9,]   72  342  812
+[10,]   90  380  870
+
+, , 3
+
+      [,1] [,2]  [,3]
+ [1,]    0    0     0
+ [2,]    0    0     0
+ [3,]    6 1716 10626
+ [4,]   24 2184 12144
+ [5,]   60 2730 13800
+ [6,]  120 3360 15600
+ [7,]  210 4080 17550
+ [8,]  336 4896 19656
+ [9,]  504 5814 21924
+[10,]  720 6840 24360
+
+, , 4
+
+      [,1]   [,2]   [,3]
+ [1,]    0      0      0
+ [2,]    0      0      0
+ [3,]    0      0      0
+ [4,]   24  24024 255024
+ [5,]  120  32760 303600
+ [6,]  360  43680 358800
+ [7,]  840  57120 421200
+ [8,] 1680  73440 491400
+ [9,] 3024  93024 570024
+[10,] 5040 116280 657720
+
+, , 5
+
+       [,1]    [,2]     [,3]
+ [1,]     0       0        0
+ [2,]     0       0        0
+ [3,]     0       0        0
+ [4,]     0       0        0
+ [5,]   120  360360  6375600
+ [6,]   720  524160  7893600
+ [7,]  2520  742560  9687600
+ [8,]  6720 1028160 11793600
+ [9,] 15120 1395360 14250600
+[10,] 30240 1860480 17100720
+
+, , 6
+
+        [,1]     [,2]      [,3]
+ [1,]      0        0         0
+ [2,]      0        0         0
+ [3,]      0        0         0
+ [4,]      0        0         0
+ [5,]      0        0         0
+ [6,]    720  5765760 165765600
+ [7,]   5040  8910720 213127200
+ [8,]  20160 13366080 271252800
+ [9,]  60480 19535040 342014400
+[10,] 151200 27907200 427518000
+
+, , 7
+
+        [,1]      [,2]        [,3]
+ [1,]      0         0           0
+ [2,]      0         0           0
+ [3,]      0         0           0
+ [4,]      0         0           0
+ [5,]      0         0           0
+ [6,]      0         0           0
+ [7,]   5040  98017920  4475671200
+ [8,]  40320 160392960  5967561600
+ [9,] 181440 253955520  7866331200
+[10,] 604800 390700800 10260432000
+
+, , 8
+
+         [,1]       [,2]         [,3]
+ [1,]       0          0            0
+ [2,]       0          0            0
+ [3,]       0          0            0
+ [4,]       0          0            0
+ [5,]       0          0            0
+ [6,]       0          0            0
+ [7,]       0          0            0
+ [8,]   40320 1764322560 125318793600
+ [9,]  362880 3047466240 173059286400
+[10,] 1814400 5079110400 235989936000
+
+, , 9
+
+         [,1]        [,2]         [,3]
+ [1,]       0           0 0.000000e+00
+ [2,]       0           0 0.000000e+00
+ [3,]       0           0 0.000000e+00
+ [4,]       0           0 0.000000e+00
+ [5,]       0           0 0.000000e+00
+ [6,]       0           0 0.000000e+00
+ [7,]       0           0 0.000000e+00
+ [8,]       0           0 0.000000e+00
+ [9,]  362880 33522128640 3.634245e+12
+[10,] 3628800 60949324800 5.191779e+12
+
+, , 10
+
+         [,1]         [,2]         [,3]
+ [1,]       0            0 0.000000e+00
+ [2,]       0            0 0.000000e+00
+ [3,]       0            0 0.000000e+00
+ [4,]       0            0 0.000000e+00
+ [5,]       0            0 0.000000e+00
+ [6,]       0            0 0.000000e+00
+ [7,]       0            0 0.000000e+00
+ [8,]       0            0 0.000000e+00
+ [9,]       0            0 0.000000e+00
+[10,] 3628800 670442572800 1.090274e+14
+
+
+
+
+On Wed, Dec 14, 2016 at 7:27 PM, Avraham Adler <avraham.adler at gmail.com>
+wrote:
+
+>
+>
+> On Wed, Dec 14, 2016 at 1:24 AM Amina Shahzadi <aminashahzadi at gmail.com>
+> wrote:
+>
+>> Hello Avraham --Happy to see you
+>>
+>> My code is trying to produce a cube c which is going to be constructed by
+>> a vector a and matrix b.
+>> And the number of rows in b and size of a must be same.
+>>
+>> So we can assume that if a is a vector of size 3, Then b must be 2 x 3 or
+>> 3 X 3 etc.
+>>
+>> Thank you Avraham for quick response. I hope this will make my question
+>> more clear.
+>>
+>> Best regards
+>>
+>>
+>> On Wed, Dec 14, 2016 at 4:46 PM, Avraham Adler <avraham.adler at gmail.com>
+>> wrote:
+>>
+>> On Tue, Dec 13, 2016 at 9:51 PM, Amina Shahzadi <aminashahzadi at gmail.com>
+>> wrote:
+>>
+>> Hello Friends and Prof. Dirk
+>>
+>> I am pasting here a code which has a for loop depending on another for
+>> loop.
+>> I am getting zeros for cube c. I tried and searched a lot but did not get
+>> an example of this type. Would you please help in this regard?
+>>
+>>
+>> #include <RcppArmadillo.h>
+>> using namespace Rcpp;
+>> using namespace RcppArmadillo;
+>> using namespace arma;
+>> //[[Rcpp::depends(RcppArmadillo)]]
+>> //[[Rcpp::export]]
+>>
+>>
+>> arma::cube  exam(arma::vec a,  arma::mat b)
+>> {
+>>   int m = a.size();
+>>   int n = b.n_rows;
+>>   arma::cube c = zeros<cube>(n, m, n);
+>>   for(int i=0; i<n; i++) {
+>>     for(int j=0; j<m; j++) {
+>>       for(int k=0; k<i; k++) {
+>>           if(k==0) {
+>>             c(i, j ,k) = c(i, j, k) + b(i, j);
+>>           }
+>>           else{
+>>             c(i, j, k) = c(i, j, k) +  c(i-1, j, k) *b(i, j);
+>>           }
+>>          }
+>>         }
+>>       }
+>>   return c;
+>> }
+>>
+>>
+>> Thank You
+>> --
+>> *Amina Shahzadi*
+>>
+>>
+>>
+>>
+>> Hello.
+>>
+>> I haven't run your code, but it strikes me
+>>
+>> that I cannot see where are you capturing the number of columns of b.
+>>
+>> It's a bit confusing as I was always taught a matrix has m rows and n
+>>
+>> columns. Be that as it may, your k==0 loop looks like it's trying to
+>>
+>> copy over the original matrix to the first slice, but how do you know
+>>
+>> that b has m columns, which is what you're assuming by letting j loop to
+>>
+>> m. Unless you are assuming a square matrix?
+>>
+>> Even if you are, if your matrix is not the same length as your vector, I
+>> think there is an issue with your loop boundaries, unless I've
+>> misunderstood something, which is certainly possible.
+>>
+>> For example, assume a is {1, 2, 3} and b is the 2 x 2 of row 1: [1 2] and
+>> row 2: [3 4]. Thus m = 3 and n = 2.
+>>
+>> Step 1: i = j = k = 0: c(0, 0, 0) becomes b(0, 0) or 1.
+>>
+>> Step 2: i = 0, j = 1, k = 0: c(0, 1, 0) becomes b(0, 1) or 2.
+>>
+>> Step 3: i = 0, j = 2, k = 0: c(0, 2, 0) becomes b(0, 2) ?!?! There is no
+>> b(0, 2), it's only a 2x2 matrix?
+>>
+>>
+>> Similar to your previous questions, instead of posting code, can you
+>> please describe in words what it is you are trying to do? That may help.
+>>
+>> Avi
+>>
+>>
+>>
+>>
+>>
+>>
+>> --
+>> *Amina Shahzadi*
+>>
+>>
+>> Constructed how? Can you provide a simple set of inputs and the expected
+> output?
+>
+> Avi
+> --
+> Sent from Gmail Mobile
+>
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161214/d79eedc5/attachment-0001.html>
+
+From xian at unm.edu  Wed Dec 14 09:24:33 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Wed, 14 Dec 2016 01:24:33 -0700
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+Message-ID: <CADNH-PuJD-ByOVOtwkj4jyhz9k+6pkSg0G2wPRvnLN+nTgCB7w@mail.gmail.com>
+
+> so skipping the entire object is not really an option.
+
+Understood - just wanted to highlight the existence of Rcpp::is_nan /
+Rcpp::any in case they were broadly relevant.
+
+> Nevertheless, the question still remains why the rcpp isNaN call is so
+> much slower.
+
+Take care to distinguish the R-core ISNAN macro, the R_IsNaN function,
+and the Rcpp::isNaN template function. Asides from sugar-stuff, all
+the examples discussed here so far address the performance of R-core
+ISNAN, given doubles that are accessed via Rcpp, correct?
+
+I'm not qualified to answer, but your example piqued my interest.
+Based on your previous email, I'm guessing you found this?
+
+"Currently in C code ISNAN is a macro calling isnan. (Since this gives
+problems on some C++ systems, if the R headers is called from C++ code
+a function call is used.) "
+http://www.hep.by/gnu/r-patched/r-exts/R-exts_133.html
+
+Definitions from the horse's mouth:
+https://github.com/wch/r-source/blob/trunk/src/include/R_ext/Arith.h#L66
+
+Based on the above, I added permutations to a *very* minimal test (no
+return val, etc) that include Romain's suggestion:
+https://github.com/helmingstay/rcpp-timings/tree/master/minimal
+## source('benchmarks.r')
+
+I see that:
+A) the sugar expression in slow
+B) based on timings, ISNAN appears to call R_isnancpp, which is slow
+C) std::count_if yields a modest improvement given B)
+D) Using an inline function matching the definintion of ISNAN used in
+a C envir [i.e., "isnan(xx)!=0", using math.h] appears to incur no
+cost at all (example CountNans_expr)
+
+This doesn't get to the *why*, but perhaps addresses the question of
+intrinsic limitations in Rcpp. Perhaps others can comment on whether
+D) is equivalent to driving without a seatbelt.
+
+hth,
+-Christian
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+http://www.x14n.org/
+
+From serguei.sokol at gmail.com  Wed Dec 14 10:29:43 2016
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Wed, 14 Dec 2016 10:29:43 +0100
+Subject: [Rcpp-devel] a variable for loop
+In-Reply-To: <CAMbX5wn4diVkyL4autCK9G9514iZ9PHUpxdspfCS-jpQdyq2yA@mail.gmail.com>
+References: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+ <CAL6gwnJduy6gsopQm2-vPHjMxz3m=8BTnF2UxLKOUvOn3sCBOA@mail.gmail.com>
+ <CAMbX5wmxMJZJOjn-DOuWT474cn4640Nj0Xa8Oo1ZhUX+8kPfQw@mail.gmail.com>
+ <CAL6gwnKKK_WL6cXnPb+wrFBk0=gMHa2GD3WA0C5kL2EKHaVqgw@mail.gmail.com>
+ <CAMbX5wn4diVkyL4autCK9G9514iZ9PHUpxdspfCS-jpQdyq2yA@mail.gmail.com>
+Message-ID: <e1230ef4-777f-21bd-d362-ef11d6826448@gmail.com>
+
+Hi Amina,
+
+Looks like you want us to do your homework, right? ;)
+
+Pay attention to subscript translation from R to C:
+
+c[i-1, j, k-1] * b[i, j]
+vs
+c(i-1, j, k) *b(i, j)
+
+Can you see the difference?
+
+Best,
+Serguei.
+
+Le 14/12/2016 ? 07:46, Amina Shahzadi a ?crit :
+> Oh sorry. No. of columns in b and size of a must always be same.
+> I have made an r code to show the output.
+>
+>
+> a = c(1, 2, 3)
+> b = matrix(1:30, nrow=10, ncol=3)
+> c = array(as.double(0), dim=c(10, 3, 10))
+> for(i in 1:10){
+>   for(j in 1:3){
+>     for(k in 1:i){
+>       if(k==1) c[i, j, k] = b[i, j]
+>       else c[i, j, k] = c[i-1, j, k-1] * b[i, j]
+>     }
+>   }
+> }
+>
+> Output:
+>
+>> c , , 1
+>
+>       [,1] [,2] [,3]
+>  [1,]    1   11   21
+>  [2,]    2   12   22
+>  [3,]    3   13   23
+>  [4,]    4   14   24
+>  [5,]    5   15   25
+>  [6,]    6   16   26
+>  [7,]    7   17   27
+>  [8,]    8   18   28
+>  [9,]    9   19   29
+> [10,]   10   20   30
+>
+> , , 2
+>
+>       [,1] [,2] [,3]
+>  [1,]    0    0    0
+>  [2,]    2  132  462
+>  [3,]    6  156  506
+>  [4,]   12  182  552
+>  [5,]   20  210  600
+>  [6,]   30  240  650
+>  [7,]   42  272  702
+>  [8,]   56  306  756
+>  [9,]   72  342  812
+> [10,]   90  380  870
+>
+> , , 3
+>
+>       [,1] [,2]  [,3]
+>  [1,]    0    0     0
+>  [2,]    0    0     0
+>  [3,]    6 1716 10626
+>  [4,]   24 2184 12144
+>  [5,]   60 2730 13800
+>  [6,]  120 3360 15600
+>  [7,]  210 4080 17550
+>  [8,]  336 4896 19656
+>  [9,]  504 5814 21924
+> [10,]  720 6840 24360
+>
+> , , 4
+>
+>       [,1]   [,2]   [,3]
+>  [1,]    0      0      0
+>  [2,]    0      0      0
+>  [3,]    0      0      0
+>  [4,]   24  24024 255024
+>  [5,]  120  32760 303600
+>  [6,]  360  43680 358800
+>  [7,]  840  57120 421200
+>  [8,] 1680  73440 491400
+>  [9,] 3024  93024 570024
+> [10,] 5040 116280 657720
+>
+> , , 5
+>
+>        [,1]    [,2]     [,3]
+>  [1,]     0       0        0
+>  [2,]     0       0        0
+>  [3,]     0       0        0
+>  [4,]     0       0        0
+>  [5,]   120  360360  6375600
+>  [6,]   720  524160  7893600
+>  [7,]  2520  742560  9687600
+>  [8,]  6720 1028160 11793600
+>  [9,] 15120 1395360 14250600
+> [10,] 30240 1860480 17100720
+>
+> , , 6
+>
+>         [,1]     [,2]      [,3]
+>  [1,]      0        0         0
+>  [2,]      0        0         0
+>  [3,]      0        0         0
+>  [4,]      0        0         0
+>  [5,]      0        0         0
+>  [6,]    720  5765760 165765600
+>  [7,]   5040  8910720 213127200
+>  [8,]  20160 13366080 271252800
+>  [9,]  60480 19535040 342014400
+> [10,] 151200 27907200 427518000
+>
+> , , 7
+>
+>         [,1]      [,2]        [,3]
+>  [1,]      0         0           0
+>  [2,]      0         0           0
+>  [3,]      0         0           0
+>  [4,]      0         0           0
+>  [5,]      0         0           0
+>  [6,]      0         0           0
+>  [7,]   5040  98017920  4475671200
+>  [8,]  40320 160392960  5967561600
+>  [9,] 181440 253955520  7866331200
+> [10,] 604800 390700800 10260432000
+>
+> , , 8
+>
+>          [,1]       [,2]         [,3]
+>  [1,]       0          0            0
+>  [2,]       0          0            0
+>  [3,]       0          0            0
+>  [4,]       0          0            0
+>  [5,]       0          0            0
+>  [6,]       0          0            0
+>  [7,]       0          0            0
+>  [8,]   40320 1764322560 125318793600
+>  [9,]  362880 3047466240 173059286400
+> [10,] 1814400 5079110400 235989936000
+>
+> , , 9
+>
+>          [,1]        [,2]         [,3]
+>  [1,]       0           0 0.000000e+00
+>  [2,]       0           0 0.000000e+00
+>  [3,]       0           0 0.000000e+00
+>  [4,]       0           0 0.000000e+00
+>  [5,]       0           0 0.000000e+00
+>  [6,]       0           0 0.000000e+00
+>  [7,]       0           0 0.000000e+00
+>  [8,]       0           0 0.000000e+00
+>  [9,]  362880 33522128640 3.634245e+12
+> [10,] 3628800 60949324800 5.191779e+12
+>
+> , , 10
+>
+>          [,1]         [,2]         [,3]
+>  [1,]       0            0 0.000000e+00
+>  [2,]       0            0 0.000000e+00
+>  [3,]       0            0 0.000000e+00
+>  [4,]       0            0 0.000000e+00
+>  [5,]       0            0 0.000000e+00
+>  [6,]       0            0 0.000000e+00
+>  [7,]       0            0 0.000000e+00
+>  [8,]       0            0 0.000000e+00
+>  [9,]       0            0 0.000000e+00
+> [10,] 3628800 670442572800 1.090274e+14
+>
+>
+>
+>
+> On Wed, Dec 14, 2016 at 7:27 PM, Avraham Adler <avraham.adler at gmail.com <mailto:avraham.adler at gmail.com>> wrote:
+>
+>
+>
+>     On Wed, Dec 14, 2016 at 1:24 AM Amina Shahzadi <aminashahzadi at gmail.com <mailto:aminashahzadi at gmail.com>> wrote:
+>
+>         Hello Avraham --Happy to see you
+>
+>         My code is trying to produce a cube c which is going to be constructed by a vector a and matrix b.
+>         And the number of rows in b and size of a must be same.
+>
+>         So we can assume that if a is a vector of size 3, Then b must be 2 x 3 or 3 X 3 etc.
+>
+>         Thank you Avraham for quick response. I hope this will make my question more clear.
+>
+>         Best regards
+>
+>
+>         On Wed, Dec 14, 2016 at 4:46 PM, Avraham Adler <avraham.adler at gmail.com <mailto:avraham.adler at gmail.com>> wrote:
+>
+>             On Tue, Dec 13, 2016 at 9:51 PM, Amina Shahzadi <aminashahzadi at gmail.com <mailto:aminashahzadi at gmail.com>> wrote:
+>
+>                 Hello Friends and Prof. Dirk
+>
+>                 I am pasting here a code which has a for loop depending on another for loop.
+>                 I am getting zeros for cube c. I tried and searched a lot but did not get an example of this type. Would you please help in this regard?
+>
+>
+>                 #include <RcppArmadillo.h>
+>                 using namespace Rcpp;
+>                 using namespace RcppArmadillo;
+>                 using namespace arma;
+>                 //[[Rcpp::depends(RcppArmadillo)]]
+>                 //[[Rcpp::export]]
+>
+>
+>                 arma::cube  exam(arma::vec a,  arma::mat b)
+>                 {
+>                   int m = a.size();
+>                   int n = b.n_rows;
+>                   arma::cube c = zeros<cube>(n, m, n);
+>                   for(int i=0; i<n; i++) {
+>                     for(int j=0; j<m; j++) {
+>                       for(int k=0; k<i; k++) {
+>                           if(k==0) {
+>                             c(i, j ,k) = c(i, j, k) + b(i, j);
+>                           }
+>                           else{
+>                             c(i, j, k) = c(i, j, k) +  c(i-1, j, k) *b(i, j);
+>                           }
+>                          }
+>                         }
+>                       }
+>                   return c;
+>                 }
+>
+>
+>                 Thank You
+>                 --
+>                 /Amina Shahzadi/
+>
+>
+>
+>
+>             Hello.
+>
+>             I haven't run your code, but it strikes me
+>
+>             that I cannot see where are you capturing the number of columns of b.
+>
+>             It's a bit confusing as I was always taught a matrix has m rows and n
+>
+>             columns. Be that as it may, your k==0 loop looks like it's trying to
+>
+>             copy over the original matrix to the first slice, but how do you know
+>
+>             that b has m columns, which is what you're assuming by letting j loop to
+>
+>             m. Unless you are assuming a square matrix?
+>
+>             Even if you are, if your matrix is not the same length as your vector, I think there is an issue with your loop boundaries, unless I've
+>             misunderstood something, which is certainly possible.
+>
+>             For example, assume a is {1, 2, 3} and b is the 2 x 2 of row 1: [1 2] and row 2: [3 4]. Thus m = 3 and n = 2.
+>
+>             Step 1: i = j = k = 0: c(0, 0, 0) becomes b(0, 0) or 1.
+>
+>             Step 2: i = 0, j = 1, k = 0: c(0, 1, 0) becomes b(0, 1) or 2.
+>
+>             Step 3: i = 0, j = 2, k = 0: c(0, 2, 0) becomes b(0, 2) ?!?! There is no b(0, 2), it's only a 2x2 matrix?
+>
+>
+>             Similar to your previous questions, instead of posting code, can you please describe in words what it is you are trying to do? That may help.
+>
+>             Avi
+>
+>
+>
+>
+>
+>
+>         --
+>         /Amina Shahzadi/
+>
+>
+>     Constructed how? Can you provide a simple set of inputs and the expected output?
+>
+>     Avi
+>     --
+>     Sent from Gmail Mobile
+>
+>
+>
+>
+> --
+> /Amina Shahzadi/
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+From avraham.adler at gmail.com  Wed Dec 14 16:56:39 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Wed, 14 Dec 2016 10:56:39 -0500
+Subject: [Rcpp-devel] a variable for loop
+In-Reply-To: <CAMbX5wn4diVkyL4autCK9G9514iZ9PHUpxdspfCS-jpQdyq2yA@mail.gmail.com>
+References: <CAMbX5wn2G9tT7vj-WMCvbO9V-b=Q-jd-R+pO0aptuZVacWz6Zg@mail.gmail.com>
+ <CAL6gwnJduy6gsopQm2-vPHjMxz3m=8BTnF2UxLKOUvOn3sCBOA@mail.gmail.com>
+ <CAMbX5wmxMJZJOjn-DOuWT474cn4640Nj0Xa8Oo1ZhUX+8kPfQw@mail.gmail.com>
+ <CAL6gwnKKK_WL6cXnPb+wrFBk0=gMHa2GD3WA0C5kL2EKHaVqgw@mail.gmail.com>
+ <CAMbX5wn4diVkyL4autCK9G9514iZ9PHUpxdspfCS-jpQdyq2yA@mail.gmail.com>
+Message-ID: <CAL6gwnKEJjr8BROh3QVGh-F4ERNoYFYnSgJn+3L+ZUwgfpWQ_w@mail.gmail.com>
+
+Hello, Amina.
+
+Firstly, why are you even passing in a if b contains the proper dimensions.
+It's not like you are using a.
+
+Secondly, and more importantly, once you provided the r code, you can see
+that this is **EXACTLY** the problem you asked on September 26 of this
+year, see
+http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2016-September/009369.html,
+and the answer I gave on September 27 works here too, see
+http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2016-September/009374.html
+.
+
+Avi
+
+
+On Wed, Dec 14, 2016 at 1:46 AM, Amina Shahzadi <aminashahzadi at gmail.com>
+wrote:
+
+> Oh sorry. No. of columns in b and size of a must always be same.
+> I have made an r code to show the output.
+>
+>
+> a = c(1, 2, 3)
+> b = matrix(1:30, nrow=10, ncol=3)
+> c = array(as.double(0), dim=c(10, 3, 10))
+> for(i in 1:10){
+>   for(j in 1:3){
+>     for(k in 1:i){
+>       if(k==1) c[i, j, k] = b[i, j]
+>       else c[i, j, k] = c[i-1, j, k-1] * b[i, j]
+>     }
+>   }
+> }
+>
+> Output:
+>
+> > c, , 1
+>
+>       [,1] [,2] [,3]
+>  [1,]    1   11   21
+>  [2,]    2   12   22
+>  [3,]    3   13   23
+>  [4,]    4   14   24
+>  [5,]    5   15   25
+>  [6,]    6   16   26
+>  [7,]    7   17   27
+>  [8,]    8   18   28
+>  [9,]    9   19   29
+> [10,]   10   20   30
+>
+> , , 2
+>
+>       [,1] [,2] [,3]
+>  [1,]    0    0    0
+>  [2,]    2  132  462
+>  [3,]    6  156  506
+>  [4,]   12  182  552
+>  [5,]   20  210  600
+>  [6,]   30  240  650
+>  [7,]   42  272  702
+>  [8,]   56  306  756
+>  [9,]   72  342  812
+> [10,]   90  380  870
+>
+> , , 3
+>
+>       [,1] [,2]  [,3]
+>  [1,]    0    0     0
+>  [2,]    0    0     0
+>  [3,]    6 1716 10626
+>  [4,]   24 2184 12144
+>  [5,]   60 2730 13800
+>  [6,]  120 3360 15600
+>  [7,]  210 4080 17550
+>  [8,]  336 4896 19656
+>  [9,]  504 5814 21924
+> [10,]  720 6840 24360
+>
+> , , 4
+>
+>       [,1]   [,2]   [,3]
+>  [1,]    0      0      0
+>  [2,]    0      0      0
+>  [3,]    0      0      0
+>  [4,]   24  24024 255024
+>  [5,]  120  32760 303600
+>  [6,]  360  43680 358800
+>  [7,]  840  57120 421200
+>  [8,] 1680  73440 491400
+>  [9,] 3024  93024 570024
+> [10,] 5040 116280 657720
+>
+> , , 5
+>
+>        [,1]    [,2]     [,3]
+>  [1,]     0       0        0
+>  [2,]     0       0        0
+>  [3,]     0       0        0
+>  [4,]     0       0        0
+>  [5,]   120  360360  6375600
+>  [6,]   720  524160  7893600
+>  [7,]  2520  742560  9687600
+>  [8,]  6720 1028160 11793600
+>  [9,] 15120 1395360 14250600
+> [10,] 30240 1860480 17100720
+>
+> , , 6
+>
+>         [,1]     [,2]      [,3]
+>  [1,]      0        0         0
+>  [2,]      0        0         0
+>  [3,]      0        0         0
+>  [4,]      0        0         0
+>  [5,]      0        0         0
+>  [6,]    720  5765760 165765600
+>  [7,]   5040  8910720 213127200
+>  [8,]  20160 13366080 271252800
+>  [9,]  60480 19535040 342014400
+> [10,] 151200 27907200 427518000
+>
+> , , 7
+>
+>         [,1]      [,2]        [,3]
+>  [1,]      0         0           0
+>  [2,]      0         0           0
+>  [3,]      0         0           0
+>  [4,]      0         0           0
+>  [5,]      0         0           0
+>  [6,]      0         0           0
+>  [7,]   5040  98017920  4475671200
+>  [8,]  40320 160392960  5967561600
+>  [9,] 181440 253955520  7866331200
+> [10,] 604800 390700800 10260432000
+>
+> , , 8
+>
+>          [,1]       [,2]         [,3]
+>  [1,]       0          0            0
+>  [2,]       0          0            0
+>  [3,]       0          0            0
+>  [4,]       0          0            0
+>  [5,]       0          0            0
+>  [6,]       0          0            0
+>  [7,]       0          0            0
+>  [8,]   40320 1764322560 125318793600
+>  [9,]  362880 3047466240 173059286400
+> [10,] 1814400 5079110400 235989936000
+>
+> , , 9
+>
+>          [,1]        [,2]         [,3]
+>  [1,]       0           0 0.000000e+00
+>  [2,]       0           0 0.000000e+00
+>  [3,]       0           0 0.000000e+00
+>  [4,]       0           0 0.000000e+00
+>  [5,]       0           0 0.000000e+00
+>  [6,]       0           0 0.000000e+00
+>  [7,]       0           0 0.000000e+00
+>  [8,]       0           0 0.000000e+00
+>  [9,]  362880 33522128640 3.634245e+12
+> [10,] 3628800 60949324800 5.191779e+12
+>
+> , , 10
+>
+>          [,1]         [,2]         [,3]
+>  [1,]       0            0 0.000000e+00
+>  [2,]       0            0 0.000000e+00
+>  [3,]       0            0 0.000000e+00
+>  [4,]       0            0 0.000000e+00
+>  [5,]       0            0 0.000000e+00
+>  [6,]       0            0 0.000000e+00
+>  [7,]       0            0 0.000000e+00
+>  [8,]       0            0 0.000000e+00
+>  [9,]       0            0 0.000000e+00
+> [10,] 3628800 670442572800 1.090274e+14
+>
+>
+>
+>
+> On Wed, Dec 14, 2016 at 7:27 PM, Avraham Adler <avraham.adler at gmail.com>
+> wrote:
+>
+>>
+>>
+>> On Wed, Dec 14, 2016 at 1:24 AM Amina Shahzadi <aminashahzadi at gmail.com>
+>> wrote:
+>>
+>>> Hello Avraham --Happy to see you
+>>>
+>>> My code is trying to produce a cube c which is going to be constructed
+>>> by a vector a and matrix b.
+>>> And the number of rows in b and size of a must be same.
+>>>
+>>> So we can assume that if a is a vector of size 3, Then b must be 2 x 3
+>>> or 3 X 3 etc.
+>>>
+>>> Thank you Avraham for quick response. I hope this will make my question
+>>> more clear.
+>>>
+>>> Best regards
+>>>
+>>>
+>>> On Wed, Dec 14, 2016 at 4:46 PM, Avraham Adler <avraham.adler at gmail.com>
+>>> wrote:
+>>>
+>>> On Tue, Dec 13, 2016 at 9:51 PM, Amina Shahzadi <aminashahzadi at gmail.com
+>>> > wrote:
+>>>
+>>> Hello Friends and Prof. Dirk
+>>>
+>>> I am pasting here a code which has a for loop depending on another for
+>>> loop.
+>>> I am getting zeros for cube c. I tried and searched a lot but did not
+>>> get an example of this type. Would you please help in this regard?
+>>>
+>>>
+>>> #include <RcppArmadillo.h>
+>>> using namespace Rcpp;
+>>> using namespace RcppArmadillo;
+>>> using namespace arma;
+>>> //[[Rcpp::depends(RcppArmadillo)]]
+>>> //[[Rcpp::export]]
+>>>
+>>>
+>>> arma::cube  exam(arma::vec a,  arma::mat b)
+>>> {
+>>>   int m = a.size();
+>>>   int n = b.n_rows;
+>>>   arma::cube c = zeros<cube>(n, m, n);
+>>>   for(int i=0; i<n; i++) {
+>>>     for(int j=0; j<m; j++) {
+>>>       for(int k=0; k<i; k++) {
+>>>           if(k==0) {
+>>>             c(i, j ,k) = c(i, j, k) + b(i, j);
+>>>           }
+>>>           else{
+>>>             c(i, j, k) = c(i, j, k) +  c(i-1, j, k) *b(i, j);
+>>>           }
+>>>          }
+>>>         }
+>>>       }
+>>>   return c;
+>>> }
+>>>
+>>>
+>>> Thank You
+>>> --
+>>> *Amina Shahzadi*
+>>>
+>>>
+>>>
+>>>
+>>> Hello.
+>>>
+>>> I haven't run your code, but it strikes me
+>>>
+>>> that I cannot see where are you capturing the number of columns of b.
+>>>
+>>> It's a bit confusing as I was always taught a matrix has m rows and n
+>>>
+>>> columns. Be that as it may, your k==0 loop looks like it's trying to
+>>>
+>>> copy over the original matrix to the first slice, but how do you know
+>>>
+>>> that b has m columns, which is what you're assuming by letting j loop to
+>>>
+>>> m. Unless you are assuming a square matrix?
+>>>
+>>> Even if you are, if your matrix is not the same length as your vector, I
+>>> think there is an issue with your loop boundaries, unless I've
+>>> misunderstood something, which is certainly possible.
+>>>
+>>> For example, assume a is {1, 2, 3} and b is the 2 x 2 of row 1: [1 2]
+>>> and row 2: [3 4]. Thus m = 3 and n = 2.
+>>>
+>>> Step 1: i = j = k = 0: c(0, 0, 0) becomes b(0, 0) or 1.
+>>>
+>>> Step 2: i = 0, j = 1, k = 0: c(0, 1, 0) becomes b(0, 1) or 2.
+>>>
+>>> Step 3: i = 0, j = 2, k = 0: c(0, 2, 0) becomes b(0, 2) ?!?! There is no
+>>> b(0, 2), it's only a 2x2 matrix?
+>>>
+>>>
+>>> Similar to your previous questions, instead of posting code, can you
+>>> please describe in words what it is you are trying to do? That may help.
+>>>
+>>> Avi
+>>>
+>>>
+>>>
+>>>
+>>>
+>>>
+>>> --
+>>> *Amina Shahzadi*
+>>>
+>>>
+>>> Constructed how? Can you provide a simple set of inputs and the expected
+>> output?
+>>
+>> Avi
+>> --
+>> Sent from Gmail Mobile
+>>
+>
+>
+>
+> --
+> *Amina Shahzadi*
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161214/99f0b475/attachment-0001.html>
+
+From johannes at kruisselbrink.eu  Wed Dec 14 20:23:44 2016
+From: johannes at kruisselbrink.eu (Johannes Kruisselbrink)
+Date: Wed, 14 Dec 2016 20:23:44 +0100
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+In-Reply-To: <CADNH-PuJD-ByOVOtwkj4jyhz9k+6pkSg0G2wPRvnLN+nTgCB7w@mail.gmail.com>
+References: <CADNH-PuJD-ByOVOtwkj4jyhz9k+6pkSg0G2wPRvnLN+nTgCB7w@mail.gmail.com>
+Message-ID: <e9ee15a0-a4c7-695f-e9f1-1496e58b0082@kruisselbrink.eu>
+
+
+> Take care to distinguish the R-core ISNAN macro, the R_IsNaN function,
+> and the Rcpp::isNaN template function. Asides from sugar-stuff, all
+> the examples discussed here so far address the performance of R-core
+> ISNAN, given doubles that are accessed via Rcpp, correct?
+
+Good point. Actually, I didn't even realize there were so many is-nan 
+functions to choose from. But indeed, we used the R-core ISNAN function 
+on doubles accessed via Rcpp.
+
+> "Currently in C code ISNAN is a macro calling isnan. (Since this gives
+> problems on some C++ systems, if the R headers is called from C++ code
+> a function call is used.) "
+> http://www.hep.by/gnu/r-patched/r-exts/R-exts_133.html
+>
+> Definitions from the horse's mouth:
+> https://github.com/wch/r-source/blob/trunk/src/include/R_ext/Arith.h#L66
+
+This was also pointed out by Bill Dunlap and indeed seems to be the 
+explanation for the difference. Very unfortunate, because it was our 
+most preferred ISNAN function. Seems that those "some C++ systems" ruin 
+it for others.
+
+> Based on the above, I added permutations to a *very* minimal test (no
+> return val, etc) that include Romain's suggestion:
+> https://github.com/helmingstay/rcpp-timings/tree/master/minimal
+> ## source('benchmarks.r')
+>
+> I see that:
+> A) the sugar expression in slow
+> B) based on timings, ISNAN appears to call R_isnancpp, which is slow
+> C) std::count_if yields a modest improvement given B)
+> D) Using an inline function matching the definintion of ISNAN used in
+> a C envir [i.e., "isnan(xx)!=0", using math.h] appears to incur no
+> cost at all (example CountNans_expr)
+
+Wow, thank you for the thorough comparison. I ran some tests myself 
+based on your code. It seems that I cannot get the "CountNans_expr" 
+version to compile, any ideas?  Same problem with the Rcpp sugar isnan 
+version.
+
+The std::isnan version, however, does work and, on my machine, actually 
+outperforms the call function. So performance-wise this is a very 
+interesting candidate. How safe is it to use this function? Would that 
+also be a "driving-without-seatbelts" equivalent?
+
+
+From xian at unm.edu  Thu Dec 15 04:47:55 2016
+From: xian at unm.edu (Christian Gunning)
+Date: Wed, 14 Dec 2016 20:47:55 -0700
+Subject: [Rcpp-devel] Rcpp ISNAN slower than C ISNAN?
+In-Reply-To: <e9ee15a0-a4c7-695f-e9f1-1496e58b0082@kruisselbrink.eu>
+References: <CADNH-PuJD-ByOVOtwkj4jyhz9k+6pkSg0G2wPRvnLN+nTgCB7w@mail.gmail.com>
+ <e9ee15a0-a4c7-695f-e9f1-1496e58b0082@kruisselbrink.eu>
+Message-ID: <CADNH-Puah_nUjbK8rmrDtt=YU9E0mfXqkbrde+T9i-9jNPhZhw@mail.gmail.com>
+
+On Wed, Dec 14, 2016 at 12:23 PM, Johannes Kruisselbrink
+<johannes at kruisselbrink.eu> wrote:
+>
+> Good point. Actually, I didn't even realize there were so many is-nan
+> functions to choose from. But indeed, we used the R-core ISNAN function on
+> doubles accessed via Rcpp.
+
+Me either :)
+Of course, the above isn't particular to Rcpp, but I found that
+tracking down the underlying machinery of ISNAN in the context of Rcpp
+to be an interesting and useful exercise.
+
+>> Based on the above, I added permutations to a *very* minimal test (no
+>> return val, etc) that include Romain's suggestion:
+>> https://github.com/helmingstay/rcpp-timings/tree/master/minimal
+>> ## source('benchmarks.r')
+>>
+[...]
+>
+> Wow, thank you for the thorough comparison. I ran some tests myself based on
+> your code. It seems that I cannot get the "CountNans_expr" version to
+> compile, any ideas?  Same problem with the Rcpp sugar isnan version.
+
+Can you be more specific?
+
+> The std::isnan version, however, does work and, on my machine, actually
+> outperforms the call function. So performance-wise this is a very
+> interesting candidate.
+
+Just to clarify, R's NA is subset of ieee NaN.  So std::isnan catches
+both NAs and NaNs.  If you need to manually catch *just* NAs, then it
+looks like you need to return to an R-core solution (please do correct
+me if I muxed this up).
+Ref: https://github.com/wch/r-source/blob/trunk/src/main/arithmetic.c#L108
+
+best,
+Christian
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+
+From mdsumner at gmail.com  Sat Dec 17 02:55:41 2016
+From: mdsumner at gmail.com (Michael Sumner)
+Date: Sat, 17 Dec 2016 01:55:41 +0000
+Subject: [Rcpp-devel] prospects for NetCDF?
+Message-ID: <CAAcGz9_K3vCYbp9xMXQn9gDmPsBEXtwnwnoPgFGzLJ9mVtz+9A@mail.gmail.com>
+
+I've outlined a wishlist item for a modern Rcpp wrapper for the NetCDF
+library:
+
+https://github.com/RConsortium/wishlist/issues/3
+
+I'd appreciate any advice from those with Rcpp expertise and knowledge of
+wrapping external libraries.
+
+Does NetCDF look particularly difficult to work with? Or, would it be
+reasonably straigtforward, but quite a lot of work?
+
+It's perhaps a bit wishful to expect anyone with those skills to offer to
+be involved, but it would be really helpful to at least have some thoughts
+- even just "that's crazy hard" or "way too easy", or anything in between.
+
+NetCDF is a general multi-dimensional array format, with metadata and
+slice-based index read - in modern forms (v4.0) it's based on HDF5. It's
+used for many kinds of data, but sees majority use (probably) in remote
+sensing and climate modelling.
+
+Thank you.
+
+Cheers, Mike.
+-- 
+Dr. Michael Sumner
+Software and Database Engineer
+Australian Antarctic Division
+203 Channel Highway
+Kingston Tasmania 7050 Australia
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161217/7afe5af3/attachment.html>
+
+From seandavi at gmail.com  Sat Dec 17 03:34:41 2016
+From: seandavi at gmail.com (Sean Davis)
+Date: Fri, 16 Dec 2016 21:34:41 -0500
+Subject: [Rcpp-devel] prospects for NetCDF?
+In-Reply-To: <CAAcGz9_K3vCYbp9xMXQn9gDmPsBEXtwnwnoPgFGzLJ9mVtz+9A@mail.gmail.com>
+References: <CAAcGz9_K3vCYbp9xMXQn9gDmPsBEXtwnwnoPgFGzLJ9mVtz+9A@mail.gmail.com>
+Message-ID: <8963B7CC-FA2D-460D-A5A0-BD8475767666@gmail.com>
+
+Does it need to be NetCDF, or can you settle for HDF5?  There are a couple of HDF5 packages available.
+
+> On Dec 16, 2016, at 8:55 PM, Michael Sumner <mdsumner at gmail.com> wrote:
+> 
+> I've outlined a wishlist item for a modern Rcpp wrapper for the NetCDF library: 
+> 
+> https://github.com/RConsortium/wishlist/issues/3 <https://github.com/RConsortium/wishlist/issues/3>
+> 
+> I'd appreciate any advice from those with Rcpp expertise and knowledge of wrapping external libraries.  
+> 
+> Does NetCDF look particularly difficult to work with? Or, would it be reasonably straigtforward, but quite a lot of work? 
+> 
+> It's perhaps a bit wishful to expect anyone with those skills to offer to be involved, but it would be really helpful to at least have some thoughts - even just "that's crazy hard" or "way too easy", or anything in between. 
+> 
+> NetCDF is a general multi-dimensional array format, with metadata and slice-based index read - in modern forms (v4.0) it's based on HDF5. It's used for many kinds of data, but sees majority use (probably) in remote sensing and climate modelling. 
+> 
+> Thank you. 
+> 
+> Cheers, Mike. 
+> -- 
+> Dr. Michael Sumner
+> Software and Database Engineer
+> Australian Antarctic Division
+> 203 Channel Highway
+> Kingston Tasmania 7050 Australia
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161216/e00674cb/attachment.html>
+
+From mdsumner at gmail.com  Sat Dec 17 04:00:30 2016
+From: mdsumner at gmail.com (Michael Sumner)
+Date: Sat, 17 Dec 2016 03:00:30 +0000
+Subject: [Rcpp-devel] prospects for NetCDF?
+In-Reply-To: <8963B7CC-FA2D-460D-A5A0-BD8475767666@gmail.com>
+References: <CAAcGz9_K3vCYbp9xMXQn9gDmPsBEXtwnwnoPgFGzLJ9mVtz+9A@mail.gmail.com>
+ <8963B7CC-FA2D-460D-A5A0-BD8475767666@gmail.com>
+Message-ID: <CAAcGz9_RnJ8owoV4DBkf_9F+rntiMjmkW9KeWz2LDhZW+SPUtw@mail.gmail.com>
+
+On Sat, 17 Dec 2016 at 13:34 Sean Davis <seandavi at gmail.com> wrote:
+
+> Does it need to be NetCDF, or can you settle for HDF5?  There are a couple
+> of HDF5 packages available.
+>
+>
+I find HDF5 is way too raw, so you're always writing abstractions from
+scratch  - but that might be the best way. I haven't seen an HDF5 R package
+that was suitable for the range of inputs yet.
+
+Still, if it were a better target I'd like to level-up and make this a
+wishlist for HDF5 that was generally applicable, to the NetCDF4 model and
+others (libkea comes to mind).
+
+Either way experiences with Rcpp and HDF5 or NetCDF are welcome.
+
+Thanks, Mike.
+
+> On Dec 16, 2016, at 8:55 PM, Michael Sumner <mdsumner at gmail.com> wrote:
+>
+> I've outlined a wishlist item for a modern Rcpp wrapper for the NetCDF
+> library:
+>
+> https://github.com/RConsortium/wishlist/issues/3
+>
+> I'd appreciate any advice from those with Rcpp expertise and knowledge of
+> wrapping external libraries.
+>
+> Does NetCDF look particularly difficult to work with? Or, would it be
+> reasonably straigtforward, but quite a lot of work?
+>
+> It's perhaps a bit wishful to expect anyone with those skills to offer to
+> be involved, but it would be really helpful to at least have some thoughts
+> - even just "that's crazy hard" or "way too easy", or anything in between.
+>
+> NetCDF is a general multi-dimensional array format, with metadata and
+> slice-based index read - in modern forms (v4.0) it's based on HDF5. It's
+> used for many kinds of data, but sees majority use (probably) in remote
+> sensing and climate modelling.
+>
+> Thank you.
+>
+> Cheers, Mike.
+> --
+> Dr. Michael Sumner
+> Software and Database Engineer
+> Australian Antarctic Division
+> 203 Channel Highway
+> Kingston Tasmania 7050 Australia
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+> --
+Dr. Michael Sumner
+Software and Database Engineer
+Australian Antarctic Division
+203 Channel Highway
+Kingston Tasmania 7050 Australia
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161217/0eed8d20/attachment.html>
+
+From edd at debian.org  Sat Dec 17 04:01:21 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 16 Dec 2016 21:01:21 -0600
+Subject: [Rcpp-devel] prospects for NetCDF?
+In-Reply-To: <8963B7CC-FA2D-460D-A5A0-BD8475767666@gmail.com>
+References: <CAAcGz9_K3vCYbp9xMXQn9gDmPsBEXtwnwnoPgFGzLJ9mVtz+9A@mail.gmail.com>
+ <8963B7CC-FA2D-460D-A5A0-BD8475767666@gmail.com>
+Message-ID: <22612.43649.497192.976075@max.nulle.part>
+
+
+On 16 December 2016 at 21:34, Sean Davis wrote:
+| Does it need to be NetCDF, or can you settle for HDF5?  There are a couple of
+| HDF5 packages available.
+
+Yep.
+
+Also, Rcpp is not that opionated about other libraries.
+
+The net result is "what you make it".  Maybe the discussion about this should
+be over at the issue ticket?  In particular, one would need to know what you
+want from NetCDF, and what the two existing CRAN packages are not giving you.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From mdsumner at gmail.com  Sat Dec 17 14:28:55 2016
+From: mdsumner at gmail.com (Michael Sumner)
+Date: Sat, 17 Dec 2016 13:28:55 +0000
+Subject: [Rcpp-devel] prospects for NetCDF?
+In-Reply-To: <CAAcGz9_RnJ8owoV4DBkf_9F+rntiMjmkW9KeWz2LDhZW+SPUtw@mail.gmail.com>
+References: <CAAcGz9_K3vCYbp9xMXQn9gDmPsBEXtwnwnoPgFGzLJ9mVtz+9A@mail.gmail.com>
+ <8963B7CC-FA2D-460D-A5A0-BD8475767666@gmail.com>
+ <CAAcGz9_RnJ8owoV4DBkf_9F+rntiMjmkW9KeWz2LDhZW+SPUtw@mail.gmail.com>
+Message-ID: <CAAcGz9-Xtngey4Ciu8ZG13fsVa4aj6LD7Q4CFGkn6fCMXZu8mw@mail.gmail.com>
+
+On Sat, 17 Dec 2016 at 14:00 Michael Sumner <mdsumner at gmail.com> wrote:
+
+> On Sat, 17 Dec 2016 at 13:34 Sean Davis <seandavi at gmail.com> wrote:
+>
+> Does it need to be NetCDF, or can you settle for HDF5?  There are a couple
+> of HDF5 packages available.
+>
+>
+> I find HDF5 is way too raw, so you're always writing abstractions from
+> scratch  - but that might be the best way. I haven't seen an HDF5 R package
+> that was suitable for the range of inputs yet.
+>
+>
+I see rhdf5 2.18.0 has been on Bioconductor since October 2016:
+http://bioconductor.org/packages/release/bioc/html/rhdf5.html
+
+This seems to fit the bill for the limitations I had from NetCDF and the
+other HDF5 packages.
+
+Thanks, Mike.
+
+
+Still, if it were a better target I'd like to level-up and make this a
+> wishlist for HDF5 that was generally applicable, to the NetCDF4 model and
+> others (libkea comes to mind).
+>
+> Either way experiences with Rcpp and HDF5 or NetCDF are welcome.
+>
+> Thanks, Mike.
+>
+> On Dec 16, 2016, at 8:55 PM, Michael Sumner <mdsumner at gmail.com> wrote:
+>
+> I've outlined a wishlist item for a modern Rcpp wrapper for the NetCDF
+> library:
+>
+> https://github.com/RConsortium/wishlist/issues/3
+>
+> I'd appreciate any advice from those with Rcpp expertise and knowledge of
+> wrapping external libraries.
+>
+> Does NetCDF look particularly difficult to work with? Or, would it be
+> reasonably straigtforward, but quite a lot of work?
+>
+> It's perhaps a bit wishful to expect anyone with those skills to offer to
+> be involved, but it would be really helpful to at least have some thoughts
+> - even just "that's crazy hard" or "way too easy", or anything in between.
+>
+> NetCDF is a general multi-dimensional array format, with metadata and
+> slice-based index read - in modern forms (v4.0) it's based on HDF5. It's
+> used for many kinds of data, but sees majority use (probably) in remote
+> sensing and climate modelling.
+>
+> Thank you.
+>
+> Cheers, Mike.
+> --
+> Dr. Michael Sumner
+> Software and Database Engineer
+> Australian Antarctic Division
+> 203 Channel Highway
+> Kingston Tasmania 7050 Australia
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+> --
+> Dr. Michael Sumner
+> Software and Database Engineer
+> Australian Antarctic Division
+> 203 Channel Highway
+> Kingston Tasmania 7050 Australia
+>
+> --
+Dr. Michael Sumner
+Software and Database Engineer
+Australian Antarctic Division
+203 Channel Highway
+Kingston Tasmania 7050 Australia
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161217/e9d67d9c/attachment.html>
+
+From toduc at stat.unipd.it  Thu Dec 22 12:55:11 2016
+From: toduc at stat.unipd.it (To Duc Khanh)
+Date: Thu, 22 Dec 2016 12:55:11 +0100
+Subject: [Rcpp-devel] Rcpp Parallel is not working
+Message-ID: <0770e5a9398a49fa07eaf75e3d2fd331.squirrel@webmail.stat.unipd.it>
+
+Dear all
+
+I am trying to apply RcppParallel for my function, but my code seems to be
+not working. Could you please help me to find any mistakes in my code or
+explain me why it is not working?
+
+I include my C/C++ code and R code at the end of this mail. Thank you for
+the help.
+
+
+// parallel version
+// [[Rcpp::depends(RcppParallel)]]
+#include<RcppParallel.h>
+#include <Rcpp.h>
+
+using namespace Rcpp;
+using namespace RcppParallel;
+
+inline double indvus(double a, double b, double c){
+  if((a < b) && (b < c)){
+    return 1.0;
+  } else if((a < b) && (b == c)){
+    return 0.5;
+  } else if((a == b) && (b < c)){
+    return 0.5;
+  } else if((a == b) && (b == c)){
+    return 1.0/6;
+  } else{
+    return 0.0;
+  }
+}
+
+struct VUS : public Worker {
+  // input matrix
+  const RVector<double> test;
+  const RMatrix<double> dise;
+  // output value
+  RVector<double> rvus;
+    // initialize from Rcpp input and output
+  VUS(const NumericVector test, const NumericMatrix dise, NumericVector rvus)
+    : test(test), dise(dise), rvus(rvus) {}
+  // function call operator that work for the specified range (begin/end)
+  void operator()(std::size_t begin, std::size_t end) {
+    for(std::size_t i = begin; i < end; i++) {
+      for(std::size_t j = begin; j < end; j++) {
+        if(j != i){
+          for(std::size_t k = begin; k < end; k++){
+            if((k != j) && (k != i)){
+              double temp = dise(i,0)*dise(j,1)*dise(k,2);
+              rvus[0] += temp*indvus(test[i], test[j], test[k]);
+              rvus[1] += temp;
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+// [[Rcpp::export]]
+NumericVector parallel_vus(NumericVector tt, NumericMatrix dd) {
+  // allocate the matrix we will return
+  NumericVector rvus(2);
+  // create the worker
+  VUS pvus(tt, dd, rvus);
+  // call it with parallelFor
+  parallelFor(0, tt.size(), pvus);
+  return rvus;
+}
+
+
+//serial version
+// [[Rcpp::export]]
+NumericVector serial_vus(NumericVector tt, NumericMatrix dd) {
+  NumericVector res(2);
+  int n = tt.size();
+  double temp = 0.0;
+  for(int i = 0; i < n; i++){
+    for(int j = 0; j < n; j++){
+      if(j != i){
+        for(int k = 0; k < n; k++){
+          if((k != j) && (k != i)){
+            temp = dd(i, 0)*dd(j, 1)*dd(k, 2);
+            res[0] += temp*indvus(tt[i], tt[j], tt[k]);
+            res[1] += temp;
+          }
+        }
+      }
+    }
+  }
+  return res;
+}
+
+
+### R code
+dd = t(rmultinom(1000, 1, c(0.4, 0.35, 0.25)))
+tt <- numeric(1000)
+tt[dd[,1] == 1] <- rnorm(sum(dd[,1] == 1), 3, sqrt(1.2))
+tt[dd[,2] == 1] <- rnorm(sum(dd[,2] == 1), 6, sqrt(1.2))
+tt[dd[,3] == 1] <- rnorm(sum(dd[,3] == 1), 9, sqrt(1.2))
+
+serial_vus(tt,dd)
+
+parallel_vus(tt, dd)
+
+
+-- 
+Khanh To Duc
+PhD student, Department of Statistical Science, XXIX cycle.
+Office: Room 130
+Telephone: +39 049 827 4147
+Mobile: +39 345 667 0711
+http://www.stat.unipd.it/it/fare-ricerca/duc-khanh
+
+
+From serguei.sokol at gmail.com  Thu Dec 22 15:09:19 2016
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Thu, 22 Dec 2016 15:09:19 +0100
+Subject: [Rcpp-devel] Rcpp Parallel is not working
+In-Reply-To: <0770e5a9398a49fa07eaf75e3d2fd331.squirrel@webmail.stat.unipd.it>
+References: <0770e5a9398a49fa07eaf75e3d2fd331.squirrel@webmail.stat.unipd.it>
+Message-ID: <581ae795-fa51-596e-9160-f5fa984c7b61@gmail.com>
+
+Hi To,
+
+Le 22/12/2016 ? 12:55, To Duc Khanh a ?crit :
+> Dear all
+>
+> I am trying to apply RcppParallel for my function, but my code seems to be
+> not working. Could you please help me to find any mistakes in my code or
+> explain me why it is not working?
+As your result is of type "aggregation" (res[0] += ...) wouldn't it be more
+appropriate to use parallelReduce() instead of parallelFor()?
+
+Another point to pay attention for is that index domain to cover is
+square in your case (i and j) while parallelFor (and Reduce) are
+intended to split plain linear index domains. So some additional effort
+is needed to treat it properly.
+
+Hoping it helps,
+Serguei.
+
+>
+> I include my C/C++ code and R code at the end of this mail. Thank you for
+> the help.
+>
+>
+> // parallel version
+> // [[Rcpp::depends(RcppParallel)]]
+> #include<RcppParallel.h>
+> #include <Rcpp.h>
+>
+> using namespace Rcpp;
+> using namespace RcppParallel;
+>
+> inline double indvus(double a, double b, double c){
+>   if((a < b) && (b < c)){
+>     return 1.0;
+>   } else if((a < b) && (b == c)){
+>     return 0.5;
+>   } else if((a == b) && (b < c)){
+>     return 0.5;
+>   } else if((a == b) && (b == c)){
+>     return 1.0/6;
+>   } else{
+>     return 0.0;
+>   }
+> }
+>
+> struct VUS : public Worker {
+>   // input matrix
+>   const RVector<double> test;
+>   const RMatrix<double> dise;
+>   // output value
+>   RVector<double> rvus;
+>     // initialize from Rcpp input and output
+>   VUS(const NumericVector test, const NumericMatrix dise, NumericVector rvus)
+>     : test(test), dise(dise), rvus(rvus) {}
+>   // function call operator that work for the specified range (begin/end)
+>   void operator()(std::size_t begin, std::size_t end) {
+>     for(std::size_t i = begin; i < end; i++) {
+>       for(std::size_t j = begin; j < end; j++) {
+>         if(j != i){
+>           for(std::size_t k = begin; k < end; k++){
+>             if((k != j) && (k != i)){
+>               double temp = dise(i,0)*dise(j,1)*dise(k,2);
+>               rvus[0] += temp*indvus(test[i], test[j], test[k]);
+>               rvus[1] += temp;
+>             }
+>           }
+>         }
+>       }
+>     }
+>   }
+> };
+>
+> // [[Rcpp::export]]
+> NumericVector parallel_vus(NumericVector tt, NumericMatrix dd) {
+>   // allocate the matrix we will return
+>   NumericVector rvus(2);
+>   // create the worker
+>   VUS pvus(tt, dd, rvus);
+>   // call it with parallelFor
+>   parallelFor(0, tt.size(), pvus);
+>   return rvus;
+> }
+>
+>
+> //serial version
+> // [[Rcpp::export]]
+> NumericVector serial_vus(NumericVector tt, NumericMatrix dd) {
+>   NumericVector res(2);
+>   int n = tt.size();
+>   double temp = 0.0;
+>   for(int i = 0; i < n; i++){
+>     for(int j = 0; j < n; j++){
+>       if(j != i){
+>         for(int k = 0; k < n; k++){
+>           if((k != j) && (k != i)){
+>             temp = dd(i, 0)*dd(j, 1)*dd(k, 2);
+>             res[0] += temp*indvus(tt[i], tt[j], tt[k]);
+>             res[1] += temp;
+>           }
+>         }
+>       }
+>     }
+>   }
+>   return res;
+> }
+>
+>
+> ### R code
+> dd = t(rmultinom(1000, 1, c(0.4, 0.35, 0.25)))
+> tt <- numeric(1000)
+> tt[dd[,1] == 1] <- rnorm(sum(dd[,1] == 1), 3, sqrt(1.2))
+> tt[dd[,2] == 1] <- rnorm(sum(dd[,2] == 1), 6, sqrt(1.2))
+> tt[dd[,3] == 1] <- rnorm(sum(dd[,3] == 1), 9, sqrt(1.2))
+>
+> serial_vus(tt,dd)
+>
+> parallel_vus(tt, dd)
+>
+>
+
+
+From kaspar.martens at gmail.com  Thu Dec 29 13:55:22 2016
+From: kaspar.martens at gmail.com (=?UTF-8?Q?Kaspar_M=C3=A4rtens?=)
+Date: Thu, 29 Dec 2016 14:55:22 +0200
+Subject: [Rcpp-devel] Rcpp Timer
+Message-ID: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+
+Hi,
+
+Trying out the Rcpp Timer example from
+http://gallery.rcpp.org/articles/using-the-rcpp-timer/ I was unable to
+reproduce similar results. The example output
+
+    get/put g/p+rnorm()  empty loop
+  1.967e+03   3.288e+03   6.400e-04
+
+compared to the output I see
+
+    get/put g/p+rnorm()  empty loop
+   733.5265   1884.9589   1884.9601
+
+Suspiciously, the empty loop appears to take the longest. Could these be
+cumulatively measured times here?
+
+Best,
+Kaspar
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161229/2977053f/attachment.html>
+
+From edd at debian.org  Thu Dec 29 14:23:23 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 29 Dec 2016 07:23:23 -0600
+Subject: [Rcpp-devel] Rcpp Timer
+In-Reply-To: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+References: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+Message-ID: <22629.3659.40079.626781@max.nulle.part>
+
+
+On 29 December 2016 at 14:55, Kaspar M?rtens wrote:
+| Hi,?
+| 
+| Trying out the Rcpp Timer example from?http://gallery.rcpp.org/articles/
+| using-the-rcpp-timer/ I was unable to reproduce similar results. The example
+| output
+| 
+| ? ? get/put g/p+rnorm() ?empty loop?
+| ? 1.967e+03 ? 3.288e+03 ? 6.400e-04?
+| 
+| compared to the output I see
+| 
+| ? ? get/put g/p+rnorm() ?empty loop
+| ? ?733.5265 ? 1884.9589 ? 1884.9601
+| 
+| Suspiciously, the empty loop appears to take the longest. Could these be
+| cumulatively measured times here??
+
+It is possibly that there is a thinko / bug / error somewhere.  I just re-ran
+it via sourceCpp() [ see below ] which is pretty much what Ruby + Jekyll do
+to build the Rcpp Gallery pages.
+
+The results will reflect the underlying machines a little but the difference
+you show is much starker.  What is your OS / compiler?   Ubuntu 16.04 with
+g++-5.3 here; page was original written with an older g++.
+
+Dirk
+
+
+Copy and paste below (and I just removed two lines pertaining to ESS which do
+no matter here).
+
+R version 3.3.2 (2016-10-31) -- "Sincere Pumpkin Patch"
+Copyright (C) 2016 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+R> library(Rcpp)
+R> sourceCpp("~/git/rcpp-gallery/src/2013-01-06-using-the-rcpp-timer.cpp")
+
+R> useTimer()
+    get/put g/p+rnorm()  empty loop 
+    1620.67     3973.43     3973.44 
+R> 
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From dzhonatan at gmail.com  Thu Dec 29 17:25:40 2016
+From: dzhonatan at gmail.com (Jonathan Christensen)
+Date: Thu, 29 Dec 2016 11:25:40 -0500
+Subject: [Rcpp-devel] Rcpp Timer
+In-Reply-To: <22629.3659.40079.626781@max.nulle.part>
+References: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+ <22629.3659.40079.626781@max.nulle.part>
+Message-ID: <CALj-Zz_WJZyEO1joAgaMoDs56qO71YC93cb6EM6aVF15oLH3MA@mail.gmail.com>
+
+Hi Kaspar and Dirk,
+
+It is indeed cumulative. Previously (presumably when that gallery page was
+written) it was not cumulative, but Romain Francois changed the behavior of
+the step() function several years ago, in this commit:
+https://github.com/RcppCore/Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1
+.
+
+There is no indication or reasoning about changing the behavior, so it may
+be that making it cumulative was unintentional.
+
+Jonathan
+
+On Thu, Dec 29, 2016 at 8:23 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 29 December 2016 at 14:55, Kaspar M?rtens wrote:
+> | Hi,
+> |
+> | Trying out the Rcpp Timer example from http://gallery.rcpp.org/articles/
+> | using-the-rcpp-timer/ I was unable to reproduce similar results. The
+> example
+> | output
+> |
+> |     get/put g/p+rnorm()  empty loop
+> |   1.967e+03   3.288e+03   6.400e-04
+> |
+> | compared to the output I see
+> |
+> |     get/put g/p+rnorm()  empty loop
+> |    733.5265   1884.9589   1884.9601
+> |
+> | Suspiciously, the empty loop appears to take the longest. Could these be
+> | cumulatively measured times here?
+>
+> It is possibly that there is a thinko / bug / error somewhere.  I just
+> re-ran
+> it via sourceCpp() [ see below ] which is pretty much what Ruby + Jekyll do
+> to build the Rcpp Gallery pages.
+>
+> The results will reflect the underlying machines a little but the
+> difference
+> you show is much starker.  What is your OS / compiler?   Ubuntu 16.04 with
+> g++-5.3 here; page was original written with an older g++.
+>
+> Dirk
+>
+>
+> Copy and paste below (and I just removed two lines pertaining to ESS which
+> do
+> no matter here).
+>
+> R version 3.3.2 (2016-10-31) -- "Sincere Pumpkin Patch"
+> Copyright (C) 2016 The R Foundation for Statistical Computing
+> Platform: x86_64-pc-linux-gnu (64-bit)
+>
+> R is free software and comes with ABSOLUTELY NO WARRANTY.
+> You are welcome to redistribute it under certain conditions.
+> Type 'license()' or 'licence()' for distribution details.
+>
+>   Natural language support but running in an English locale
+>
+> R is a collaborative project with many contributors.
+> Type 'contributors()' for more information and
+> 'citation()' on how to cite R or R packages in publications.
+>
+> Type 'demo()' for some demos, 'help()' for on-line help, or
+> 'help.start()' for an HTML browser interface to help.
+> Type 'q()' to quit R.
+>
+> R> library(Rcpp)
+> R> sourceCpp("~/git/rcpp-gallery/src/2013-01-06-using-the-rcpp-timer.cpp")
+>
+> R> useTimer()
+>     get/put g/p+rnorm()  empty loop
+>     1620.67     3973.43     3973.44
+> R>
+>
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161229/251b0318/attachment.html>
+
+From selivanov.dmitriy at gmail.com  Fri Dec 30 12:49:42 2016
+From: selivanov.dmitriy at gmail.com (Dmitriy Selivanov)
+Date: Fri, 30 Dec 2016 15:49:42 +0400
+Subject: [Rcpp-devel] [small ann] Sparse++
+Message-ID: <CAJdZCv3j7-DW4HkaSkNs-uHcMwc7s2+YUOhJT6Yrz=k05ggN8A@mail.gmail.com>
+
+Hello mailing list. Just small announcement. I made package "sparsepp"
+ which brings bindings to header only 'sparsepp' library  -
+https://github.com/greg7mdp/sparsepp. It is on CRAN already. Sparse++ is
+improvement over google sparse hash library (see this write-up
+https://github.com/greg7mdp/sparsepp/blob/master/bench.md).
+
+Initially I evaluated it with my text2vec package, where main data
+structure is unordered_map< pair<uint32_t, uint32_t>, T >, where T is int
+or float.
+In my case memory improvement was 2x and speed up was 1.5x (lookup and
+insert operations).
+
+So I decided to build small package which can be used by other people (not
+text2vec only).
+
+Usage is as usual
+
+   1. add to DESCRIPTION of your package: LinkingTo: sparsepp
+   2. add #include <sparsepp.h> to you source/header
+   3. use spp::sparse_hash_map as drop-in replacement for std::unordered_map
+   .
+
+-- 
+Regards
+Dmitriy Selivanov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161230/d3038ad2/attachment.html>
+
+From edd at debian.org  Fri Dec 30 13:26:35 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 30 Dec 2016 06:26:35 -0600
+Subject: [Rcpp-devel] [small ann] Sparse++
+In-Reply-To: <CAJdZCv3j7-DW4HkaSkNs-uHcMwc7s2+YUOhJT6Yrz=k05ggN8A@mail.gmail.com>
+References: <CAJdZCv3j7-DW4HkaSkNs-uHcMwc7s2+YUOhJT6Yrz=k05ggN8A@mail.gmail.com>
+Message-ID: <22630.21115.213619.66209@max.nulle.part>
+
+
+On 30 December 2016 at 15:49, Dmitriy Selivanov wrote:
+| Hello mailing list. Just small announcement. I made package "sparsepp" ?which
+| brings bindings to header only 'sparsepp' library ?-?https://github.com/
+| greg7mdp/sparsepp. It is on CRAN already. Sparse++ is improvement over google
+| sparse hash library (see this write-up https://github.com/greg7mdp/sparsepp/
+| blob/master/bench.md).
+| 
+| Initially I evaluated it with my text2vec package, where main data structure
+| is?unordered_map< pair<uint32_t, uint32_t>, T >, where T is int or float.
+| In my case memory improvement was 2x and speed up was 1.5x (lookup and insert
+| operations).
+| 
+| So I decided to build small package which can be used by other people (not
+| text2vec only).
+| 
+| Usage is as usual?
+| 
+|  1. add to DESCRIPTION of your package: LinkingTo: sparsepp
+|  2. add #include <sparsepp.h>?to you source/header?
+|  3. use?spp::sparse_hash_map?as drop-in replacement for?std::unordered_map.
+
+Thanks, possibly very useful.
+
+Now, should it have at least a 'Suggests: Rcpp' if the example requires it,
+\dontrun{} or not?  Also examine whose project you're posting on.
+
+Sure it "could" be used from R without Rcpp.  But how likely is that?
+Suggests is for exactly that reason, at least in my book.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Dec 30 13:37:55 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 30 Dec 2016 06:37:55 -0600
+Subject: [Rcpp-devel] Rcpp Timer
+In-Reply-To: <CALj-Zz_WJZyEO1joAgaMoDs56qO71YC93cb6EM6aVF15oLH3MA@mail.gmail.com>
+References: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+ <22629.3659.40079.626781@max.nulle.part>
+ <CALj-Zz_WJZyEO1joAgaMoDs56qO71YC93cb6EM6aVF15oLH3MA@mail.gmail.com>
+Message-ID: <22630.21795.782989.138019@max.nulle.part>
+
+
+On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+| Hi Kaspar and Dirk,
+| 
+| It is indeed cumulative. Previously (presumably when that gallery page was
+| written) it was not cumulative, but Romain Francois changed the behavior of the
+| step() function several years ago, in this commit:?https://github.com/RcppCore/
+| Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+
+Nice catch.
+ 
+| There is no indication or reasoning about changing the behavior, so it may be
+| that making it cumulative was unintentional.
+
+Let's presume it was intentional to the author of the change -- but as you
+rightly point out, it did of course change and reverse previous behaviour.
+
+We could easily add a toggle to the constructor to get an either/or behaviour.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Dec 30 14:01:48 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 30 Dec 2016 07:01:48 -0600
+Subject: [Rcpp-devel] Rcpp Timer
+In-Reply-To: <22630.21795.782989.138019@max.nulle.part>
+References: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+ <22629.3659.40079.626781@max.nulle.part>
+ <CALj-Zz_WJZyEO1joAgaMoDs56qO71YC93cb6EM6aVF15oLH3MA@mail.gmail.com>
+ <22630.21795.782989.138019@max.nulle.part>
+Message-ID: <22630.23228.969582.535494@max.nulle.part>
+
+
+On 30 December 2016 at 06:37, Dirk Eddelbuettel wrote:
+| 
+| On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+| | Hi Kaspar and Dirk,
+| | 
+| | It is indeed cumulative. Previously (presumably when that gallery page was
+| | written) it was not cumulative, but Romain Francois changed the behavior of the
+| | step() function several years ago, in this commit:?https://github.com/RcppCore/
+| | Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+| 
+| Nice catch.
+|  
+| | There is no indication or reasoning about changing the behavior, so it may be
+| | that making it cumulative was unintentional.
+| 
+| Let's presume it was intentional to the author of the change -- but as you
+| rightly point out, it did of course change and reverse previous behaviour.
+| 
+| We could easily add a toggle to the constructor to get an either/or behaviour.
+
+Even easier:
+    - Add a step() call immediately after creating timer()
+    - This also records the start
+    - Results are still cumulative
+    - Running diff() over it shows changes:
+
+Demo using minimally modified Rcpp Gallery piece (just added step("start"); )
+
+    R> sourceCpp("/tmp/timer.cpp")
+
+    R> tt <- useTimer()
+
+    R> tt         # cumulative
+          start     get/put g/p+rnorm()  empty loop 
+       0.000114 1629.043000 3996.890739 3996.893329 
+
+    R> diff(tt)   # incremental
+        get/put g/p+rnorm()  empty loop 
+     1629.04289  2367.84774     0.00259 
+    R>
+
+I will alter the gallery story accordingly. We can always add a 'zero' step
+to the constructor to get these two behaviours cheaply.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From romain at r-enthusiasts.com  Fri Dec 30 20:38:55 2016
+From: romain at r-enthusiasts.com (Romain Francois)
+Date: Fri, 30 Dec 2016 20:38:55 +0100
+Subject: [Rcpp-devel] Rcpp Timer
+In-Reply-To: <22630.21795.782989.138019@max.nulle.part>
+References: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+ <22629.3659.40079.626781@max.nulle.part>
+ <CALj-Zz_WJZyEO1joAgaMoDs56qO71YC93cb6EM6aVF15oLH3MA@mail.gmail.com>
+ <22630.21795.782989.138019@max.nulle.part>
+Message-ID: <0B8A3AF5-91C5-40D5-AEA3-92A2846DB5F2@r-enthusiasts.com>
+
+It made more sense to track times since an origin, esp when you might use several timers in case you use multiple threads. 
+
+
+> Le 30 d?c. 2016 ? 13:37, Dirk Eddelbuettel <edd at debian.org> a ?crit :
+> 
+> 
+> On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+> | Hi Kaspar and Dirk,
+> | 
+> | It is indeed cumulative. Previously (presumably when that gallery page was
+> | written) it was not cumulative, but Romain Francois changed the behavior of the
+> | step() function several years ago, in this commit: https://github.com/RcppCore/
+> | Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+> 
+> Nice catch.
+> 
+> | There is no indication or reasoning about changing the behavior, so it may be
+> | that making it cumulative was unintentional.
+> 
+> Let's presume it was intentional to the author of the change -- but as you
+> rightly point out, it did of course change and reverse previous behaviour.
+> 
+> We could easily add a toggle to the constructor to get an either/or behaviour.
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From edd at debian.org  Fri Dec 30 20:58:10 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 30 Dec 2016 13:58:10 -0600
+Subject: [Rcpp-devel] Rcpp Timer
+In-Reply-To: <0B8A3AF5-91C5-40D5-AEA3-92A2846DB5F2@r-enthusiasts.com>
+References: <CADpnMoWz2pH0m30Yaum8KQ=XF4HJqn41M4Q0tnia6y1mMeOTxg@mail.gmail.com>
+ <22629.3659.40079.626781@max.nulle.part>
+ <CALj-Zz_WJZyEO1joAgaMoDs56qO71YC93cb6EM6aVF15oLH3MA@mail.gmail.com>
+ <22630.21795.782989.138019@max.nulle.part>
+ <0B8A3AF5-91C5-40D5-AEA3-92A2846DB5F2@r-enthusiasts.com>
+Message-ID: <22630.48210.639061.279791@max.nulle.part>
+
+
+On 30 December 2016 at 20:38, Romain Francois wrote:
+| It made more sense to track times since an origin, esp when you might use several timers in case you use multiple threads. 
+
+Using an offset to an origin (and hence differences) is also a sensible way
+to deal with higher resolutions.  We cannot natively represent nanoseconds
+(which the Timer class uses) in R with base types: doubles use 53 bits
+precision which gets us a bit more than microseconds, and ints are 32 bit --
+so conversion would be lossy.  (The nanoseconds package I just releases uses
+bit64::integer64 which gets us nanosecond, but that is a higher-level depend
+and not something we want to depend on at the Rcpp level).
+
+Whether cumulative times, or individual measurements is better is still open
+fore debate.  In any event, I fixed the Rcpp Gallery story at
+
+    http://gallery.rcpp.org/articles/using-the-rcpp-timer/
+
+Dirk
+ 
+| > Le 30 d?c. 2016 ? 13:37, Dirk Eddelbuettel <edd at debian.org> a ?crit :
+| > 
+| > 
+| > On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+| > | Hi Kaspar and Dirk,
+| > | 
+| > | It is indeed cumulative. Previously (presumably when that gallery page was
+| > | written) it was not cumulative, but Romain Francois changed the behavior of the
+| > | step() function several years ago, in this commit: https://github.com/RcppCore/
+| > | Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+| > 
+| > Nice catch.
+| > 
+| > | There is no indication or reasoning about changing the behavior, so it may be
+| > | that making it cumulative was unintentional.
+| > 
+| > Let's presume it was intentional to the author of the change -- but as you
+| > rightly point out, it did of course change and reverse previous behaviour.
+| > 
+| > We could easily add a toggle to the constructor to get an either/or behaviour.
+| > 
+| > Dirk
+| > 
+| > -- 
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| > _______________________________________________
+| > Rcpp-devel mailing list
+| > Rcpp-devel at lists.r-forge.r-project.org
+| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From selivanov.dmitriy at gmail.com  Sat Dec 31 16:41:38 2016
+From: selivanov.dmitriy at gmail.com (Dmitriy Selivanov)
+Date: Sat, 31 Dec 2016 19:41:38 +0400
+Subject: [Rcpp-devel] [small ann] Sparse++
+Message-ID: <CAJdZCv3cB_Uo9iNMcgSRaWKuo9e0DC=+0eLq9Aw21ZiP2R6S_g@mail.gmail.com>
+
+Thanks for feedback, Dirk. This make sense - unlikely sparsepp will be used
+without Rcpp (my idea was to have as small dependencies as possible). I
+will add Rcpp to suggests.
+
+2016-12-31 15:00 GMT+04:00 <rcpp-devel-request at lists.r-forge.r-project.org>:
+
+> Send Rcpp-devel mailing list submissions to
+>         rcpp-devel at lists.r-forge.r-project.org
+>
+> To subscribe or unsubscribe via the World Wide Web, visit
+>         https://lists.r-forge.r-project.org/cgi-bin/mailman/
+> listinfo/rcpp-devel
+>
+> or, via email, send a message with subject or body 'help' to
+>         rcpp-devel-request at lists.r-forge.r-project.org
+>
+> You can reach the person managing the list at
+>         rcpp-devel-owner at lists.r-forge.r-project.org
+>
+> When replying, please edit your Subject line so it is more specific
+> than "Re: Contents of Rcpp-devel digest..."
+>
+>
+> Today's Topics:
+>
+>    1. [small ann] Sparse++ (Dmitriy Selivanov)
+>    2. Re: [small ann] Sparse++ (Dirk Eddelbuettel)
+>    3. Re: Rcpp Timer (Dirk Eddelbuettel)
+>    4. Re: Rcpp Timer (Dirk Eddelbuettel)
+>    5. Re: Rcpp Timer (Romain Francois)
+>    6. Re: Rcpp Timer (Dirk Eddelbuettel)
+>
+>
+> ----------------------------------------------------------------------
+>
+> Message: 1
+> Date: Fri, 30 Dec 2016 15:49:42 +0400
+> From: Dmitriy Selivanov <selivanov.dmitriy at gmail.com>
+> To: rcpp-devel at lists.r-forge.r-project.org
+> Subject: [Rcpp-devel] [small ann] Sparse++
+> Message-ID:
+>         <CAJdZCv3j7-DW4HkaSkNs-uHcMwc7s2+YUOhJT6Yrz=k05ggN8A@
+> mail.gmail.com>
+> Content-Type: text/plain; charset="utf-8"
+>
+> Hello mailing list. Just small announcement. I made package "sparsepp"
+>  which brings bindings to header only 'sparsepp' library  -
+> https://github.com/greg7mdp/sparsepp. It is on CRAN already. Sparse++ is
+> improvement over google sparse hash library (see this write-up
+> https://github.com/greg7mdp/sparsepp/blob/master/bench.md).
+>
+> Initially I evaluated it with my text2vec package, where main data
+> structure is unordered_map< pair<uint32_t, uint32_t>, T >, where T is int
+> or float.
+> In my case memory improvement was 2x and speed up was 1.5x (lookup and
+> insert operations).
+>
+> So I decided to build small package which can be used by other people (not
+> text2vec only).
+>
+> Usage is as usual
+>
+>    1. add to DESCRIPTION of your package: LinkingTo: sparsepp
+>    2. add #include <sparsepp.h> to you source/header
+>    3. use spp::sparse_hash_map as drop-in replacement for
+> std::unordered_map
+>    .
+>
+> --
+> Regards
+> Dmitriy Selivanov
+> -------------- next part --------------
+> An HTML attachment was scrubbed...
+> URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-
+> devel/attachments/20161230/d3038ad2/attachment-0001.html>
+>
+> ------------------------------
+>
+> Message: 2
+> Date: Fri, 30 Dec 2016 06:26:35 -0600
+> From: Dirk Eddelbuettel <edd at debian.org>
+> To: Dmitriy Selivanov <selivanov.dmitriy at gmail.com>
+> Cc: rcpp-devel at lists.r-forge.r-project.org
+> Subject: Re: [Rcpp-devel] [small ann] Sparse++
+> Message-ID: <22630.21115.213619.66209 at max.nulle.part>
+> Content-Type: text/plain; charset=iso-8859-1
+>
+>
+> On 30 December 2016 at 15:49, Dmitriy Selivanov wrote:
+> | Hello mailing list. Just small announcement. I made package "sparsepp"
+> ?which
+> | brings bindings to header only 'sparsepp' library ?-?https://github.com/
+> | greg7mdp/sparsepp. It is on CRAN already. Sparse++ is improvement over
+> google
+> | sparse hash library (see this write-up https://github.com/greg7mdp/
+> sparsepp/
+> | blob/master/bench.md).
+> |
+> | Initially I evaluated it with my text2vec package, where main data
+> structure
+> | is?unordered_map< pair<uint32_t, uint32_t>, T >, where T is int or float.
+> | In my case memory improvement was 2x and speed up was 1.5x (lookup and
+> insert
+> | operations).
+> |
+> | So I decided to build small package which can be used by other people
+> (not
+> | text2vec only).
+> |
+> | Usage is as usual?
+> |
+> |  1. add to DESCRIPTION of your package: LinkingTo: sparsepp
+> |  2. add #include <sparsepp.h>?to you source/header?
+> |  3. use?spp::sparse_hash_map?as drop-in replacement
+> for?std::unordered_map.
+>
+> Thanks, possibly very useful.
+>
+> Now, should it have at least a 'Suggests: Rcpp' if the example requires it,
+> \dontrun{} or not?  Also examine whose project you're posting on.
+>
+> Sure it "could" be used from R without Rcpp.  But how likely is that?
+> Suggests is for exactly that reason, at least in my book.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+>
+> ------------------------------
+>
+> Message: 3
+> Date: Fri, 30 Dec 2016 06:37:55 -0600
+> From: Dirk Eddelbuettel <edd at debian.org>
+> To: Jonathan Christensen <dzhonatan at gmail.com>
+> Cc: rcpp-devel at lists.r-forge.r-project.org, Kaspar M?rtens
+>         <kaspar.martens at gmail.com>
+> Subject: Re: [Rcpp-devel] Rcpp Timer
+> Message-ID: <22630.21795.782989.138019 at max.nulle.part>
+> Content-Type: text/plain; charset=iso-8859-1
+>
+>
+> On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+> | Hi Kaspar and Dirk,
+> |
+> | It is indeed cumulative. Previously (presumably when that gallery page
+> was
+> | written) it was not cumulative, but Romain Francois changed the behavior
+> of the
+> | step() function several years ago, in this commit:?https://github.com/
+> RcppCore/
+> | Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+>
+> Nice catch.
+>
+> | There is no indication or reasoning about changing the behavior, so it
+> may be
+> | that making it cumulative was unintentional.
+>
+> Let's presume it was intentional to the author of the change -- but as you
+> rightly point out, it did of course change and reverse previous behaviour.
+>
+> We could easily add a toggle to the constructor to get an either/or
+> behaviour.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+>
+> ------------------------------
+>
+> Message: 4
+> Date: Fri, 30 Dec 2016 07:01:48 -0600
+> From: Dirk Eddelbuettel <edd at debian.org>
+> To: Dirk Eddelbuettel <edd at debian.org>
+> Cc: Kaspar M?rtens <kaspar.martens at gmail.com>,
+>         rcpp-devel at lists.r-forge.r-project.org
+> Subject: Re: [Rcpp-devel] Rcpp Timer
+> Message-ID: <22630.23228.969582.535494 at max.nulle.part>
+> Content-Type: text/plain; charset=iso-8859-1
+>
+>
+> On 30 December 2016 at 06:37, Dirk Eddelbuettel wrote:
+> |
+> | On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+> | | Hi Kaspar and Dirk,
+> | |
+> | | It is indeed cumulative. Previously (presumably when that gallery page
+> was
+> | | written) it was not cumulative, but Romain Francois changed the
+> behavior of the
+> | | step() function several years ago, in this commit:?https://github.com/
+> RcppCore/
+> | | Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+> |
+> | Nice catch.
+> |
+> | | There is no indication or reasoning about changing the behavior, so it
+> may be
+> | | that making it cumulative was unintentional.
+> |
+> | Let's presume it was intentional to the author of the change -- but as
+> you
+> | rightly point out, it did of course change and reverse previous
+> behaviour.
+> |
+> | We could easily add a toggle to the constructor to get an either/or
+> behaviour.
+>
+> Even easier:
+>     - Add a step() call immediately after creating timer()
+>     - This also records the start
+>     - Results are still cumulative
+>     - Running diff() over it shows changes:
+>
+> Demo using minimally modified Rcpp Gallery piece (just added
+> step("start"); )
+>
+>     R> sourceCpp("/tmp/timer.cpp")
+>
+>     R> tt <- useTimer()
+>
+>     R> tt         # cumulative
+>           start     get/put g/p+rnorm()  empty loop
+>        0.000114 1629.043000 3996.890739 3996.893329
+>
+>     R> diff(tt)   # incremental
+>         get/put g/p+rnorm()  empty loop
+>      1629.04289  2367.84774     0.00259
+>     R>
+>
+> I will alter the gallery story accordingly. We can always add a 'zero' step
+> to the constructor to get these two behaviours cheaply.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+>
+> ------------------------------
+>
+> Message: 5
+> Date: Fri, 30 Dec 2016 20:38:55 +0100
+> From: Romain Francois <romain at r-enthusiasts.com>
+> To: Dirk Eddelbuettel <edd at debian.org>
+> Cc: Kaspar M?rtens <kaspar.martens at gmail.com>,
+>         rcpp-devel at lists.r-forge.r-project.org
+> Subject: Re: [Rcpp-devel] Rcpp Timer
+> Message-ID: <0B8A3AF5-91C5-40D5-AEA3-92A2846DB5F2 at r-enthusiasts.com>
+> Content-Type: text/plain;       charset=utf-8
+>
+> It made more sense to track times since an origin, esp when you might use
+> several timers in case you use multiple threads.
+>
+>
+> > Le 30 d?c. 2016 ? 13:37, Dirk Eddelbuettel <edd at debian.org> a ?crit :
+> >
+> >
+> > On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+> > | Hi Kaspar and Dirk,
+> > |
+> > | It is indeed cumulative. Previously (presumably when that gallery page
+> was
+> > | written) it was not cumulative, but Romain Francois changed the
+> behavior of the
+> > | step() function several years ago, in this commit:
+> https://github.com/RcppCore/
+> > | Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+> >
+> > Nice catch.
+> >
+> > | There is no indication or reasoning about changing the behavior, so it
+> may be
+> > | that making it cumulative was unintentional.
+> >
+> > Let's presume it was intentional to the author of the change -- but as
+> you
+> > rightly point out, it did of course change and reverse previous
+> behaviour.
+> >
+> > We could easily add a toggle to the constructor to get an either/or
+> behaviour.
+> >
+> > Dirk
+> >
+> > --
+> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+> ------------------------------
+>
+> Message: 6
+> Date: Fri, 30 Dec 2016 13:58:10 -0600
+> From: Dirk Eddelbuettel <edd at debian.org>
+> To: Romain Francois <romain at r-enthusiasts.com>
+> Cc: Kaspar M?rtens <kaspar.martens at gmail.com>,
+>         rcpp-devel at lists.r-forge.r-project.org
+> Subject: Re: [Rcpp-devel] Rcpp Timer
+> Message-ID: <22630.48210.639061.279791 at max.nulle.part>
+> Content-Type: text/plain; charset=iso-8859-1
+>
+>
+> On 30 December 2016 at 20:38, Romain Francois wrote:
+> | It made more sense to track times since an origin, esp when you might
+> use several timers in case you use multiple threads.
+>
+> Using an offset to an origin (and hence differences) is also a sensible way
+> to deal with higher resolutions.  We cannot natively represent nanoseconds
+> (which the Timer class uses) in R with base types: doubles use 53 bits
+> precision which gets us a bit more than microseconds, and ints are 32 bit
+> --
+> so conversion would be lossy.  (The nanoseconds package I just releases
+> uses
+> bit64::integer64 which gets us nanosecond, but that is a higher-level
+> depend
+> and not something we want to depend on at the Rcpp level).
+>
+> Whether cumulative times, or individual measurements is better is still
+> open
+> fore debate.  In any event, I fixed the Rcpp Gallery story at
+>
+>     http://gallery.rcpp.org/articles/using-the-rcpp-timer/
+>
+> Dirk
+>
+> | > Le 30 d?c. 2016 ? 13:37, Dirk Eddelbuettel <edd at debian.org> a ?crit :
+> | >
+> | >
+> | > On 29 December 2016 at 11:25, Jonathan Christensen wrote:
+> | > | Hi Kaspar and Dirk,
+> | > |
+> | > | It is indeed cumulative. Previously (presumably when that gallery
+> page was
+> | > | written) it was not cumulative, but Romain Francois changed the
+> behavior of the
+> | > | step() function several years ago, in this commit:
+> https://github.com/RcppCore/
+> | > | Rcpp/commit/e295b2b178de55291e63705966368404bb0ce5e1.
+> | >
+> | > Nice catch.
+> | >
+> | > | There is no indication or reasoning about changing the behavior, so
+> it may be
+> | > | that making it cumulative was unintentional.
+> | >
+> | > Let's presume it was intentional to the author of the change -- but as
+> you
+> | > rightly point out, it did of course change and reverse previous
+> behaviour.
+> | >
+> | > We could easily add a toggle to the constructor to get an either/or
+> behaviour.
+> | >
+> | > Dirk
+> | >
+> | > --
+> | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | > _______________________________________________
+> | > Rcpp-devel mailing list
+> | > Rcpp-devel at lists.r-forge.r-project.org
+> | > https://lists.r-forge.r-project.org/cgi-bin/mailman/
+> listinfo/rcpp-devel
+> |
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+>
+> ------------------------------
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> End of Rcpp-devel Digest, Vol 86, Issue 14
+> ******************************************
+>
+
+
+
+-- 
+Regards
+Dmitriy Selivanov
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161231/4909290c/attachment-0001.html>
+
+From edd at debian.org  Sat Dec 31 17:08:49 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 31 Dec 2016 10:08:49 -0600
+Subject: [Rcpp-devel] [small ann] Sparse++
+In-Reply-To: <CAJdZCv3cB_Uo9iNMcgSRaWKuo9e0DC=+0eLq9Aw21ZiP2R6S_g@mail.gmail.com>
+References: <CAJdZCv3cB_Uo9iNMcgSRaWKuo9e0DC=+0eLq9Aw21ZiP2R6S_g@mail.gmail.com>
+Message-ID: <22631.55313.954885.784088@max.nulle.part>
+
+
+On 31 December 2016 at 19:41, Dmitriy Selivanov wrote:
+| Thanks for feedback, Dirk. This make sense - unlikely sparsepp will be used
+| without Rcpp (my idea was to have as small dependencies as possible). I will
+| add Rcpp to suggests.?
+
+Minimal dependencies is a laudable goal. It bites me every now and then too,
+ie you usually need Suggests at Travis etc pp.
+
+But then here it really seems they belong together.  You could even try to
+add a working example or two -- maybe even in inst/examples/ or something if
+you don't want R CMD ... to force your hand.  Or use a non-code vignette.
+Or, if you can bear it ;-), make it a full example.
+
+Just some ideas.  It is nice that you wrapped this up.  Header-only packages
+are quite useful.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

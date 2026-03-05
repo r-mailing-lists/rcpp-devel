@@ -1,0 +1,2128 @@
+From metaphorz at gmail.com  Sun May  3 17:59:19 2020
+From: metaphorz at gmail.com (Paul Fishwick)
+Date: Sun, 3 May 2020 10:59:19 -0500
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+Message-ID: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+
+System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also
+tried 4.0 and 3.3),
+Xcode version 11.4.1
+
+Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+
+and tried library(rcpp) which worked fine because I previously had
+installed the rcpp package.
+
+The following yields an error in finding config.h. I did a "find" on
+config.h and sure enough it is not
+in the clang++ -I directory references. Here is what I have tried:
+
+Installing Xcode's command line tools (which were installed using
+xcode-select --install)
+Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+
+https://cran.r-project.org/bin/macosx/tools/
+
+The following error occurs when I try this rcpp example from Hadley but it
+also happens whenever
+I try to install an R package from source. The compile fails due to not
+finding some include file.
+
+I would have thought that installing clang8 would have also included the
+proper include (.h) file directories
+with their contents needed by R.
+
+Is there something I am missing below? Thank you.
+
+> library(Rcpp)
+> cppFunction('int add(int x, int y, int z) {
++   int sum = x + y + z;
++   return sum;
++ }')
+In file included from fileb6e52d3a23c3.cpp:1:
+In file included from
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+In file included from
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+In file included from
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+In file included from
+/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+In file included from
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+In file included from /usr/local/include/math.h:8:
+In file included from /usr/local/include/features.h:10:
+/usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+#include "config.h"
+         ^~~~~~~~~~
+1 error generated.
+make: *** [fileb6e52d3a23c3.o] Error 1
+clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+-DNDEBUG
+-I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+-I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4"
+-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+-I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o
+fileb6e52d3a23c3.o
+Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir =
+cacheDir,  :
+  Error 1 occurred building shared library.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200503/0f6f8f61/attachment.html>
+
+From carlganz at gmail.com  Sun May  3 18:02:45 2020
+From: carlganz at gmail.com (Carl Ganz)
+Date: Sun, 3 May 2020 09:02:45 -0700
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+References: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+Message-ID: <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+
+I experienced similar issues on Mac and was able to fix by adding
+PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+to my .R/Makevars
+
+My understanding is that Mac no longer uses the /usr/local/include so you
+need to point it to the usr/include in the Developer SDK folder
+
+On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+
+>
+>
+> System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also
+> tried 4.0 and 3.3),
+> Xcode version 11.4.1
+>
+> Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+>
+> and tried library(rcpp) which worked fine because I previously had
+> installed the rcpp package.
+>
+> The following yields an error in finding config.h. I did a "find" on
+> config.h and sure enough it is not
+> in the clang++ -I directory references. Here is what I have tried:
+>
+> Installing Xcode's command line tools (which were installed using
+> xcode-select --install)
+> Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+>
+> https://cran.r-project.org/bin/macosx/tools/
+>
+> The following error occurs when I try this rcpp example from Hadley but it
+> also happens whenever
+> I try to install an R package from source. The compile fails due to not
+> finding some include file.
+>
+> I would have thought that installing clang8 would have also included the
+> proper include (.h) file directories
+> with their contents needed by R.
+>
+> Is there something I am missing below? Thank you.
+>
+> > library(Rcpp)
+> > cppFunction('int add(int x, int y, int z) {
+> +   int sum = x + y + z;
+> +   return sum;
+> + }')
+> In file included from fileb6e52d3a23c3.cpp:1:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+> In file included from
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+> In file included from /usr/local/include/math.h:8:
+> In file included from /usr/local/include/features.h:10:
+> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+> #include "config.h"
+>          ^~~~~~~~~~
+> 1 error generated.
+> make: *** [fileb6e52d3a23c3.o] Error 1
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+> -DNDEBUG
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4"
+> -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+> -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o
+> fileb6e52d3a23c3.o
+> Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir =
+> cacheDir,  :
+>   Error 1 occurred building shared library.
+> >
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200503/11ab6764/attachment.html>
+
+From metaphorz at gmail.com  Sun May  3 18:25:18 2020
+From: metaphorz at gmail.com (Paul Fishwick)
+Date: Sun, 03 May 2020 11:25:18 -0500
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+References: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+ <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+Message-ID: <959C6D54-04A6-4164-AC15-11357B96573A@gmail.com>
+
+Carl
+
+ First, thank you for this quick tip! I had no ~/.R directory and Makevars didn’t exist when I searched
+
+for it in Finder. So, I made the directdory ~/.R and then added a new file “Makevars” to that directory.
+
+I edited this file to add your PKG_CPPFLAGS:
+
+ 
+
+(base) <hostname>-5:.R paul$ more Makevars
+
+PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+
+ 
+
+Now I get another sequence of compiler errors. I’ll include only the first several lines:
+
+ 
+
+……….
+
+ 
+
+In file included from fileb6e52d3a23c3.cpp:1:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:317:9: error: no member named 'signbit' in the global namespace
+
+using ::signbit;
+
+      ~~^
+
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:318:9: error: no member named 'fpclassify' in the global namespace
+
+using ::fpclassify;
+
+      ~~^
+
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:319:9: error: no member named 'isfinite' in the global namespace; did you mean 'finite'?
+
+using ::isfinite;
+
+      ~~^
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/math.h:749:12: note: 'finite' declared here
+
+extern int finite(double)
+
+           ^
+
+ 
+
+From: Carl Ganz <carlganz at gmail.com>
+Date: Sunday, May 3, 2020 at 11:02 AM
+To: Paul Fishwick <metaphorz at gmail.com>
+Cc: <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+
+ 
+
+I experienced similar issues on Mac and was able to fix by adding PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include to my .R/Makevars
+
+ 
+
+My understanding is that Mac no longer uses the /usr/local/include so you need to point it to the usr/include in the Developer SDK folder
+
+ 
+
+On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+
+ 
+
+
+System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also tried 4.0 and 3.3),
+
+Xcode version 11.4.1
+
+ 
+
+Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+
+ 
+
+and tried library(rcpp) which worked fine because I previously had installed the rcpp package.
+
+ 
+
+The following yields an error in finding config.h. I did a "find" on config.h and sure enough it is not
+
+in the clang++ -I directory references. Here is what I have tried:
+
+ 
+
+Installing Xcode's command line tools (which were installed using xcode-select --install)
+
+Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+
+ 
+
+https://cran.r-project.org/bin/macosx/tools/
+
+ 
+
+The following error occurs when I try this rcpp example from Hadley but it also happens whenever
+
+I try to install an R package from source. The compile fails due to not finding some include file.
+
+ 
+
+I would have thought that installing clang8 would have also included the proper include (.h) file directories
+
+with their contents needed by R.
+
+ 
+
+Is there something I am missing below? Thank you.
+
+ 
+
+> library(Rcpp)
+> cppFunction('int add(int x, int y, int z) {
++   int sum = x + y + z;
++   return sum;
++ }')
+In file included from fileb6e52d3a23c3.cpp:1:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+In file included from /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+In file included from /usr/local/include/math.h:8:
+In file included from /usr/local/include/features.h:10:
+/usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+#include "config.h"
+         ^~~~~~~~~~
+1 error generated.
+make: *** [fileb6e52d3a23c3.o] Error 1
+clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o fileb6e52d3a23c3.o
+Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir = cacheDir,  : 
+  Error 1 occurred building shared library.
+> 
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200503/6265d693/attachment-0001.html>
+
+From carlganz at gmail.com  Sun May  3 19:04:29 2020
+From: carlganz at gmail.com (Carl Ganz)
+Date: Sun, 3 May 2020 10:04:29 -0700
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <959C6D54-04A6-4164-AC15-11357B96573A@gmail.com>
+References: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+ <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+ <959C6D54-04A6-4164-AC15-11357B96573A@gmail.com>
+Message-ID: <CALbY4SMTaP+=e6R_-hf822_VtsCHFZ3ov9TsWCSf-b8yGgo_dQ@mail.gmail.com>
+
+This is probably beyond my understanding at this point, but the solution I
+offered worked for me with R 4.0 and it looks like this example is R 3.6
+
+I vaguely remember some issues with interaction between older R version and
+newer Xcode 11.4.1 so moving to R 4 might help
+
+On Sun, May 3, 2020 at 9:25 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+
+> Carl
+>
+> First, thank you for this quick tip! I had no ~/.R directory and Makevars
+> didn’t exist when I searched
+>
+> for it in Finder. So, I made the directdory ~/.R and then added a new file
+> “Makevars” to that directory.
+>
+> I edited this file to add your PKG_CPPFLAGS:
+>
+>
+>
+> (base) <hostname>-5:.R paul$ more Makevars
+>
+>
+> PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+>
+>
+>
+> Now I get another sequence of compiler errors. I’ll include only the first
+> several lines:
+>
+>
+>
+> ……….
+>
+>
+>
+> In file included from fileb6e52d3a23c3.cpp:1:
+>
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+>
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+>
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+>
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+>
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:317:9:
+> error: no member named 'signbit' in the global namespace
+>
+> using ::signbit;
+>
+>       ~~^
+>
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:318:9:
+> error: no member named 'fpclassify' in the global namespace
+>
+> using ::fpclassify;
+>
+>       ~~^
+>
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:319:9:
+> error: no member named 'isfinite' in the global namespace; did you mean
+> 'finite'?
+>
+> using ::isfinite;
+>
+>       ~~^
+>
+> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/math.h:749:12:
+> note: 'finite' declared here
+>
+> extern int finite(double)
+>
+>            ^
+>
+>
+>
+> *From: *Carl Ganz <carlganz at gmail.com>
+> *Date: *Sunday, May 3, 2020 at 11:02 AM
+> *To: *Paul Fishwick <metaphorz at gmail.com>
+> *Cc: *<rcpp-devel at lists.r-forge.r-project.org>
+> *Subject: *Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+>
+>
+>
+> I experienced similar issues on Mac and was able to fix by adding
+> PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+> to my .R/Makevars
+>
+>
+>
+> My understanding is that Mac no longer uses the /usr/local/include so you
+> need to point it to the usr/include in the Developer SDK folder
+>
+>
+>
+> On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>
+>
+>
+>
+> System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also
+> tried 4.0 and 3.3),
+>
+> Xcode version 11.4.1
+>
+>
+>
+> Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+>
+>
+>
+> and tried library(rcpp) which worked fine because I previously had
+> installed the rcpp package.
+>
+>
+>
+> The following yields an error in finding config.h. I did a "find" on
+> config.h and sure enough it is not
+>
+> in the clang++ -I directory references. Here is what I have tried:
+>
+>
+>
+> Installing Xcode's command line tools (which were installed using
+> xcode-select --install)
+>
+> Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+>
+>
+>
+> https://cran.r-project.org/bin/macosx/tools/
+>
+>
+>
+> The following error occurs when I try this rcpp example from Hadley but it
+> also happens whenever
+>
+> I try to install an R package from source. The compile fails due to not
+> finding some include file.
+>
+>
+>
+> I would have thought that installing clang8 would have also included the
+> proper include (.h) file directories
+>
+> with their contents needed by R.
+>
+>
+>
+> Is there something I am missing below? Thank you.
+>
+>
+>
+> > library(Rcpp)
+> > cppFunction('int add(int x, int y, int z) {
+> +   int sum = x + y + z;
+> +   return sum;
+> + }')
+> In file included from fileb6e52d3a23c3.cpp:1:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+> In file included from
+> /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+> In file included from
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+> In file included from /usr/local/include/math.h:8:
+> In file included from /usr/local/include/features.h:10:
+> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+> #include "config.h"
+>          ^~~~~~~~~~
+> 1 error generated.
+> make: *** [fileb6e52d3a23c3.o] Error 1
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include"
+> -DNDEBUG
+> -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include"
+> -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4"
+> -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+> -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o
+> fileb6e52d3a23c3.o
+> Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir =
+> cacheDir,  :
+>   Error 1 occurred building shared library.
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200503/62ff08da/attachment.html>
+
+From metaphorz at gmail.com  Sun May  3 19:17:03 2020
+From: metaphorz at gmail.com (Paul Fishwick)
+Date: Sun, 03 May 2020 12:17:03 -0500
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <CALbY4SMTaP+=e6R_-hf822_VtsCHFZ3ov9TsWCSf-b8yGgo_dQ@mail.gmail.com>
+References: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+ <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+ <959C6D54-04A6-4164-AC15-11357B96573A@gmail.com>
+ <CALbY4SMTaP+=e6R_-hf822_VtsCHFZ3ov9TsWCSf-b8yGgo_dQ@mail.gmail.com>
+Message-ID: <CAB0F0FA-1F41-459D-A3F2-E3FFCC8E8591@gmail.com>
+
+It was a good suggestion. I went back to installing R 4.0 as you suggested. In Rstudio, which I think
+
+uses whatever R happens to be currently installed, I get into
+
+a similar rcpp issue whenever I say “y” to compiling packages from source. There seems
+
+to be consistent disconnect of R finding certain files when compilation with
+
+clang is required.
+
+ 
+
+…………
+
+ 
+
+clang -mmacosx-version-min=10.13 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include  -I/usr/local/include   -fPIC  -Wall -g -O2  -c capture.c -o capture.o
+
+In file included from capture.c:1:
+
+In file included from /Library/Frameworks/R.framework/Resources/include/Rinternals.h:44:
+
+In file included from /Library/Frameworks/R.framework/Resources/include/R_ext/Arith.h:41:
+
+In file included from /usr/local/include/math.h:8:
+
+In file included from /usr/local/include/features.h:10:
+
+/usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+
+#include "config.h"
+
+         ^~~~~~~~~~
+
+1 error generated.
+
+make: *** [capture.o] Error 1
+
+ERROR: compilation failed for package ‘rlang’
+
+ 
+
+………………….
+
+ 
+
+From: Carl Ganz <carlganz at gmail.com>
+Date: Sunday, May 3, 2020 at 12:04 PM
+To: Paul Fishwick <metaphorz at gmail.com>
+Cc: <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+
+ 
+
+This is probably beyond my understanding at this point, but the solution I offered worked for me with R 4.0 and it looks like this example is R 3.6
+
+ 
+
+I vaguely remember some issues with interaction between older R version and newer Xcode 11.4.1 so moving to R 4 might help
+
+ 
+
+On Sun, May 3, 2020 at 9:25 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+
+Carl
+
+First, thank you for this quick tip! I had no ~/.R directory and Makevars didn’t exist when I searched
+
+for it in Finder. So, I made the directdory ~/.R and then added a new file “Makevars” to that directory.
+
+I edited this file to add your PKG_CPPFLAGS:
+
+ 
+
+(base) <hostname>-5:.R paul$ more Makevars
+
+PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+
+ 
+
+Now I get another sequence of compiler errors. I’ll include only the first several lines:
+
+ 
+
+……….
+
+ 
+
+In file included from fileb6e52d3a23c3.cpp:1:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:317:9: error: no member named 'signbit' in the global namespace
+
+using ::signbit;
+
+      ~~^
+
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:318:9: error: no member named 'fpclassify' in the global namespace
+
+using ::fpclassify;
+
+      ~~^
+
+/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:319:9: error: no member named 'isfinite' in the global namespace; did you mean 'finite'?
+
+using ::isfinite;
+
+      ~~^
+
+/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/math.h:749:12: note: 'finite' declared here
+
+extern int finite(double)
+
+           ^
+
+ 
+
+From: Carl Ganz <carlganz at gmail.com>
+Date: Sunday, May 3, 2020 at 11:02 AM
+To: Paul Fishwick <metaphorz at gmail.com>
+Cc: <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+
+ 
+
+I experienced similar issues on Mac and was able to fix by adding PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include to my .R/Makevars
+
+ 
+
+My understanding is that Mac no longer uses the /usr/local/include so you need to point it to the usr/include in the Developer SDK folder
+
+ 
+
+On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+
+ 
+
+
+System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also tried 4.0 and 3.3),
+
+Xcode version 11.4.1
+
+ 
+
+Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+
+ 
+
+and tried library(rcpp) which worked fine because I previously had installed the rcpp package.
+
+ 
+
+The following yields an error in finding config.h. I did a "find" on config.h and sure enough it is not
+
+in the clang++ -I directory references. Here is what I have tried:
+
+ 
+
+Installing Xcode's command line tools (which were installed using xcode-select --install)
+
+Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+
+ 
+
+https://cran.r-project.org/bin/macosx/tools/
+
+ 
+
+The following error occurs when I try this rcpp example from Hadley but it also happens whenever
+
+I try to install an R package from source. The compile fails due to not finding some include file.
+
+ 
+
+I would have thought that installing clang8 would have also included the proper include (.h) file directories
+
+with their contents needed by R.
+
+ 
+
+Is there something I am missing below? Thank you.
+
+ 
+
+> library(Rcpp)
+> cppFunction('int add(int x, int y, int z) {
++   int sum = x + y + z;
++   return sum;
++ }')
+In file included from fileb6e52d3a23c3.cpp:1:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+In file included from /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+In file included from /usr/local/include/math.h:8:
+In file included from /usr/local/include/features.h:10:
+/usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+#include "config.h"
+         ^~~~~~~~~~
+1 error generated.
+make: *** [fileb6e52d3a23c3.o] Error 1
+clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o fileb6e52d3a23c3.o
+Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir = cacheDir,  : 
+  Error 1 occurred building shared library.
+> 
+
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200503/06ffaa8a/attachment-0001.html>
+
+From kevinushey at gmail.com  Sun May  3 21:50:43 2020
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sun, 3 May 2020 12:50:43 -0700
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <CAB0F0FA-1F41-459D-A3F2-E3FFCC8E8591@gmail.com>
+References: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+ <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+ <959C6D54-04A6-4164-AC15-11357B96573A@gmail.com>
+ <CALbY4SMTaP+=e6R_-hf822_VtsCHFZ3ov9TsWCSf-b8yGgo_dQ@mail.gmail.com>
+ <CAB0F0FA-1F41-459D-A3F2-E3FFCC8E8591@gmail.com>
+Message-ID: <CAJXgQP2b6Jw=XfRdjupKwtrxzqLiOTwHhy+RSSUS_k=CiAGH-g@mail.gmail.com>
+
+> In file included from /usr/local/include/math.h:8:
+
+The problem here is you have a bunch of headers in /usr/local/include
+that are shadowing / overriding the "normal" system header files;
+/usr/local/include/math.h being one of these (but I imagine there's
+more).
+
+To work around this, you'll have to explicitly remove the
+-I/usr/local/include bit that's part of CPPFLAGS (normally set by
+default by an R installation), or clean up your /usr/local/include
+directory. For example, in ~/.R/Makevars, you could set:
+
+    CPPFLAGS = -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+
+See the Makeconf file at:
+
+    /Library/Frameworks/R.framework/Resources/etc/Makeconf
+
+for more information on where the default values for compilation flags
+come from.
+
+Note that setting the above will probably break compilation for other
+packages that depend on headers being located in /usr/local/include;
+if that is indeed the case your main recourse would be to clean up
+/usr/local/include, or find a way to explicitly include your system
+headers before /usr/local/include.
+
+As an aside, the Makevars variables prefixed with PKG_ are normally
+reserved for use by package authors (in their own src/Makevars); you
+normally shouldn't try to set or override those. See in R-exts:
+
+https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-Makevars
+
+for more details.
+
+Best,
+Kevin
+
+On Sun, May 3, 2020 at 10:17 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>
+> It was a good suggestion. I went back to installing R 4.0 as you suggested. In Rstudio, which I think
+>
+> uses whatever R happens to be currently installed, I get into
+>
+> a similar rcpp issue whenever I say “y” to compiling packages from source. There seems
+>
+> to be consistent disconnect of R finding certain files when compilation with
+>
+> clang is required.
+>
+>
+>
+> …………
+>
+>
+>
+> clang -mmacosx-version-min=10.13 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include  -I/usr/local/include   -fPIC  -Wall -g -O2  -c capture.c -o capture.o
+>
+> In file included from capture.c:1:
+>
+> In file included from /Library/Frameworks/R.framework/Resources/include/Rinternals.h:44:
+>
+> In file included from /Library/Frameworks/R.framework/Resources/include/R_ext/Arith.h:41:
+>
+> In file included from /usr/local/include/math.h:8:
+>
+> In file included from /usr/local/include/features.h:10:
+>
+> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+>
+> #include "config.h"
+>
+>          ^~~~~~~~~~
+>
+> 1 error generated.
+>
+> make: *** [capture.o] Error 1
+>
+> ERROR: compilation failed for package ‘rlang’
+>
+>
+>
+> ………………….
+>
+>
+>
+> From: Carl Ganz <carlganz at gmail.com>
+> Date: Sunday, May 3, 2020 at 12:04 PM
+> To: Paul Fishwick <metaphorz at gmail.com>
+> Cc: <rcpp-devel at lists.r-forge.r-project.org>
+> Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+>
+>
+>
+> This is probably beyond my understanding at this point, but the solution I offered worked for me with R 4.0 and it looks like this example is R 3.6
+>
+>
+>
+> I vaguely remember some issues with interaction between older R version and newer Xcode 11.4.1 so moving to R 4 might help
+>
+>
+>
+> On Sun, May 3, 2020 at 9:25 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>
+> Carl
+>
+> First, thank you for this quick tip! I had no ~/.R directory and Makevars didn’t exist when I searched
+>
+> for it in Finder. So, I made the directdory ~/.R and then added a new file “Makevars” to that directory.
+>
+> I edited this file to add your PKG_CPPFLAGS:
+>
+>
+>
+> (base) <hostname>-5:.R paul$ more Makevars
+>
+> PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+>
+>
+>
+> Now I get another sequence of compiler errors. I’ll include only the first several lines:
+>
+>
+>
+> ……….
+>
+>
+>
+> In file included from fileb6e52d3a23c3.cpp:1:
+>
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+>
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+>
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+>
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+>
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:317:9: error: no member named 'signbit' in the global namespace
+>
+> using ::signbit;
+>
+>       ~~^
+>
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:318:9: error: no member named 'fpclassify' in the global namespace
+>
+> using ::fpclassify;
+>
+>       ~~^
+>
+> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:319:9: error: no member named 'isfinite' in the global namespace; did you mean 'finite'?
+>
+> using ::isfinite;
+>
+>       ~~^
+>
+> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/math.h:749:12: note: 'finite' declared here
+>
+> extern int finite(double)
+>
+>            ^
+>
+>
+>
+> From: Carl Ganz <carlganz at gmail.com>
+> Date: Sunday, May 3, 2020 at 11:02 AM
+> To: Paul Fishwick <metaphorz at gmail.com>
+> Cc: <rcpp-devel at lists.r-forge.r-project.org>
+> Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+>
+>
+>
+> I experienced similar issues on Mac and was able to fix by adding PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include to my .R/Makevars
+>
+>
+>
+> My understanding is that Mac no longer uses the /usr/local/include so you need to point it to the usr/include in the Developer SDK folder
+>
+>
+>
+> On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>
+>
+>
+>
+> System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also tried 4.0 and 3.3),
+>
+> Xcode version 11.4.1
+>
+>
+>
+> Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+>
+>
+>
+> and tried library(rcpp) which worked fine because I previously had installed the rcpp package.
+>
+>
+>
+> The following yields an error in finding config.h. I did a "find" on config.h and sure enough it is not
+>
+> in the clang++ -I directory references. Here is what I have tried:
+>
+>
+>
+> Installing Xcode's command line tools (which were installed using xcode-select --install)
+>
+> Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+>
+>
+>
+> https://cran.r-project.org/bin/macosx/tools/
+>
+>
+>
+> The following error occurs when I try this rcpp example from Hadley but it also happens whenever
+>
+> I try to install an R package from source. The compile fails due to not finding some include file.
+>
+>
+>
+> I would have thought that installing clang8 would have also included the proper include (.h) file directories
+>
+> with their contents needed by R.
+>
+>
+>
+> Is there something I am missing below? Thank you.
+>
+>
+>
+> > library(Rcpp)
+> > cppFunction('int add(int x, int y, int z) {
+> +   int sum = x + y + z;
+> +   return sum;
+> + }')
+> In file included from fileb6e52d3a23c3.cpp:1:
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+> In file included from /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+> In file included from /usr/local/include/math.h:8:
+> In file included from /usr/local/include/features.h:10:
+> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+> #include "config.h"
+>          ^~~~~~~~~~
+> 1 error generated.
+> make: *** [fileb6e52d3a23c3.o] Error 1
+> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o fileb6e52d3a23c3.o
+> Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir = cacheDir,  :
+>   Error 1 occurred building shared library.
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From metaphorz at gmail.com  Sun May  3 23:34:52 2020
+From: metaphorz at gmail.com (Paul Fishwick)
+Date: Sun, 03 May 2020 16:34:52 -0500
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <CAJXgQP2b6Jw=XfRdjupKwtrxzqLiOTwHhy+RSSUS_k=CiAGH-g@mail.gmail.com>
+References: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+ <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+ <959C6D54-04A6-4164-AC15-11357B96573A@gmail.com>
+ <CALbY4SMTaP+=e6R_-hf822_VtsCHFZ3ov9TsWCSf-b8yGgo_dQ@mail.gmail.com>
+ <CAB0F0FA-1F41-459D-A3F2-E3FFCC8E8591@gmail.com>
+ <CAJXgQP2b6Jw=XfRdjupKwtrxzqLiOTwHhy+RSSUS_k=CiAGH-g@mail.gmail.com>
+Message-ID: <09807F62-AC00-4F82-826E-AF82F63CFDAE@gmail.com>
+
+@Kevin: This worked great. Thanks. I deleted the line in ~/.R/Makevars and inserted the line
+defining CPPFLAGS as you suggested. Rcpp now works in R! I have not yet tried to compile
+a package from source in R but I am guessing (or hoping) that should now work.
+
+In the mean time, I will read up on the R.framework.......Makeconf file to understand it.
+
+I suppose since /usr/local/include is the offending set of headers, I could just delete
+everything from that directory too (after making a backup). I am not doing any other
+development work except for R/Rcpp, so perhaps it will not make a difference.
+
+However, since your suggested line does work, I'll leave it at this, and see if I can
+build up my knowledge on conflicting include files.
+
+Thanks again!
+
+-paul
+
+
+
+
+﻿On 5/3/20, 2:51 PM, "Kevin Ushey" <kevinushey at gmail.com> wrote:
+
+    > In file included from /usr/local/include/math.h:8:
+
+    The problem here is you have a bunch of headers in /usr/local/include
+    that are shadowing / overriding the "normal" system header files;
+    /usr/local/include/math.h being one of these (but I imagine there's
+    more).
+
+    To work around this, you'll have to explicitly remove the
+    -I/usr/local/include bit that's part of CPPFLAGS (normally set by
+    default by an R installation), or clean up your /usr/local/include
+    directory. For example, in ~/.R/Makevars, you could set:
+
+        CPPFLAGS = -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+
+    See the Makeconf file at:
+
+        /Library/Frameworks/R.framework/Resources/etc/Makeconf
+
+    for more information on where the default values for compilation flags
+    come from.
+
+    Note that setting the above will probably break compilation for other
+    packages that depend on headers being located in /usr/local/include;
+    if that is indeed the case your main recourse would be to clean up
+    /usr/local/include, or find a way to explicitly include your system
+    headers before /usr/local/include.
+
+    As an aside, the Makevars variables prefixed with PKG_ are normally
+    reserved for use by package authors (in their own src/Makevars); you
+    normally shouldn't try to set or override those. See in R-exts:
+
+    https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-Makevars
+
+    for more details.
+
+    Best,
+    Kevin
+
+    On Sun, May 3, 2020 at 10:17 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+    >
+    > It was a good suggestion. I went back to installing R 4.0 as you suggested. In Rstudio, which I think
+    >
+    > uses whatever R happens to be currently installed, I get into
+    >
+    > a similar rcpp issue whenever I say “y” to compiling packages from source. There seems
+    >
+    > to be consistent disconnect of R finding certain files when compilation with
+    >
+    > clang is required.
+    >
+    >
+    >
+    > …………
+    >
+    >
+    >
+    > clang -mmacosx-version-min=10.13 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include  -I/usr/local/include   -fPIC  -Wall -g -O2  -c capture.c -o capture.o
+    >
+    > In file included from capture.c:1:
+    >
+    > In file included from /Library/Frameworks/R.framework/Resources/include/Rinternals.h:44:
+    >
+    > In file included from /Library/Frameworks/R.framework/Resources/include/R_ext/Arith.h:41:
+    >
+    > In file included from /usr/local/include/math.h:8:
+    >
+    > In file included from /usr/local/include/features.h:10:
+    >
+    > /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+    >
+    > #include "config.h"
+    >
+    >          ^~~~~~~~~~
+    >
+    > 1 error generated.
+    >
+    > make: *** [capture.o] Error 1
+    >
+    > ERROR: compilation failed for package ‘rlang’
+    >
+    >
+    >
+    > ………………….
+    >
+    >
+    >
+    > From: Carl Ganz <carlganz at gmail.com>
+    > Date: Sunday, May 3, 2020 at 12:04 PM
+    > To: Paul Fishwick <metaphorz at gmail.com>
+    > Cc: <rcpp-devel at lists.r-forge.r-project.org>
+    > Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+    >
+    >
+    >
+    > This is probably beyond my understanding at this point, but the solution I offered worked for me with R 4.0 and it looks like this example is R 3.6
+    >
+    >
+    >
+    > I vaguely remember some issues with interaction between older R version and newer Xcode 11.4.1 so moving to R 4 might help
+    >
+    >
+    >
+    > On Sun, May 3, 2020 at 9:25 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+    >
+    > Carl
+    >
+    > First, thank you for this quick tip! I had no ~/.R directory and Makevars didn’t exist when I searched
+    >
+    > for it in Finder. So, I made the directdory ~/.R and then added a new file “Makevars” to that directory.
+    >
+    > I edited this file to add your PKG_CPPFLAGS:
+    >
+    >
+    >
+    > (base) <hostname>-5:.R paul$ more Makevars
+    >
+    > PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+    >
+    >
+    >
+    > Now I get another sequence of compiler errors. I’ll include only the first several lines:
+    >
+    >
+    >
+    > ……….
+    >
+    >
+    >
+    > In file included from fileb6e52d3a23c3.cpp:1:
+    >
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+    >
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+    >
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+    >
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+    >
+    > /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:317:9: error: no member named 'signbit' in the global namespace
+    >
+    > using ::signbit;
+    >
+    >       ~~^
+    >
+    > /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:318:9: error: no member named 'fpclassify' in the global namespace
+    >
+    > using ::fpclassify;
+    >
+    >       ~~^
+    >
+    > /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:319:9: error: no member named 'isfinite' in the global namespace; did you mean 'finite'?
+    >
+    > using ::isfinite;
+    >
+    >       ~~^
+    >
+    > /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/math.h:749:12: note: 'finite' declared here
+    >
+    > extern int finite(double)
+    >
+    >            ^
+    >
+    >
+    >
+    > From: Carl Ganz <carlganz at gmail.com>
+    > Date: Sunday, May 3, 2020 at 11:02 AM
+    > To: Paul Fishwick <metaphorz at gmail.com>
+    > Cc: <rcpp-devel at lists.r-forge.r-project.org>
+    > Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+    >
+    >
+    >
+    > I experienced similar issues on Mac and was able to fix by adding PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include to my .R/Makevars
+    >
+    >
+    >
+    > My understanding is that Mac no longer uses the /usr/local/include so you need to point it to the usr/include in the Developer SDK folder
+    >
+    >
+    >
+    > On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+    >
+    >
+    >
+    >
+    > System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also tried 4.0 and 3.3),
+    >
+    > Xcode version 11.4.1
+    >
+    >
+    >
+    > Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+    >
+    >
+    >
+    > and tried library(rcpp) which worked fine because I previously had installed the rcpp package.
+    >
+    >
+    >
+    > The following yields an error in finding config.h. I did a "find" on config.h and sure enough it is not
+    >
+    > in the clang++ -I directory references. Here is what I have tried:
+    >
+    >
+    >
+    > Installing Xcode's command line tools (which were installed using xcode-select --install)
+    >
+    > Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+    >
+    >
+    >
+    > https://cran.r-project.org/bin/macosx/tools/
+    >
+    >
+    >
+    > The following error occurs when I try this rcpp example from Hadley but it also happens whenever
+    >
+    > I try to install an R package from source. The compile fails due to not finding some include file.
+    >
+    >
+    >
+    > I would have thought that installing clang8 would have also included the proper include (.h) file directories
+    >
+    > with their contents needed by R.
+    >
+    >
+    >
+    > Is there something I am missing below? Thank you.
+    >
+    >
+    >
+    > > library(Rcpp)
+    > > cppFunction('int add(int x, int y, int z) {
+    > +   int sum = x + y + z;
+    > +   return sum;
+    > + }')
+    > In file included from fileb6e52d3a23c3.cpp:1:
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+    > In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+    > In file included from /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+    > In file included from /usr/local/include/math.h:8:
+    > In file included from /usr/local/include/features.h:10:
+    > /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+    > #include "config.h"
+    >          ^~~~~~~~~~
+    > 1 error generated.
+    > make: *** [fileb6e52d3a23c3.o] Error 1
+    > clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o fileb6e52d3a23c3.o
+    > Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir = cacheDir,  :
+    >   Error 1 occurred building shared library.
+    > >
+    >
+    > _______________________________________________
+    > Rcpp-devel mailing list
+    > Rcpp-devel at lists.r-forge.r-project.org
+    > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+    >
+    > _______________________________________________
+    > Rcpp-devel mailing list
+    > Rcpp-devel at lists.r-forge.r-project.org
+    > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+From simon.urbanek at R-project.org  Mon May  4 01:20:20 2020
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Mon, 4 May 2020 11:20:20 +1200
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <09807F62-AC00-4F82-826E-AF82F63CFDAE@gmail.com>
+References: <CACs83Hp2RZva0iNEUgYJ1GwAoepEQKE7VwsKc_BTS1j2Y7V=GA@mail.gmail.com>
+ <CALbY4SNZacAffJ6d7XvCrP3LTinAEiH0Vx=3fd7TM2SUc7-pTQ@mail.gmail.com>
+ <959C6D54-04A6-4164-AC15-11357B96573A@gmail.com>
+ <CALbY4SMTaP+=e6R_-hf822_VtsCHFZ3ov9TsWCSf-b8yGgo_dQ@mail.gmail.com>
+ <CAB0F0FA-1F41-459D-A3F2-E3FFCC8E8591@gmail.com>
+ <CAJXgQP2b6Jw=XfRdjupKwtrxzqLiOTwHhy+RSSUS_k=CiAGH-g@mail.gmail.com>
+ <09807F62-AC00-4F82-826E-AF82F63CFDAE@gmail.com>
+Message-ID: <E1B2A0B7-060B-4B46-82E8-F270E2738B7A@R-project.org>
+
+Paul,
+
+as Kevin pointed out you have a big mess in /usr/local - I'd recommend renaming /usr/local/include and /usr//local/lib -- then you shouldn't need to set any custom flags at all (at least in R 4.0.0).
+
+Cheers,
+Simon
+
+
+> On 4/05/2020, at 9:34 AM, Paul Fishwick <metaphorz at gmail.com> wrote:
+> 
+> @Kevin: This worked great. Thanks. I deleted the line in ~/.R/Makevars and inserted the line
+> defining CPPFLAGS as you suggested. Rcpp now works in R! I have not yet tried to compile
+> a package from source in R but I am guessing (or hoping) that should now work.
+> 
+> In the mean time, I will read up on the R.framework.......Makeconf file to understand it.
+> 
+> I suppose since /usr/local/include is the offending set of headers, I could just delete
+> everything from that directory too (after making a backup). I am not doing any other
+> development work except for R/Rcpp, so perhaps it will not make a difference.
+> 
+> However, since your suggested line does work, I'll leave it at this, and see if I can
+> build up my knowledge on conflicting include files.
+> 
+> Thanks again!
+> 
+> -paul
+> 
+> 
+> 
+> 
+> ﻿On 5/3/20, 2:51 PM, "Kevin Ushey" <kevinushey at gmail.com> wrote:
+> 
+>> In file included from /usr/local/include/math.h:8:
+> 
+>    The problem here is you have a bunch of headers in /usr/local/include
+>    that are shadowing / overriding the "normal" system header files;
+>    /usr/local/include/math.h being one of these (but I imagine there's
+>    more).
+> 
+>    To work around this, you'll have to explicitly remove the
+>    -I/usr/local/include bit that's part of CPPFLAGS (normally set by
+>    default by an R installation), or clean up your /usr/local/include
+>    directory. For example, in ~/.R/Makevars, you could set:
+> 
+>        CPPFLAGS = -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+> 
+>    See the Makeconf file at:
+> 
+>        /Library/Frameworks/R.framework/Resources/etc/Makeconf
+> 
+>    for more information on where the default values for compilation flags
+>    come from.
+> 
+>    Note that setting the above will probably break compilation for other
+>    packages that depend on headers being located in /usr/local/include;
+>    if that is indeed the case your main recourse would be to clean up
+>    /usr/local/include, or find a way to explicitly include your system
+>    headers before /usr/local/include.
+> 
+>    As an aside, the Makevars variables prefixed with PKG_ are normally
+>    reserved for use by package authors (in their own src/Makevars); you
+>    normally shouldn't try to set or override those. See in R-exts:
+> 
+>    https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-Makevars
+> 
+>    for more details.
+> 
+>    Best,
+>    Kevin
+> 
+>    On Sun, May 3, 2020 at 10:17 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>> 
+>> It was a good suggestion. I went back to installing R 4.0 as you suggested. In Rstudio, which I think
+>> 
+>> uses whatever R happens to be currently installed, I get into
+>> 
+>> a similar rcpp issue whenever I say “y” to compiling packages from source. There seems
+>> 
+>> to be consistent disconnect of R finding certain files when compilation with
+>> 
+>> clang is required.
+>> 
+>> 
+>> 
+>> …………
+>> 
+>> 
+>> 
+>> clang -mmacosx-version-min=10.13 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include  -I/usr/local/include   -fPIC  -Wall -g -O2  -c capture.c -o capture.o
+>> 
+>> In file included from capture.c:1:
+>> 
+>> In file included from /Library/Frameworks/R.framework/Resources/include/Rinternals.h:44:
+>> 
+>> In file included from /Library/Frameworks/R.framework/Resources/include/R_ext/Arith.h:41:
+>> 
+>> In file included from /usr/local/include/math.h:8:
+>> 
+>> In file included from /usr/local/include/features.h:10:
+>> 
+>> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+>> 
+>> #include "config.h"
+>> 
+>>         ^~~~~~~~~~
+>> 
+>> 1 error generated.
+>> 
+>> make: *** [capture.o] Error 1
+>> 
+>> ERROR: compilation failed for package ‘rlang’
+>> 
+>> 
+>> 
+>> ………………….
+>> 
+>> 
+>> 
+>> From: Carl Ganz <carlganz at gmail.com>
+>> Date: Sunday, May 3, 2020 at 12:04 PM
+>> To: Paul Fishwick <metaphorz at gmail.com>
+>> Cc: <rcpp-devel at lists.r-forge.r-project.org>
+>> Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+>> 
+>> 
+>> 
+>> This is probably beyond my understanding at this point, but the solution I offered worked for me with R 4.0 and it looks like this example is R 3.6
+>> 
+>> 
+>> 
+>> I vaguely remember some issues with interaction between older R version and newer Xcode 11.4.1 so moving to R 4 might help
+>> 
+>> 
+>> 
+>> On Sun, May 3, 2020 at 9:25 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>> 
+>> Carl
+>> 
+>> First, thank you for this quick tip! I had no ~/.R directory and Makevars didn’t exist when I searched
+>> 
+>> for it in Finder. So, I made the directdory ~/.R and then added a new file “Makevars” to that directory.
+>> 
+>> I edited this file to add your PKG_CPPFLAGS:
+>> 
+>> 
+>> 
+>> (base) <hostname>-5:.R paul$ more Makevars
+>> 
+>> PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+>> 
+>> 
+>> 
+>> Now I get another sequence of compiler errors. I’ll include only the first several lines:
+>> 
+>> 
+>> 
+>> ……….
+>> 
+>> 
+>> 
+>> In file included from fileb6e52d3a23c3.cpp:1:
+>> 
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+>> 
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+>> 
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+>> 
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+>> 
+>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:317:9: error: no member named 'signbit' in the global namespace
+>> 
+>> using ::signbit;
+>> 
+>>      ~~^
+>> 
+>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:318:9: error: no member named 'fpclassify' in the global namespace
+>> 
+>> using ::fpclassify;
+>> 
+>>      ~~^
+>> 
+>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:319:9: error: no member named 'isfinite' in the global namespace; did you mean 'finite'?
+>> 
+>> using ::isfinite;
+>> 
+>>      ~~^
+>> 
+>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/math.h:749:12: note: 'finite' declared here
+>> 
+>> extern int finite(double)
+>> 
+>>           ^
+>> 
+>> 
+>> 
+>> From: Carl Ganz <carlganz at gmail.com>
+>> Date: Sunday, May 3, 2020 at 11:02 AM
+>> To: Paul Fishwick <metaphorz at gmail.com>
+>> Cc: <rcpp-devel at lists.r-forge.r-project.org>
+>> Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+>> 
+>> 
+>> 
+>> I experienced similar issues on Mac and was able to fix by adding PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include to my .R/Makevars
+>> 
+>> 
+>> 
+>> My understanding is that Mac no longer uses the /usr/local/include so you need to point it to the usr/include in the Developer SDK folder
+>> 
+>> 
+>> 
+>> On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>> 
+>> 
+>> 
+>> 
+>> System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also tried 4.0 and 3.3),
+>> 
+>> Xcode version 11.4.1
+>> 
+>> 
+>> 
+>> Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+>> 
+>> 
+>> 
+>> and tried library(rcpp) which worked fine because I previously had installed the rcpp package.
+>> 
+>> 
+>> 
+>> The following yields an error in finding config.h. I did a "find" on config.h and sure enough it is not
+>> 
+>> in the clang++ -I directory references. Here is what I have tried:
+>> 
+>> 
+>> 
+>> Installing Xcode's command line tools (which were installed using xcode-select --install)
+>> 
+>> Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+>> 
+>> 
+>> 
+>> https://cran.r-project.org/bin/macosx/tools/
+>> 
+>> 
+>> 
+>> The following error occurs when I try this rcpp example from Hadley but it also happens whenever
+>> 
+>> I try to install an R package from source. The compile fails due to not finding some include file.
+>> 
+>> 
+>> 
+>> I would have thought that installing clang8 would have also included the proper include (.h) file directories
+>> 
+>> with their contents needed by R.
+>> 
+>> 
+>> 
+>> Is there something I am missing below? Thank you.
+>> 
+>> 
+>> 
+>>> library(Rcpp)
+>>> cppFunction('int add(int x, int y, int z) {
+>> +   int sum = x + y + z;
+>> +   return sum;
+>> + }')
+>> In file included from fileb6e52d3a23c3.cpp:1:
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+>> In file included from /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+>> In file included from /usr/local/include/math.h:8:
+>> In file included from /usr/local/include/features.h:10:
+>> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+>> #include "config.h"
+>>         ^~~~~~~~~~
+>> 1 error generated.
+>> make: *** [fileb6e52d3a23c3.o] Error 1
+>> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o fileb6e52d3a23c3.o
+>> Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir = cacheDir,  :
+>>  Error 1 occurred building shared library.
+>>> 
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From metaphorz at gmail.com  Mon May  4 12:37:13 2020
+From: metaphorz at gmail.com (Paul Fishwick)
+Date: Mon, 4 May 2020 05:37:13 -0500
+Subject: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+In-Reply-To: <E1B2A0B7-060B-4B46-82E8-F270E2738B7A@R-project.org>
+References: <E1B2A0B7-060B-4B46-82E8-F270E2738B7A@R-project.org>
+Message-ID: <C8FAF87C-69C6-4D54-91E6-AAA7C61C03FA@gmail.com>
+
+Simon. I’ll do that. Thanks. Paul
+
+Paul Fishwick, PhD
+Distinguished University Chair of Arts, Technology, and Emerging Communication
+Professor of Computer Science
+Director, Creative Automata Laboratory
+The University of Texas at Dallas
+Arts & Technology
+800 West Campbell Road, AT10
+Richardson, TX 75080-3021
+Home: utdallas.edu/atec/fishwick
+Media: medium.com/@metaphorz
+Modeling: digest.sigsim.org
+Twitter: @PaulFishwick
+
+> On May 4, 2020, at 2:39 AM, Simon Urbanek <simon.urbanek at r-project.org> wrote:
+> 
+> ﻿Paul,
+> 
+> as Kevin pointed out you have a big mess in /usr/local - I'd recommend renaming /usr/local/include and /usr//local/lib -- then you shouldn't need to set any custom flags at all (at least in R 4.0.0).
+> 
+> Cheers,
+> Simon
+> 
+> 
+>> On 4/05/2020, at 9:34 AM, Paul Fishwick <metaphorz at gmail.com> wrote:
+>> 
+>> @Kevin: This worked great. Thanks. I deleted the line in ~/.R/Makevars and inserted the line
+>> defining CPPFLAGS as you suggested. Rcpp now works in R! I have not yet tried to compile
+>> a package from source in R but I am guessing (or hoping) that should now work.
+>> 
+>> In the mean time, I will read up on the R.framework.......Makeconf file to understand it.
+>> 
+>> I suppose since /usr/local/include is the offending set of headers, I could just delete
+>> everything from that directory too (after making a backup). I am not doing any other
+>> development work except for R/Rcpp, so perhaps it will not make a difference.
+>> 
+>> However, since your suggested line does work, I'll leave it at this, and see if I can
+>> build up my knowledge on conflicting include files.
+>> 
+>> Thanks again!
+>> 
+>> -paul
+>> 
+>> 
+>> 
+>> 
+>> ﻿On 5/3/20, 2:51 PM, "Kevin Ushey" <kevinushey at gmail.com> wrote:
+>> 
+>>> In file included from /usr/local/include/math.h:8:
+>> 
+>>   The problem here is you have a bunch of headers in /usr/local/include
+>>   that are shadowing / overriding the "normal" system header files;
+>>   /usr/local/include/math.h being one of these (but I imagine there's
+>>   more).
+>> 
+>>   To work around this, you'll have to explicitly remove the
+>>   -I/usr/local/include bit that's part of CPPFLAGS (normally set by
+>>   default by an R installation), or clean up your /usr/local/include
+>>   directory. For example, in ~/.R/Makevars, you could set:
+>> 
+>>       CPPFLAGS = -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+>> 
+>>   See the Makeconf file at:
+>> 
+>>       /Library/Frameworks/R.framework/Resources/etc/Makeconf
+>> 
+>>   for more information on where the default values for compilation flags
+>>   come from.
+>> 
+>>   Note that setting the above will probably break compilation for other
+>>   packages that depend on headers being located in /usr/local/include;
+>>   if that is indeed the case your main recourse would be to clean up
+>>   /usr/local/include, or find a way to explicitly include your system
+>>   headers before /usr/local/include.
+>> 
+>>   As an aside, the Makevars variables prefixed with PKG_ are normally
+>>   reserved for use by package authors (in their own src/Makevars); you
+>>   normally shouldn't try to set or override those. See in R-exts:
+>> 
+>>   https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-Makevars
+>> 
+>>   for more details.
+>> 
+>>   Best,
+>>   Kevin
+>> 
+>>   On Sun, May 3, 2020 at 10:17 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>>> 
+>>> It was a good suggestion. I went back to installing R 4.0 as you suggested. In Rstudio, which I think
+>>> 
+>>> uses whatever R happens to be currently installed, I get into
+>>> 
+>>> a similar rcpp issue whenever I say “y” to compiling packages from source. There seems
+>>> 
+>>> to be consistent disconnect of R finding certain files when compilation with
+>>> 
+>>> clang is required.
+>>> 
+>>> 
+>>> 
+>>> …………
+>>> 
+>>> 
+>>> 
+>>> clang -mmacosx-version-min=10.13 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include  -I/usr/local/include   -fPIC  -Wall -g -O2  -c capture.c -o capture.o
+>>> 
+>>> In file included from capture.c:1:
+>>> 
+>>> In file included from /Library/Frameworks/R.framework/Resources/include/Rinternals.h:44:
+>>> 
+>>> In file included from /Library/Frameworks/R.framework/Resources/include/R_ext/Arith.h:41:
+>>> 
+>>> In file included from /usr/local/include/math.h:8:
+>>> 
+>>> In file included from /usr/local/include/features.h:10:
+>>> 
+>>> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+>>> 
+>>> #include "config.h"
+>>> 
+>>>        ^~~~~~~~~~
+>>> 
+>>> 1 error generated.
+>>> 
+>>> make: *** [capture.o] Error 1
+>>> 
+>>> ERROR: compilation failed for package ‘rlang’
+>>> 
+>>> 
+>>> 
+>>> ………………….
+>>> 
+>>> 
+>>> 
+>>> From: Carl Ganz <carlganz at gmail.com>
+>>> Date: Sunday, May 3, 2020 at 12:04 PM
+>>> To: Paul Fishwick <metaphorz at gmail.com>
+>>> Cc: <rcpp-devel at lists.r-forge.r-project.org>
+>>> Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+>>> 
+>>> 
+>>> 
+>>> This is probably beyond my understanding at this point, but the solution I offered worked for me with R 4.0 and it looks like this example is R 3.6
+>>> 
+>>> 
+>>> 
+>>> I vaguely remember some issues with interaction between older R version and newer Xcode 11.4.1 so moving to R 4 might help
+>>> 
+>>> 
+>>> 
+>>>> On Sun, May 3, 2020 at 9:25 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>>> 
+>>> Carl
+>>> 
+>>> First, thank you for this quick tip! I had no ~/.R directory and Makevars didn’t exist when I searched
+>>> 
+>>> for it in Finder. So, I made the directdory ~/.R and then added a new file “Makevars” to that directory.
+>>> 
+>>> I edited this file to add your PKG_CPPFLAGS:
+>>> 
+>>> 
+>>> 
+>>> (base) <hostname>-5:.R paul$ more Makevars
+>>> 
+>>> PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+>>> 
+>>> 
+>>> 
+>>> Now I get another sequence of compiler errors. I’ll include only the first several lines:
+>>> 
+>>> 
+>>> 
+>>> ……….
+>>> 
+>>> 
+>>> 
+>>> In file included from fileb6e52d3a23c3.cpp:1:
+>>> 
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+>>> 
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+>>> 
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+>>> 
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+>>> 
+>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:317:9: error: no member named 'signbit' in the global namespace
+>>> 
+>>> using ::signbit;
+>>> 
+>>>     ~~^
+>>> 
+>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:318:9: error: no member named 'fpclassify' in the global namespace
+>>> 
+>>> using ::fpclassify;
+>>> 
+>>>     ~~^
+>>> 
+>>> /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:319:9: error: no member named 'isfinite' in the global namespace; did you mean 'finite'?
+>>> 
+>>> using ::isfinite;
+>>> 
+>>>     ~~^
+>>> 
+>>> /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/math.h:749:12: note: 'finite' declared here
+>>> 
+>>> extern int finite(double)
+>>> 
+>>>          ^
+>>> 
+>>> 
+>>> 
+>>> From: Carl Ganz <carlganz at gmail.com>
+>>> Date: Sunday, May 3, 2020 at 11:02 AM
+>>> To: Paul Fishwick <metaphorz at gmail.com>
+>>> Cc: <rcpp-devel at lists.r-forge.r-project.org>
+>>> Subject: Re: [Rcpp-devel] Cannot run rcpp due to missing include file(s)
+>>> 
+>>> 
+>>> 
+>>> I experienced similar issues on Mac and was able to fix by adding PKG_CPPFLAGS=-I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include to my .R/Makevars
+>>> 
+>>> 
+>>> 
+>>> My understanding is that Mac no longer uses the /usr/local/include so you need to point it to the usr/include in the Developer SDK folder
+>>> 
+>>> 
+>>> 
+>>>> On Sun, May 3, 2020 at 8:59 AM Paul Fishwick <metaphorz at gmail.com> wrote:
+>>> 
+>>> 
+>>> 
+>>> 
+>>> System: Mac OSX 11 (Catalina), Rstudio with R version 3.6.3 (but have also tried 4.0 and 3.3),
+>>> 
+>>> Xcode version 11.4.1
+>>> 
+>>> 
+>>> 
+>>> Went to:  http://adv-r.had.co.nz/Rcpp.html#rcpp-intro
+>>> 
+>>> 
+>>> 
+>>> and tried library(rcpp) which worked fine because I previously had installed the rcpp package.
+>>> 
+>>> 
+>>> 
+>>> The following yields an error in finding config.h. I did a "find" on config.h and sure enough it is not
+>>> 
+>>> in the clang++ -I directory references. Here is what I have tried:
+>>> 
+>>> 
+>>> 
+>>> Installing Xcode's command line tools (which were installed using xcode-select --install)
+>>> 
+>>> Also, downloaded and installed the version of clang8 and gfortran6.1 from:
+>>> 
+>>> 
+>>> 
+>>> https://cran.r-project.org/bin/macosx/tools/
+>>> 
+>>> 
+>>> 
+>>> The following error occurs when I try this rcpp example from Hadley but it also happens whenever
+>>> 
+>>> I try to install an R package from source. The compile fails due to not finding some include file.
+>>> 
+>>> 
+>>> 
+>>> I would have thought that installing clang8 would have also included the proper include (.h) file directories
+>>> 
+>>> with their contents needed by R.
+>>> 
+>>> 
+>>> 
+>>> Is there something I am missing below? Thank you.
+>>> 
+>>> 
+>>> 
+>>>> library(Rcpp)
+>>>> cppFunction('int add(int x, int y, int z) {
+>>> +   int sum = x + y + z;
+>>> +   return sum;
+>>> + }')
+>>> In file included from fileb6e52d3a23c3.cpp:1:
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp.h:27:
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/RcppCommon.h:29:
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/r/headers.h:67:
+>>> In file included from /Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include/Rcpp/platform/compiler.h:100:
+>>> In file included from /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../include/c++/v1/cmath:304:
+>>> In file included from /usr/local/include/math.h:8:
+>>> In file included from /usr/local/include/features.h:10:
+>>> /usr/local/include/forwards.h:10:10: fatal error: 'config.h' file not found
+>>> #include "config.h"
+>>>        ^~~~~~~~~~
+>>> 1 error generated.
+>>> make: *** [fileb6e52d3a23c3.o] Error 1
+>>> clang++ -std=gnu++11 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG   -I"/Library/Frameworks/R.framework/Versions/3.6/Resources/library/Rcpp/include" -I"/private/var/folders/bt/1gd00p5s6n19m_bgh9b04gxc0000gp/T/RtmpRRyaky/sourceCpp-x86_64-apple-darwin15.6.0-1.0.4" -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk -I/usr/local/include  -fPIC  -Wall -g -O2  -c fileb6e52d3a23c3.cpp -o fileb6e52d3a23c3.o
+>>> Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir = cacheDir,  :
+>>> Error 1 occurred building shared library.
+>>>> 
+>>> 
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> 
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> 
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200504/96d45529/attachment-0001.html>
+
+From edd at debian.org  Sat May 16 16:03:15 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 16 May 2020 09:03:15 -0500
+Subject: [Rcpp-devel] [ANN] New release RcppArmadillo 0.9.880.1.0 on drat
+Message-ID: <24255.62115.839494.68935@rob.eddelbuettel.com>
+
+
+Conrad made a new Armadillo release, which I packaged up and tested as usual
+against all reverse dependencies.  It has been submitted to CRAN and should
+appear in the next little while, in the meantime it is also available from
+the usual Rcpp drat repo.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From avraham.adler at gmail.com  Sun May 24 22:25:42 2020
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Sun, 24 May 2020 20:25:42 +0000
+Subject: [Rcpp-devel] Rcpp::traits::is_inifinite - PosInf vs. NegInf
+Message-ID: <CAL6gwnKpU6fhcnmayKs+PQ0CbLqM9NRi4LjvNNvMtZd7YH120g@mail.gmail.com>
+
+As I was updating one of my packages (lamW), CRAN's reverse dependency
+tests caught an error of my own making. For consistency, I was trying
+to remove calls to std::numeric_limits and replace them with R magic
+words (like R_NaN instead of
+std::numeric_limits<double>::quiet_NaN()).
+
+One of the changes I made was in a test for PosInf FROM:
+
+if (x == std::numeric_limits<double>::infinity()) {
+  result = std::numeric_limits<double>::infinity();
+}
+
+TO
+
+if (Rcpp::traits::is_infinite<REALSXP>(x)) {
+ result = R_PosInf;
+}
+
+The error, of course, is that NegInf is infinite too. My most
+immediate question is which is preferable (speed, efficiency,
+consistency, etc.). To revert back to checking equality using
+std::numeric_limits or to use a compound if
+(Rcpp::traits::is_infinite<REALSXP>(x) && x > 0.0)?
+
+More generally, would it be of values to have sugar functions for
+checking for PosInf vs. NegInf, or would that end up being a call to
+std::numeric_limits anyway?
+
+As always, thanks to Dirk, Romain, JJ, Kevin, and everyone!
+
+Thank you,
+
+Avi
+
+From kevinushey at gmail.com  Mon May 25 19:19:02 2020
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Mon, 25 May 2020 10:19:02 -0700
+Subject: [Rcpp-devel] Rcpp::traits::is_inifinite - PosInf vs. NegInf
+In-Reply-To: <CAL6gwnKpU6fhcnmayKs+PQ0CbLqM9NRi4LjvNNvMtZd7YH120g@mail.gmail.com>
+References: <CAL6gwnKpU6fhcnmayKs+PQ0CbLqM9NRi4LjvNNvMtZd7YH120g@mail.gmail.com>
+Message-ID: <CAJXgQP3wUUOm5_eFWbcs46n0KG5QuaVjrYRqLxZgEee5wHEuEg@mail.gmail.com>
+
+FWIW, the implementation of of is_finite lives here:
+
+https://github.com/RcppCore/Rcpp/blob/b1254701a899cb187f9a6917cb8d18c7f93290c7/inst/include/Rcpp/traits/is_infinite.h#L34-L37
+
+I would recommend checking equality directly against the R constants
+`R_PosInf` and `R_NegInf`.
+
+As for whether this would be useful to have directly in Rcpp, it wouldn't
+hurt, but I also don't see a great need since the existing R API suffices
+here (IMO).
+
+Best,
+Kevin
+
+On Sun, May 24, 2020 at 1:26 PM Avraham Adler <avraham.adler at gmail.com>
+wrote:
+
+> As I was updating one of my packages (lamW), CRAN's reverse dependency
+> tests caught an error of my own making. For consistency, I was trying
+> to remove calls to std::numeric_limits and replace them with R magic
+> words (like R_NaN instead of
+> std::numeric_limits<double>::quiet_NaN()).
+>
+> One of the changes I made was in a test for PosInf FROM:
+>
+> if (x == std::numeric_limits<double>::infinity()) {
+>   result = std::numeric_limits<double>::infinity();
+> }
+>
+> TO
+>
+> if (Rcpp::traits::is_infinite<REALSXP>(x)) {
+>  result = R_PosInf;
+> }
+>
+> The error, of course, is that NegInf is infinite too. My most
+> immediate question is which is preferable (speed, efficiency,
+> consistency, etc.). To revert back to checking equality using
+> std::numeric_limits or to use a compound if
+> (Rcpp::traits::is_infinite<REALSXP>(x) && x > 0.0)?
+>
+> More generally, would it be of values to have sugar functions for
+> checking for PosInf vs. NegInf, or would that end up being a call to
+> std::numeric_limits anyway?
+>
+> As always, thanks to Dirk, Romain, JJ, Kevin, and everyone!
+>
+> Thank you,
+>
+> Avi
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200525/770e13b9/attachment.html>
+

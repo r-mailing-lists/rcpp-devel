@@ -1,0 +1,1618 @@
+From ss5505 at cumc.columbia.edu  Fri Feb  1 17:22:23 2019
+From: ss5505 at cumc.columbia.edu (Sariya, Sanjeev)
+Date: Fri, 1 Feb 2019 16:22:23 +0000
+Subject: [Rcpp-devel] stderr@@GLIBC_2.2.5' can not be used when making a
+ shared object; recompile with -fPIC
+Message-ID: <BN6PR02MB230690BC02B451BCB052A97181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+
+Hi devs,
+
+
+
+Platform - Unix
+
+R version 3.4 and 3.5
+
+Errors for -fPIC installation for two packages:
+
+
+
+1)
+
+I'm using r3.5 to install simplexreg on my local as:
+
+
+
+/mnt/mfs/cluster/bin/R-3.5/bin/R  CMD INSTALL -l ./ simplexreg_1.3.tar.gz
+
+When I do it, I get error as follows:
+
+
+
+* installing *source* package 'simplexreg' ...
+
+** package 'simplexreg' successfully unpacked and MD5 sums checked
+
+** libs
+
+g++  -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG -I/gsl/win64/include  -I/usr/local/include   -fpic  -g -O2  -c sim.gee.cpp -o sim.gee.o
+
+g++ -shared -L/usr/local/lib -o simplexreg.so sim.gee.o -L/gsl/win64/lib -lgsl -lgslcblas -lm
+
+/usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used when making a shared object; recompile with -fPIC
+
+/usr/bin/ld: final link failed: Bad value
+
+collect2: error: ld returned 1 exit status
+
+/mnt/mfs/cluster/bin/R-3.5/share/make/shlib.mk:6: recipe for target 'simplexreg.so' failed
+
+make: *** [simplexreg.so] Error 1
+
+ERROR: compilation failed for package 'simplexreg'
+
+
+I get same error even when I try with R 3.4.
+
+2)
+
+
+I'm using r3.5 to install RcppGSL on my local as:
+
+/mnt/mfs/cluster/bin/R-3.5/bin/R CMD INSTALL -l ./ RcppGSL_0.3.6.tar.gz
+
+** libs
+g++  -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG -I/usr/include -I../inst/include -I"/mnt/mfs/cluster/bin/R-3.5/library/Rcpp/include" -I/usr/local/include   -fpic  -g -O2  -c RcppExports.cpp -o RcppExports.o
+g++  -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG -I/usr/include -I../inst/include -I"/mnt/mfs/cluster/bin/R-3.5/library/Rcpp/include" -I/usr/local/include   -fpic  -g -O2  -c fastLm.cpp -o fastLm.o
+gcc -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG -I/usr/include -I../inst/include -I"/mnt/mfs/cluster/bin/R-3.5/library/Rcpp/include" -I/usr/local/include   -fpic  -g -O2  -c init.c -o init.o
+g++  -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG -I/usr/include -I../inst/include -I"/mnt/mfs/cluster/bin/R-3.5/library/Rcpp/include" -I/usr/local/include   -fpic  -g -O2  -c setErrorHandler.cpp -o setErrorHandler.o
+g++ -shared -L/usr/local/lib -o RcppGSL.so RcppExports.o fastLm.o init.o setErrorHandler.o -L/usr/lib/x86_64-linux-gnu -lgsl -lgslcblas -lm
+/usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used when making a shared object; recompile with -fPIC
+/usr/bin/ld: final link failed: Bad value
+collect2: error: ld returned 1 exit status
+/mnt/mfs/cluster/bin/R-3.5/share/make/shlib.mk:6: recipe for target 'RcppGSL.so' failed
+make: *** [RcppGSL.so] Error 1
+ERROR: compilation failed for package 'RcppGSL'
+
+I get the error with R 3.4 too.
+
+May I know how to bypass this error?
+
+Thanks,
+
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190201/a21e4dc1/attachment.html>
+
+From serguei.sokol at gmail.com  Fri Feb  1 17:32:28 2019
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Fri, 1 Feb 2019 17:32:28 +0100
+Subject: [Rcpp-devel] stderr@@GLIBC_2.2.5' can not be used when making a
+ shared object; recompile with -fPIC
+In-Reply-To: <BN6PR02MB230690BC02B451BCB052A97181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+References: <BN6PR02MB230690BC02B451BCB052A97181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+Message-ID: <2c3799d0-1ab2-6dba-e9f9-26b2237dd996@gmail.com>
+
+On 01/02/2019 17:22, Sariya, Sanjeev wrote:
+> Hi devs,
+> 
+> Platform ? Unix
+> 
+> R version 3.4 and 3.5
+> 
+> Errors for ?fPIC installation for two packages:
+> 
+> 1)
+> 
+> I?m using r3.5 to install simplexreg on my local as:
+> 
+> /mnt/mfs/cluster/bin/R-3.5/bin/R? CMD INSTALL -l ./ simplexreg_1.3.tar.gz
+> 
+> When I do it, I get error as follows:
+> 
+> * installing *source* package ?simplexreg? ...
+> 
+> ** package ?simplexreg? successfully unpacked and MD5 sums checked
+> 
+> ** libs
+> 
+> g++? -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG 
+> -I/gsl/win64/include? -I/usr/local/include?? -fpic? -g -O2? -c 
+> sim.gee.cpp -o sim.gee.o
+> 
+> g++ -shared -L/usr/local/lib -o simplexreg.so sim.gee.o -L/gsl/win64/lib 
+> -lgsl -lgslcblas -lm
+> 
+> /usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation 
+> R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used when 
+> making a shared object; recompile with -fPIC
+> 
+...
+> 
+> May I know how to bypass this error?
+Try to do what error message says: "recompile with -fPIC" (you have 
+-fpic instead). It is safer to get the exact syntax from
+$ R CMD config CXXPICFLAGS
+-fPIC
+
+Serguei.
+
+From edd at debian.org  Fri Feb  1 17:32:56 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 1 Feb 2019 10:32:56 -0600
+Subject: [Rcpp-devel] stderr@@GLIBC_2.2.5' can not be used when making a
+ shared object; recompile with -fPIC
+In-Reply-To: <BN6PR02MB230690BC02B451BCB052A97181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+References: <BN6PR02MB230690BC02B451BCB052A97181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+Message-ID: <23636.29880.896823.274247@rob.eddelbuettel.com>
+
+
+On 1 February 2019 at 16:22, Sariya, Sanjeev wrote:
+| /usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used when making a shared object; recompile with -fPIC
+
+You are trying to build a shared library object: the code from your package.
+Linking such shared library code requires appropriately built external
+libraries. The error tells you that this version of libgslcblas is NOT
+appropriate, and also tells you how correct this: add -fPIC to _its_
+compilation.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From ss5505 at cumc.columbia.edu  Fri Feb  1 18:53:53 2019
+From: ss5505 at cumc.columbia.edu (Sariya, Sanjeev)
+Date: Fri, 1 Feb 2019 17:53:53 +0000
+Subject: [Rcpp-devel] stderr@@GLIBC_2.2.5' can not be used when making a
+ shared object; recompile with -fPIC
+In-Reply-To: <2c3799d0-1ab2-6dba-e9f9-26b2237dd996@gmail.com>
+References: <BN6PR02MB230690BC02B451BCB052A97181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+ <2c3799d0-1ab2-6dba-e9f9-26b2237dd996@gmail.com>
+Message-ID: <BN6PR02MB2306CB26086DA2B79B12A32181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+
+I'd requested IT/cluster person of my floor with this and see if could assist with error.
+
+It still fails after changing to "-fPIC" option. I changed the variable suggested by the developer, not sure what other variable to change.
+
+##
+
+* installing *source* package ?simplexreg? ...
+** package ?simplexreg? successfully unpacked and MD5 sums checked
+** libs
+/usr/bin/g++-4.8 -I/mnt/mfs/cluster/bin/R-3.4/include -DNDEBUG -I/gsl/win64/include  -I/usr/local/include   -fPIC  -g -O2  -c sim.gee.cpp -o sim.gee.o
+/usr/bin/g++-4.8 -shared -L/usr/local/lib -o simplexreg.so sim.gee.o -L/gsl/win64/lib -lgsl -lgslcblas -lm
+/usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used when making a shared object; recompile with -fPIC
+/usr/bin/ld: final link failed: Bad value
+collect2: error: ld returned 1 exit status
+/mnt/mfs/cluster/bin/R-3.4/share/make/shlib.mk:6: recipe for target 'simplexreg.so' failed
+make: *** [simplexreg.so] Error 1
+ERROR: compilation failed for package ?simplexreg?
+* removing ?/mnt/mfs/cluster/bin/R-3.4/library/simplexreg?
+
+The downloaded source packages are in
+    ?/tmp/RtmpAe9HMl/downloaded_packages?
+Updating HTML index of packages in '.Library'
+Making 'packages.html' ... done
+Warning message:
+In install.packages("simplexreg") :
+  installation of package ?simplexreg? had non-zero exit status
+##
+
+Thanks
+
+
+
+---
+
+
+-----Original Message-----
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> On Behalf Of Serguei Sokol
+Sent: Friday, February 1, 2019 11:32 AM
+To: rcpp-devel at lists.r-forge.r-project.org
+Subject: Re: [Rcpp-devel] stderr@@GLIBC_2.2.5' can not be used when making a shared object; recompile with -fPIC
+
+On 01/02/2019 17:22, Sariya, Sanjeev wrote:
+> Hi devs,
+> 
+> Platform ? Unix
+> 
+> R version 3.4 and 3.5
+> 
+> Errors for ?fPIC installation for two packages:
+> 
+> 1)
+> 
+> I?m using r3.5 to install simplexreg on my local as:
+> 
+> /mnt/mfs/cluster/bin/R-3.5/bin/R? CMD INSTALL -l ./ 
+> simplexreg_1.3.tar.gz
+> 
+> When I do it, I get error as follows:
+> 
+> * installing *source* package ?simplexreg? ...
+> 
+> ** package ?simplexreg? successfully unpacked and MD5 sums checked
+> 
+> ** libs
+> 
+> g++? -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG
+> -I/gsl/win64/include? -I/usr/local/include?? -fpic? -g -O2? -c 
+> sim.gee.cpp -o sim.gee.o
+> 
+> g++ -shared -L/usr/local/lib -o simplexreg.so sim.gee.o 
+> g++ -L/gsl/win64/lib
+> -lgsl -lgslcblas -lm
+> 
+> /usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation
+> R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used 
+> when making a shared object; recompile with -fPIC
+> 
+...
+> 
+> May I know how to bypass this error?
+Try to do what error message says: "recompile with -fPIC" (you have -fpic instead). It is safer to get the exact syntax from $ R CMD config CXXPICFLAGS -fPIC
+
+Serguei.
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://urldefense.proofpoint.com/v2/url?u=https-3A__lists.r-2Dforge.r-2Dproject.org_cgi-2Dbin_mailman_listinfo_rcpp-2Ddevel&d=DwIGaQ&c=G2MiLlal7SXE3PeSnG8W6_JBU6FcdVjSsBSbw6gcR0U&r=rDmT5PX8EcARMO0vn_gzxM5_ETquAxRXGQ9goqf94_I&m=WPEqcxOt_kOucDCNIFifRu618CnhlQMjEyoyIiJRi-w&s=Ja3gdUYYGsZjiJyNsKirbSvCwqLG9vidkeIpeixLV84&e=
+
+From qkou at qkou.info  Fri Feb  1 19:04:02 2019
+From: qkou at qkou.info (Qiang Kou)
+Date: Fri, 1 Feb 2019 18:04:02 +0000
+Subject: [Rcpp-devel] stderr@@GLIBC_2.2.5' can not be used when making a
+ shared object; recompile with -fPIC
+In-Reply-To: <BN6PR02MB2306CB26086DA2B79B12A32181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+References: <BN6PR02MB230690BC02B451BCB052A97181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+ <2c3799d0-1ab2-6dba-e9f9-26b2237dd996@gmail.com>
+ <BN6PR02MB2306CB26086DA2B79B12A32181920@BN6PR02MB2306.namprd02.prod.outlook.com>
+Message-ID: <BYAPR07MB4215BEA4F3D3A2F0F6A2803FFF920@BYAPR07MB4215.namprd07.prod.outlook.com>
+
+Hi, Sariya,
+
+I think you need to recompile the GSL library with "-fPIC".
+
+Best,
+
+KK
+
+?On 2/1/19, 9:54 AM, "Rcpp-devel on behalf of Sariya, Sanjeev" <rcpp-devel-bounces at lists.r-forge.r-project.org on behalf of ss5505 at cumc.columbia.edu> wrote:
+
+    I'd requested IT/cluster person of my floor with this and see if could assist with error.
+    
+    It still fails after changing to "-fPIC" option. I changed the variable suggested by the developer, not sure what other variable to change.
+    
+    ##
+    
+    * installing *source* package ?simplexreg? ...
+    ** package ?simplexreg? successfully unpacked and MD5 sums checked
+    ** libs
+    /usr/bin/g++-4.8 -I/mnt/mfs/cluster/bin/R-3.4/include -DNDEBUG -I/gsl/win64/include  -I/usr/local/include   -fPIC  -g -O2  -c sim.gee.cpp -o sim.gee.o
+    /usr/bin/g++-4.8 -shared -L/usr/local/lib -o simplexreg.so sim.gee.o -L/gsl/win64/lib -lgsl -lgslcblas -lm
+    /usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used when making a shared object; recompile with -fPIC
+    /usr/bin/ld: final link failed: Bad value
+    collect2: error: ld returned 1 exit status
+    /mnt/mfs/cluster/bin/R-3.4/share/make/shlib.mk:6: recipe for target 'simplexreg.so' failed
+    make: *** [simplexreg.so] Error 1
+    ERROR: compilation failed for package ?simplexreg?
+    * removing ?/mnt/mfs/cluster/bin/R-3.4/library/simplexreg?
+    
+    The downloaded source packages are in
+        ?/tmp/RtmpAe9HMl/downloaded_packages?
+    Updating HTML index of packages in '.Library'
+    Making 'packages.html' ... done
+    Warning message:
+    In install.packages("simplexreg") :
+      installation of package ?simplexreg? had non-zero exit status
+    ##
+    
+    Thanks
+    
+    
+    
+    ---
+    
+    
+    -----Original Message-----
+    From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> On Behalf Of Serguei Sokol
+    Sent: Friday, February 1, 2019 11:32 AM
+    To: rcpp-devel at lists.r-forge.r-project.org
+    Subject: Re: [Rcpp-devel] stderr@@GLIBC_2.2.5' can not be used when making a shared object; recompile with -fPIC
+    
+    On 01/02/2019 17:22, Sariya, Sanjeev wrote:
+    > Hi devs,
+    > 
+    > Platform ? Unix
+    > 
+    > R version 3.4 and 3.5
+    > 
+    > Errors for ?fPIC installation for two packages:
+    > 
+    > 1)
+    > 
+    > I?m using r3.5 to install simplexreg on my local as:
+    > 
+    > /mnt/mfs/cluster/bin/R-3.5/bin/R  CMD INSTALL -l ./ 
+    > simplexreg_1.3.tar.gz
+    > 
+    > When I do it, I get error as follows:
+    > 
+    > * installing *source* package ?simplexreg? ...
+    > 
+    > ** package ?simplexreg? successfully unpacked and MD5 sums checked
+    > 
+    > ** libs
+    > 
+    > g++  -I"/mnt/mfs/cluster/bin/R-3.5/include" -DNDEBUG
+    > -I/gsl/win64/include  -I/usr/local/include   -fpic  -g -O2  -c 
+    > sim.gee.cpp -o sim.gee.o
+    > 
+    > g++ -shared -L/usr/local/lib -o simplexreg.so sim.gee.o 
+    > g++ -L/gsl/win64/lib
+    > -lgsl -lgslcblas -lm
+    > 
+    > /usr/bin/ld: /usr/local/lib/libgslcblas.a(xerbla.o): relocation
+    > R_X86_64_PC32 against symbol `stderr@@GLIBC_2.2.5' can not be used 
+    > when making a shared object; recompile with -fPIC
+    > 
+    ...
+    > 
+    > May I know how to bypass this error?
+    Try to do what error message says: "recompile with -fPIC" (you have -fpic instead). It is safer to get the exact syntax from $ R CMD config CXXPICFLAGS -fPIC
+    
+    Serguei.
+    _______________________________________________
+    Rcpp-devel mailing list
+    Rcpp-devel at lists.r-forge.r-project.org
+    https://urldefense.proofpoint.com/v2/url?u=https-3A__lists.r-2Dforge.r-2Dproject.org_cgi-2Dbin_mailman_listinfo_rcpp-2Ddevel&d=DwIGaQ&c=G2MiLlal7SXE3PeSnG8W6_JBU6FcdVjSsBSbw6gcR0U&r=rDmT5PX8EcARMO0vn_gzxM5_ETquAxRXGQ9goqf94_I&m=WPEqcxOt_kOucDCNIFifRu618CnhlQMjEyoyIiJRi-w&s=Ja3gdUYYGsZjiJyNsKirbSvCwqLG9vidkeIpeixLV84&e=
+    _______________________________________________
+    Rcpp-devel mailing list
+    Rcpp-devel at lists.r-forge.r-project.org
+    https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From heavy.watal at gmail.com  Mon Feb  4 08:45:39 2019
+From: heavy.watal at gmail.com (Watal M. Iwasaki)
+Date: Mon, 4 Feb 2019 16:45:39 +0900
+Subject: [Rcpp-devel] Export only C function symbols?
+Message-ID: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+
+Hi all,
+
+Adding `[[Rcpp::export]]` tag to a package function leads to the following
+outcomes:
+
+1. Definition of "RcppExport SEXP _mypkg_myfun()" in RcppExports.cpp (hence
+in dll)
+2. Definition of "myfun() {.Call(`_mypkg_myfun`)}" in RcppExports.R
+
+It is totally fine. Just out of curiosity, is it possible to suppress the
+latter reaction and get only `_mypkg_myfun` for .Call-ing?
+
+Best,
+Watal M. Iwasaki
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190204/5c97a0ac/attachment.html>
+
+From edd at debian.org  Mon Feb  4 12:49:43 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 4 Feb 2019 05:49:43 -0600
+Subject: [Rcpp-devel] Export only C function symbols?
+In-Reply-To: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+References: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+Message-ID: <23640.9943.911797.843683@rob.eddelbuettel.com>
+
+
+On 4 February 2019 at 16:45, Watal M. Iwasaki wrote:
+| Hi all,
+| 
+| Adding `[[Rcpp::export]]` tag to a package function leads to the following
+| outcomes:
+| 
+| 1. Definition of "RcppExport SEXP _mypkg_myfun()" in RcppExports.cpp (hence
+| in dll)
+| 2. Definition of "myfun() {.Call(`_mypkg_myfun`)}" in RcppExports.R
+| 
+| It is totally fine. Just out of curiosity, is it possible to suppress the
+| latter reaction and get only `_mypkg_myfun` for .Call-ing?
+
+Not currently, and why would you want that?
+
+All those R functions do really is set up .Call() for you -- as well as we
+can with proper registration and no lookup.
+
+You could post-process and remove RcppExports.R, and you could also use Rcpp
+and all it does without ever calling compileAttributes().
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From heavy.watal at gmail.com  Mon Feb  4 13:44:41 2019
+From: heavy.watal at gmail.com (Watal M. Iwasaki)
+Date: Mon, 4 Feb 2019 21:44:41 +0900
+Subject: [Rcpp-devel] Export only C function symbols?
+In-Reply-To: <23640.9943.911797.843683@rob.eddelbuettel.com>
+References: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+ <23640.9943.911797.843683@rob.eddelbuettel.com>
+Message-ID: <CAH9rQpbfi39foD5BPamssvwffegFw-c1V+fmzVLiTSKoFb+xQA@mail.gmail.com>
+
+Dear Dirk,
+
+Thank you for the prompt answer.
+Currently all the C++ functions with [[Rcpp::export]] tag are exposed to me
+by `devtools::load_all()` in the dev process. But some of them are only
+useful in other functions and undesired in the interactive environment. So
+I wondered if by any chance it is possible to control the level of
+exposure. It is not a big problem. Good to know the answer is no.
+
+Best,
+Watal
+
+
+On Mon, Feb 4, 2019 at 8:49 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 4 February 2019 at 16:45, Watal M. Iwasaki wrote:
+> | Hi all,
+> |
+> | Adding `[[Rcpp::export]]` tag to a package function leads to the
+> following
+> | outcomes:
+> |
+> | 1. Definition of "RcppExport SEXP _mypkg_myfun()" in RcppExports.cpp
+> (hence
+> | in dll)
+> | 2. Definition of "myfun() {.Call(`_mypkg_myfun`)}" in RcppExports.R
+> |
+> | It is totally fine. Just out of curiosity, is it possible to suppress the
+> | latter reaction and get only `_mypkg_myfun` for .Call-ing?
+>
+> Not currently, and why would you want that?
+>
+> All those R functions do really is set up .Call() for you -- as well as we
+> can with proper registration and no lookup.
+>
+> You could post-process and remove RcppExports.R, and you could also use
+> Rcpp
+> and all it does without ever calling compileAttributes().
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+-- 
+Watal M. Iwasaki / ?? ?
+SOKENDAI, The Graduate University for Advanced Studies,
+Hayama, Kanagawa 240-0193, Japan
++81-46-858-1576
+https://heavywatal.github.io/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190204/209c4e10/attachment.html>
+
+From iucar at fedoraproject.org  Mon Feb  4 14:42:35 2019
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 4 Feb 2019 14:42:35 +0100
+Subject: [Rcpp-devel] Export only C function symbols?
+In-Reply-To: <CAH9rQpbfi39foD5BPamssvwffegFw-c1V+fmzVLiTSKoFb+xQA@mail.gmail.com>
+References: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+ <23640.9943.911797.843683@rob.eddelbuettel.com>
+ <CAH9rQpbfi39foD5BPamssvwffegFw-c1V+fmzVLiTSKoFb+xQA@mail.gmail.com>
+Message-ID: <CALEXWq3+xP+SqnOHRE1q3fqoDRyHLbvczVf7YU7OcqFQLco+kw@mail.gmail.com>
+
+On Mon, 4 Feb 2019 at 13:45, Watal M. Iwasaki <heavy.watal at gmail.com> wrote:
+>
+> Dear Dirk,
+>
+> Thank you for the prompt answer.
+> Currently all the C++ functions with [[Rcpp::export]] tag are exposed to me by `devtools::load_all()` in the dev process. But some of them are only useful in other functions and undesired in the interactive environment. So I wondered if by any chance it is possible to control the level of exposure. It is not a big problem. Good to know the answer is no.
+
+The "level of exposure" is controlled by the NAMESPACE in a package,
+not by Rcpp. And in this case, by devtools. This is what I got from
+the function's help:
+
+export_all     If TRUE (the default), export all objects. If FALSE,
+export only the objects that are listed as exports in the NAMESPACE
+file.
+
+Regards,
+I?aki
+
+From heavy.watal at gmail.com  Mon Feb  4 14:59:21 2019
+From: heavy.watal at gmail.com (Watal M. Iwasaki)
+Date: Mon, 4 Feb 2019 22:59:21 +0900
+Subject: [Rcpp-devel] Export only C function symbols?
+In-Reply-To: <CALEXWq3+xP+SqnOHRE1q3fqoDRyHLbvczVf7YU7OcqFQLco+kw@mail.gmail.com>
+References: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+ <23640.9943.911797.843683@rob.eddelbuettel.com>
+ <CAH9rQpbfi39foD5BPamssvwffegFw-c1V+fmzVLiTSKoFb+xQA@mail.gmail.com>
+ <CALEXWq3+xP+SqnOHRE1q3fqoDRyHLbvczVf7YU7OcqFQLco+kw@mail.gmail.com>
+Message-ID: <CAH9rQpb1PFgy+LMw0k55TT1B3E51iVOeNUOvviTrv2tFr9nyNg@mail.gmail.com>
+
+Dear I?aki,
+
+Thanks for the comments. But I know the switch you mentioned. The levels I
+was talking are within the unexported functions. Here are my imaginary
+levels:
+
+1. Listed in NAMESPACE; always visible
+2. Not listed in NAMESPACE; exposed by load_all(export_all = TRUE) or :::
+3. Not listed in NAMESPACE; only accessible from .Call()
+
+I hope this helps clarify the (no) problem.
+
+Best,
+Watal
+
+On Mon, Feb 4, 2019 at 10:42 PM I?aki Ucar <iucar at fedoraproject.org> wrote:
+
+> On Mon, 4 Feb 2019 at 13:45, Watal M. Iwasaki <heavy.watal at gmail.com>
+> wrote:
+> >
+> > Dear Dirk,
+> >
+> > Thank you for the prompt answer.
+> > Currently all the C++ functions with [[Rcpp::export]] tag are exposed to
+> me by `devtools::load_all()` in the dev process. But some of them are only
+> useful in other functions and undesired in the interactive environment. So
+> I wondered if by any chance it is possible to control the level of
+> exposure. It is not a big problem. Good to know the answer is no.
+>
+> The "level of exposure" is controlled by the NAMESPACE in a package,
+> not by Rcpp. And in this case, by devtools. This is what I got from
+> the function's help:
+>
+> export_all     If TRUE (the default), export all objects. If FALSE,
+> export only the objects that are listed as exports in the NAMESPACE
+> file.
+>
+> Regards,
+> I?aki
+>
+
+
+-- 
+Watal M. Iwasaki / ?? ?
+SOKENDAI, The Graduate University for Advanced Studies,
+Hayama, Kanagawa 240-0193, Japan
++81-46-858-1576
+https://heavywatal.github.io/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190204/c8038c2a/attachment.html>
+
+From iucar at fedoraproject.org  Mon Feb  4 15:30:51 2019
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 4 Feb 2019 15:30:51 +0100
+Subject: [Rcpp-devel] Export only C function symbols?
+In-Reply-To: <CAH9rQpb1PFgy+LMw0k55TT1B3E51iVOeNUOvviTrv2tFr9nyNg@mail.gmail.com>
+References: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+ <23640.9943.911797.843683@rob.eddelbuettel.com>
+ <CAH9rQpbfi39foD5BPamssvwffegFw-c1V+fmzVLiTSKoFb+xQA@mail.gmail.com>
+ <CALEXWq3+xP+SqnOHRE1q3fqoDRyHLbvczVf7YU7OcqFQLco+kw@mail.gmail.com>
+ <CAH9rQpb1PFgy+LMw0k55TT1B3E51iVOeNUOvviTrv2tFr9nyNg@mail.gmail.com>
+Message-ID: <CALEXWq35M61PYPKsb7vgk+buW68b5TnYuAR5RQtJfQ6J-V=YuA@mail.gmail.com>
+
+On Mon, 4 Feb 2019 at 14:59, Watal M. Iwasaki <heavy.watal at gmail.com> wrote:
+>
+> Dear I?aki,
+>
+> Thanks for the comments. But I know the switch you mentioned. The levels I was talking are within the unexported functions. Here are my imaginary levels:
+>
+> 1. Listed in NAMESPACE; always visible
+> 2. Not listed in NAMESPACE; exposed by load_all(export_all = TRUE) or :::
+> 3. Not listed in NAMESPACE; only accessible from .Call()
+
+Compiled functions are only accessible from .Call if you don't use
+symbol registration (see 5.4 Registering native routines). But AFAIK,
+this is required by CRAN, and thus Rcpp automatically generates symbol
+registration for you.
+
+I?aki
+
+From heavy.watal at gmail.com  Mon Feb  4 15:55:00 2019
+From: heavy.watal at gmail.com (Watal M. Iwasaki)
+Date: Mon, 4 Feb 2019 23:55:00 +0900
+Subject: [Rcpp-devel] Export only C function symbols?
+In-Reply-To: <CALEXWq35M61PYPKsb7vgk+buW68b5TnYuAR5RQtJfQ6J-V=YuA@mail.gmail.com>
+References: <CAH9rQpapdTBU+FGK760OGJ=FoBbQPCaVkEPiRE7fiqjojVWGMA@mail.gmail.com>
+ <23640.9943.911797.843683@rob.eddelbuettel.com>
+ <CAH9rQpbfi39foD5BPamssvwffegFw-c1V+fmzVLiTSKoFb+xQA@mail.gmail.com>
+ <CALEXWq3+xP+SqnOHRE1q3fqoDRyHLbvczVf7YU7OcqFQLco+kw@mail.gmail.com>
+ <CAH9rQpb1PFgy+LMw0k55TT1B3E51iVOeNUOvviTrv2tFr9nyNg@mail.gmail.com>
+ <CALEXWq35M61PYPKsb7vgk+buW68b5TnYuAR5RQtJfQ6J-V=YuA@mail.gmail.com>
+Message-ID: <CAH9rQpZmMAxY31zuuYU1xFhFJvRxorUFekJYz9y65tEAK-SN3Q@mail.gmail.com>
+
+Dear I?aki,
+
+The registration is fine. Besides that, Rcpp creates RcppExports.R and
+defines wrapper R functions to .Call registered functions. My question was
+how to prevent it. Post-processing RcppExports.R is a possible workaround
+suggested by Dirk.
+
+Best,
+Watal
+
+
+On Mon, Feb 4, 2019 at 11:31 PM I?aki Ucar <iucar at fedoraproject.org> wrote:
+
+> On Mon, 4 Feb 2019 at 14:59, Watal M. Iwasaki <heavy.watal at gmail.com>
+> wrote:
+> >
+> > Dear I?aki,
+> >
+> > Thanks for the comments. But I know the switch you mentioned. The levels
+> I was talking are within the unexported functions. Here are my imaginary
+> levels:
+> >
+> > 1. Listed in NAMESPACE; always visible
+> > 2. Not listed in NAMESPACE; exposed by load_all(export_all = TRUE) or :::
+> > 3. Not listed in NAMESPACE; only accessible from .Call()
+>
+> Compiled functions are only accessible from .Call if you don't use
+> symbol registration (see 5.4 Registering native routines). But AFAIK,
+> this is required by CRAN, and thus Rcpp automatically generates symbol
+> registration for you.
+>
+> I?aki
+>
+
+
+-- 
+Watal M. Iwasaki / ?? ?
+SOKENDAI, The Graduate University for Advanced Studies,
+Hayama, Kanagawa 240-0193, Japan
++81-46-858-1576
+https://heavywatal.github.io/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190204/bb47a734/attachment-0001.html>
+
+From barthriley at comcast.net  Tue Feb  5 22:26:44 2019
+From: barthriley at comcast.net (Barth Riley)
+Date: Tue, 5 Feb 2019 15:26:44 -0600
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <20181127153524.737E118510A@r-forge.r-project.org>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+Message-ID: <3191dc62-3733-26ac-1541-49a97b45c163@comcast.net>
+
+I think std:endl should be std::endl
+
+
+Barth
+
+
+
+On 11/27/2018 9:35 AM, Barth Riley wrote:
+>
+> Dear Rcppers
+>
+> I am encountering a problem with Rcout. Even with basic string output, 
+> when I run the function containing the call to Rcout, no output is 
+> generated. Here is a simple example of what I?m trying to do:
+>
+> // [[Rcpp::export]]
+>
+> void testFunc() {
+>
+> ?????????? Rcpp::Rcout << "testFunc begins" << std:endl;
+>
+> ?????????? . . .
+>
+> }
+>
+> My code is part of a package I?m developing, using R 3.51 and Rcpp 
+> 0.12.19. The Rcpp code compiles without a problem.
+>
+> Thanks
+>
+> Barth
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190205/6c85d834/attachment.html>
+
+From edd at debian.org  Tue Feb  5 22:33:11 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 5 Feb 2019 15:33:11 -0600
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <3191dc62-3733-26ac-1541-49a97b45c163@comcast.net>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+ <3191dc62-3733-26ac-1541-49a97b45c163@comcast.net>
+Message-ID: <23642.279.34455.182464@rob.eddelbuettel.com>
+
+
+On 5 February 2019 at 15:26, Barth Riley wrote:
+| I think std:endl should be std::endl
+
+Indeed.
+
+I actually made the same typo a few days ago but as I recall the compiler was
+also pretty clear that I was wrong there and gave me a hint.
+
+Quick check seems to confirm that:
+
+R> library(Rcpp)
+R> cppFunction("bool foo() { Rcpp::Rcout << \"abc\" << std:endl; }")
+file755d734bf516.cpp: In function ?bool foo()?:
+file755d734bf516.cpp:6:41: error: found ?:? in nested-name-specifier, expected ?::?
+ bool foo() { Rcpp::Rcout << "abc" << std:endl; }
+                                         ^
+                                         ::
+file755d734bf516.cpp:6:48: warning: no return statement in function returning non-void [-Wreturn-type]
+ bool foo() { Rcpp::Rcout << "abc" << std:endl; }
+                                                ^
+make: *** [/usr/lib/R/etc/Makeconf:171: file755d734bf516.o] Error 1
+ccache g++ -I"/usr/share/R/include" -DNDEBUG   -I"/usr/local/lib/R/site-library/Rcpp/include" -I"/tmp/RtmpZ8jFZ4/sourceCpp-x86_64-pc-linux-gnu-1.0.0.1"    -fpic  -g -O3 -Wall -pipe -DBOOST_NO_AUTO_PTR -Wno-sign-compare -Wno-parentheses -Wno-maybe-uninitialized  -march=native -c file755d734bf516.cpp -o file755d734bf516.o
+Error in sourceCpp(code = code, env = env, rebuild = rebuild, cacheDir = cacheDir,  : 
+  Error 1 occurred building shared library.
+R> 
+
+
+(As an aside, I really dig how the error messages got better. This is g++
+8.2.0 on Ubuntu 18.10.)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From morgan.emailbox at gmail.com  Sun Feb 10 20:21:01 2019
+From: morgan.emailbox at gmail.com (Morgan Morgan)
+Date: Sun, 10 Feb 2019 19:21:01 +0000
+Subject: [Rcpp-devel] Rcpp - libtorrent
+Message-ID: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+
+Hi All,
+
+I hope you are well.
+
+I wanted to have your view regarding the feasibility of a project.
+
+There is c++ library called libtorrent. I was wondering if it would be
+possible to use Rcpp in order to call some of libtorrent's functionality
+from R.
+
+It seems that there are some python bindings for this library however
+nothing for R.
+
+Do you think it would be something possible? Is it difficult from your
+point of view?
+
+Thank you
+Best regards
+Morgan
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190210/562bdf3e/attachment.html>
+
+From nfultz at gmail.com  Sun Feb 10 22:38:27 2019
+From: nfultz at gmail.com (Neal Fultz)
+Date: Sun, 10 Feb 2019 13:38:27 -0800
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+Message-ID: <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+
+Rcpp should make this very straightforward; assuming you are putting this
+in a package (because why wouldn't you?) you would just need to set some
+flags in src/Makefile so that the external library gets picked up correctly
+by R, and write a few Rcpp wrapper functions for interacting with it.
+
+See also Writing R Extensions for "offical" docs and Dirk's book for plain
+english explanations.
+
+Feel free to share a link eg if you get something up on github - I've
+wanted to share data via torrent before and didn't find a nice solution.
+
+
+
+On Sun, Feb 10, 2019 at 11:21 AM Morgan Morgan <morgan.emailbox at gmail.com>
+wrote:
+
+> Hi All,
+>
+> I hope you are well.
+>
+> I wanted to have your view regarding the feasibility of a project.
+>
+> There is c++ library called libtorrent. I was wondering if it would be
+> possible to use Rcpp in order to call some of libtorrent's functionality
+> from R.
+>
+> It seems that there are some python bindings for this library however
+> nothing for R.
+>
+> Do you think it would be something possible? Is it difficult from your
+> point of view?
+>
+> Thank you
+> Best regards
+> Morgan
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190210/1cbdfa14/attachment.html>
+
+From edd at debian.org  Sun Feb 10 23:05:30 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 10 Feb 2019 16:05:30 -0600
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+Message-ID: <23648.41002.114914.247256@rob.eddelbuettel.com>
+
+
+On 10 February 2019 at 13:38, Neal Fultz wrote:
+| Rcpp should make this very straightforward; assuming you are putting this
+| in a package (because why wouldn't you?) you would just need to set some
+| flags in src/Makefile so that the external library gets picked up correctly
+| by R, and write a few Rcpp wrapper functions for interacting with it.
+
+Yep. Should be straightforward to prototype.  Distribution then has the usual
+problem that you need users to have libtorrent, or do the extra work of
+bundling it with your package.  But that is a day two problem.  First, get
+something working...
+
+Dirk
+
+| See also Writing R Extensions for "offical" docs and Dirk's book for plain
+| english explanations.
+| 
+| Feel free to share a link eg if you get something up on github - I've
+| wanted to share data via torrent before and didn't find a nice solution.
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From morgan.emailbox at gmail.com  Mon Feb 11 10:09:46 2019
+From: morgan.emailbox at gmail.com (Morgan Morgan)
+Date: Mon, 11 Feb 2019 09:09:46 +0000
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <23648.41002.114914.247256@rob.eddelbuettel.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+ <23648.41002.114914.247256@rob.eddelbuettel.com>
+Message-ID: <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+
+Hi
+
+Thank you for your replies.
+In order to create a prototype would i need to  build the libtorrent
+library? Or would including the source file in the package be enough?
+
+I have used Rcpp and the.c(), .call() function before but i have never
+tried to "wrap" such a large librairy.
+
+If you have any advise, please feel free to share.
+
+Thank you
+
+
+On Sun, 10 Feb 2019 22:05 Dirk Eddelbuettel <edd at debian.org wrote:
+
+>
+> On 10 February 2019 at 13:38, Neal Fultz wrote:
+> | Rcpp should make this very straightforward; assuming you are putting this
+> | in a package (because why wouldn't you?) you would just need to set some
+> | flags in src/Makefile so that the external library gets picked up
+> correctly
+> | by R, and write a few Rcpp wrapper functions for interacting with it.
+>
+> Yep. Should be straightforward to prototype.  Distribution then has the
+> usual
+> problem that you need users to have libtorrent, or do the extra work of
+> bundling it with your package.  But that is a day two problem.  First, get
+> something working...
+>
+> Dirk
+>
+> | See also Writing R Extensions for "offical" docs and Dirk's book for
+> plain
+> | english explanations.
+> |
+> | Feel free to share a link eg if you get something up on github - I've
+> | wanted to share data via torrent before and didn't find a nice solution.
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190211/a48c87a4/attachment.html>
+
+From ralf.stubner at daqana.com  Mon Feb 11 10:20:20 2019
+From: ralf.stubner at daqana.com (Ralf Stubner)
+Date: Mon, 11 Feb 2019 10:20:20 +0100
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+ <23648.41002.114914.247256@rob.eddelbuettel.com>
+ <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+Message-ID: <fe082797-8ad9-3820-6fde-14ff42bae9a1@daqana.com>
+
+On 11.02.19 10:09, Morgan Morgan wrote:
+> In order to create a prototype would i need to? build the libtorrent
+> library? Or would including the source file in the package be enough?
+
+Which OS do you use? With Linux it is easiest to install the library
+(plus headers!) via the package manager. On Mac OS you can use homebrew
+etc. for this. On Windows it is more complicated, at least until Rtools
+4 can be used.
+
+It is in principle possible to include the library code in the package
+and have it build together with your code. But that is another level of
+complication I would try to avoid as long as possible.
+
+cheerio
+ralf
+
+-- 
+Ralf Stubner
+Senior Software Engineer / Trainer
+
+daqana GmbH
+Dortustra?e 48
+14467 Potsdam
+
+T: +49 331 23 61 93 11
+F: +49 331 23 61 93 90
+M: +49 162 20 91 196
+Mail: ralf.stubner at daqana.com
+
+Sitz: Potsdam
+Register: AG Potsdam HRB 27966
+Ust.-IdNr.: DE300072622
+Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190211/77939fdb/attachment-0001.sig>
+
+From morgan.emailbox at gmail.com  Mon Feb 11 10:29:54 2019
+From: morgan.emailbox at gmail.com (Morgan Morgan)
+Date: Mon, 11 Feb 2019 09:29:54 +0000
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <fe082797-8ad9-3820-6fde-14ff42bae9a1@daqana.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+ <23648.41002.114914.247256@rob.eddelbuettel.com>
+ <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+ <fe082797-8ad9-3820-6fde-14ff42bae9a1@daqana.com>
+Message-ID: <CAL0QV_O_V-PQn2cUF-4TuDHrWzfkzcf1LjLPHSLa46XuZeC+HA@mail.gmail.com>
+
+I use ubuntu and windows. But the idea would be to make the package
+available to all users including Mac OS.
+
+On Mon, 11 Feb 2019 09:20 Ralf Stubner <ralf.stubner at daqana.com wrote:
+
+> On 11.02.19 10:09, Morgan Morgan wrote:
+> > In order to create a prototype would i need to  build the libtorrent
+> > library? Or would including the source file in the package be enough?
+>
+> Which OS do you use? With Linux it is easiest to install the library
+> (plus headers!) via the package manager. On Mac OS you can use homebrew
+> etc. for this. On Windows it is more complicated, at least until Rtools
+> 4 can be used.
+>
+> It is in principle possible to include the library code in the package
+> and have it build together with your code. But that is another level of
+> complication I would try to avoid as long as possible.
+>
+> cheerio
+> ralf
+>
+> --
+> Ralf Stubner
+> Senior Software Engineer / Trainer
+>
+> daqana GmbH
+> Dortustra?e 48
+> 14467 Potsdam
+>
+> T: +49 331 23 61 93 11
+> F: +49 331 23 61 93 90
+> M: +49 162 20 91 196
+> Mail: ralf.stubner at daqana.com
+>
+> Sitz: Potsdam
+> Register: AG Potsdam HRB 27966
+> Ust.-IdNr.: DE300072622
+> Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190211/aacb9e0d/attachment.html>
+
+From ralf.stubner at daqana.com  Mon Feb 11 13:01:53 2019
+From: ralf.stubner at daqana.com (Ralf Stubner)
+Date: Mon, 11 Feb 2019 13:01:53 +0100
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <CAL0QV_O_V-PQn2cUF-4TuDHrWzfkzcf1LjLPHSLa46XuZeC+HA@mail.gmail.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+ <23648.41002.114914.247256@rob.eddelbuettel.com>
+ <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+ <fe082797-8ad9-3820-6fde-14ff42bae9a1@daqana.com>
+ <CAL0QV_O_V-PQn2cUF-4TuDHrWzfkzcf1LjLPHSLa46XuZeC+HA@mail.gmail.com>
+Message-ID: <6e1aa7ec-67d7-f764-7e84-1ad5a8111c9e@daqana.com>
+
+On 11.02.19 10:29, Morgan Morgan wrote:
+> I use ubuntu and windows. But the idea would be to make the package
+> available to all users including Mac OS.
+
+I would start with Ubuntu, since there it should be sufficient to use
+
+sudo apt-get install libtorrent-dev
+
+together with
+
+PKG_LDFLAGS=-ltorrent
+
+in src/Makevars. After that I would focus on the functions to put into
+the package. Once the package has a clearer shape, I would tackle the
+cross-platform issues.
+
+cheerio
+ralf
+
+-- 
+Ralf Stubner
+Senior Software Engineer / Trainer
+
+daqana GmbH
+Dortustra?e 48
+14467 Potsdam
+
+T: +49 331 23 61 93 11
+F: +49 331 23 61 93 90
+M: +49 162 20 91 196
+Mail: ralf.stubner at daqana.com
+
+Sitz: Potsdam
+Register: AG Potsdam HRB 27966
+Ust.-IdNr.: DE300072622
+Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190211/365bbb5a/attachment.sig>
+
+From ralf.stubner at daqana.com  Tue Feb 12 14:10:12 2019
+From: ralf.stubner at daqana.com (Ralf Stubner)
+Date: Tue, 12 Feb 2019 14:10:12 +0100
+Subject: [Rcpp-devel] Runtime error from Rcpp::depends with gcc sanitizers
+Message-ID: <d1dfc571-4e43-5047-8a41-acaaa31fbfde@daqana.com>
+
+Hi list,
+
+I run into run-time errors when using rhub::check_with_sanitizers(),
+which can be reproduced like this:
+
+$ docker run -it --rm rhub/rocker-gcc-san bash
+root at c56cfa20e903:/# RDscript -e "install.packages('Rcpp')"
+[...]
+root at c56cfa20e903:/# cat > foo.cpp
+#include <Rcpp.h>
+// [[Rcpp::depends(Matrix)]]
+
+// [[Rcpp::export]]
+int foo() { return 0; }
+
+root at c56cfa20e903:/# RDscript -e "Rcpp::sourceCpp('foo.cpp')"
+attributes.cpp:168:11: runtime error: load of value 104, which is not a
+valid value for type 'bool'
+attributes.cpp:168:11: runtime error: load of value 2, which is not a
+valid value for type 'bool'
+
+There is no error if I omit Rcpp::depends:
+
+root at c56cfa20e903:/# cat > bar.cpp
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+int foo() { return 0; }
+
+root at c56cfa20e903:/# RDscript -e "Rcpp::sourceCpp('bar.cpp')"
+root at c56cfa20e903:/#
+
+These errors do not occur in the tests run by CRAN (or they are filtered
+out there). Does anyone have an idea where this might come from and how
+it could be fixed?
+
+Thanks
+Ralf
+
+-- 
+Ralf Stubner
+Senior Software Engineer / Trainer
+
+daqana GmbH
+Dortustra?e 48
+14467 Potsdam
+
+T: +49 331 23 61 93 11
+F: +49 331 23 61 93 90
+M: +49 162 20 91 196
+Mail: ralf.stubner at daqana.com
+
+Sitz: Potsdam
+Register: AG Potsdam HRB 27966
+Ust.-IdNr.: DE300072622
+Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190212/a4f3c99f/attachment.sig>
+
+From edd at debian.org  Wed Feb 13 15:40:44 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 13 Feb 2019 08:40:44 -0600
+Subject: [Rcpp-devel] Runtime error from Rcpp::depends with gcc
+	sanitizers
+In-Reply-To: <d1dfc571-4e43-5047-8a41-acaaa31fbfde@daqana.com>
+References: <d1dfc571-4e43-5047-8a41-acaaa31fbfde@daqana.com>
+Message-ID: <23652.11372.687124.207683@rob.eddelbuettel.com>
+
+
+On 12 February 2019 at 14:10, Ralf Stubner wrote:
+| Hi list,
+| 
+| I run into run-time errors when using rhub::check_with_sanitizers(),
+| which can be reproduced like this:
+| 
+| $ docker run -it --rm rhub/rocker-gcc-san bash
+| root at c56cfa20e903:/# RDscript -e "install.packages('Rcpp')"
+| [...]
+| root at c56cfa20e903:/# cat > foo.cpp
+| #include <Rcpp.h>
+| // [[Rcpp::depends(Matrix)]]
+| 
+| // [[Rcpp::export]]
+| int foo() { return 0; }
+| 
+| root at c56cfa20e903:/# RDscript -e "Rcpp::sourceCpp('foo.cpp')"
+| attributes.cpp:168:11: runtime error: load of value 104, which is not a
+| valid value for type 'bool'
+| attributes.cpp:168:11: runtime error: load of value 2, which is not a
+| valid value for type 'bool'
+| 
+| There is no error if I omit Rcpp::depends:
+| 
+| root at c56cfa20e903:/# cat > bar.cpp
+| #include <Rcpp.h>
+| 
+| // [[Rcpp::export]]
+| int foo() { return 0; }
+| 
+| root at c56cfa20e903:/# RDscript -e "Rcpp::sourceCpp('bar.cpp')"
+| root at c56cfa20e903:/#
+| 
+| These errors do not occur in the tests run by CRAN (or they are filtered
+| out there). Does anyone have an idea where this might come from and how
+| it could be fixed?
+
+I don't :-/  These tools are very helpful, but on occassion also very finicky.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sun Feb 17 14:59:48 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 17 Feb 2019 07:59:48 -0600
+Subject: [Rcpp-devel] [RC] Rcpp 1.0.0.3
+Message-ID: <23657.26836.380383.378117@rob.eddelbuettel.com>
+
+
+All,
+
+I just put Rcpp 1.0.0.3 into the Rcpp-drat repo at
+
+    https://rcppcore.github.io/drat/
+
+This interim version is a release candidate for Rcpp 1.0.1 which could (and
+should) get released in two or three weeks.
+
+The NEWS and ChangeLog files in the repo give an idea of changes since 1.0.0:
+
+    https://github.com/RcppCore/Rcpp/blob/master/ChangeLog
+    https://github.com/RcppCore/Rcpp/blob/master/inst/NEWS.Rd
+
+and cover around half a dozen PRs.
+
+Please give it a spin -- while I do not anticipate breaking changes it is
+always a good idea to test.  In the last few days I also just ran half a
+dozen reverse dependency checks over 1500+ packages which accounts for almost
+10,000 package checks too.
+
+Cheers, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From morgan.emailbox at gmail.com  Sun Feb 17 20:20:23 2019
+From: morgan.emailbox at gmail.com (Morgan Morgan)
+Date: Sun, 17 Feb 2019 19:20:23 +0000
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <6e1aa7ec-67d7-f764-7e84-1ad5a8111c9e@daqana.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+ <23648.41002.114914.247256@rob.eddelbuettel.com>
+ <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+ <fe082797-8ad9-3820-6fde-14ff42bae9a1@daqana.com>
+ <CAL0QV_O_V-PQn2cUF-4TuDHrWzfkzcf1LjLPHSLa46XuZeC+HA@mail.gmail.com>
+ <6e1aa7ec-67d7-f764-7e84-1ad5a8111c9e@daqana.com>
+Message-ID: <CAL0QV_OCiCJXNTCTne7NQ-9vrZb92F4DOTJp8CsVq5eauU323A@mail.gmail.com>
+
+Hi All,
+
+So I tried to create a github repo : https://github.com/2005m/RLibTorrent
+
+As suggested by Ralf, I started on Ubuntu and installed libtorrent.
+I have few issues
+
+When I do R CMD build RLibTorrent and then R CMD
+check RLibTorrent_1.0.tar.gz , I get an error:
+
+* using log directory ?/home/morgan/Documents/Packages/RLibTorrent.Rcheck?
+* using R version 3.5.1 (2018-07-02)
+* using platform: x86_64-pc-linux-gnu (64-bit)
+* using session charset: UTF-8
+* checking for file ?RLibTorrent/DESCRIPTION? ... OK
+* checking extension type ... Package
+* this is package ?RLibTorrent? version ?1.0?
+* checking package namespace information ... OK
+* checking package dependencies ... OK
+* checking if this is a source package ... OK
+* checking if there is a namespace ... OK
+* checking for executable files ... OK
+* checking for hidden files and directories ... OK
+* checking for portable file names ... OK
+* checking for sufficient/correct file permissions ... OK
+* checking whether package ?RLibTorrent? can be installed ... ERROR
+Installation failed.
+See ?/home/morgan/Documents/Packages/RLibTorrent.Rcheck/00install.out? for
+details.
+* DONE
+
+Status: 1 ERROR
+See
+  ?/home/morgan/Documents/Packages/RLibTorrent.Rcheck/00check.log?
+for details.
+
+In the file 00Install.out, I have the following:
+
+* installing *source* package ?RLibTorrent? ...
+** libs
+g++  -I"/usr/share/R/include" -DNDEBUG -I"/usr/lib/x86_64-linux-gnu"
+-I"/usr/include/libtorrent" -I"/usr/include/boost" -I"/usr/include"
+-I"/home/morgan/R/x86_64-pc-linux-gnu-library/3.5/Rcpp/include"    -fpic
+-g -O2 -fdebug-prefix-map=/build/r-base-1SEA_D/r-base-3.5.1=.
+-fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+-D_FORTIFY_SOURCE=2 -g  -c RcppExports.cpp -o RcppExports.o
+g++  -I"/usr/share/R/include" -DNDEBUG -I"/usr/lib/x86_64-linux-gnu"
+-I"/usr/include/libtorrent" -I"/usr/include/boost" -I"/usr/include"
+-I"/home/morgan/R/x86_64-pc-linux-gnu-library/3.5/Rcpp/include"    -fpic
+-g -O2 -fdebug-prefix-map=/build/r-base-1SEA_D/r-base-3.5.1=.
+-fstack-protector-strong -Wformat -Werror=format-security -Wdate-time
+-D_FORTIFY_SOURCE=2 -g  -c get_torrent_info.cpp -o get_torrent_info.o
+g++ -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o
+RLibTorrent.so RcppExports.o get_torrent_info.o -L/usr/lib/R/lib -lR
+installing to
+/home/morgan/Documents/Packages/RLibTorrent.Rcheck/RLibTorrent/libs
+** R
+** byte-compile and prepare package for lazy loading
+** help
+*** installing help indices
+** building package indices
+** testing if installed package can be loaded
+Error: package or namespace load failed for ?RLibTorrent? in dyn.load(file,
+DLLpath = DLLpath, ...):
+ unable to load shared object
+'/home/morgan/Documents/Packages/RLibTorrent.Rcheck/RLibTorrent/libs/RLibTorrent.so':
+
+/home/morgan/Documents/Packages/RLibTorrent.Rcheck/RLibTorrent/libs/RLibTorrent.so:
+undefined symbol: _ZN10libtorrent6to_hexEPKciPc
+Error: loading failed
+Execution halted
+ERROR: loading failed
+* removing ?/home/morgan/Documents/Packages/RLibTorrent.Rcheck/RLibTorrent?
+
+I am struggling to solve this issue! Google it but it i didn't help me
+solve it, because I didn't understand the explanation or the proposed
+solution was not working for me.
+
+Any idea what I am doing wrong?
+
+Thank you
+
+
+
+On Mon, Feb 11, 2019 at 12:01 PM Ralf Stubner <ralf.stubner at daqana.com>
+wrote:
+
+> On 11.02.19 10:29, Morgan Morgan wrote:
+> > I use ubuntu and windows. But the idea would be to make the package
+> > available to all users including Mac OS.
+>
+> I would start with Ubuntu, since there it should be sufficient to use
+>
+> sudo apt-get install libtorrent-dev
+>
+> together with
+>
+> PKG_LDFLAGS=-ltorrent
+>
+> in src/Makevars. After that I would focus on the functions to put into
+> the package. Once the package has a clearer shape, I would tackle the
+> cross-platform issues.
+>
+> cheerio
+> ralf
+>
+> --
+> Ralf Stubner
+> Senior Software Engineer / Trainer
+>
+> daqana GmbH
+> Dortustra?e 48
+> 14467 Potsdam
+>
+> T: +49 331 23 61 93 11
+> F: +49 331 23 61 93 90
+> M: +49 162 20 91 196
+> Mail: ralf.stubner at daqana.com
+>
+> Sitz: Potsdam
+> Register: AG Potsdam HRB 27966
+> Ust.-IdNr.: DE300072622
+> Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190217/09efc93c/attachment.html>
+
+From edd at debian.org  Sun Feb 17 20:38:37 2019
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 17 Feb 2019 13:38:37 -0600
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <CAL0QV_OCiCJXNTCTne7NQ-9vrZb92F4DOTJp8CsVq5eauU323A@mail.gmail.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+ <23648.41002.114914.247256@rob.eddelbuettel.com>
+ <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+ <fe082797-8ad9-3820-6fde-14ff42bae9a1@daqana.com>
+ <CAL0QV_O_V-PQn2cUF-4TuDHrWzfkzcf1LjLPHSLa46XuZeC+HA@mail.gmail.com>
+ <6e1aa7ec-67d7-f764-7e84-1ad5a8111c9e@daqana.com>
+ <CAL0QV_OCiCJXNTCTne7NQ-9vrZb92F4DOTJp8CsVq5eauU323A@mail.gmail.com>
+Message-ID: <23657.47165.305763.148815@rob.eddelbuettel.com>
+
+
+On 17 February 2019 at 19:20, Morgan Morgan wrote:
+| So I tried to create a github repo : https://github.com/2005m/RLibTorrent
+| 
+| As suggested by Ralf, I started on Ubuntu and installed libtorrent.
+| I have few issues
+
+[...]
+
+| g++ -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o
+| RLibTorrent.so RcppExports.o get_torrent_info.o -L/usr/lib/R/lib -lR
+
+It does not link to libtorrent. So you haven't quite groked how this works.
+In short: add to src/Makevars adding to the PKG_LIBS variable.
+
+So I suggest you step back and study one or two existing packages that link
+to external libraries -- we have loads to choose from. Just pick one.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From morgan.emailbox at gmail.com  Sun Feb 17 20:43:42 2019
+From: morgan.emailbox at gmail.com (Morgan Morgan)
+Date: Sun, 17 Feb 2019 19:43:42 +0000
+Subject: [Rcpp-devel] Rcpp - libtorrent
+In-Reply-To: <23657.47165.305763.148815@rob.eddelbuettel.com>
+References: <CAL0QV_ORTt06ZK9nv3Ogv67kZFDZtGaNb3AdA8GQO8aduoVd7Q@mail.gmail.com>
+ <CAL9B2vcRCyaK=Cv2XGiV4C6z0dx3vsO-vwmzSuS+ZXeOurWCng@mail.gmail.com>
+ <23648.41002.114914.247256@rob.eddelbuettel.com>
+ <CAL0QV_OpQ6-rGzU9k2XG+rT8GrHV2d9d=om_1ufDy9P24ho6KA@mail.gmail.com>
+ <fe082797-8ad9-3820-6fde-14ff42bae9a1@daqana.com>
+ <CAL0QV_O_V-PQn2cUF-4TuDHrWzfkzcf1LjLPHSLa46XuZeC+HA@mail.gmail.com>
+ <6e1aa7ec-67d7-f764-7e84-1ad5a8111c9e@daqana.com>
+ <CAL0QV_OCiCJXNTCTne7NQ-9vrZb92F4DOTJp8CsVq5eauU323A@mail.gmail.com>
+ <23657.47165.305763.148815@rob.eddelbuettel.com>
+Message-ID: <CAL0QV_OsH-4TFd6CeU2P_B6o2PsMxw20v87HWStgCmDBxoM9vA@mail.gmail.com>
+
+Ok thanks i will but have added the Makevars file and the PKG_LIBS variable.
+
+I will have a look at other packages.
+
+On Sun, 17 Feb 2019 19:38 Dirk Eddelbuettel <edd at debian.org wrote:
+
+>
+> On 17 February 2019 at 19:20, Morgan Morgan wrote:
+> | So I tried to create a github repo :
+> https://github.com/2005m/RLibTorrent
+> |
+> | As suggested by Ralf, I started on Ubuntu and installed libtorrent.
+> | I have few issues
+>
+> [...]
+>
+> | g++ -shared -L/usr/lib/R/lib -Wl,-Bsymbolic-functions -Wl,-z,relro -o
+> | RLibTorrent.so RcppExports.o get_torrent_info.o -L/usr/lib/R/lib -lR
+>
+> It does not link to libtorrent. So you haven't quite groked how this works.
+> In short: add to src/Makevars adding to the PKG_LIBS variable.
+>
+> So I suggest you step back and study one or two existing packages that link
+> to external libraries -- we have loads to choose from. Just pick one.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190217/59ce9b64/attachment.html>
+
+From sergio.bra88 at gmail.com  Wed Feb 20 09:33:09 2019
+From: sergio.bra88 at gmail.com (Sergio Bra)
+Date: Wed, 20 Feb 2019 09:33:09 +0100
+Subject: [Rcpp-devel] Upload library with object files
+Message-ID: <CAGUs5cjJAww1F5yCDikyFQ2_BPg4ZH7xG+FoDrnN7Q7ZyKWCJA@mail.gmail.com>
+
+Hi community,
+
+In the near future I'll be trying to publish a package in the CRAN and
+after reading "Writing R extensions" I have some doubts.
+
+I have some c++ functions, available from the R-side with Rcpp. These c++
+functions have calls to some C packages. In the src directory I have the
+source code of these C libraries, and a directory with the .o files of the
+.c files, and informed in the PKG_LIBS variable. I've included the compiled
+files for different platforms: ubuntu x32, x64, and windows x32, x64 (I'll
+probably include support for OSX) and in the Makevars I select the .o files
+to use depending on the OS and arch.
+
+If I execute the R CMD check command, I have no errors but some warnings
+like "Object files/libraries should not be included in a source package".
+The message and the documentation just recommend not to use them but
+doesn't say that it is forbidden.
+
+Can I have problems if I try to attemp the upload of the library in this
+circumstance?
+
+Thank you in advance.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190220/8ccebcea/attachment.html>
+
+From iucar at fedoraproject.org  Wed Feb 20 09:48:24 2019
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Wed, 20 Feb 2019 09:48:24 +0100
+Subject: [Rcpp-devel] Upload library with object files
+In-Reply-To: <CAGUs5cjJAww1F5yCDikyFQ2_BPg4ZH7xG+FoDrnN7Q7ZyKWCJA@mail.gmail.com>
+References: <CAGUs5cjJAww1F5yCDikyFQ2_BPg4ZH7xG+FoDrnN7Q7ZyKWCJA@mail.gmail.com>
+Message-ID: <CALEXWq2oMyCD8pN7RhUampP5b9iM_aAEbwS2nmzMwj5V1x8Jqw@mail.gmail.com>
+
+On Wed, 20 Feb 2019 at 09:33, Sergio Bra <sergio.bra88 at gmail.com> wrote:
+>
+> Hi community,
+>
+> In the near future I'll be trying to publish a package in the CRAN and after reading "Writing R extensions" I have some doubts.
+>
+> I have some c++ functions, available from the R-side with Rcpp. These c++ functions have calls to some C packages. In the src directory I have the source code of these C libraries, and a directory with the .o files of the .c files, and informed in the PKG_LIBS variable. I've included the compiled files for different platforms: ubuntu x32, x64, and windows x32, x64 (I'll probably include support for OSX) and in the Makevars I select the .o files to use depending on the OS and arch.
+>
+> If I execute the R CMD check command, I have no errors but some warnings like "Object files/libraries should not be included in a source package". The message and the documentation just recommend not to use them but doesn't say that it is forbidden.
+
+It's a recommendation because there may be unavoidable exceptions. But
+in general, take it as a "must".
+
+> Can I have problems if I try to attemp the upload of the library in this circumstance?
+
+In short, yes, don't do that. And anyway, what's the point if you have
+the source code of these libraries? Just provide it with the proper
+setup to compile them during package installation. There are plenty of
+examples on CRAN of packages bundling third-party libraries.
+
+I?aki
+
+From sergio.bra88 at gmail.com  Wed Feb 20 13:21:38 2019
+From: sergio.bra88 at gmail.com (Sergio Bra)
+Date: Wed, 20 Feb 2019 13:21:38 +0100
+Subject: [Rcpp-devel] Upload library with object files
+In-Reply-To: <CALEXWq2oMyCD8pN7RhUampP5b9iM_aAEbwS2nmzMwj5V1x8Jqw@mail.gmail.com>
+References: <CAGUs5cjJAww1F5yCDikyFQ2_BPg4ZH7xG+FoDrnN7Q7ZyKWCJA@mail.gmail.com>
+ <CALEXWq2oMyCD8pN7RhUampP5b9iM_aAEbwS2nmzMwj5V1x8Jqw@mail.gmail.com>
+Message-ID: <CAGUs5cgRu8+akvv9Qr==VJpJoWk11QdYNm-19OzVNhphyJBV_Q@mail.gmail.com>
+
+Ok, thanks! It's a nice solution. Now, I have to fight with several
+Makefiles, because I'm managing calls to lot of libraries. I'm studying the
+R's Matrix library as a good example to achieve it. Thanks again for your
+help
+
+El mi?., 20 feb. 2019 a las 9:48, I?aki Ucar (<iucar at fedoraproject.org>)
+escribi?:
+
+> On Wed, 20 Feb 2019 at 09:33, Sergio Bra <sergio.bra88 at gmail.com> wrote:
+> >
+> > Hi community,
+> >
+> > In the near future I'll be trying to publish a package in the CRAN and
+> after reading "Writing R extensions" I have some doubts.
+> >
+> > I have some c++ functions, available from the R-side with Rcpp. These
+> c++ functions have calls to some C packages. In the src directory I have
+> the source code of these C libraries, and a directory with the .o files of
+> the .c files, and informed in the PKG_LIBS variable. I've included the
+> compiled files for different platforms: ubuntu x32, x64, and windows x32,
+> x64 (I'll probably include support for OSX) and in the Makevars I select
+> the .o files to use depending on the OS and arch.
+> >
+> > If I execute the R CMD check command, I have no errors but some warnings
+> like "Object files/libraries should not be included in a source package".
+> The message and the documentation just recommend not to use them but
+> doesn't say that it is forbidden.
+>
+> It's a recommendation because there may be unavoidable exceptions. But
+> in general, take it as a "must".
+>
+> > Can I have problems if I try to attemp the upload of the library in this
+> circumstance?
+>
+> In short, yes, don't do that. And anyway, what's the point if you have
+> the source code of these libraries? Just provide it with the proper
+> setup to compile them during package installation. There are plenty of
+> examples on CRAN of packages bundling third-party libraries.
+>
+> I?aki
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190220/10d2585b/attachment.html>
+

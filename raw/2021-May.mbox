@@ -1,0 +1,1721 @@
+From kjohnson at akoyabio.com  Wed May  5 17:54:14 2021
+From: kjohnson at akoyabio.com (Kent Johnson)
+Date: Wed, 5 May 2021 15:54:14 +0000
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+Message-ID: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+
+Hi,
+
+I am a maintainer of this package - https://github.com/akoyabio/rtree - originally inspired by this example - https://gallery.rcpp.org/articles/Rtree-examples/. This package wraps the rtree implementation from BH 1.7.2.0-3 to provide fast methods for finding points nearby to other points in large data sets.
+
+ I want to submit the package to CRAN but I have a CMD CHECK warning on Windows that I can't resolve.
+
+Running CMD CHECK from GitHub Actions, on Microsoft Windows Server 2019 10.0.17763, I get this error message:
+-- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+Duration: 1m 42.7s
+
+> checking whether package 'rtree' can be installed ... WARNING
+  See below...
+
+0 errors v | 1 warning x | 0 notes v
+Error: Error: R CMD check found WARNINGs
+Execution halted
+Error: Process completed with exit code 1.
+
+The full output is here: https://github.com/akoyabio/rtree/runs/2502841486?check_suite_focus=true
+The message says "See below..." but there is nothing below?
+
+Running on my local Windows 10 PC I get this warning and a note:
+-- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+Duration: 1m 2.2s
+
+> checking whether package 'rtree' can be installed ... WARNING
+  See below...
+
+> checking compiled code ... NOTE
+  Note: information on .o files for x64 is not available
+  File 'C:/Research/rtree.Rcheck/rtree/libs/x64/rtree.dll':
+    Found 'abort', possibly from 'abort' (C), 'runtime' (Fortran)
+    Found 'exit', possibly from 'exit' (C), 'stop' (Fortran)
+    Found 'printf', possibly from 'printf' (C)
+
+  Compiled code should not call entry points which might terminate R nor
+  write to stdout/stderr instead of to the console, nor use Fortran I/O
+  nor system RNGs. The detected symbols are linked into the code but
+  might come from libraries and not actually be called.
+
+  See 'Writing portable packages' in the 'Writing R Extensions' manual.
+
+0 errors v | 1 warning x | 1 note x
+Error: R CMD check found WARNINGs
+Execution halted
+
+Exited with status 1.
+
+Again I have the "See below..." message and a confusing NOTE - I do not have any calls to abort, exit or printf in my code.
+
+Any help in fixing the warning and note is much appreciated. If this is not an appropriate place to ask, please let me know what would be better. I'm perplexed.
+
+Thank you,
+Kent Johnson
+Principal Software Developer
+Akoya Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210505/e8a87b0f/attachment.html>
+
+From edd at debian.org  Wed May  5 19:19:22 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 5 May 2021 12:19:22 -0500
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+In-Reply-To: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+References: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+Message-ID: <24722.54170.59930.211482@rob.eddelbuettel.com>
+
+
+On 5 May 2021 at 15:54, Kent Johnson wrote:
+| I am a maintainer of this package - https://github.com/akoyabio/rtree - originally inspired by this example - https://gallery.rcpp.org/articles/Rtree-examples/. This package wraps the rtree implementation from BH 1.7.2.0-3 to provide fast methods for finding points nearby to other points in large data sets.
+| 
+|  I want to submit the package to CRAN but I have a CMD CHECK warning on Windows that I can't resolve.
+| 
+| Running CMD CHECK from GitHub Actions, on Microsoft Windows Server 2019 10.0.17763, I get this error message:
+| -- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+| Duration: 1m 42.7s
+| 
+| > checking whether package 'rtree' can be installed ... WARNING
+|   See below...
+| 
+| 0 errors v | 1 warning x | 0 notes v
+| Error: Error: R CMD check found WARNINGs
+| Execution halted
+| Error: Process completed with exit code 1.
+
+It actually failed for me on RHub and on Win-Builder once I removed the
+hard-equality constraint on a BH version no longer on CRAN:
+
+  LinkingTo: Rcpp, BH (== 1.72.0-3)
+
+That makes in unbuildable in most situations, I fear.
+ 
+| The full output is here: https://github.com/akoyabio/rtree/runs/2502841486?check_suite_focus=true
+| The message says "See below..." but there is nothing below?
+| 
+| Running on my local Windows 10 PC I get this warning and a note:
+| -- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+| Duration: 1m 2.2s
+| 
+| > checking whether package 'rtree' can be installed ... WARNING
+|   See below...
+| 
+| > checking compiled code ... NOTE
+|   Note: information on .o files for x64 is not available
+|   File 'C:/Research/rtree.Rcheck/rtree/libs/x64/rtree.dll':
+|     Found 'abort', possibly from 'abort' (C), 'runtime' (Fortran)
+|     Found 'exit', possibly from 'exit' (C), 'stop' (Fortran)
+|     Found 'printf', possibly from 'printf' (C)
+
+We would have to find out where this comes from.  But for starters, can you
+make it work at your end with the currently released BH version, 1.75.0-0 ?
+
+Dirk
+
+|   Compiled code should not call entry points which might terminate R nor
+|   write to stdout/stderr instead of to the console, nor use Fortran I/O
+|   nor system RNGs. The detected symbols are linked into the code but
+|   might come from libraries and not actually be called.
+| 
+|   See 'Writing portable packages' in the 'Writing R Extensions' manual.
+| 
+| 0 errors v | 1 warning x | 1 note x
+| Error: R CMD check found WARNINGs
+| Execution halted
+| 
+| Exited with status 1.
+| 
+| Again I have the "See below..." message and a confusing NOTE - I do not have any calls to abort, exit or printf in my code.
+| 
+| Any help in fixing the warning and note is much appreciated. If this is not an appropriate place to ask, please let me know what would be better. I'm perplexed.
+| 
+| Thank you,
+| Kent Johnson
+| Principal Software Developer
+| Akoya Biosciences
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kjohnson at akoyabio.com  Thu May  6 00:49:39 2021
+From: kjohnson at akoyabio.com (Kent Johnson)
+Date: Wed, 5 May 2021 22:49:39 +0000
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+In-Reply-To: <24722.54170.59930.211482@rob.eddelbuettel.com>
+References: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>,
+ <24722.54170.59930.211482@rob.eddelbuettel.com>
+Message-ID: <MN2PR18MB36691ADD493B87F1D6153248B6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+
+Thanks for your suggestion. I updated to build with latest BH and get the same errors:
+https://github.com/akoyabio/rtree/runs/2513098433?check_suite_focus=true
+
+(I was using BH 1.72 because in 1.75 boost::geometry requires C++ 14 which IIUC is not fully supported in R 3.6 on Windows.)
+
+Kent
+
+________________________________
+From: Dirk Eddelbuettel <edd at debian.org>
+Sent: Wednesday, May 5, 2021 1:19 PM
+To: Kent Johnson <kjohnson at akoyabio.com>
+Cc: rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Help with R CMD CHECK for rtree package
+
+
+
+We would have to find out where this comes from.  But for starters, can you
+make it work at your end with the currently released BH version, 1.75.0-0 ?
+
+Dirk
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210505/68051812/attachment-0001.html>
+
+From edd at debian.org  Thu May  6 01:21:42 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 5 May 2021 18:21:42 -0500
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+In-Reply-To: <MN2PR18MB36691ADD493B87F1D6153248B6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+References: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+ <24722.54170.59930.211482@rob.eddelbuettel.com>
+ <MN2PR18MB36691ADD493B87F1D6153248B6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+Message-ID: <24723.10374.233314.19802@rob.eddelbuettel.com>
+
+
+On 5 May 2021 at 22:49, Kent Johnson wrote:
+| Thanks for your suggestion. I updated to build with latest BH and get the same errors:
+| https://github.com/akoyabio/rtree/runs/2513098433?check_suite_focus=true
+
+Yes, as I said, it doesn't even work for me at all on RHub or Win-Builder.
+Might be compiler-related as it does build for me on Linux.
+
+| (I was using BH 1.72 because in 1.75 boost::geometry requires C++ 14 which IIUC is not fully supported in R 3.6 on Windows.)
+
+Well R 4.0.0 was released a year ago so I don't care too too much about 3.6.0.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Thu May  6 10:45:22 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Thu, 6 May 2021 10:45:22 +0200
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+In-Reply-To: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+References: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+Message-ID: <CALEXWq1ziJJLfft=56CWdkXsE18fgt7Fe=jn_OR9Y=QfjMHzgg@mail.gmail.com>
+
+Hi Kent,
+
+On Wed, 5 May 2021 at 17:54, Kent Johnson <kjohnson at akoyabio.com> wrote:
+>
+> Hi,
+>
+> I am a maintainer of this package - https://github.com/akoyabio/rtree - originally inspired by this example - https://gallery.rcpp.org/articles/Rtree-examples/. This package wraps the rtree implementation from BH 1.7.2.0-3 to provide fast methods for finding points nearby to other points in large data sets.
+>
+>  I want to submit the package to CRAN but I have a CMD CHECK warning on Windows that I can't resolve.
+>
+> Running CMD CHECK from GitHub Actions, on Microsoft Windows Server 2019 10.0.17763, I get this error message:
+>
+> -- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+> Duration: 1m 42.7s
+>
+> > checking whether package 'rtree' can be installed ... WARNING
+>   See below...
+>
+> 0 errors v | 1 warning x | 0 notes v
+> Error: Error: R CMD check found WARNINGs
+> Execution halted
+> Error: Process completed with exit code 1.
+>
+> The full output is here: https://github.com/akoyabio/rtree/runs/2502841486?check_suite_focus=true
+> The message says "See below..." but there is nothing below?
+
+Below I see this:
+
+* checking whether package 'rtree' can be installed ... WARNING
+Found the following significant warnings:
+
+  D:/a/_temp/Library/BH/include/boost/geometry/index/detail/varray_detail.hpp:544:13:
+warning: 'void* memcpy(void*, const void*, size_t)' writing to an
+object of type 'struct std::pair<boost::geometry::model::point<double,
+2, boost::geometry::cs::cartesian>, unsigned int>' with no trivial
+copy-assignment; use copy-assignment or copy-initialization instead
+[-Wclass-memaccess]
+
+  D:/a/_temp/Library/BH/include/boost/geometry/index/detail/varray_detail.hpp:578:13:
+warning: 'void* memcpy(void*, const void*, size_t)' writing to an
+object of type 'struct std::pair<double,
+boost::variant<boost::geometry::index::detail::rtree::variant_leaf<std::pair<boost::geometry::model::point<double,
+2, boost::geometry::cs::cartesian>, unsigned int>,
+boost::geometry::index::quadratic<16>,
+boost::geometry::model::box<boost::geometry::model::point<double, 2,
+boost::geometry::cs::cartesian> >,
+boost::geometry::index::detail::rtree::allocators<boost::container::new_allocator<std::pair<boost::geometry::model::point<double,
+2, boost::geometry::cs::cartesian>, unsigned int> >,
+std::pair<boost::geometry::model::point<double, 2,
+boost::geometry::cs::cartesian>, unsigned int>,
+boost::geometry::index::quadratic<16>,
+boost::geometry::model::box<boost::geometry::model::point<double, 2,
+boost::geometry::cs::cartesian> >,
+boost::geometry::index::detail::rtree::node_variant_static_tag>,
+boost::geometry::index::detail::rtree::node_variant_static_tag>,
+boost::geometry::index::detail::rtree::variant_internal_node<std::pair<boost::geometry::model::point<double,
+2, boost::geometry::cs::cartesian>, unsigned int>,
+boost::geometry::index::quadratic<16, 4>,
+boost::geometry::model::box<boost::geometry::model::point<double, 2,
+boost::geometry::cs::cartesian> >,
+boost::geometry::index::detail::rtree::allocators<boost::container::new_allocator<std::pair<boost::geometry::model::point<double,
+2, boost::geometry::cs::cartesian>, unsigned int> >,
+std::pair<boost::geometry::model::point<double, 2,
+boost::geometry::cs::cartesian>, unsigned int>,
+boost::geometry::index::quadratic<16, 4>,
+boost::geometry::model::box<boost::geometry::model::point<double, 2,
+boost::geometry::cs::cartesian> >,
+boost::geometry::index::detail::rtree::node_variant_static_tag>,
+boost::geometry::index::detail::rtree::node_variant_static_tag> >*>'
+with no trivial copy-assignment; use copy-assignment or
+copy-initialization instead [-Wclass-memaccess]
+
+  D:/a/_temp/Library/BH/include/boost/geometry/index/detail/varray_detail.hpp:237:13:
+warning: 'void* memcpy(void*, const void*, size_t)' writing to an
+object of type 'struct std::pair<boost::geometry::model::point<double,
+2, boost::geometry::cs::cartesian>, unsigned int>' with no trivial
+copy-assignment; use copy-assignment or copy-initialization instead
+[-Wclass-memaccess]
+
+See 'D:/a/rtree/rtree/check/rtree.Rcheck/00install.out' for details.
+
+And even more details if you download the artifacts of your build and
+review that file. So it's a Boost thing, and there's probably nothing
+you can do about it beyond talking to CRAN. There are packages on CRAN
+with these warnings.
+
+> Running on my local Windows 10 PC I get this warning and a note:
+>
+> -- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+> Duration: 1m 2.2s
+>
+> > checking whether package 'rtree' can be installed ... WARNING
+>   See below...
+>
+> > checking compiled code ... NOTE
+>   Note: information on .o files for x64 is not available
+>   File 'C:/Research/rtree.Rcheck/rtree/libs/x64/rtree.dll':
+>     Found 'abort', possibly from 'abort' (C), 'runtime' (Fortran)
+>     Found 'exit', possibly from 'exit' (C), 'stop' (Fortran)
+>     Found 'printf', possibly from 'printf' (C)
+
+This is problably a false positive.
+
+-- 
+Iñaki Úcar
+
+From edd at debian.org  Thu May  6 14:42:22 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 May 2021 07:42:22 -0500
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+In-Reply-To: <CALEXWq1ziJJLfft=56CWdkXsE18fgt7Fe=jn_OR9Y=QfjMHzgg@mail.gmail.com>
+References: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+ <CALEXWq1ziJJLfft=56CWdkXsE18fgt7Fe=jn_OR9Y=QfjMHzgg@mail.gmail.com>
+Message-ID: <24723.58414.971827.758419@rob.eddelbuettel.com>
+
+
+On 6 May 2021 at 10:45, Iñaki Ucar wrote:
+| Hi Kent,
+| 
+| On Wed, 5 May 2021 at 17:54, Kent Johnson <kjohnson at akoyabio.com> wrote:
+| >
+| > Hi,
+| >
+| > I am a maintainer of this package - https://github.com/akoyabio/rtree - originally inspired by this example - https://gallery.rcpp.org/articles/Rtree-examples/. This package wraps the rtree implementation from BH 1.7.2.0-3 to provide fast methods for finding points nearby to other points in large data sets.
+| >
+| >  I want to submit the package to CRAN but I have a CMD CHECK warning on Windows that I can't resolve.
+| >
+| > Running CMD CHECK from GitHub Actions, on Microsoft Windows Server 2019 10.0.17763, I get this error message:
+| >
+| > -- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+| > Duration: 1m 42.7s
+| >
+| > > checking whether package 'rtree' can be installed ... WARNING
+| >   See below...
+| >
+| > 0 errors v | 1 warning x | 0 notes v
+| > Error: Error: R CMD check found WARNINGs
+| > Execution halted
+| > Error: Process completed with exit code 1.
+| >
+| > The full output is here: https://github.com/akoyabio/rtree/runs/2502841486?check_suite_focus=true
+| > The message says "See below..." but there is nothing below?
+| 
+| Below I see this:
+| 
+| * checking whether package 'rtree' can be installed ... WARNING
+| Found the following significant warnings:
+| 
+|   D:/a/_temp/Library/BH/include/boost/geometry/index/detail/varray_detail.hpp:544:13:
+| warning: 'void* memcpy(void*, const void*, size_t)' writing to an
+| object of type 'struct std::pair<boost::geometry::model::point<double,
+| 2, boost::geometry::cs::cartesian>, unsigned int>' with no trivial
+| copy-assignment; use copy-assignment or copy-initialization instead
+| [-Wclass-memaccess]
+| 
+|   D:/a/_temp/Library/BH/include/boost/geometry/index/detail/varray_detail.hpp:578:13:
+| warning: 'void* memcpy(void*, const void*, size_t)' writing to an
+| object of type 'struct std::pair<double,
+| boost::variant<boost::geometry::index::detail::rtree::variant_leaf<std::pair<boost::geometry::model::point<double,
+| 2, boost::geometry::cs::cartesian>, unsigned int>,
+| boost::geometry::index::quadratic<16>,
+| boost::geometry::model::box<boost::geometry::model::point<double, 2,
+| boost::geometry::cs::cartesian> >,
+| boost::geometry::index::detail::rtree::allocators<boost::container::new_allocator<std::pair<boost::geometry::model::point<double,
+| 2, boost::geometry::cs::cartesian>, unsigned int> >,
+| std::pair<boost::geometry::model::point<double, 2,
+| boost::geometry::cs::cartesian>, unsigned int>,
+| boost::geometry::index::quadratic<16>,
+| boost::geometry::model::box<boost::geometry::model::point<double, 2,
+| boost::geometry::cs::cartesian> >,
+| boost::geometry::index::detail::rtree::node_variant_static_tag>,
+| boost::geometry::index::detail::rtree::node_variant_static_tag>,
+| boost::geometry::index::detail::rtree::variant_internal_node<std::pair<boost::geometry::model::point<double,
+| 2, boost::geometry::cs::cartesian>, unsigned int>,
+| boost::geometry::index::quadratic<16, 4>,
+| boost::geometry::model::box<boost::geometry::model::point<double, 2,
+| boost::geometry::cs::cartesian> >,
+| boost::geometry::index::detail::rtree::allocators<boost::container::new_allocator<std::pair<boost::geometry::model::point<double,
+| 2, boost::geometry::cs::cartesian>, unsigned int> >,
+| std::pair<boost::geometry::model::point<double, 2,
+| boost::geometry::cs::cartesian>, unsigned int>,
+| boost::geometry::index::quadratic<16, 4>,
+| boost::geometry::model::box<boost::geometry::model::point<double, 2,
+| boost::geometry::cs::cartesian> >,
+| boost::geometry::index::detail::rtree::node_variant_static_tag>,
+| boost::geometry::index::detail::rtree::node_variant_static_tag> >*>'
+| with no trivial copy-assignment; use copy-assignment or
+| copy-initialization instead [-Wclass-memaccess]
+| 
+|   D:/a/_temp/Library/BH/include/boost/geometry/index/detail/varray_detail.hpp:237:13:
+| warning: 'void* memcpy(void*, const void*, size_t)' writing to an
+| object of type 'struct std::pair<boost::geometry::model::point<double,
+| 2, boost::geometry::cs::cartesian>, unsigned int>' with no trivial
+| copy-assignment; use copy-assignment or copy-initialization instead
+| [-Wclass-memaccess]
+| 
+| See 'D:/a/rtree/rtree/check/rtree.Rcheck/00install.out' for details.
+| 
+| And even more details if you download the artifacts of your build and
+| review that file. So it's a Boost thing, and there's probably nothing
+| you can do about it beyond talking to CRAN. There are packages on CRAN
+| with these warnings.
+
+But for me it actually failed to build at
+ - RHub
+ - win-builder r-release
+ - win-builder r-devel
+when I submitted an unchanged tarball (with me as maintainer to get the result). 
+
+So there may be more going on.  Could just be a setup issue which happens at
+RHub and win-builder.  But Boost Geometry may be a more dicey part of Boost.
+
+| > Running on my local Windows 10 PC I get this warning and a note:
+| >
+| > -- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+| > Duration: 1m 2.2s
+| >
+| > > checking whether package 'rtree' can be installed ... WARNING
+| >   See below...
+| >
+| > > checking compiled code ... NOTE
+| >   Note: information on .o files for x64 is not available
+| >   File 'C:/Research/rtree.Rcheck/rtree/libs/x64/rtree.dll':
+| >     Found 'abort', possibly from 'abort' (C), 'runtime' (Fortran)
+| >     Found 'exit', possibly from 'exit' (C), 'stop' (Fortran)
+| >     Found 'printf', possibly from 'printf' (C)
+| 
+| This is problably a false positive.
+
+Maybe. Maybe not. It does not seem to reproduce on Linux.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kjohnson at akoyabio.com  Thu May  6 21:05:53 2021
+From: kjohnson at akoyabio.com (Kent Johnson)
+Date: Thu, 6 May 2021 19:05:53 +0000
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+In-Reply-To: <24723.58414.971827.758419@rob.eddelbuettel.com>
+References: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+ <CALEXWq1ziJJLfft=56CWdkXsE18fgt7Fe=jn_OR9Y=QfjMHzgg@mail.gmail.com>,
+ <24723.58414.971827.758419@rob.eddelbuettel.com>
+Message-ID: <MN2PR18MB3669D3083EABDD9B58AEDC99B6589@MN2PR18MB3669.namprd18.prod.outlook.com>
+
+From: Dirk Eddelbuettel <edd at debian.org>
+Sent: Thursday, May 6, 2021 8:42 AM
+
+On 6 May 2021 at 10:45, Iñaki Ucar wrote:
+| > The full output is here: https://github.com/akoyabio/rtree/runs/2502841486?check_suite_focus=true
+| > The message says "See below..." but there is nothing below?
+|
+| Below I see this:
+|
+| * checking whether package 'rtree' can be installed ... WARNING
+| Found the following significant warnings:
+|
+|   D:/a/_temp/Library/BH/include/boost/geometry/index/detail/varray_detail.hpp:544:13:
+| warning: 'void* memcpy(void*, const void*, size_t)' writing to an
+| object of type 'struct std::pair<boost::geometry::model::point<double,
+| 2, boost::geometry::cs::cartesian>, unsigned int>' with no trivial
+| copy-assignment; use copy-assignment or copy-initialization instead
+| [-Wclass-memaccess]
+|
+| And even more details if you download the artifacts of your build and
+| review that file. So it's a Boost thing, and there's probably nothing
+| you can do about it beyond talking to CRAN. There are packages on CRAN
+| with these warnings.
+
+Thank you Iñaki for pointing me to the actual warning. With some digging I have found the cause but not the solution.
+
+This warning is disabled via #pragma in boost/container/detail/copy_move_algo.hpp; the changeset (from Sept 2018) is here:
+https://github.com/boostorg/container/commit/6504af87080ec0f5193e0cd623795dedc4a5d9c3
+
+In the BH package, these #pragmas have been commented out here:
+https://github.com/eddelbuettel/bh/commit/54182166369ef0ac1e7a58ef331afc02f1c5dd2c
+which then causes my code to emit the warnings.
+
+I'm not sure how to proceed. I can try submitting to CRAN with an explanation of the warnings. ISTM it would be better for {BH} to be submitted with the #pragmas in place; then there is just one fix and one exception, rather than the possibility of multiple packages having this issue. Dirk, do you have any recommendation?
+
+But for me it actually failed to build at
+ - RHub
+ - win-builder r-release
+ - win-builder r-devel
+when I submitted an unchanged tarball (with me as maintainer to get the result).
+
+When I submit to RHub and build on "Windows Server 2008 R2 SP1, R-release, 32/64 bit" I get the same errors as I see on GitHub and local builds. I did not try win-builder.
+
+So there may be more going on.  Could just be a setup issue which happens at
+RHub and win-builder.  But Boost Geometry may be a more dicey part of Boost.
+
+I think the commented-out #pragmas explain these warnings.
+
+| > Running on my local Windows 10 PC I get this warning and a note:
+| >
+| > -- R CMD check results ---------------------------------------- rtree 0.2.0 ----
+| > Duration: 1m 2.2s
+| >
+| > > checking whether package 'rtree' can be installed ... WARNING
+| >   See below...
+| >
+| > > checking compiled code ... NOTE
+| >   Note: information on .o files for x64 is not available
+| >   File 'C:/Research/rtree.Rcheck/rtree/libs/x64/rtree.dll':
+| >     Found 'abort', possibly from 'abort' (C), 'runtime' (Fortran)
+| >     Found 'exit', possibly from 'exit' (C), 'stop' (Fortran)
+| >     Found 'printf', possibly from 'printf' (C)
+|
+| This is problably a false positive.
+
+Maybe. Maybe not. It does not seem to reproduce on Linux.
+
+I think this is a false positive, there are other reports of this on Stack Overflow.
+
+Thank you both for your help, any suggestions on the best way to proceed are very welcome.
+
+Kent
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210506/7aaa1ea9/attachment-0001.html>
+
+From edd at debian.org  Fri May  7 01:14:02 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 May 2021 18:14:02 -0500
+Subject: [Rcpp-devel] Help with R CMD CHECK for rtree package
+In-Reply-To: <MN2PR18MB3669D3083EABDD9B58AEDC99B6589@MN2PR18MB3669.namprd18.prod.outlook.com>
+References: <MN2PR18MB3669C8E5CB94CFEA2B8724BAB6599@MN2PR18MB3669.namprd18.prod.outlook.com>
+ <CALEXWq1ziJJLfft=56CWdkXsE18fgt7Fe=jn_OR9Y=QfjMHzgg@mail.gmail.com>
+ <24723.58414.971827.758419@rob.eddelbuettel.com>
+ <MN2PR18MB3669D3083EABDD9B58AEDC99B6589@MN2PR18MB3669.namprd18.prod.outlook.com>
+Message-ID: <24724.30778.235904.132912@rob.eddelbuettel.com>
+
+
+On 6 May 2021 at 19:05, Kent Johnson wrote:
+| I'm not sure how to proceed. I can try submitting to CRAN with an explanation of the warnings. ISTM it would be better for {BH} to be submitted with the #pragmas in place; then there is just one fix and one exception, rather than the possibility of multiple packages having this issue. Dirk, do you have any recommendation?
+
+The #pragmas are deactivated because CRAN explicitly says so.
+ 
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From stvjc at channing.harvard.edu  Tue May 11 04:56:10 2021
+From: stvjc at channing.harvard.edu (Vincent Carey)
+Date: Mon, 10 May 2021 22:56:10 -0400
+Subject: [Rcpp-devel] efficient ingestion of "sparse csv"
+Message-ID: <CAANT7+Xz_ONXz3h0kx+7QWVrHmAjFHZnMJMhEuFzgPOVQs6DGw@mail.gmail.com>
+
+This problem has been discussed in various places but I don't
+see a clear solution.  Certain applications are generating
+large comma-delimited files with mostly zero entries.  The aim
+is to ingest efficiently, converting to sparse representation
+a record at a time.  Presumably a triplet format would be the
+initial internal representation, with an aim to convert at
+the end to Matrix dgCmatrix format.  Has anyone tackled this
+in Rcpp or RcppArmadillo?
+
+-- 
+The information in this e-mail is intended only for the person to whom it 
+is
+addressed. If you believe this e-mail was sent to you in error and the 
+e-mail
+contains patient information, please contact the Partners Compliance 
+HelpLine at
+http://www.partners.org/complianceline 
+<http://www.partners.org/complianceline> . If the e-mail was sent to you in 
+error
+but does not contain patient information, please contact the sender 
+and properly
+dispose of the e-mail.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210510/27cab85b/attachment.html>
+
+From edd at debian.org  Tue May 11 05:19:14 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 10 May 2021 22:19:14 -0500
+Subject: [Rcpp-devel] efficient ingestion of "sparse csv"
+In-Reply-To: <CAANT7+Xz_ONXz3h0kx+7QWVrHmAjFHZnMJMhEuFzgPOVQs6DGw@mail.gmail.com>
+References: <CAANT7+Xz_ONXz3h0kx+7QWVrHmAjFHZnMJMhEuFzgPOVQs6DGw@mail.gmail.com>
+Message-ID: <24729.63410.768526.44668@rob.eddelbuettel.com>
+
+
+Vincent,
+
+In the broad terms of the question the best answer may be a simple "sure".
+More seriously, there have been many approaches.  Consider for example the
+recent Rcpp Gallery post lead by Zach (with some edits by me):
+  https://gallery.rcpp.org/articles/sparse-matrix-class/
+
+It's focus on not copying <i,p,x> again if we already have them as R vectors,
+which is a fair point. If the goal is to get to SuperLU via (Rcpp)Armadillo
+then I do not think you can avoid the (internal) copies.  As always, the
+answer may be "it depends".
+
+Hope this helps, happy to refine,  Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From stvjc at channing.harvard.edu  Tue May 11 06:27:55 2021
+From: stvjc at channing.harvard.edu (Vincent Carey)
+Date: Tue, 11 May 2021 00:27:55 -0400
+Subject: [Rcpp-devel] efficient ingestion of "sparse csv"
+In-Reply-To: <24729.63410.768526.44668@rob.eddelbuettel.com>
+References: <CAANT7+Xz_ONXz3h0kx+7QWVrHmAjFHZnMJMhEuFzgPOVQs6DGw@mail.gmail.com>
+ <24729.63410.768526.44668@rob.eddelbuettel.com>
+Message-ID: <CAANT7+XZBtHt6hQOvsGgKL61A9ZG73v-iS1ozM2dbMoupsP-HQ@mail.gmail.com>
+
+Thanks Dirk, lots of useful information there.  I wonder whether the sparse
+ingestion
+problem would best be solved with multiple passes -- it seems one would want
+to learn the dimensions and the number of nonzero elements per row to
+allocate the index vectors, and then populate them and the data vector with
+a final pass.
+Or one could use a buffering strategy to grow the index vectors as needed
+in a
+one-pass approach.
+
+On Mon, May 10, 2021 at 11:19 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Vincent,
+>
+> In the broad terms of the question the best answer may be a simple "sure".
+> More seriously, there have been many approaches.  Consider for example the
+> recent Rcpp Gallery post lead by Zach (with some edits by me):
+>   https://gallery.rcpp.org/articles/sparse-matrix-class/
+>
+> It's focus on not copying <i,p,x> again if we already have them as R
+> vectors,
+> which is a fair point. If the goal is to get to SuperLU via (Rcpp)Armadillo
+> then I do not think you can avoid the (internal) copies.  As always, the
+> answer may be "it depends".
+>
+> Hope this helps, happy to refine,  Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+-- 
+The information in this e-mail is intended only for the person to whom it 
+is
+addressed. If you believe this e-mail was sent to you in error and the 
+e-mail
+contains patient information, please contact the Partners Compliance 
+HelpLine at
+http://www.partners.org/complianceline 
+<http://www.partners.org/complianceline> . If the e-mail was sent to you in 
+error
+but does not contain patient information, please contact the sender 
+and properly
+dispose of the e-mail.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210511/1f155e20/attachment.html>
+
+From peter.hickey at gmail.com  Tue May 11 12:14:05 2021
+From: peter.hickey at gmail.com (Peter Hickey)
+Date: Tue, 11 May 2021 20:14:05 +1000
+Subject: [Rcpp-devel] efficient ingestion of "sparse csv" (Vincent Carey)
+In-Reply-To: <mailman.1.1620727201.5151.rcpp-devel@lists.r-forge.r-project.org>
+References: <mailman.1.1620727201.5151.rcpp-devel@lists.r-forge.r-project.org>
+Message-ID: <CAB6GOe7U2hGJ6dVq+b1ZwzUgh=JOsfHN9vU+SCBdxZ=fvsbZZA@mail.gmail.com>
+
+Hi Vince,
+
+Aaron Lun (CC-ed) has written scuttle::readSparseCounts() for this purpose.
+You may have already seen it since it's in BioC.
+It's written in R rather than C++ but I imagine it's pretty efficient
+since, well, it's written by Aaron
+(https://github.com/LTLA/scuttle/blob/master/R/readSparseCounts.R).
+
+Cheers,
+Pete
+
+From khoshnevis.naeem at gmail.com  Fri May 14 18:12:15 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Fri, 14 May 2021 11:12:15 -0500
+Subject: [Rcpp-devel] Posting question's guidelines
+Message-ID: <CAKOOZvOMdd5vGEn+wKnMDkcuQE6ZbotBzRr2e+BTGDoOMidSgw@mail.gmail.com>
+
+Hi,
+
+Hope this email finds you well.  Can I post Rcpp related questions (as a
+user) on this mailing list?
+
+Best regards,
+Naeem Khoshnevis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210514/4d04e0d0/attachment.html>
+
+From edd at debian.org  Fri May 14 18:29:37 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 14 May 2021 11:29:37 -0500
+Subject: [Rcpp-devel] Posting question's guidelines
+In-Reply-To: <CAKOOZvOMdd5vGEn+wKnMDkcuQE6ZbotBzRr2e+BTGDoOMidSgw@mail.gmail.com>
+References: <CAKOOZvOMdd5vGEn+wKnMDkcuQE6ZbotBzRr2e+BTGDoOMidSgw@mail.gmail.com>
+Message-ID: <24734.42353.154614.726419@rob.eddelbuettel.com>
+
+
+On 14 May 2021 at 11:12, Naeem Khoshnevis wrote:
+| Hope this email finds you well.  Can I post Rcpp related questions (as a
+| user) on this mailing list?
+
+Yes please -- that is *exactly* for it is for: doing 'Rcpp devel'opment
+by which we also mean using it in your packages and work.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From khoshnevis.naeem at gmail.com  Fri May 14 18:49:16 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Fri, 14 May 2021 11:49:16 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply workers
+	in an R package
+Message-ID: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+
+Dear Rcpp developers:
+
+Thanks for developing and maintaining the Rcpp package.
+I wrote a function in Rcpp. It is available throughout the package and
+works as expected; however, it is not available for praLapply workers. A
+temporary fix is just using Rcpp::cppFunction inside the function that
+parLapply workers call and copy the entire function over there. However,
+this does not seem right for bigger and more complicated functions.
+I would be grateful if you could let me know whether there is a better
+long-term solution. Here is the package and three functions that you might
+want to take a look at.
+
+Original cpp function:
+https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+
+Wrapper function that calls this function + temporal fix:
+https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+
+The function that uses parLapply (please see line 63-89) to run the c++
+code:
+https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+
+Best regards,
+Naeem
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210514/c5d5dc6e/attachment.html>
+
+From michael.weylandt at gmail.com  Fri May 14 18:57:27 2021
+From: michael.weylandt at gmail.com (Michael Weylandt)
+Date: Fri, 14 May 2021 11:57:27 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+Message-ID: <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+
+Hi Naeem,
+
+My (very quick) guess is that this isn't an Rcpp problem per se, but a
+parLapply problem. You need to explicitly load your package on each
+worker so that functions from it are available.
+
+See, e.g., the brief discussion here:
+https://stackoverflow.com/questions/18357788/parallel-parlapply-setup#18358875
+
+The "parallel" packages do not exactly replicate your environment on
+each worker node (to avoid expensive set-up / communication costs) so
+you need to do a bit more set-up.
+
+Best,
+Michael
+
+On Fri, May 14, 2021 at 11:49 AM Naeem Khoshnevis
+<khoshnevis.naeem at gmail.com> wrote:
+>
+> Dear Rcpp developers:
+>
+> Thanks for developing and maintaining the Rcpp package.
+> I wrote a function in Rcpp. It is available throughout the package and works as expected; however, it is not available for praLapply workers. A temporary fix is just using Rcpp::cppFunction inside the function that parLapply workers call and copy the entire function over there. However, this does not seem right for bigger and more complicated functions.
+> I would be grateful if you could let me know whether there is a better long-term solution. Here is the package and three functions that you might want to take a look at.
+>
+> Original cpp function:
+> https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+>
+> Wrapper function that calls this function + temporal fix:
+> https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+>
+> The function that uses parLapply (please see line 63-89) to run the c++ code:
+> https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+>
+> Best regards,
+> Naeem
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From khoshnevis.naeem at gmail.com  Fri May 14 19:35:25 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Fri, 14 May 2021 12:35:25 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+Message-ID: <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+
+Hi Michael,
+
+
+Thank you so much for your response. That is correct. One method for
+exporting required variables/functions is using the clusterExport function,
+ which does not work for Rcpp-based functions. Another option is using
+clusterEvalQ (as mentioned in the shared post); however, I am not sure if
+CRAN likes to see the library(package name) inside the codebase. What are
+your thoughts?
+
+Best regards,
+Naeem
+
+On Fri, May 14, 2021 at 11:57 AM Michael Weylandt <
+michael.weylandt at gmail.com> wrote:
+
+> Hi Naeem,
+>
+> My (very quick) guess is that this isn't an Rcpp problem per se, but a
+> parLapply problem. You need to explicitly load your package on each
+> worker so that functions from it are available.
+>
+> See, e.g., the brief discussion here:
+>
+> https://stackoverflow.com/questions/18357788/parallel-parlapply-setup#18358875
+>
+> The "parallel" packages do not exactly replicate your environment on
+> each worker node (to avoid expensive set-up / communication costs) so
+> you need to do a bit more set-up.
+>
+> Best,
+> Michael
+>
+> On Fri, May 14, 2021 at 11:49 AM Naeem Khoshnevis
+> <khoshnevis.naeem at gmail.com> wrote:
+> >
+> > Dear Rcpp developers:
+> >
+> > Thanks for developing and maintaining the Rcpp package.
+> > I wrote a function in Rcpp. It is available throughout the package and
+> works as expected; however, it is not available for praLapply workers. A
+> temporary fix is just using Rcpp::cppFunction inside the function that
+> parLapply workers call and copy the entire function over there. However,
+> this does not seem right for bigger and more complicated functions.
+> > I would be grateful if you could let me know whether there is a better
+> long-term solution. Here is the package and three functions that you might
+> want to take a look at.
+> >
+> > Original cpp function:
+> >
+> https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+> >
+> > Wrapper function that calls this function + temporal fix:
+> > https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+> >
+> > The function that uses parLapply (please see line 63-89) to run the c++
+> code:
+> > https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+> >
+> > Best regards,
+> > Naeem
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210514/e51b5e2d/attachment.html>
+
+From jdnewmil at dcn.davis.ca.us  Fri May 14 20:44:36 2021
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Fri, 14 May 2021 11:44:36 -0700
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+	workers in an R package
+In-Reply-To: <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+ <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+Message-ID: <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+
+clusterExport works just fine if you put your Rcpp code into your own package and make that package available in your worker environment. Given the need for compilation in possibly a variety of computing environments for parallel processing this is definitely recommended.
+
+On May 14, 2021 10:35:25 AM PDT, Naeem Khoshnevis <khoshnevis.naeem at gmail.com> wrote:
+>Hi Michael,
+>
+>
+>Thank you so much for your response. That is correct. One method for
+>exporting required variables/functions is using the clusterExport
+>function,
+> which does not work for Rcpp-based functions. Another option is using
+>clusterEvalQ (as mentioned in the shared post); however, I am not sure
+>if
+>CRAN likes to see the library(package name) inside the codebase. What
+>are
+>your thoughts?
+>
+>Best regards,
+>Naeem
+>
+>On Fri, May 14, 2021 at 11:57 AM Michael Weylandt <
+>michael.weylandt at gmail.com> wrote:
+>
+>> Hi Naeem,
+>>
+>> My (very quick) guess is that this isn't an Rcpp problem per se, but
+>a
+>> parLapply problem. You need to explicitly load your package on each
+>> worker so that functions from it are available.
+>>
+>> See, e.g., the brief discussion here:
+>>
+>>
+>https://stackoverflow.com/questions/18357788/parallel-parlapply-setup#18358875
+>>
+>> The "parallel" packages do not exactly replicate your environment on
+>> each worker node (to avoid expensive set-up / communication costs) so
+>> you need to do a bit more set-up.
+>>
+>> Best,
+>> Michael
+>>
+>> On Fri, May 14, 2021 at 11:49 AM Naeem Khoshnevis
+>> <khoshnevis.naeem at gmail.com> wrote:
+>> >
+>> > Dear Rcpp developers:
+>> >
+>> > Thanks for developing and maintaining the Rcpp package.
+>> > I wrote a function in Rcpp. It is available throughout the package
+>and
+>> works as expected; however, it is not available for praLapply
+>workers. A
+>> temporary fix is just using Rcpp::cppFunction inside the function
+>that
+>> parLapply workers call and copy the entire function over there.
+>However,
+>> this does not seem right for bigger and more complicated functions.
+>> > I would be grateful if you could let me know whether there is a
+>better
+>> long-term solution. Here is the package and three functions that you
+>might
+>> want to take a look at.
+>> >
+>> > Original cpp function:
+>> >
+>>
+>https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+>> >
+>> > Wrapper function that calls this function + temporal fix:
+>> >
+>https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+>> >
+>> > The function that uses parLapply (please see line 63-89) to run the
+>c++
+>> code:
+>> >
+>https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+>> >
+>> > Best regards,
+>> > Naeem
+>> > _______________________________________________
+>> > Rcpp-devel mailing list
+>> > Rcpp-devel at lists.r-forge.r-project.org
+>> >
+>https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From khoshnevis.naeem at gmail.com  Fri May 14 20:57:00 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Fri, 14 May 2021 13:57:00 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+ <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+ <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+Message-ID: <CAKOOZvNNapN0dL_jx6H4Lkp_qK8AaaQTEOK2BbPu0k+VMHTAaQ@mail.gmail.com>
+
+Thank you so much, Jeff. The part that I do not understand is the "and make
+that package available in your worker environment" part. Could you please
+let me know how I can make the package available for each worker.
+
+On Fri, May 14, 2021 at 1:44 PM Jeff Newmiller <jdnewmil at dcn.davis.ca.us>
+wrote:
+
+> clusterExport works just fine if you put your Rcpp code into your own
+> package and make that package available in your worker environment. Given
+> the need for compilation in possibly a variety of computing environments
+> for parallel processing this is definitely recommended.
+>
+> On May 14, 2021 10:35:25 AM PDT, Naeem Khoshnevis <
+> khoshnevis.naeem at gmail.com> wrote:
+> >Hi Michael,
+> >
+> >
+> >Thank you so much for your response. That is correct. One method for
+> >exporting required variables/functions is using the clusterExport
+> >function,
+> > which does not work for Rcpp-based functions. Another option is using
+> >clusterEvalQ (as mentioned in the shared post); however, I am not sure
+> >if
+> >CRAN likes to see the library(package name) inside the codebase. What
+> >are
+> >your thoughts?
+> >
+> >Best regards,
+> >Naeem
+> >
+> >On Fri, May 14, 2021 at 11:57 AM Michael Weylandt <
+> >michael.weylandt at gmail.com> wrote:
+> >
+> >> Hi Naeem,
+> >>
+> >> My (very quick) guess is that this isn't an Rcpp problem per se, but
+> >a
+> >> parLapply problem. You need to explicitly load your package on each
+> >> worker so that functions from it are available.
+> >>
+> >> See, e.g., the brief discussion here:
+> >>
+> >>
+> >
+> https://stackoverflow.com/questions/18357788/parallel-parlapply-setup#18358875
+> >>
+> >> The "parallel" packages do not exactly replicate your environment on
+> >> each worker node (to avoid expensive set-up / communication costs) so
+> >> you need to do a bit more set-up.
+> >>
+> >> Best,
+> >> Michael
+> >>
+> >> On Fri, May 14, 2021 at 11:49 AM Naeem Khoshnevis
+> >> <khoshnevis.naeem at gmail.com> wrote:
+> >> >
+> >> > Dear Rcpp developers:
+> >> >
+> >> > Thanks for developing and maintaining the Rcpp package.
+> >> > I wrote a function in Rcpp. It is available throughout the package
+> >and
+> >> works as expected; however, it is not available for praLapply
+> >workers. A
+> >> temporary fix is just using Rcpp::cppFunction inside the function
+> >that
+> >> parLapply workers call and copy the entire function over there.
+> >However,
+> >> this does not seem right for bigger and more complicated functions.
+> >> > I would be grateful if you could let me know whether there is a
+> >better
+> >> long-term solution. Here is the package and three functions that you
+> >might
+> >> want to take a look at.
+> >> >
+> >> > Original cpp function:
+> >> >
+> >>
+> >
+> https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+> >> >
+> >> > Wrapper function that calls this function + temporal fix:
+> >> >
+> >https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+> >> >
+> >> > The function that uses parLapply (please see line 63-89) to run the
+> >c++
+> >> code:
+> >> >
+> >https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+> >> >
+> >> > Best regards,
+> >> > Naeem
+> >> > _______________________________________________
+> >> > Rcpp-devel mailing list
+> >> > Rcpp-devel at lists.r-forge.r-project.org
+> >> >
+> >https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >>
+>
+> --
+> Sent from my phone. Please excuse my brevity.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210514/c9ddba15/attachment.html>
+
+From michael.weylandt at gmail.com  Fri May 14 21:07:04 2021
+From: michael.weylandt at gmail.com (Michael Weylandt)
+Date: Fri, 14 May 2021 14:07:04 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <CAKOOZvNNapN0dL_jx6H4Lkp_qK8AaaQTEOK2BbPu0k+VMHTAaQ@mail.gmail.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+ <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+ <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+ <CAKOOZvNNapN0dL_jx6H4Lkp_qK8AaaQTEOK2BbPu0k+VMHTAaQ@mail.gmail.com>
+Message-ID: <CAAmySGMsz5KFqM2ve9SN_B+-q-su7UfUoYioEyZEHn57P_Vgfg@mail.gmail.com>
+
+You "just" run clusterEvalQ(library(PKG)) on each cluster. Like Jeff
+says, this is much easier for you as a package developer and, I'd
+argue, easier for your users as well, since they just have to make
+sure the package can be installed once, rather than having compilers
+ready and behaving for each use.
+
+The CRAN organization / mirror on GitHub (github.com/cran) is very
+useful for this sort of thing.
+
+Searching for "library(" and "clusterEvalQ"
+(https://github.com/search?q=org%3Acran+library%28+clusterEvalQ&type=code)
+in that organization yields the following result (chosen at random):
+
+https://github.com/cran/textmineR/blob/889b400b2ccdc4eac7b9fee5dd7678bd71f0b290/R/other_utilities.R#L51
+
+where you can see how the textmineR package loads itself on each worker.
+
+To your earlier question, I *think* CRAN is ok to
+"clusterEvalQ(library(PKG))" within one of your functions (as
+evidenced by the search of CRAN above), but I've never done it myself,
+so can't confirm.
+
+Michael
+
+On Fri, May 14, 2021 at 1:57 PM Naeem Khoshnevis
+<khoshnevis.naeem at gmail.com> wrote:
+>
+> Thank you so much, Jeff. The part that I do not understand is the "and make that package available in your worker environment" part. Could you please let me know how I can make the package available for each worker.
+>
+> On Fri, May 14, 2021 at 1:44 PM Jeff Newmiller <jdnewmil at dcn.davis.ca.us> wrote:
+>>
+>> clusterExport works just fine if you put your Rcpp code into your own package and make that package available in your worker environment. Given the need for compilation in possibly a variety of computing environments for parallel processing this is definitely recommended.
+>>
+>> On May 14, 2021 10:35:25 AM PDT, Naeem Khoshnevis <khoshnevis.naeem at gmail.com> wrote:
+>> >Hi Michael,
+>> >
+>> >
+>> >Thank you so much for your response. That is correct. One method for
+>> >exporting required variables/functions is using the clusterExport
+>> >function,
+>> > which does not work for Rcpp-based functions. Another option is using
+>> >clusterEvalQ (as mentioned in the shared post); however, I am not sure
+>> >if
+>> >CRAN likes to see the library(package name) inside the codebase. What
+>> >are
+>> >your thoughts?
+>> >
+>> >Best regards,
+>> >Naeem
+>> >
+>> >On Fri, May 14, 2021 at 11:57 AM Michael Weylandt <
+>> >michael.weylandt at gmail.com> wrote:
+>> >
+>> >> Hi Naeem,
+>> >>
+>> >> My (very quick) guess is that this isn't an Rcpp problem per se, but
+>> >a
+>> >> parLapply problem. You need to explicitly load your package on each
+>> >> worker so that functions from it are available.
+>> >>
+>> >> See, e.g., the brief discussion here:
+>> >>
+>> >>
+>> >https://stackoverflow.com/questions/18357788/parallel-parlapply-setup#18358875
+>> >>
+>> >> The "parallel" packages do not exactly replicate your environment on
+>> >> each worker node (to avoid expensive set-up / communication costs) so
+>> >> you need to do a bit more set-up.
+>> >>
+>> >> Best,
+>> >> Michael
+>> >>
+>> >> On Fri, May 14, 2021 at 11:49 AM Naeem Khoshnevis
+>> >> <khoshnevis.naeem at gmail.com> wrote:
+>> >> >
+>> >> > Dear Rcpp developers:
+>> >> >
+>> >> > Thanks for developing and maintaining the Rcpp package.
+>> >> > I wrote a function in Rcpp. It is available throughout the package
+>> >and
+>> >> works as expected; however, it is not available for praLapply
+>> >workers. A
+>> >> temporary fix is just using Rcpp::cppFunction inside the function
+>> >that
+>> >> parLapply workers call and copy the entire function over there.
+>> >However,
+>> >> this does not seem right for bigger and more complicated functions.
+>> >> > I would be grateful if you could let me know whether there is a
+>> >better
+>> >> long-term solution. Here is the package and three functions that you
+>> >might
+>> >> want to take a look at.
+>> >> >
+>> >> > Original cpp function:
+>> >> >
+>> >>
+>> >https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+>> >> >
+>> >> > Wrapper function that calls this function + temporal fix:
+>> >> >
+>> >https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+>> >> >
+>> >> > The function that uses parLapply (please see line 63-89) to run the
+>> >c++
+>> >> code:
+>> >> >
+>> >https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+>> >> >
+>> >> > Best regards,
+>> >> > Naeem
+>> >> > _______________________________________________
+>> >> > Rcpp-devel mailing list
+>> >> > Rcpp-devel at lists.r-forge.r-project.org
+>> >> >
+>> >https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> >>
+>>
+>> --
+>> Sent from my phone. Please excuse my brevity.
+
+From khoshnevis.naeem at gmail.com  Fri May 14 21:59:22 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Fri, 14 May 2021 14:59:22 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <CAAmySGMsz5KFqM2ve9SN_B+-q-su7UfUoYioEyZEHn57P_Vgfg@mail.gmail.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+ <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+ <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+ <CAKOOZvNNapN0dL_jx6H4Lkp_qK8AaaQTEOK2BbPu0k+VMHTAaQ@mail.gmail.com>
+ <CAAmySGMsz5KFqM2ve9SN_B+-q-su7UfUoYioEyZEHn57P_Vgfg@mail.gmail.com>
+Message-ID: <CAKOOZvMjKWT3wwp9YgzzkSZKNhO7ABeQ7xL5W5fw=og=b2t60Q@mail.gmail.com>
+
+Thank you so much, Michael and Jeff. I really appreciate your help. These
+are invaluable suggestions and recommendations.  Thanks, Dirk, for bringing
+this email list to my attention.
+
+Best regards,
+Naeem
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210514/682e9b81/attachment.html>
+
+From balamut2 at illinois.edu  Fri May 14 22:09:07 2021
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Fri, 14 May 2021 20:09:07 +0000
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+Message-ID: <1D2AA2E1-C2A5-46D9-B077-1D8F5992C12E@illinois.edu>
+
+Naeem,
+
+The best path for including compiled code in a package is to place it within the `src/` directory instead of using `Rcpp::cppFunction()` to compile. The reasons for this are stated succiently here: https://stackoverflow.com/a/6074391/1345455
+
+From there, the C++ can easily be exported across parallel workers just by loading the package.
+
+Consider looking at how this example package using doParallel is structured.
+
+https://github.com/r-pkg-examples/rcpp-and-doparallel
+
+Best,
+
+JJB
+
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Naeem Khoshnevis <khoshnevis.naeem at gmail.com>
+Date: Friday, May 14, 2021 at 11:49 AM
+To: "rcpp-devel at lists.r-forge.r-project.org" <rcpp-devel at lists.r-forge.r-project.org>
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply workers in an R package
+
+Dear Rcpp developers:
+
+Thanks for developing and maintaining the Rcpp package.
+I wrote a function in Rcpp. It is available throughout the package and works as expected; however, it is not available for praLapply workers. A temporary fix is just using Rcpp::cppFunction inside the function that parLapply workers call and copy the entire function over there. However, this does not seem right for bigger and more complicated functions.
+I would be grateful if you could let me know whether there is a better long-term solution. Here is the package and three functions that you might want to take a look at.
+
+Original cpp function:
+https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp<https://urldefense.com/v3/__https:/github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp__;!!DZ3fjg!oyv9eCC8FkfL4RzQ_LE613qZNCplLbfU22AlYI8Faem0SaWx-GcDeRWHef6zf-42AH4$>
+
+Wrapper function that calls this function + temporal fix:
+https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R<https://urldefense.com/v3/__https:/github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R__;!!DZ3fjg!oyv9eCC8FkfL4RzQ_LE613qZNCplLbfU22AlYI8Faem0SaWx-GcDeRWHef6z0KitDq4$>
+
+The function that uses parLapply (please see line 63-89) to run the c++ code:
+https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R<https://urldefense.com/v3/__https:/github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R__;!!DZ3fjg!oyv9eCC8FkfL4RzQ_LE613qZNCplLbfU22AlYI8Faem0SaWx-GcDeRWHef6z0KitDq4$>
+
+Best regards,
+Naeem
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210514/9962d3e8/attachment-0001.html>
+
+From khoshnevis.naeem at gmail.com  Fri May 14 22:37:17 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Fri, 14 May 2021 15:37:17 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <1D2AA2E1-C2A5-46D9-B077-1D8F5992C12E@illinois.edu>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <1D2AA2E1-C2A5-46D9-B077-1D8F5992C12E@illinois.edu>
+Message-ID: <CAKOOZvP5-=Nqbu+JLoTqQsnbSnXDQnFUGgtErJy_4RThEPaiAg@mail.gmail.com>
+
+This is great, James. Thank you so much for sharing.
+
+Best regards,
+Naeem
+
+On Fri, May 14, 2021 at 3:09 PM Balamuta, James Joseph <
+balamut2 at illinois.edu> wrote:
+
+> Naeem,
+>
+>
+>
+> The best path for including compiled code in a package is to place it
+> within the `src/` directory instead of using `Rcpp::cppFunction()` to
+> compile. The reasons for this are stated succiently here:
+> https://stackoverflow.com/a/6074391/1345455
+>
+>
+>
+> From there, the C++ can easily be exported across parallel workers just by
+> loading the package.
+>
+>
+>
+> Consider looking at how this example package using doParallel is
+> structured.
+>
+>
+>
+> https://github.com/r-pkg-examples/rcpp-and-doparallel
+>
+>
+>
+> Best,
+>
+>
+>
+> JJB
+>
+>
+>
+> *From: *Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on
+> behalf of Naeem Khoshnevis <khoshnevis.naeem at gmail.com>
+> *Date: *Friday, May 14, 2021 at 11:49 AM
+> *To: *"rcpp-devel at lists.r-forge.r-project.org" <
+> rcpp-devel at lists.r-forge.r-project.org>
+> *Subject: *[Rcpp-devel] Exporting rcpp-based function into parLapply
+> workers in an R package
+>
+>
+>
+> Dear Rcpp developers:
+>
+> Thanks for developing and maintaining the Rcpp package.
+> I wrote a function in Rcpp. It is available throughout the package and
+> works as expected; however, it is not available for praLapply workers. A
+> temporary fix is just using Rcpp::cppFunction inside the function that
+> parLapply workers call and copy the entire function over there. However,
+> this does not seem right for bigger and more complicated functions.
+> I would be grateful if you could let me know whether there is a better
+> long-term solution. Here is the package and three functions that you might
+> want to take a look at.
+>
+> Original cpp function:
+>
+> https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+> <https://urldefense.com/v3/__https:/github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp__;!!DZ3fjg!oyv9eCC8FkfL4RzQ_LE613qZNCplLbfU22AlYI8Faem0SaWx-GcDeRWHef6zf-42AH4$>
+>
+> Wrapper function that calls this function + temporal fix:
+> https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+> <https://urldefense.com/v3/__https:/github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R__;!!DZ3fjg!oyv9eCC8FkfL4RzQ_LE613qZNCplLbfU22AlYI8Faem0SaWx-GcDeRWHef6z0KitDq4$>
+>
+> The function that uses parLapply (please see line 63-89) to run the c++
+> code:
+> https://github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R
+> <https://urldefense.com/v3/__https:/github.com/fasrc/CausalGPS/blob/master/R/compute_closest_wgps.R__;!!DZ3fjg!oyv9eCC8FkfL4RzQ_LE613qZNCplLbfU22AlYI8Faem0SaWx-GcDeRWHef6z0KitDq4$>
+>
+> Best regards,
+> Naeem
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210514/c5032110/attachment.html>
+
+From edd at debian.org  Fri May 14 22:48:56 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 14 May 2021 15:48:56 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <CAAmySGMsz5KFqM2ve9SN_B+-q-su7UfUoYioEyZEHn57P_Vgfg@mail.gmail.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+ <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+ <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+ <CAKOOZvNNapN0dL_jx6H4Lkp_qK8AaaQTEOK2BbPu0k+VMHTAaQ@mail.gmail.com>
+ <CAAmySGMsz5KFqM2ve9SN_B+-q-su7UfUoYioEyZEHn57P_Vgfg@mail.gmail.com>
+Message-ID: <24734.57912.41584.611704@rob.eddelbuettel.com>
+
+
+On 14 May 2021 at 14:07, Michael Weylandt wrote:
+| The CRAN organization / mirror on GitHub (github.com/cran) is very
+| useful for this sort of thing.
+| 
+| Searching for "library(" and "clusterEvalQ"
+| (https://github.com/search?q=org%3Acran+library%28+clusterEvalQ&type=code)
+| in that organization yields the following result (chosen at random):
+
+Yes! I actually do these type of searches all the time myself (and am old
+enough to bemoan the disappearance the Google code search tool that preceded
+it ages ago).
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From balamut2 at illinois.edu  Fri May 14 22:54:44 2021
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Fri, 14 May 2021 20:54:44 +0000
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <24734.57912.41584.611704@rob.eddelbuettel.com>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+ <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+ <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+ <CAKOOZvNNapN0dL_jx6H4Lkp_qK8AaaQTEOK2BbPu0k+VMHTAaQ@mail.gmail.com>
+ <CAAmySGMsz5KFqM2ve9SN_B+-q-su7UfUoYioEyZEHn57P_Vgfg@mail.gmail.com>
+ <24734.57912.41584.611704@rob.eddelbuettel.com>
+Message-ID: <554AEFFF-52AB-45CE-B720-05096621EBA1@illinois.edu>
+
+For code searches, consider using the {searcher} package: https://github.com/r-assist/searcher 
+
+In particular, the search_github() function handles the query formatting. As an example, try:
+
+searcher::search_github("clusterEvalQ ")
+
+This opens a web browser with:
+
+https://github.com/search?q=clusterEvalQ%20%20language:r%20type:issue&type=Issues
+
+Lastly, there is an R-specific Google search engine available at: https://rseek.org/ It's not quite google code search, but it's useful! Plus, there is a {searcher} function for that as well, e.g. searcher::search_rseek().
+(Thanks Alex Rossell Hayes for that contribution.)
+
+Best,
+
+JJB
+
+﻿On 5/14/21, 3:49 PM, "Rcpp-devel on behalf of Dirk Eddelbuettel" <rcpp-devel-bounces at lists.r-forge.r-project.org on behalf of edd at debian.org> wrote:
+
+
+    On 14 May 2021 at 14:07, Michael Weylandt wrote:
+    | The CRAN organization / mirror on GitHub (github.com/cran) is very
+    | useful for this sort of thing.
+    | 
+    | Searching for "library(" and "clusterEvalQ"
+    | (https://urldefense.com/v3/__https://github.com/search?q=org*3Acran*library*28*clusterEvalQ&type=code__;JSslKw!!DZ3fjg!uSCS0rJpO5S9EvzzjplvK1kTsvK9ju6pokUJjHxfDgCr2J7oJFfAnTbVKpfD7RInvQA$ )
+    | in that organization yields the following result (chosen at random):
+
+    Yes! I actually do these type of searches all the time myself (and am old
+    enough to bemoan the disappearance the Google code search tool that preceded
+    it ages ago).
+
+    Dirk
+
+    -- 
+    https://urldefense.com/v3/__https://dirk.eddelbuettel.com__;!!DZ3fjg!uSCS0rJpO5S9EvzzjplvK1kTsvK9ju6pokUJjHxfDgCr2J7oJFfAnTbVKpfDGavZ2gk$  | @eddelbuettel | edd at debian.org
+    _______________________________________________
+    Rcpp-devel mailing list
+    Rcpp-devel at lists.r-forge.r-project.org
+    https://urldefense.com/v3/__https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel__;!!DZ3fjg!uSCS0rJpO5S9EvzzjplvK1kTsvK9ju6pokUJjHxfDgCr2J7oJFfAnTbVKpfDlciWISw$ 
+
+
+From edd at debian.org  Fri May 14 23:30:08 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 14 May 2021 16:30:08 -0500
+Subject: [Rcpp-devel] Exporting rcpp-based function into parLapply
+ workers in an R package
+In-Reply-To: <554AEFFF-52AB-45CE-B720-05096621EBA1@illinois.edu>
+References: <CAKOOZvNnPc3Nj277yxrMVvSiSNWGz3SB9fiJ0Q7cMPW97Gpo9A@mail.gmail.com>
+ <CAAmySGMb8gYCSo2nrZkx=1bvhpbUa_93+w-9nJcdfrdm64ZRSw@mail.gmail.com>
+ <CAKOOZvMKm44Wap7LVBq5fGWe2t2ndt8=FEC2_6Sy6QO+srwypQ@mail.gmail.com>
+ <A623DBF9-154E-4B2B-A137-AAB1306FBD31@dcn.davis.ca.us>
+ <CAKOOZvNNapN0dL_jx6H4Lkp_qK8AaaQTEOK2BbPu0k+VMHTAaQ@mail.gmail.com>
+ <CAAmySGMsz5KFqM2ve9SN_B+-q-su7UfUoYioEyZEHn57P_Vgfg@mail.gmail.com>
+ <24734.57912.41584.611704@rob.eddelbuettel.com>
+ <554AEFFF-52AB-45CE-B720-05096621EBA1@illinois.edu>
+Message-ID: <24734.60384.544769.38798@rob.eddelbuettel.com>
+
+
+This is getting off topic but as you James saw fit to advertise his package
+(as he should, it is clearly helpful to some, himself included), here are my
+$0.02 of why it is not for me:
+
+On 14 May 2021 at 20:54, Balamuta, James Joseph wrote:
+| For code searches, consider using the {searcher} package: https://github.com/r-assist/searcher 
+| 
+| In particular, the search_github() function handles the query formatting. As an example, try:
+
+I keep the R prompt(s) (in Emacs, generally) to data work, and do more work
+like this on the shell. Where this is less useful (though I sometimes wrap R
+commands in littler script). Here I particularly dislike
+| 
+| searcher::search_github("clusterEvalQ ")
+| 
+| This opens a web browser with:
+| 
+| https://github.com/search?q=clusterEvalQ%20%20language:r%20type:issue&type=Issues
+
+the shell-to-browser pivot. I have some "permanent tabs" dedicated to GH, I
+prefer to search therein.  Also, why default to issues when the query didn't
+have it? Anyway ...
+ 
+| Lastly, there is an R-specific Google search engine available at: https://rseek.org/ It's not quite google code search, but it's useful! Plus, there is a {searcher} function for that as well, e.g. searcher::search_rseek().
+| (Thanks Alex Rossell Hayes for that contribution.)
+
+Yes that's been around for a while, but codesearch.google.com was still
+better and is missed.  One of the other code aggregators that (AFAIK is also
+gone now) had a different search engine too.
+
+This whole thread is highly off-tocpic and likely answered by some SO answers
+as has bee pointed out as well as possibly some discussions in the r-sig-hpc
+list (which is mostly dormant these days).
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From stvjc at channing.harvard.edu  Wed May 26 16:36:39 2021
+From: stvjc at channing.harvard.edu (Vincent Carey)
+Date: Wed, 26 May 2021 10:36:39 -0400
+Subject: [Rcpp-devel] efficient ingestion of "sparse csv"
+In-Reply-To: <24729.63410.768526.44668@rob.eddelbuettel.com>
+References: <CAANT7+Xz_ONXz3h0kx+7QWVrHmAjFHZnMJMhEuFzgPOVQs6DGw@mail.gmail.com>
+ <24729.63410.768526.44668@rob.eddelbuettel.com>
+Message-ID: <CAANT7+XvWUkTLiVESdQh32ZVE5UbbRMqv2QYfm7cF8cnNcS=tA@mail.gmail.com>
+
+On this theme, the following proved sufficient to ingest and
+convert sparse csv without column headers or row names:
+
+#include "RcppArmadillo.h"
+
+using namespace Rcpp;
+
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+
+List parse_sparse_csv_impl(SEXP fname) {
+using namespace Rcpp;
+std::string v = Rcpp::as<std::string>(fname);
+arma::sp_mat D;
+D.load(v, arma::csv_ascii);
+return Rcpp::List::create(Rcpp::Named("sp")=D);
+}
+
+On Mon, May 10, 2021 at 11:19 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Vincent,
+>
+> In the broad terms of the question the best answer may be a simple "sure".
+> More seriously, there have been many approaches.  Consider for example the
+> recent Rcpp Gallery post lead by Zach (with some edits by me):
+>   https://gallery.rcpp.org/articles/sparse-matrix-class/
+>
+> It's focus on not copying <i,p,x> again if we already have them as R
+> vectors,
+> which is a fair point. If the goal is to get to SuperLU via (Rcpp)Armadillo
+> then I do not think you can avoid the (internal) copies.  As always, the
+> answer may be "it depends".
+>
+> Hope this helps, happy to refine,  Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+-- 
+The information in this e-mail is intended only for the person to whom it 
+is
+addressed. If you believe this e-mail was sent to you in error and the 
+e-mail
+contains patient information, please contact the Partners Compliance 
+HelpLine at
+http://www.partners.org/complianceline 
+<http://www.partners.org/complianceline> . If the e-mail was sent to you in 
+error
+but does not contain patient information, please contact the sender 
+and properly
+dispose of the e-mail.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210526/3a5f9194/attachment.html>
+
+From serguei.sokol at gmail.com  Wed May 26 17:18:34 2021
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Wed, 26 May 2021 17:18:34 +0200
+Subject: [Rcpp-devel] efficient ingestion of "sparse csv"
+In-Reply-To: <CAANT7+XvWUkTLiVESdQh32ZVE5UbbRMqv2QYfm7cF8cnNcS=tA@mail.gmail.com>
+References: <CAANT7+Xz_ONXz3h0kx+7QWVrHmAjFHZnMJMhEuFzgPOVQs6DGw@mail.gmail.com>
+ <24729.63410.768526.44668@rob.eddelbuettel.com>
+ <CAANT7+XvWUkTLiVESdQh32ZVE5UbbRMqv2QYfm7cF8cnNcS=tA@mail.gmail.com>
+Message-ID: <84697f6b-8b6c-881b-84e0-2b7fda73f9be@gmail.com>
+
+Le 26/05/2021 à 16:36, Vincent Carey a écrit :
+> On this theme, the following proved sufficient to ingest and
+> convert sparse csv without column headers or row names:
+Nice to share your final solution which could be further shorten to smth 
+like:
+
+#include "RcppArmadillo.h"
+using namespace Rcpp;
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+arma::sp_mat parse_sparse_csv_short(std::string fname) {
+    arma::sp_mat D;
+    D.load(fname, arma::csv_ascii);
+    return D;
+}
+
+Best,
+Serguei.
+
+> 
+> #include "RcppArmadillo.h"
+> 
+> using namespace Rcpp;
+> 
+> // [[Rcpp::depends(RcppArmadillo)]]
+> // [[Rcpp::export]]
+> 
+> List parse_sparse_csv_impl(SEXP fname) {
+> using namespace Rcpp;
+> std::string v = Rcpp::as<std::string>(fname);
+> arma::sp_mat D;
+> D.load(v, arma::csv_ascii);
+> return Rcpp::List::create(Rcpp::Named("sp")=D);
+> }
+> 
+> On Mon, May 10, 2021 at 11:19 PM Dirk Eddelbuettel <edd at debian.org 
+> <mailto:edd at debian.org>> wrote:
+> 
+> 
+>     Vincent,
+> 
+>     In the broad terms of the question the best answer may be a simple
+>     "sure".
+>     More seriously, there have been many approaches.  Consider for
+>     example the
+>     recent Rcpp Gallery post lead by Zach (with some edits by me):
+>     https://gallery.rcpp.org/articles/sparse-matrix-class/
+>     <https://gallery.rcpp.org/articles/sparse-matrix-class/>
+> 
+>     It's focus on not copying <i,p,x> again if we already have them as R
+>     vectors,
+>     which is a fair point. If the goal is to get to SuperLU via
+>     (Rcpp)Armadillo
+>     then I do not think you can avoid the (internal) copies.  As always, the
+>     answer may be "it depends".
+> 
+>     Hope this helps, happy to refine,  Dirk
+> 
+>     -- 
+>     https://dirk.eddelbuettel.com <https://dirk.eddelbuettel.com> |
+>     @eddelbuettel | edd at debian.org <mailto:edd at debian.org>
+> 
+> 
+> The information in this e-mail is intended only for the person to whom it is
+> addressed. If you believe this e-mail was sent to you in error and the 
+> e-mail
+> contains patient information, please contact the Partners 
+> Compliance HelpLine at
+> http://www.partners.org/complianceline 
+> <http://www.partners.org/complianceline> . If the e-mail was sent to you 
+> in error
+> but does not contain patient information, please contact the sender and 
+> properly
+> dispose of the e-mail.
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+

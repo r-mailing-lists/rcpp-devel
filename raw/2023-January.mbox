@@ -1,0 +1,2516 @@
+From djsamperi at gmail.com  Wed Jan 18 03:15:50 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Tue, 17 Jan 2023 21:15:50 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+Message-ID: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+
+Hello,
+
+I think I found a problem under Windows with the repl code from RInside.
+The problem appears if I simply compile the code in
+RInside/inst/examples/standard using the Makefile.win there,
+after a few hacks to deal with spaces in file names and the direction of
+slashes.
+
+The problem appears with the example rinside_interactive0.cpp, but to keep
+things simple I've stripped out just the repl code into repl.cpp. It is
+attached, along with a Makefile that works under Windows, with g++ from
+Rtool42, specifically,
+
+set PATH=c:\Rtools42\x86_64-w64-mingw32.static.posic\bin;%PATH%
+
+When repl.exe is run an extra window pops up, and there are random
+terminations, and sometimes a crash, especially if you try to plot
+something. The program immediately terminates after plotting.
+
+None of this happens under Linux (Ubuntu), where the program works as
+expected.
+
+I tried installing gdb using 'pacman -Sy gdb' (following CRAN docs), and
+there were no apparent problems, but some of the DLL's had the wrong
+version, and gdb could not be started. (Missing DLL's were msys-ffi-8.dll
+and msys-unistring-5.dll.)
+
+I was able to build using Visual Studio, and in that case the app crashes
+immediately with a complaint about Rcpp_precious_remove. But here I could
+bring up a debugger and step trough code, and sure enough it crashes soon
+after the call
+GET_CALLABLE("Rcpp_precious_remove"). Stepping into this function leads to
+Microsoft code in thread_safe_statics.cpp that implements a critical
+section, suggesting
+that more than one thread is started.
+
+I wonder if the problem is related to the fact that R is not thread safe?
+
+Or could it be that the preserved objects are bigger under Windows?
+
+I'm working with Rcpp_1.0.9 and RInside_0.2.17, with R-4.2.2.
+
+Thanks,
+Dominick
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230117/1e7a46f2/attachment.html>
+-------------- next part --------------
+// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4;  tab-width: 8; -*-
+//
+// Example of a planetary motion solver with interactive console
+//
+// Copyright (C) 2009         Dirk Eddelbuettel 
+// Copyright (C) 2010 - 2017  Dirk Eddelbuettel and Romain Francois
+// Copyright (C) 2017         Dirk Eddelbuettel, Romain Francois and Łukasz Łaniewski-Wołłk
+//
+// GPL'ed 
+
+#include <RInside.h>                    // for the embedded R via RInside
+
+int main(int argc, char *argv[]) {
+    RInside R(argc, argv, false, false, true); // Create an embedded R instance 
+
+    std::cout << "[ You can finish the with Ctrl+D ]" << std::endl;
+    R.parseEval("options(prompt = 'R console > ')");
+    R.parseEval("X11()");
+    R.repl() ;
+    R.parseEval("dev.off()");
+    exit(0);
+}
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Makefile
+Type: application/octet-stream
+Size: 347 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230117/1e7a46f2/attachment.obj>
+
+From edd at debian.org  Wed Jan 18 03:35:04 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 17 Jan 2023 20:35:04 -0600
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+Message-ID: <25543.23256.797439.518986@rob.eddelbuettel.com>
+
+
+Hi Dominick,
+
+First reflex: uh-oh as 'Rcpp_precious_remove' created some headaches for some
+people when mixing Rcpp and packages built with Rcpp but not the current one.
+We think all this got squared away an Rcpp release or two ago so as a first
+step please make sure _all_ involved packaes are current with CRAN and
+rebuilt.
+
+On 17 January 2023 at 21:15, Dominick Samperi wrote:
+| I think I found a problem under Windows with the repl code from RInside.
+| The problem appears if I simply compile the code in
+| RInside/inst/examples/standard using the Makefile.win there,
+| after a few hacks to deal with spaces in file names and the direction of
+| slashes.
+
+(A small and focused PR would be appreciated if there is some cleanup needed).
+ 
+| The problem appears with the example rinside_interactive0.cpp, but to keep
+| things simple I've stripped out just the repl code into repl.cpp. It is
+| attached, along with a Makefile that works under Windows, with g++ from
+| Rtool42, specifically,
+| 
+| set PATH=c:\Rtools42\x86_64-w64-mingw32.static.posic\bin;%PATH%
+| 
+| When repl.exe is run an extra window pops up, and there are random
+| terminations, and sometimes a crash, especially if you try to plot
+| something. The program immediately terminates after plotting.
+| 
+| None of this happens under Linux (Ubuntu), where the program works as
+| expected.
+
+Yes it built for me. And runs fine (under Ubuntu 22.10). I don't have Windows
+around. 
+ 
+| I tried installing gdb using 'pacman -Sy gdb' (following CRAN docs), and
+| there were no apparent problems, but some of the DLL's had the wrong
+| version, and gdb could not be started. (Missing DLL's were msys-ffi-8.dll
+| and msys-unistring-5.dll.)
+
+I wonder if instead of / in addition to gdb you could instrument your windows
+binary to log copiously?
+
+| I was able to build using Visual Studio, and in that case the app crashes
+| immediately with a complaint about Rcpp_precious_remove. But here I could
+| bring up a debugger and step trough code, and sure enough it crashes soon
+| after the call
+| GET_CALLABLE("Rcpp_precious_remove"). Stepping into this function leads to
+| Microsoft code in thread_safe_statics.cpp that implements a critical
+| section, suggesting
+| that more than one thread is started.
+| 
+| I wonder if the problem is related to the fact that R is not thread safe?
+
+That would bite Linux as well as Windows.
+ 
+| Or could it be that the preserved objects are bigger under Windows?
+
+I don't see how because relative to machine memory these objects are
+still tiny,
+ 
+| I'm working with Rcpp_1.0.9 and RInside_0.2.17, with R-4.2.2.
+
+All good. Maybe rebuild RInside under that Rcpp just to be sure.
+
+Cheers, Dirk
+
+| 
+| Thanks,
+| Dominick
+| x[DELETED ATTACHMENT repl.cpp, plain text]
+| x[DELETED ATTACHMENT Makefile, Untyped binary data]
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Fri Jan 20 01:41:04 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Thu, 19 Jan 2023 19:41:04 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <25543.23256.797439.518986@rob.eddelbuettel.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+Message-ID: <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+
+I narrowed the problem down to the call to R_ReplDLLdo1() in RInside, and I
+built
+R-4.3.0 pre-release version for Windows from source to investigate further
+(online
+instructions by Tomas Kalibera were very helpful).
+
+But the problem does not occur with this version of R! Note that the problem
+did not occur in some older versions of R either.
+
+This version-dependence may be related to the fact that this function and
+others
+used by Rcpp/RInside are not part of the supported API for R, so the
+underlying
+implementation details for internals like external pointers may change.
+
+Dominick
+
+
+
+
+
+
+
+On Tue, Jan 17, 2023 at 9:35 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Dominick,
+>
+> First reflex: uh-oh as 'Rcpp_precious_remove' created some headaches for
+> some
+> people when mixing Rcpp and packages built with Rcpp but not the current
+> one.
+> We think all this got squared away an Rcpp release or two ago so as a first
+> step please make sure _all_ involved packaes are current with CRAN and
+> rebuilt.
+>
+> On 17 January 2023 at 21:15, Dominick Samperi wrote:
+> | I think I found a problem under Windows with the repl code from RInside.
+> | The problem appears if I simply compile the code in
+> | RInside/inst/examples/standard using the Makefile.win there,
+> | after a few hacks to deal with spaces in file names and the direction of
+> | slashes.
+>
+> (A small and focused PR would be appreciated if there is some cleanup
+> needed).
+>
+> | The problem appears with the example rinside_interactive0.cpp, but to
+> keep
+> | things simple I've stripped out just the repl code into repl.cpp. It is
+> | attached, along with a Makefile that works under Windows, with g++ from
+> | Rtool42, specifically,
+> |
+> | set PATH=c:\Rtools42\x86_64-w64-mingw32.static.posic\bin;%PATH%
+> |
+> | When repl.exe is run an extra window pops up, and there are random
+> | terminations, and sometimes a crash, especially if you try to plot
+> | something. The program immediately terminates after plotting.
+> |
+> | None of this happens under Linux (Ubuntu), where the program works as
+> | expected.
+>
+> Yes it built for me. And runs fine (under Ubuntu 22.10). I don't have
+> Windows
+> around.
+>
+> | I tried installing gdb using 'pacman -Sy gdb' (following CRAN docs), and
+> | there were no apparent problems, but some of the DLL's had the wrong
+> | version, and gdb could not be started. (Missing DLL's were msys-ffi-8.dll
+> | and msys-unistring-5.dll.)
+>
+> I wonder if instead of / in addition to gdb you could instrument your
+> windows
+> binary to log copiously?
+>
+> | I was able to build using Visual Studio, and in that case the app crashes
+> | immediately with a complaint about Rcpp_precious_remove. But here I could
+> | bring up a debugger and step trough code, and sure enough it crashes soon
+> | after the call
+> | GET_CALLABLE("Rcpp_precious_remove"). Stepping into this function leads
+> to
+> | Microsoft code in thread_safe_statics.cpp that implements a critical
+> | section, suggesting
+> | that more than one thread is started.
+> |
+> | I wonder if the problem is related to the fact that R is not thread safe?
+>
+> That would bite Linux as well as Windows.
+>
+> | Or could it be that the preserved objects are bigger under Windows?
+>
+> I don't see how because relative to machine memory these objects are
+> still tiny,
+>
+> | I'm working with Rcpp_1.0.9 and RInside_0.2.17, with R-4.2.2.
+>
+> All good. Maybe rebuild RInside under that Rcpp just to be sure.
+>
+> Cheers, Dirk
+>
+> |
+> | Thanks,
+> | Dominick
+> | x[DELETED ATTACHMENT repl.cpp, plain text]
+> | x[DELETED ATTACHMENT Makefile, Untyped binary data]
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230119/87a3a9f0/attachment.html>
+
+From edd at debian.org  Fri Jan 20 02:40:30 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Jan 2023 19:40:30 -0600
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+Message-ID: <25545.61710.652835.38349@rob.eddelbuettel.com>
+
+
+On 19 January 2023 at 19:41, Dominick Samperi wrote:
+| I narrowed the problem down to the call to R_ReplDLLdo1() in RInside, and I
+| built R-4.3.0 pre-release version for Windows from source to investigate
+| further (online instructions by Tomas Kalibera were very helpful).
+
+Yes Tomas is a master of many tools and deep source of tricks and general help.
+ 
+| But the problem does not occur with this version of R! Note that the problem
+| did not occur in some older versions of R either.
+| 
+| This version-dependence may be related to the fact that this function and
+| others used by Rcpp/RInside are not part of the supported API for R, so the
+| underlying implementation details for internals like external pointers may
+| change.
+
+Well I probably don't agree here.
+
+Because (as per your Subject) 'Rcpp_precious_remove' is in this, as we had a
+bit of transition to get to more effortlessly growing internal objects, I
+still suspect (as per my first message in this thread) that you may have had
+a cross of 'old' and 'new' approaches. A simple consisten recompilation
+generally fixes that.  Per the NEWS.Rd we did the finaly clean up (a reset)
+in 1.0.9. (We had improved unwind_protect since just after that release.)
+
+But by all means, keep digging and look around if you think something is
+suspicious there. It could well that we do something wrong on Windows, or
+have another issue somewhere.  But I remain quite confident that things are
+generally in good working order -- these RInside examples have all been
+working fine more or less unchanged for close to a decade.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Fri Jan 20 16:35:17 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Fri, 20 Jan 2023 10:35:17 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+Message-ID: <CADUbQ5gjkFF0d+BcM_fhc8DGDxyr=4O5Bd0PCo4Vu5uStXMB0g@mail.gmail.com>
+
+Thanks Tomas,
+
+After fixing the library issue and getting the app running what happens
+when you terminate with q()?
+
+You should see the usual "Save workspace image? [y/n/c]:", and under Linux
+this is what happens.
+
+In my testing with the latest R source under Windows this doesn't happen,
+but I haven't been able
+to build with modified R source to find out why.
+
+Dominick
+
+
+
+
+On Fri, Jan 20, 2023 at 4:28 AM Tomas Kalibera <tomas.kalibera at gmail.com>
+wrote:
+
+> On 1/20/23 02:40, Dirk Eddelbuettel wrote:
+> > On 19 January 2023 at 19:41, Dominick Samperi wrote:
+> > | I narrowed the problem down to the call to R_ReplDLLdo1() in RInside,
+> and I
+> > | built R-4.3.0 pre-release version for Windows from source to
+> investigate
+> > | further (online instructions by Tomas Kalibera were very helpful).
+> >
+> > Yes Tomas is a master of many tools and deep source of tricks and
+> general help.
+> >
+> > | But the problem does not occur with this version of R! Note that the
+> problem
+> > | did not occur in some older versions of R either.
+> > |
+> > | This version-dependence may be related to the fact that this function
+> and
+> > | others used by Rcpp/RInside are not part of the supported API for R,
+> so the
+> > | underlying implementation details for internals like external pointers
+> may
+> > | change.
+> >
+> > Well I probably don't agree here.
+> >
+> > Because (as per your Subject) 'Rcpp_precious_remove' is in this, as we
+> had a
+> > bit of transition to get to more effortlessly growing internal objects, I
+> > still suspect (as per my first message in this thread) that you may have
+> had
+> > a cross of 'old' and 'new' approaches. A simple consisten recompilation
+> > generally fixes that.  Per the NEWS.Rd we did the finaly clean up (a
+> reset)
+> > in 1.0.9. (We had improved unwind_protect since just after that release.)
+> >
+> > But by all means, keep digging and look around if you think something is
+> > suspicious there. It could well that we do something wrong on Windows, or
+> > have another issue somewhere.  But I remain quite confident that things
+> are
+> > generally in good working order -- these RInside examples have all been
+> > working fine more or less unchanged for close to a decade.
+>
+> I tried the example sent by Dominick at the start of this thread with
+> the current R-devel and Rtools43 and the current Rcpp and RInside. I
+> also got the error message "Error: function 'Rcpp_precious_remove' not
+> provided by package 'Rcpp'", but it was because R_LIBS was not set.
+> After setting it, the program worked.
+>
+> In more detail, this was my make file:
+>
+> ----
+>
+> PKLIB = C:/Users/tomas/AppData/Local/R/win-library/4.3
+> RHOME = C:/msys64/home/tomas/ucrt3/r/trunk
+>
+> INC = -I"$(RHOME)/include" -I"$(PKLIB)/Rcpp/include"
+> -I"$(PKLIB)/RInside/include"
+>
+> LIB = -L"$(RHOME)/bin/x64" -L"$(PKLIB)/RInside/lib/x64" -lRInside -lR
+>
+> repl: repl.o
+>          g++ -o repl repl.o $(LIB)
+>
+> repl.o: repl.cpp
+>          g++ -c -g -std=c++11 $(INC) repl.cpp
+>
+> clean:
+>          rm *.o *.exe
+> ---
+>
+> This was repl.cpp:
+>
+> ---
+>
+> #include <RInside.h>                    // for the embedded R via RInside
+>
+> int main(int argc, char *argv[]) {
+>      RInside R(argc, argv, false, false, true); // Create an embedded R
+> instance
+>
+>      std::cout << "[ You can finish the with Ctrl+D ]" << std::endl;
+>      R.parseEval("options(prompt = 'R console > ')");
+>      R.parseEval("X11()");
+>      R.repl() ;
+>      R.parseEval("dev.off()");
+>      exit(0);
+> }
+>
+> ---
+>
+> I ran repl.exe from cmd.exe (not the Msys2 bash) so that I could see
+> more error messages.
+>
+> I had to set PATH to make sure R.dll is found by repl.exe. And I had to
+> set R_LIBS to make sure Rcpp is found. These settings made it work:
+>
+> set PATH=%PATH%;C:\msys64\home\tomas\ucrt3\r\trunk\bin\x64
+> set R_LIBS=C:\Users\tomas\AppData\Local\R\win-library\4.3
+>
+> Without these variables set, executing repl.exe gave this error: "The
+> code execution cannot proceed because R.dll was not found. ", hence I
+> set PATH as above.
+>
+> Executing then without R_LIBS set gave this error:
+>
+> "
+> Error: function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+> In addition: Warning message:
+> In library(package, lib.loc = lib.loc, character.only = TRUE,
+> logical.return = TRUE,  :
+>    there is no package called 'Rcpp'
+> "
+>
+> So I knew I had to set R_LIBS.
+>
+> Best
+> Tomas
+>
+>
+> >
+> > Cheers, Dirk
+> >
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230120/f8f55cce/attachment.html>
+
+From edd at debian.org  Fri Jan 20 18:54:20 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 20 Jan 2023 11:54:20 -0600
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+Message-ID: <25546.54604.782217.847532@rob.eddelbuettel.com>
+
+
+On 20 January 2023 at 10:28, Tomas Kalibera wrote:
+| Executing then without R_LIBS set gave this error:
+| 
+| "
+| Error: function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+| In addition: Warning message:
+| In library(package, lib.loc = lib.loc, character.only = TRUE, 
+| logical.return = TRUE,  :
+|    there is no package called 'Rcpp'
+| "
+| 
+| So I knew I had to set R_LIBS.
+
+Very good catch.  The 'Rcpp_precious_remove' was spurious as I suspected all
+along but it was trickily hiding the actual issue.  Any clever thought on how
+we could check for missing .libPaths() etc when RInside starts?
+
+On 20 January 2023 at 17:22, Tomas Kalibera wrote:
+| On 1/20/23 16:35, Dominick Samperi wrote:
+| > After fixing the library issue and getting the app running what 
+| > happens when you terminate with q()?
+| >
+| > You should see the usual "Save workspace image? [y/n/c]:", and under 
+| > Linux this is what happens.
+| 
+| The program just exits without asking.
+
+I think you can control that by setting the 'interactive' toggle. From
+memory, there is a global state variable reflecting the command-line choice
+(or invocation) and IIRC the ctor may offer it. I have the same behaviour in
+littler where we long ago decided to have interactive=false (because hey,
+scripting) and that sometimes leads to slightly different outcomes so we have
+an override there.  And RInside and littler are pretty close cousins.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Fri Jan 20 19:40:15 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Fri, 20 Jan 2023 13:40:15 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <25546.54604.782217.847532@rob.eddelbuettel.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+Message-ID: <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+
+As I said, everything is fine using R-devel, so R_LIBS just took care of a
+local configuration issue for
+Tomas. The problem was reported for R-4.2.2, and I don't think setting
+R_LIBS will make any difference.
+
+On the interactive=false issue, the same source code is used for both Linux
+and Windows, so the
+behavior should be the same. In RInside.h the constructor does set
+interactive=false, but
+there is a comment above it that says "overridden in code, cannot be set to
+false." This
+explains why the prompt is seen under Linux (and should be seen under
+Windows).
+
+Dominick
+
+
+On Fri, Jan 20, 2023 at 12:54 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 20 January 2023 at 10:28, Tomas Kalibera wrote:
+> | Executing then without R_LIBS set gave this error:
+> |
+> | "
+> | Error: function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+> | In addition: Warning message:
+> | In library(package, lib.loc = lib.loc, character.only = TRUE,
+> | logical.return = TRUE,  :
+> |    there is no package called 'Rcpp'
+> | "
+> |
+> | So I knew I had to set R_LIBS.
+>
+> Very good catch.  The 'Rcpp_precious_remove' was spurious as I suspected
+> all
+> along but it was trickily hiding the actual issue.  Any clever thought on
+> how
+> we could check for missing .libPaths() etc when RInside starts?
+>
+> On 20 January 2023 at 17:22, Tomas Kalibera wrote:
+> | On 1/20/23 16:35, Dominick Samperi wrote:
+> | > After fixing the library issue and getting the app running what
+> | > happens when you terminate with q()?
+> | >
+> | > You should see the usual "Save workspace image? [y/n/c]:", and under
+> | > Linux this is what happens.
+> |
+> | The program just exits without asking.
+>
+> I think you can control that by setting the 'interactive' toggle. From
+> memory, there is a global state variable reflecting the command-line choice
+> (or invocation) and IIRC the ctor may offer it. I have the same behaviour
+> in
+> littler where we long ago decided to have interactive=false (because hey,
+> scripting) and that sometimes leads to slightly different outcomes so we
+> have
+> an override there.  And RInside and littler are pretty close cousins.
+>
+> Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230120/9c67d10b/attachment.html>
+
+From djsamperi at gmail.com  Sat Jan 21 01:11:59 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Fri, 20 Jan 2023 19:11:59 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+Message-ID: <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+
+You are right Dirk, RInside overrides what is specified because the function
+myAskYesNo doesn't actually ask, so this explains why there is to
+termination
+prompt under Windows. This does not change what happens under Linux
+because this function is assigned to a Windows-specific callback. Under
+Linux the confirmation message appears.
+
+The current status is that the example seems to work using R-devel,
+but not using R-4.2.2.
+
+Dominick
+
+
+
+
+
+
+
+
+
+
+
+On Fri, Jan 20, 2023 at 1:40 PM Dominick Samperi <djsamperi at gmail.com>
+wrote:
+
+> As I said, everything is fine using R-devel, so R_LIBS just took care of a
+> local configuration issue for
+> Tomas. The problem was reported for R-4.2.2, and I don't think setting
+> R_LIBS will make any difference.
+>
+> On the interactive=false issue, the same source code is used for both
+> Linux and Windows, so the
+> behavior should be the same. In RInside.h the constructor does set
+> interactive=false, but
+> there is a comment above it that says "overridden in code, cannot be set
+> to false." This
+> explains why the prompt is seen under Linux (and should be seen under
+> Windows).
+>
+> Dominick
+>
+>
+> On Fri, Jan 20, 2023 at 12:54 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 20 January 2023 at 10:28, Tomas Kalibera wrote:
+>> | Executing then without R_LIBS set gave this error:
+>> |
+>> | "
+>> | Error: function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+>> | In addition: Warning message:
+>> | In library(package, lib.loc = lib.loc, character.only = TRUE,
+>> | logical.return = TRUE,  :
+>> |    there is no package called 'Rcpp'
+>> | "
+>> |
+>> | So I knew I had to set R_LIBS.
+>>
+>> Very good catch.  The 'Rcpp_precious_remove' was spurious as I suspected
+>> all
+>> along but it was trickily hiding the actual issue.  Any clever thought on
+>> how
+>> we could check for missing .libPaths() etc when RInside starts?
+>>
+>> On 20 January 2023 at 17:22, Tomas Kalibera wrote:
+>> | On 1/20/23 16:35, Dominick Samperi wrote:
+>> | > After fixing the library issue and getting the app running what
+>> | > happens when you terminate with q()?
+>> | >
+>> | > You should see the usual "Save workspace image? [y/n/c]:", and under
+>> | > Linux this is what happens.
+>> |
+>> | The program just exits without asking.
+>>
+>> I think you can control that by setting the 'interactive' toggle. From
+>> memory, there is a global state variable reflecting the command-line
+>> choice
+>> (or invocation) and IIRC the ctor may offer it. I have the same behaviour
+>> in
+>> littler where we long ago decided to have interactive=false (because hey,
+>> scripting) and that sometimes leads to slightly different outcomes so we
+>> have
+>> an override there.  And RInside and littler are pretty close cousins.
+>>
+>> Dirk
+>>
+>> --
+>> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230120/11132370/attachment-0001.html>
+
+From edd at debian.org  Sat Jan 21 01:56:18 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 20 Jan 2023 18:56:18 -0600
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+Message-ID: <25547.14386.218630.98507@rob.eddelbuettel.com>
+
+
+On 20 January 2023 at 19:11, Dominick Samperi wrote:
+| You are right Dirk, RInside overrides what is specified because the function
+| myAskYesNo doesn't actually ask, so this explains why there is to
+| termination
+| prompt under Windows. This does not change what happens under Linux
+| because this function is assigned to a Windows-specific callback. Under
+| Linux the confirmation message appears.
+| 
+| The current status is that the example seems to work using R-devel,
+| but not using R-4.2.2.
+
+:-/
+
+If you can narrow it down we'd appreciate it. If not, well, r-devel will be
+r-release in the three months time.
+
+And I don't think we have done any changes on the Windows side since before
+UCRT with R 4.2.0.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Sat Jan 21 16:53:45 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Sat, 21 Jan 2023 10:53:45 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <25547.14386.218630.98507@rob.eddelbuettel.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+Message-ID: <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+
+There are problems with the R-devel version, but they appear less
+frequently.
+What happens is two instances of the program are started instead of one,
+but there is normally
+a "dominant" one that hides the fact that there is another instance
+lurking, so
+the program seems to behave normally. Occasionally both instances
+come up (two terminals and two x11 panes). The R function
+R_SetWin32(Rstart) is called twice on startup.
+
+The problem is likely caused by the fact that R internals changed for
+R 4.2.0, in particular, the structRstart in R_ext/RStartup.h changed,
+and RSTART_VERSION was introduced. The requires use of
+R_DefParamsEx(&Rst, RSTART_VERSION) in place of
+R_DefParams(), and the return value must be zero for version
+compatibility.
+
+This is not Windows-specific, and I suspect there are
+problems under Linux, but symptoms rarely surface due to
+some quirks of that architecture (better immune system?).
+
+I modified the source with hints from the example
+src/gnuwin32/front-ends/rtest.c, and the program seems
+to behave more consistently, but the multiple instance
+problem persists.
+
+I've attached a version of RInside.cpp with my changes. The
+_MSC_VER ifdefs are for Video Studio, which I am using for
+debugging. I had some problems with gdb.
+
+Dominick
+
+
+
+
+
+On Fri, Jan 20, 2023 at 7:56 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 20 January 2023 at 19:11, Dominick Samperi wrote:
+> | You are right Dirk, RInside overrides what is specified because the
+> function
+> | myAskYesNo doesn't actually ask, so this explains why there is to
+> | termination
+> | prompt under Windows. This does not change what happens under Linux
+> | because this function is assigned to a Windows-specific callback. Under
+> | Linux the confirmation message appears.
+> |
+> | The current status is that the example seems to work using R-devel,
+> | but not using R-4.2.2.
+>
+> :-/
+>
+> If you can narrow it down we'd appreciate it. If not, well, r-devel will be
+> r-release in the three months time.
+>
+> And I don't think we have done any changes on the Windows side since before
+> UCRT with R 4.2.0.
+>
+> Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230121/a5cb1ce9/attachment-0001.html>
+-------------- next part --------------
+// -*- mode: C++; c-indent-level: 4; c-basic-offset: 4; indent-tabs-mode: nil; -*-
+//
+// RInside.cpp: R/C++ interface class library -- Easier R embedding into C++
+//
+// Copyright (C) 2009         Dirk Eddelbuettel
+// Copyright (C) 2010 - 2019  Dirk Eddelbuettel and Romain Francois
+//
+// This file is part of RInside.
+//
+// RInside is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 2 of the License, or
+// (at your option) any later version.
+//
+// RInside is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with RInside.  If not, see <http://www.gnu.org/licenses/>.
+
+#include <RInside.h>
+#include <Callbacks.h>
+
+#ifndef _WIN32
+  #define R_INTERFACE_PTRS
+  #include <Rinterface.h>
+#endif
+
+RInside* RInside::instance_m = 0 ;
+
+const char *programName = "RInside";
+
+#ifdef _WIN32
+    // on Windows, we need to provide setenv which is in the file setenv.c here
+    #include "setenv/setenv.c"
+
+#ifndef _MSC_VER
+    extern int optind;
+#include <windef.h>
+    char rHome[MAX_PATH+1];
+
+#else // Begin MSVC code
+
+// The external reference to optind causes a link-time error under MSVC, so
+// we disable use of this variable for now.
+// 
+// Including <windef.h> under MSVC brings in other headers that cause
+// MSVC to choke (tested with Visual Studio 2019). The work-around is to
+// use <windows.h> instead, along with the define WIN32_LEAN_AND_MEAN
+// so this doesn't come with too much unnecessary baggage.
+// 
+// Also had to add a gettimeofday() function for MSVC below.
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+   char rHome[MAX_PATH+1];
+ 
+#include <stdint.h>
+
+typedef struct timeval {
+        long tv_sec;
+        long tv_usec;
+} TIMEVAL, * PTIMEVAL, * LPTIMEVAL;
+
+#include <chrono>
+// <chrono> has been enhanced for c++20, but support for the new features
+// is spotty at best. On the other hand, we don't need much to approximate
+// gettimeofday(), and RInside uses the time in microseconds to
+// initialize a random number generator, so precision (as in gps_clock)
+// is not important.
+
+int gettimeofday(struct timeval* tp, struct timezone* tzp) {
+// gettimeofday() is provided by MinGW via <sys/time.h>, but this is
+// not available on MS Visual Studio, so we implement using <chrono>.
+// The timezone parameter is obsolete today, so it should be specified
+// as NULL. Recall that the microsecond field represents a residual,
+// after seconds is computed, and usually, tv_usec < tv_sec.
+// This code was posted on stackoverflow.com by lilucpp, with
+// input from Howard Hinnant.
+  namespace sc = std::chrono;
+  sc::system_clock::duration d = sc::system_clock::now().time_since_epoch();
+  sc::seconds s = sc::duration_cast<sc::seconds>(d);
+  tp->tv_sec = s.count();
+  tp->tv_usec = sc::duration_cast<sc::microseconds>(d - s).count();
+
+  return 0;
+}
+
+#endif // End MSVC code
+#endif // End _WIN32
+
+RInside::~RInside() {           // now empty as MemBuf is internal
+    R_dot_Last();
+    R_RunExitFinalizers();
+    R_CleanTempDir();
+    //Rf_KillAllDevices();
+    //#ifndef WIN32
+    //fpu_setup(FALSE);
+    //#endif
+    Rf_endEmbeddedR(0);
+    instance_m = 0 ;
+    delete global_env_m;
+}
+
+RInside::RInside(): global_env_m(NULL)
+#ifdef RINSIDE_CALLBACKS
+    , callbacks(0)
+#endif
+{
+    initialize(0, 0, false, false, false);
+}
+
+#ifdef _WIN32
+#if R_VERSION >= R_Version(4,2,0)
+static int myReadConsole(const char *prompt, unsigned char *buf, int len, int addtohistory) {
+#else
+static int myReadConsole(const char *prompt, char *buf, int len, int addtohistory) {
+#endif
+    fputs(prompt, stdout);
+    fflush(stdout);
+    if (fgets((char *)buf, len, stdin))
+        return 1;
+    else
+        return 0;
+}
+
+static void myWriteConsole(const char *buf, int len) {
+    fwrite(buf, sizeof(char), len, stdout);
+    fflush(stdout);
+}
+
+static void myCallBack() {
+    printf("RInside myCallBack\n");
+    /* called during i/o, eval, graphics in ProcessEvents */
+}
+
+static void myBusy(int which) {
+    printf("RInside myBusy\n");
+    /* set a busy cursor ... if which = 1, unset if which = 0 */
+}
+
+void myAskOk(const char *info) {
+    printf("RInside myAskOk\n");
+}
+
+int myAskYesNoCancel(const char *question) {
+    printf("RInside myAskYesNoCancel\n");
+    fflush(stdout);
+    const int yes = 1;
+    return yes;
+}
+
+#endif
+
+RInside::RInside(const int argc, const char* const argv[], const bool loadRcpp,
+                 const bool verbose, const bool interactive)
+#ifdef RINSIDE_CALLBACKS
+    		: callbacks(0)
+#endif
+{
+    initialize(argc, argv, loadRcpp, verbose, interactive);
+}
+
+// TODO: use a vector<string> would make all this a bit more readable
+void RInside::initialize(const int argc, const char* const argv[], const bool loadRcpp,
+                         const bool verbose, const bool interactive) {
+
+    if (instance_m) {
+        throw std::runtime_error( "can only have one RInside instance" ) ;
+    } else {
+        instance_m = this ;
+    }
+
+    verbose_m = verbose;         	// Default is false
+    interactive_m = interactive;
+
+    // generated from Makevars{.win}
+    #include "RInsideEnvVars.h"
+
+    #ifdef _WIN32
+    // we need a special case for Windows where users may deploy an RInside binary from CRAN
+    // which will have R_HOME set at compile time to CRAN's value -- so let's try to correct
+    // this here: a) allow user's setting of R_HOME and b) use R's get_R_HOME() function
+    if (getenv("R_HOME") == NULL) { 		// if on Windows and not set
+        char *rhome = get_R_HOME();		// query it, including registry
+        if (rhome != NULL) {                    // if something was found
+            setenv("R_HOME", get_R_HOME(), 1);  // store what we got as R_HOME
+        }					// this will now be used in next blocks
+    }
+    #endif
+
+    for (int i = 0; R_VARS[i] != NULL; i+= 2) {
+        if (getenv(R_VARS[i]) == NULL) { // if env variable is not yet set
+            if (setenv(R_VARS[i],R_VARS[i+1],1) != 0){
+                throw std::runtime_error(std::string("Could not set R environment variable ") +
+                                         std::string(R_VARS[i]) + std::string(" to ") +
+                                         std::string(R_VARS[i+1]));
+            }
+        }
+    }
+
+    #ifndef _WIN32
+    R_SignalHandlers = 0;               // Don't let R set up its own signal handlers
+    #endif
+
+    init_tempdir();
+
+    const char *R_argv[] = {(char*)programName, "--gui=none", "--no-save",
+                            "--silent", "--vanilla", "--slave", "--no-readline"};
+    int R_argc = sizeof(R_argv) / sizeof(R_argv[0]);
+    if (interactive_m) R_argc--; //Deleting the --no-readline option in interactive mode
+    Rf_initEmbeddedR(R_argc, (char**)R_argv);
+
+    #ifndef _WIN32
+    R_CStackLimit = -1;      		// Don't do any stack checking, see R Exts, '8.1.5 Threading issues'
+    #endif
+    
+    // R_ReplDLLinit();                    // this is to populate the repl console buffers
+
+    structRstart Rst;
+
+// MSVC defines ReadConsole and WriteConsole as macros, and this breaks
+// code from <R_HOME>/include/R_ext/RStartup.h (structRstart). So we
+// disable these macros here.
+#ifdef _MSC_VER
+#undef ReadConsole
+#undef WriteConsole
+#endif
+    // See gnuwin32/front-ends/rtest.c
+    // This was never checked before!
+    // If not zero we should terminate.
+    if (R_DefParamsEx(&Rst, RSTART_VERSION)) {
+        printf("Bad RStartVersion, must update for new RStart structure.");
+        exit(1);
+    }
+
+    Rst.R_Interactive = (Rboolean)interactive_m;       // sets interactive() to eval to false
+  
+#ifdef _WIN32
+
+    char *temp = getenv("R_HOME");       // which is set above as part of R_VARS
+#ifdef _MSC_VER
+    // Fix warning about length(rHome) = MAX_PATH
+    strncpy(rHome, temp, MAX_PATH-1);
+#else
+    strncpy(rHome, temp, MAX_PATH);
+#endif
+
+    Rst.rhome = rHome;
+    Rst.home = getRUser();
+    Rst.CharacterMode = LinkDLL;
+    Rst.EmitEmbeddedUTF8 = (Rboolean)FALSE;
+    Rst.ReadConsole = myReadConsole;
+    Rst.WriteConsole = myWriteConsole;
+    // Rst.WriteCOnsoleEx = myWriteConsoleEx;
+    Rst.CallBack = myCallBack;
+    Rst.ShowMessage = myAskOk;
+    Rst.YesNoCancel = myAskYesNoCancel;
+    Rst.Busy = myBusy;
+    Rst.R_Quiet = (Rboolean)TRUE;
+    Rst.RestoreAction = SA_RESTORE;
+    Rst.R_Interactive = (Rboolean)TRUE;
+    Rst.SaveAction = SA_SAVEASK; // Save workspace prompt on exit
+ 
+    R_SetParams(&Rst);
+ 
+#endif
+
+
+    if (true || loadRcpp) {             // we always need Rcpp, so load it anyway
+        // Rf_install is used best by first assigning like this so that symbols get into
+        // the symbol table where they cannot be garbage collected; doing it on the fly
+        // does expose a minuscule risk of garbage collection -- with thanks to Doug Bates
+        // for the explanation and Luke Tierney for the heads-up
+        SEXP suppressMessagesSymbol = Rf_install("suppressMessages");
+        SEXP requireSymbol = Rf_install("require");
+        SEXP reqsymlang, langobj;
+        // Protect temporaries as suggested by 'rchk', with thanks to Tomas Kalibera
+        PROTECT(reqsymlang = Rf_lang2(requireSymbol, Rf_mkString("Rcpp")));
+        PROTECT(langobj = Rf_lang2(suppressMessagesSymbol, reqsymlang));
+        Rf_eval(langobj, R_GlobalEnv);
+        UNPROTECT(2);
+    }
+
+    global_env_m = new Rcpp::Environment();         // member variable for access to R's global environment
+
+    autoloads();                        // loads all default packages, using code autogenerate from Makevars{,.win}
+
+#ifndef _MSC_VER // optind disabled for MSVC
+    if ((argc - optind) > 1){           // for argv vector in Global Env */
+        Rcpp::CharacterVector s_argv( argv+(1+optind), argv+argc );
+        assign(s_argv, "argv");
+    } else {
+        assign(R_NilValue, "argv") ;
+    }
+#else
+    assign(R_NilValue, "argv");
+#endif
+
+    init_rand();                        // for tempfile() to work correctly */
+}
+
+void RInside::init_tempdir(void) {
+    const char *tmp;
+    // FIXME:  if per-session temp directory is used (as R does) then return
+    tmp = getenv("TMPDIR");
+    if (tmp == NULL) {
+        tmp = getenv("TMP");
+        if (tmp == NULL) {
+            tmp = getenv("TEMP");
+            if (tmp == NULL)
+                tmp = "/tmp";
+            }
+    }
+    R_TempDir = (char*) tmp;
+    if (setenv("R_SESSION_TMPDIR",tmp,1) != 0){
+        throw std::runtime_error(std::string("Could not set / replace R_SESSION_TMPDIR to ") + std::string(tmp));
+    }
+}
+
+void RInside::init_rand(void) { 		// code borrows from R's TimeToSeed() in datetime.c
+    unsigned int pid = 1234; // getpid();
+    struct timeval tv;          		// this is ifdef'ed by R, we just assume we have it
+    gettimeofday (&tv, NULL);
+    unsigned int seed = ((uint64_t) tv.tv_usec << 16) ^ tv.tv_sec;
+    seed ^= (pid << 16);         		// R 2.14.0 started to also use pid to support parallel
+    srand(seed);
+}
+
+void RInside::autoloads() {
+
+    #include "RInsideAutoloads.h"
+
+    // Autoload default packages and names from autoloads.h
+    //
+    // This function behaves in almost every way like
+    // R's autoload:
+    // function (name, package, reset = FALSE, ...)
+    // {
+    //     if (!reset && exists(name, envir = .GlobalEnv, inherits = FALSE))
+    //        stop("an object with that name already exists")
+    //     m <- match.call()
+    //     m[[1]] <- as.name("list")
+    //     newcall <- eval(m, parent.frame())
+    //     newcall <- as.call(c(as.name("autoloader"), newcall))
+    //     newcall$reset <- NULL
+    //     if (is.na(match(package, .Autoloaded)))
+    //        assign(".Autoloaded", c(package, .Autoloaded), env = .AutoloadEnv)
+    //     do.call("delayedAssign", list(name, newcall, .GlobalEnv,
+    //                                                         .AutoloadEnv))
+    //     invisible()
+    // }
+    //
+    // What's missing is the updating of the string vector .Autoloaded with
+    // the list of packages, which by my code analysis is useless and only
+    // for informational purposes.
+    //
+    //
+
+    // we build the call :
+    //
+    //  delayedAssign( NAME,
+    //          autoloader( name = NAME, package = PACKAGE),
+    //          .GlobalEnv,
+    //          .AutoloadEnv )
+    //
+    //  where :
+    //  - PACKAGE is updated in a loop
+    //  - NAME is updated in a loop
+    //
+    //
+
+    int i,j, idx=0, nobj ;
+    Rcpp::Language delayed_assign_call(Rcpp::Function("delayedAssign"),
+                                       R_NilValue,     // arg1: assigned in loop
+                                       R_NilValue,     // arg2: assigned in loop
+                                       *global_env_m,
+                                       global_env_m->find(".AutoloadEnv")
+                                       );
+    Rcpp::Language::Proxy delayed_assign_name  = delayed_assign_call[1];
+
+    Rcpp::Language autoloader_call(Rcpp::Function("autoloader"),
+                                   Rcpp::Named( "name", R_NilValue) ,  // arg1 : assigned in loop
+                                   Rcpp::Named( "package", R_NilValue) // arg2 : assigned in loop
+                                   );
+    Rcpp::Language::Proxy autoloader_name = autoloader_call[1];
+    Rcpp::Language::Proxy autoloader_pack = autoloader_call[2];
+    delayed_assign_call[2] = autoloader_call;
+
+    try {
+        for( i=0; i<packc; i++){
+
+            // set the 'package' argument of the autoloader call */
+            autoloader_pack = pack[i] ;
+
+            nobj = packobjc[i] ;
+            for (j = 0; j < nobj ; j++){
+
+                // set the 'name' argument of the autoloader call */
+                autoloader_name = packobj[idx+j] ;
+
+                // Set the 'name' argument of the delayedAssign call */
+                delayed_assign_name = packobj[idx+j] ;
+
+                // evaluate the call */
+                delayed_assign_call.eval() ;
+
+            }
+            idx += packobjc[i] ;
+        }
+    } catch( std::exception& ex){
+        throw std::runtime_error(std::string("Error calling delayedAssign: ") + std::string(ex.what()));
+    }
+}
+
+// this is a non-throwing version returning an error code
+int RInside::parseEval(const std::string & line, SEXP & ans) {
+    ParseStatus status;
+    SEXP cmdSexp, cmdexpr = R_NilValue;
+    int i, errorOccurred;
+
+    mb_m.add((char*)line.c_str());
+
+    PROTECT(cmdSexp = Rf_allocVector(STRSXP, 1));
+    SET_STRING_ELT(cmdSexp, 0, Rf_mkChar(mb_m.getBufPtr()));
+
+    cmdexpr = PROTECT(R_ParseVector(cmdSexp, -1, &status, R_NilValue));
+
+    switch (status){
+    case PARSE_OK:
+        // Loop is needed here as EXPSEXP might be of length > 1
+        for(i = 0; i < Rf_length(cmdexpr); i++){
+            ans = R_tryEval(VECTOR_ELT(cmdexpr, i), *global_env_m, &errorOccurred);
+            if (errorOccurred) {
+                if (verbose_m) Rf_warning("%s: Error in evaluating R code (%d)\n", programName, status);
+                UNPROTECT(2);
+                mb_m.rewind();
+                return 1;
+            }
+            if (verbose_m) {
+                Rf_PrintValue(ans);
+            }
+        }
+        mb_m.rewind();
+        break;
+    case PARSE_INCOMPLETE:
+        // need to read another line
+        break;
+    case PARSE_NULL:
+        if (verbose_m) Rf_warning("%s: ParseStatus is null (%d)\n", programName, status);
+        UNPROTECT(2);
+        mb_m.rewind();
+        return 1;
+        break;
+    case PARSE_ERROR:
+        if (verbose_m) Rf_warning("Parse Error: \"%s\"\n", line.c_str());
+        UNPROTECT(2);
+        mb_m.rewind();
+        return 1;
+        break;
+    case PARSE_EOF:
+        if (verbose_m) Rf_warning("%s: ParseStatus is eof (%d)\n", programName, status);
+        break;
+    default:
+        if (verbose_m) Rf_warning("%s: ParseStatus is not documented %d\n", programName, status);
+        UNPROTECT(2);
+        mb_m.rewind();
+        return 1;
+        break;
+    }
+    UNPROTECT(2);
+    return 0;
+}
+
+void RInside::parseEvalQ(const std::string & line) {
+    SEXP ans;
+    int rc = parseEval(line, ans);
+    if (rc != 0) {
+        throw std::runtime_error(std::string("Error evaluating: ") + line);
+    }
+}
+
+void RInside::parseEvalQNT(const std::string & line) {
+    SEXP ans;
+    parseEval(line, ans);
+}
+
+RInside::Proxy RInside::parseEval(const std::string & line) {
+    SEXP ans;
+    int rc = parseEval(line, ans);
+    if (rc != 0) {
+        throw std::runtime_error(std::string("Error evaluating: ") + line);
+    }
+    return Proxy( ans );
+}
+
+RInside::Proxy RInside::parseEvalNT(const std::string & line) {
+    SEXP ans;
+    parseEval(line, ans);
+    return Proxy( ans );
+}
+
+Rcpp::Environment::Binding RInside::operator[]( const std::string& name ){
+    return (*global_env_m)[name];
+}
+
+RInside& RInside::instance(){
+    return *instance_m;
+}
+
+RInside* RInside::instancePtr(){
+    return instance_m;
+}
+
+void RInside::repl() {
+    R_ReplDLLinit();
+    while (R_ReplDLLdo1() > 0) {}
+}
+
+
+ 
+/* callbacks */
+
+#ifdef RINSIDE_CALLBACKS
+
+void Callbacks::Busy_( int which ){
+    R_is_busy = static_cast<bool>( which ) ;
+    Busy( R_is_busy ) ;
+}
+
+int Callbacks::ReadConsole_( const char* prompt, unsigned char* buf, int len, int addtohistory ){
+    try {
+        std::string res( ReadConsole( prompt, static_cast<bool>(addtohistory) ) ) ;
+
+        /* At some point we need to figure out what to do if the result is
+         * longer than "len"... For now, just truncate. */
+
+        int l = res.size() ;
+        int last = (l>len-1)?len-1:l ;
+        strncpy( (char*)buf, res.c_str(), last ) ;
+        buf[last] = 0 ;
+        return 1 ;
+    } catch( const std::exception& ex){
+        return -1 ;
+    }
+}
+
+
+void Callbacks::WriteConsole_( const char* buf, int len, int oType ){
+    if( len ){
+        buffer.assign( buf, len ) ;
+        WriteConsole( buffer, oType) ;
+    }
+}
+
+void RInside_ShowMessage( const char* message ){
+    RInside::instance().callbacks->ShowMessage( message ) ;
+}
+
+void RInside_WriteConsoleEx( const char* message, int len, int oType ){
+    RInside::instance().callbacks->WriteConsole_( message, len, oType ) ;
+}
+
+int RInside_ReadConsole(const char *prompt, unsigned char *buf, int len, int addtohistory){
+    return RInside::instance().callbacks->ReadConsole_( prompt, buf, len, addtohistory ) ;
+}
+
+void RInside_ResetConsole(){
+    RInside::instance().callbacks->ResetConsole() ;
+}
+
+void RInside_FlushConsole(){
+    RInside::instance().callbacks->FlushConsole() ;
+}
+
+void RInside_ClearerrConsole(){
+    RInside::instance().callbacks->CleanerrConsole() ;
+}
+
+void RInside_Busy( int which ){
+    RInside::instance().callbacks->Busy_(which) ;
+}
+
+void RInside::set_callbacks(Callbacks* callbacks_){
+    callbacks = callbacks_ ;
+
+#ifdef _WIN32
+    // do something to tell user that he doesn't get this
+#else
+
+    /* short circuit the callback function pointers */
+    if( callbacks->has_ShowMessage() ){
+        ptr_R_ShowMessage = RInside_ShowMessage ;
+    }
+    if( callbacks->has_ReadConsole() ){
+        ptr_R_ReadConsole = RInside_ReadConsole;
+    }
+    if( callbacks->has_WriteConsole() ){
+        ptr_R_WriteConsoleEx = RInside_WriteConsoleEx ;
+        ptr_R_WriteConsole = NULL;
+        }
+    if( callbacks->has_ResetConsole() ){
+        ptr_R_ResetConsole = RInside_ResetConsole;
+    }
+    if( callbacks->has_FlushConsole() ){
+        ptr_R_FlushConsole = RInside_FlushConsole;
+    }
+    if( callbacks->has_CleanerrConsole() ){
+        ptr_R_ClearerrConsole = RInside_ClearerrConsole;
+    }
+    if( callbacks->has_Busy() ){
+        ptr_R_Busy = RInside_Busy;
+    }
+
+    R_Outputfile = NULL;
+    R_Consolefile = NULL;
+#endif
+}
+
+#endif
+
+From edd at debian.org  Sat Jan 21 17:49:46 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 21 Jan 2023 10:49:46 -0600
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+ <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+Message-ID: <25548.6058.756953.407390@rob.eddelbuettel.com>
+
+
+On 21 January 2023 at 10:53, Dominick Samperi wrote:
+| I've attached a version of RInside.cpp with my changes. The
+| _MSC_VER ifdefs are for Video Studio, which I am using for
+| debugging. I had some problems with gdb.
+
+We would love to take advantage of your hard and diligent work in trying to
+improve RInside here, but with all due respect and credit for all you have
+done at the very beginning of Rcpp it is no longer 2004 or 2005 -- and
+emailed copies of files do not cut it.
+
+Please consider opening a pull request at GitHub so that your code and its
+differences to the current version are easily visible, and can be commented
+on by others, and get tested automagically.
+
+I know that means work for you, but I very kindly to consider it, and I thank
+you in advance for your consideration.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Mon Jan 23 18:20:33 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Mon, 23 Jan 2023 12:20:33 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <4667be81-7b2f-0c4d-48c9-c7a5a1790567@gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+ <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+ <4667be81-7b2f-0c4d-48c9-c7a5a1790567@gmail.com>
+Message-ID: <CADUbQ5jHhJXHx2VRDC5XBVvz+ZdJkw5tfynHek0GNp6erKa0aQ@mail.gmail.com>
+
+On the changes for R 4.2.0, it is not clear how to distinguish
+R API functions from R internal functions (and this probably
+doesn't matter for Rcpp), but you are correct,
+on closer inspection these changes should not have effected
+the way R_DefParams() was used before R_DefParamsEx()
+was introduced.
+
+It would be helpful if others could test to see if they can reproduce
+the problems I reported. I will submit a pull request when
+ready, and if there is no objection, ifdefs will be included that
+permit compiling Rcpp and RInside using MSVC (there are only
+a few small changes with most of them applying to RInside.cpp).
+
+I do not recommend MSVC for R package development and deployment,
+just for debugging difficult problems like this. More than a decade ago
+this helped to track down bugs in a popular R package (rgl). Bugs that
+can slip by g++ can trigger problems with MSVC. Users who use
+MSVC for this purpose should understand that they are completely
+on their own, as you say. There may be some advantages to testing
+with MSVC given its good support for the newer runtime UCRT.
+
+Dominick
+
+
+
+
+
+
+
+
+On Mon, Jan 23, 2023 at 4:38 AM Tomas Kalibera <tomas.kalibera at gmail.com>
+wrote:
+
+>
+> On 1/21/23 16:53, Dominick Samperi wrote:
+>
+> There are problems with the R-devel version, but they appear less
+> frequently.
+> What happens is two instances of the program are started instead of one,
+> but there is normally
+> a "dominant" one that hides the fact that there is another instance
+> lurking, so
+> the program seems to behave normally. Occasionally both instances
+> come up (two terminals and two x11 panes). The R function
+> R_SetWin32(Rstart) is called twice on startup.
+>
+> The problem is likely caused by the fact that R internals changed for
+> R 4.2.0, in particular, the structRstart in R_ext/RStartup.h changed,
+> and RSTART_VERSION was introduced. The requires use of
+> R_DefParamsEx(&Rst, RSTART_VERSION) in place of
+> R_DefParams(), and the return value must be zero for version
+> compatibility.
+>
+> A short comment from me, please see the source code comments for more and
+> R-exts. The changes in R 4.2.0 in the API carefully were designed to be
+> backwards compatible. It is of course a good idea to switch to the new API
+> and the embedding application should ideally always use the current
+> headers, but it is unlikely the cause of any problems now.
+>
+>
+> This is not Windows-specific, and I suspect there are
+> problems under Linux, but symptoms rarely surface due to
+> some quirks of that architecture (better immune system?).
+>
+> I modified the source with hints from the example
+> src/gnuwin32/front-ends/rtest.c, and the program seems
+> to behave more consistently, but the multiple instance
+> problem persists.
+>
+> I've attached a version of RInside.cpp with my changes. The
+> _MSC_VER ifdefs are for Video Studio, which I am using for
+> debugging. I had some problems with gdb.
+>
+> R code has not been used with Visual Studio compilers for many years, and
+> never officially supported by those. With MSVC, you are completely on your
+> own and I would expect a large number of problems (solving many of which
+> won't be relevant for R nor R packages).
+>
+> Tomas
+>
+>
+> Dominick
+>
+>
+>
+>
+>
+> On Fri, Jan 20, 2023 at 7:56 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 20 January 2023 at 19:11, Dominick Samperi wrote:
+>> | You are right Dirk, RInside overrides what is specified because the
+>> function
+>> | myAskYesNo doesn't actually ask, so this explains why there is to
+>> | termination
+>> | prompt under Windows. This does not change what happens under Linux
+>> | because this function is assigned to a Windows-specific callback. Under
+>> | Linux the confirmation message appears.
+>> |
+>> | The current status is that the example seems to work using R-devel,
+>> | but not using R-4.2.2.
+>>
+>> :-/
+>>
+>> If you can narrow it down we'd appreciate it. If not, well, r-devel will
+>> be
+>> r-release in the three months time.
+>>
+>> And I don't think we have done any changes on the Windows side since
+>> before
+>> UCRT with R 4.2.0.
+>>
+>> Dirk
+>>
+>> --
+>> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230123/5ff69a3a/attachment.html>
+
+From edd at debian.org  Mon Jan 23 19:43:17 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 23 Jan 2023 12:43:17 -0600
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5jHhJXHx2VRDC5XBVvz+ZdJkw5tfynHek0GNp6erKa0aQ@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+ <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+ <4667be81-7b2f-0c4d-48c9-c7a5a1790567@gmail.com>
+ <CADUbQ5jHhJXHx2VRDC5XBVvz+ZdJkw5tfynHek0GNp6erKa0aQ@mail.gmail.com>
+Message-ID: <25550.54597.756857.674872@rob.eddelbuettel.com>
+
+
+Maintainer of affected package here:
+
+On 23 January 2023 at 12:20, Dominick Samperi wrote:
+| On the changes for R 4.2.0, it is not clear how to distinguish
+| R API functions from R internal functions (and this probably
+| doesn't matter for Rcpp), but you are correct,
+| on closer inspection these changes should not have effected
+| the way R_DefParams() was used before R_DefParamsEx()
+| was introduced.
+| 
+| It would be helpful if others could test to see if they can reproduce
+| the problems I reported. I will submit a pull request when
+| ready,
+
+That would be really appreciated! It really sounds like we could do with an
+update of some internals, and as seem to have spent some time in that corner
+you are likely right now the most qualified person to do this.
+
+| and if there is no objection, ifdefs will be included that
+| permit compiling Rcpp and RInside using MSVC (there are only
+| a few small changes with most of them applying to RInside.cpp).
+
+I think that is out of scope, and should be not in the pull request, and
+RInside repo.
+
+By all means keep them in a branch / fork of yours if that is how you work,
+but the RInside package is part of R ecosystem which has a well-established
+empty intersection with the MSVC world and toolchains.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Tue Jan 24 02:38:41 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Mon, 23 Jan 2023 20:38:41 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <25550.54597.756857.674872@rob.eddelbuettel.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+ <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+ <4667be81-7b2f-0c4d-48c9-c7a5a1790567@gmail.com>
+ <CADUbQ5jHhJXHx2VRDC5XBVvz+ZdJkw5tfynHek0GNp6erKa0aQ@mail.gmail.com>
+ <25550.54597.756857.674872@rob.eddelbuettel.com>
+Message-ID: <CADUbQ5gHCuu4+TkP69jj9OU=tA1C_XJKXCpv9CQk8DJt+nedsg@mail.gmail.com>
+
+The problems I have reported have three possible causes, individually, or
+in combination. Feedback from experts on this might help.
+
+1. Changes to R internals esp. since R 4.2.0 may break RInline,
+     and also break other FFI apps that I'm working on (Haskell). For
+     example, fetching the address of the SEXP R_NilValue gives an
+     invalid address with R 4.2.2, but does not have this problem
+     with R 4.1.3, for example.
+
+2. When you start a Windows CMD terminal, at least two threads
+    are started (can be seen in task manager), and sometimes Windows
+    seems to start two instances of your app instead of one. This may
+    be a bug in RInside, or a bug in Windows? Google shows that
+    others have reported problems caused by Windows starting two
+    terminals when you expect one.
+
+3. There may be problems with the Rinline::repl() code that I have
+     not found yet.
+
+Dominick
+
+
+
+
+On Mon, Jan 23, 2023 at 1:43 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Maintainer of affected package here:
+>
+> On 23 January 2023 at 12:20, Dominick Samperi wrote:
+> | On the changes for R 4.2.0, it is not clear how to distinguish
+> | R API functions from R internal functions (and this probably
+> | doesn't matter for Rcpp), but you are correct,
+> | on closer inspection these changes should not have effected
+> | the way R_DefParams() was used before R_DefParamsEx()
+> | was introduced.
+> |
+> | It would be helpful if others could test to see if they can reproduce
+> | the problems I reported. I will submit a pull request when
+> | ready,
+>
+> That would be really appreciated! It really sounds like we could do with an
+> update of some internals, and as seem to have spent some time in that
+> corner
+> you are likely right now the most qualified person to do this.
+>
+> | and if there is no objection, ifdefs will be included that
+> | permit compiling Rcpp and RInside using MSVC (there are only
+> | a few small changes with most of them applying to RInside.cpp).
+>
+> I think that is out of scope, and should be not in the pull request, and
+> RInside repo.
+>
+> By all means keep them in a branch / fork of yours if that is how you work,
+> but the RInside package is part of R ecosystem which has a well-established
+> empty intersection with the MSVC world and toolchains.
+>
+> Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230123/9b278016/attachment.html>
+
+From djsamperi at gmail.com  Wed Jan 25 15:14:56 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Wed, 25 Jan 2023 09:14:56 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5gHCuu4+TkP69jj9OU=tA1C_XJKXCpv9CQk8DJt+nedsg@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+ <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+ <4667be81-7b2f-0c4d-48c9-c7a5a1790567@gmail.com>
+ <CADUbQ5jHhJXHx2VRDC5XBVvz+ZdJkw5tfynHek0GNp6erKa0aQ@mail.gmail.com>
+ <25550.54597.756857.674872@rob.eddelbuettel.com>
+ <CADUbQ5gHCuu4+TkP69jj9OU=tA1C_XJKXCpv9CQk8DJt+nedsg@mail.gmail.com>
+Message-ID: <CADUbQ5gEOh-SPJYHLx1VzweHF5+Bh=JiKmW4Vabjkf1voA7Emg@mail.gmail.com>
+
+Just today I simply started R in a CMD window (no Rcpp/RInside), and a new
+window popped up
+with the R prompt, instead of just starting the session in the current
+window. This new window
+goes away after a few seconds and you are left in the original window with
+an R command prompt.
+
+I'm using the development version of R, and this has nothing to do with
+Rcpp/RInside.
+
+This tends to happen rarely, usually the first time I run R after opening
+the CMD window. Terminating
+and running R again does not reproduce the problem, so it is somehow
+dependent on
+operating system context.
+
+Not sure if this is a bug or a side-effect of a virus infection.
+
+Dominick
+
+
+
+
+
+
+On Mon, Jan 23, 2023 at 8:38 PM Dominick Samperi <djsamperi at gmail.com>
+wrote:
+
+> The problems I have reported have three possible causes, individually, or
+> in combination. Feedback from experts on this might help.
+>
+> 1. Changes to R internals esp. since R 4.2.0 may break RInline,
+>      and also break other FFI apps that I'm working on (Haskell). For
+>      example, fetching the address of the SEXP R_NilValue gives an
+>      invalid address with R 4.2.2, but does not have this problem
+>      with R 4.1.3, for example.
+>
+> 2. When you start a Windows CMD terminal, at least two threads
+>     are started (can be seen in task manager), and sometimes Windows
+>     seems to start two instances of your app instead of one. This may
+>     be a bug in RInside, or a bug in Windows? Google shows that
+>     others have reported problems caused by Windows starting two
+>     terminals when you expect one.
+>
+> 3. There may be problems with the Rinline::repl() code that I have
+>      not found yet.
+>
+> Dominick
+>
+>
+>
+>
+> On Mon, Jan 23, 2023 at 1:43 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> Maintainer of affected package here:
+>>
+>> On 23 January 2023 at 12:20, Dominick Samperi wrote:
+>> | On the changes for R 4.2.0, it is not clear how to distinguish
+>> | R API functions from R internal functions (and this probably
+>> | doesn't matter for Rcpp), but you are correct,
+>> | on closer inspection these changes should not have effected
+>> | the way R_DefParams() was used before R_DefParamsEx()
+>> | was introduced.
+>> |
+>> | It would be helpful if others could test to see if they can reproduce
+>> | the problems I reported. I will submit a pull request when
+>> | ready,
+>>
+>> That would be really appreciated! It really sounds like we could do with
+>> an
+>> update of some internals, and as seem to have spent some time in that
+>> corner
+>> you are likely right now the most qualified person to do this.
+>>
+>> | and if there is no objection, ifdefs will be included that
+>> | permit compiling Rcpp and RInside using MSVC (there are only
+>> | a few small changes with most of them applying to RInside.cpp).
+>>
+>> I think that is out of scope, and should be not in the pull request, and
+>> RInside repo.
+>>
+>> By all means keep them in a branch / fork of yours if that is how you
+>> work,
+>> but the RInside package is part of R ecosystem which has a
+>> well-established
+>> empty intersection with the MSVC world and toolchains.
+>>
+>> Dirk
+>>
+>> --
+>> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230125/7e9ca258/attachment.html>
+
+From djsamperi at gmail.com  Thu Jan 26 20:26:26 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Thu, 26 Jan 2023 14:26:26 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5gEOh-SPJYHLx1VzweHF5+Bh=JiKmW4Vabjkf1voA7Emg@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+ <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+ <4667be81-7b2f-0c4d-48c9-c7a5a1790567@gmail.com>
+ <CADUbQ5jHhJXHx2VRDC5XBVvz+ZdJkw5tfynHek0GNp6erKa0aQ@mail.gmail.com>
+ <25550.54597.756857.674872@rob.eddelbuettel.com>
+ <CADUbQ5gHCuu4+TkP69jj9OU=tA1C_XJKXCpv9CQk8DJt+nedsg@mail.gmail.com>
+ <CADUbQ5gEOh-SPJYHLx1VzweHF5+Bh=JiKmW4Vabjkf1voA7Emg@mail.gmail.com>
+Message-ID: <CADUbQ5joxJYjqg=qGPp8RGZNVmGABPXsudMLVWm22uteXOc2iQ@mail.gmail.com>
+
+Update: I seem to have many of the issues resolved, under R 4.2.2 and
+R-devel, except for a
+problem that shows up occasionally: RInside::repl() loop terminates
+immediately after
+a plot, for example, plot(0,0). I upgraded to Rcpp 1.0.10, but this didn't
+make any difference.
+
+Many of the problems I reported appear to have been caused by an anti-virus
+program
+(AVG) that silently deletes files that it thinks are "suspicious" like
+Rterm.exe. When it
+does this, Windows will not permit the file to be restored to its original
+location unless
+you reboot: you get an "access denied" message for a file that doesn't exit!
+
+The work-around is to tell AVG to treat certain directories (like the one
+containing
+Rterm.exe) as exceptions. I have seen no phantom instances  of processes
+since I made this change, so this may have fixed that problem as well (only
+time will tell).
+
+Dominick
+
+
+
+
+
+
+
+
+
+
+
+
+
+except that RInline::repl() often terminates
+immediately after a plot(0,0) command. This happens about 10% of the time.
+
+
+
+On Wed, Jan 25, 2023 at 9:14 AM Dominick Samperi <djsamperi at gmail.com>
+wrote:
+
+> Just today I simply started R in a CMD window (no Rcpp/RInside), and a new
+> window popped up
+> with the R prompt, instead of just starting the session in the current
+> window. This new window
+> goes away after a few seconds and you are left in the original window with
+> an R command prompt.
+>
+> I'm using the development version of R, and this has nothing to do with
+> Rcpp/RInside.
+>
+> This tends to happen rarely, usually the first time I run R after opening
+> the CMD window. Terminating
+> and running R again does not reproduce the problem, so it is somehow
+> dependent on
+> operating system context.
+>
+> Not sure if this is a bug or a side-effect of a virus infection.
+>
+> Dominick
+>
+>
+>
+>
+>
+>
+> On Mon, Jan 23, 2023 at 8:38 PM Dominick Samperi <djsamperi at gmail.com>
+> wrote:
+>
+>> The problems I have reported have three possible causes, individually, or
+>> in combination. Feedback from experts on this might help.
+>>
+>> 1. Changes to R internals esp. since R 4.2.0 may break RInline,
+>>      and also break other FFI apps that I'm working on (Haskell). For
+>>      example, fetching the address of the SEXP R_NilValue gives an
+>>      invalid address with R 4.2.2, but does not have this problem
+>>      with R 4.1.3, for example.
+>>
+>> 2. When you start a Windows CMD terminal, at least two threads
+>>     are started (can be seen in task manager), and sometimes Windows
+>>     seems to start two instances of your app instead of one. This may
+>>     be a bug in RInside, or a bug in Windows? Google shows that
+>>     others have reported problems caused by Windows starting two
+>>     terminals when you expect one.
+>>
+>> 3. There may be problems with the Rinline::repl() code that I have
+>>      not found yet.
+>>
+>> Dominick
+>>
+>>
+>>
+>>
+>> On Mon, Jan 23, 2023 at 1:43 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>>>
+>>> Maintainer of affected package here:
+>>>
+>>> On 23 January 2023 at 12:20, Dominick Samperi wrote:
+>>> | On the changes for R 4.2.0, it is not clear how to distinguish
+>>> | R API functions from R internal functions (and this probably
+>>> | doesn't matter for Rcpp), but you are correct,
+>>> | on closer inspection these changes should not have effected
+>>> | the way R_DefParams() was used before R_DefParamsEx()
+>>> | was introduced.
+>>> |
+>>> | It would be helpful if others could test to see if they can reproduce
+>>> | the problems I reported. I will submit a pull request when
+>>> | ready,
+>>>
+>>> That would be really appreciated! It really sounds like we could do with
+>>> an
+>>> update of some internals, and as seem to have spent some time in that
+>>> corner
+>>> you are likely right now the most qualified person to do this.
+>>>
+>>> | and if there is no objection, ifdefs will be included that
+>>> | permit compiling Rcpp and RInside using MSVC (there are only
+>>> | a few small changes with most of them applying to RInside.cpp).
+>>>
+>>> I think that is out of scope, and should be not in the pull request, and
+>>> RInside repo.
+>>>
+>>> By all means keep them in a branch / fork of yours if that is how you
+>>> work,
+>>> but the RInside package is part of R ecosystem which has a
+>>> well-established
+>>> empty intersection with the MSVC world and toolchains.
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230126/9657f873/attachment.html>
+
+From Jean.Thioulouse at univ-lyon1.fr  Fri Jan 27 19:30:39 2023
+From: Jean.Thioulouse at univ-lyon1.fr (THIOULOUSE JEAN)
+Date: Fri, 27 Jan 2023 18:30:39 +0000
+Subject: [Rcpp-devel] help with Rcpp::List of Rcpp::List
+Message-ID: <8C445E40-165F-46C2-A4EC-5CDFBB3F3D3F@univ-lyon1.fr>
+
+Dear Rcpp-devel list
+
+I need your help again to solve a problem I have when submitting a new release of the ade4 package (https://github.com/sdray/ade4) to CRAN. I wrote a C++ function where I need to use a list of lists (see code below). It works perfectly on all platforms, but the Windows and Linux compilers (not the Mac one) raise a warning saying :
+
+Flavor: r-devel-windows-x86_64
+   testsCpp.cpp:478:28: warning: ISO C++ forbids variable length array 'spl1' [-Wvla]
+
+Flavor: r-devel-linux-x86_64-debian-gcc
+    testsCpp.cpp:478:19: warning: variable length arrays are a C99 feature [-Wvla-extension]
+
+This warning happens here:
+
+testsCpp.cpp: In function 'arma::vec RVintrarandtestCpp(const arma::mat&, const arma::mat&, Rcpp::IntegerVector, int)':
+testsCpp.cpp:478:28: warning: ISO C++ forbids variable length array 'spl1' [-Wvla]
+  478 |                 Rcpp::List spl1[i];
+      |                            ^~~~
+
+Here is the C++ code, as you can see I declare a Rcpp::List of Rcpp::List with varying lengths (these lists are used to store the row numbers of a data table that belong to the same levels of a factor). So my question is: what should I do about this warning ? Do I need to find a workaround (which one ?), or should I ignore it ?
+
+Sorry for the long message, and thanks in advance for any help...
+
+Jean
+
+
+// [[Rcpp::export]]
+arma::vec RVintrarandtestCpp(const arma::mat & X, const arma::mat & Y, Rcpp::IntegerVector fac, const int nrepet)
+{
+/*--------------------------------------------------
+Get the number of levels of the factor
+--------------------------------------------------*/
+	Rcpp::CharacterVector faclevs = fac.attr("levels");
+	int nlev = faclevs.length();
+/*--------------------------------------------------
+ List of lists to store the row numbers belonging to each factor level
+--------------------------------------------------*/
+	Rcpp::List spl1(nlev);
+	for (i=0; i<nlev; i++) {
+		Rcpp::List spl1[i];
+	}
+/*--------------------------------------------------
+Fill the list with the row numbers that belong to each factor level
+--------------------------------------------------*/
+	for (j=0;  j<nlev; j++) {
+		Rcpp::List listej;
+		for (i=0; i<l1; i++) {
+			if (fac(i) == j+1) {
+				listej.push_back(i+1);
+			}
+		}
+		spl1[j] = listej;
+	}
+
+—-
+Jean THIOULOUSE - https://urlz.fr/jmA8 (Lab home page)
+https://orcid.org/0000-0001-7664-0598 (ORCID page)
+https://www.springer.com/fr/book/9781493988488 (ade4 Book)
+https://jthome.thioulouse.fr/ref/
+
+
+
+
+
+
+
+
+
+From djsamperi at gmail.com  Sat Jan 28 17:42:25 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Sat, 28 Jan 2023 11:42:25 -0500
+Subject: [Rcpp-devel] Rcpp_precious_remove again (Windows)
+In-Reply-To: <CADUbQ5joxJYjqg=qGPp8RGZNVmGABPXsudMLVWm22uteXOc2iQ@mail.gmail.com>
+References: <CADUbQ5iiw43gMLqFib33yOw9jnM66ZojqG2sqc3jaVEGcyPBew@mail.gmail.com>
+ <25543.23256.797439.518986@rob.eddelbuettel.com>
+ <CADUbQ5jvmFXhw0YTpkvidvKQAAn41NJwG3aTnQ9N26HA2repDA@mail.gmail.com>
+ <25545.61710.652835.38349@rob.eddelbuettel.com>
+ <7ff12f99-b2bc-fcba-17af-5cf756fc1dad@gmail.com>
+ <25546.54604.782217.847532@rob.eddelbuettel.com>
+ <CADUbQ5h5q0pMWxNYF_yhUhbnboSnc14-JJc-n3onbaOebA77jg@mail.gmail.com>
+ <CADUbQ5hZyia06ZKGQxGi57XKgcmWEuCVRoxQmqe_L8GA77d9kw@mail.gmail.com>
+ <25547.14386.218630.98507@rob.eddelbuettel.com>
+ <CADUbQ5g1xHJPj=--C7v=KZX8Q_vT07hAqM_u=0HcnCe0E_VkDQ@mail.gmail.com>
+ <4667be81-7b2f-0c4d-48c9-c7a5a1790567@gmail.com>
+ <CADUbQ5jHhJXHx2VRDC5XBVvz+ZdJkw5tfynHek0GNp6erKa0aQ@mail.gmail.com>
+ <25550.54597.756857.674872@rob.eddelbuettel.com>
+ <CADUbQ5gHCuu4+TkP69jj9OU=tA1C_XJKXCpv9CQk8DJt+nedsg@mail.gmail.com>
+ <CADUbQ5gEOh-SPJYHLx1VzweHF5+Bh=JiKmW4Vabjkf1voA7Emg@mail.gmail.com>
+ <CADUbQ5joxJYjqg=qGPp8RGZNVmGABPXsudMLVWm22uteXOc2iQ@mail.gmail.com>
+Message-ID: <CADUbQ5jT80a=VXciWkQ_g4d==GAmJigH2nes0AQc42itP-au9g@mail.gmail.com>
+
+I found a work-around that seems to fix the problems with RInside::repl()
+and
+I will submit the PR provided Tomas doesn't see any problems with this. The
+work-around is to use code that is currently ifdef-ed out in
+front-ends/rtest.c (a file that Tomas has worked on).
+
+The REPL that is currently implemented using R_ReplDLLinit()
+and R_ReplDLLdo1() is implemented instead by calling run_Rmainloop().
+
+There is a comment in main.c noting that R_ReplDLLdo1()
+can get out of sync, so it is not suitable for use as part
+of the API.
+
+Dominick
+
+On Thu, Jan 26, 2023 at 2:26 PM Dominick Samperi <djsamperi at gmail.com>
+wrote:
+
+> Update: I seem to have many of the issues resolved, under R 4.2.2 and
+> R-devel, except for a
+> problem that shows up occasionally: RInside::repl() loop terminates
+> immediately after
+> a plot, for example, plot(0,0). I upgraded to Rcpp 1.0.10, but this didn't
+> make any difference.
+>
+> Many of the problems I reported appear to have been caused by an
+> anti-virus program
+> (AVG) that silently deletes files that it thinks are "suspicious" like
+> Rterm.exe. When it
+> does this, Windows will not permit the file to be restored to its original
+> location unless
+> you reboot: you get an "access denied" message for a file that doesn't
+> exit!
+>
+> The work-around is to tell AVG to treat certain directories (like the one
+> containing
+> Rterm.exe) as exceptions. I have seen no phantom instances  of processes
+> since I made this change, so this may have fixed that problem as well (only
+> time will tell).
+>
+> Dominick
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+> except that RInline::repl() often terminates
+> immediately after a plot(0,0) command. This happens about 10% of the time.
+>
+>
+>
+> On Wed, Jan 25, 2023 at 9:14 AM Dominick Samperi <djsamperi at gmail.com>
+> wrote:
+>
+>> Just today I simply started R in a CMD window (no Rcpp/RInside), and a
+>> new window popped up
+>> with the R prompt, instead of just starting the session in the current
+>> window. This new window
+>> goes away after a few seconds and you are left in the original window
+>> with an R command prompt.
+>>
+>> I'm using the development version of R, and this has nothing to do with
+>> Rcpp/RInside.
+>>
+>> This tends to happen rarely, usually the first time I run R after opening
+>> the CMD window. Terminating
+>> and running R again does not reproduce the problem, so it is somehow
+>> dependent on
+>> operating system context.
+>>
+>> Not sure if this is a bug or a side-effect of a virus infection.
+>>
+>> Dominick
+>>
+>>
+>>
+>>
+>>
+>>
+>> On Mon, Jan 23, 2023 at 8:38 PM Dominick Samperi <djsamperi at gmail.com>
+>> wrote:
+>>
+>>> The problems I have reported have three possible causes, individually, or
+>>> in combination. Feedback from experts on this might help.
+>>>
+>>> 1. Changes to R internals esp. since R 4.2.0 may break RInline,
+>>>      and also break other FFI apps that I'm working on (Haskell). For
+>>>      example, fetching the address of the SEXP R_NilValue gives an
+>>>      invalid address with R 4.2.2, but does not have this problem
+>>>      with R 4.1.3, for example.
+>>>
+>>> 2. When you start a Windows CMD terminal, at least two threads
+>>>     are started (can be seen in task manager), and sometimes Windows
+>>>     seems to start two instances of your app instead of one. This may
+>>>     be a bug in RInside, or a bug in Windows? Google shows that
+>>>     others have reported problems caused by Windows starting two
+>>>     terminals when you expect one.
+>>>
+>>> 3. There may be problems with the Rinline::repl() code that I have
+>>>      not found yet.
+>>>
+>>> Dominick
+>>>
+>>>
+>>>
+>>>
+>>> On Mon, Jan 23, 2023 at 1:43 PM Dirk Eddelbuettel <edd at debian.org>
+>>> wrote:
+>>>
+>>>>
+>>>> Maintainer of affected package here:
+>>>>
+>>>> On 23 January 2023 at 12:20, Dominick Samperi wrote:
+>>>> | On the changes for R 4.2.0, it is not clear how to distinguish
+>>>> | R API functions from R internal functions (and this probably
+>>>> | doesn't matter for Rcpp), but you are correct,
+>>>> | on closer inspection these changes should not have effected
+>>>> | the way R_DefParams() was used before R_DefParamsEx()
+>>>> | was introduced.
+>>>> |
+>>>> | It would be helpful if others could test to see if they can reproduce
+>>>> | the problems I reported. I will submit a pull request when
+>>>> | ready,
+>>>>
+>>>> That would be really appreciated! It really sounds like we could do
+>>>> with an
+>>>> update of some internals, and as seem to have spent some time in that
+>>>> corner
+>>>> you are likely right now the most qualified person to do this.
+>>>>
+>>>> | and if there is no objection, ifdefs will be included that
+>>>> | permit compiling Rcpp and RInside using MSVC (there are only
+>>>> | a few small changes with most of them applying to RInside.cpp).
+>>>>
+>>>> I think that is out of scope, and should be not in the pull request, and
+>>>> RInside repo.
+>>>>
+>>>> By all means keep them in a branch / fork of yours if that is how you
+>>>> work,
+>>>> but the RInside package is part of R ecosystem which has a
+>>>> well-established
+>>>> empty intersection with the MSVC world and toolchains.
+>>>>
+>>>> Dirk
+>>>>
+>>>> --
+>>>> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>>
+>>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230128/15ab0cf1/attachment.html>
+
+From jean.thioulouse at univ-lyon1.fr  Mon Jan 30 12:48:17 2023
+From: jean.thioulouse at univ-lyon1.fr (Jean Thioulouse)
+Date: Mon, 30 Jan 2023 12:48:17 +0100
+Subject: [Rcpp-devel] help with Rcpp::List of Rcpp::List
+In-Reply-To: <8C445E40-165F-46C2-A4EC-5CDFBB3F3D3F@univ-lyon1.fr>
+References: <8C445E40-165F-46C2-A4EC-5CDFBB3F3D3F@univ-lyon1.fr>
+Message-ID: <50D4A91F-3FBD-4B20-AE4E-67F4D366E762@univ-lyon1.fr>
+
+
+Thanks for the (private) answers that helped me to solve the problem, by just removing these stupid useless lines.
+
+Jean
+
+> Le 27 janv. 2023 à 19:30, THIOULOUSE JEAN <Jean.Thioulouse at univ-lyon1.fr> a écrit :
+> 
+> Dear Rcpp-devel list
+> 
+> I need your help again to solve a problem I have when submitting a new release of the ade4 package (https://github.com/sdray/ade4) to CRAN. I wrote a C++ function where I need to use a list of lists (see code below). It works perfectly on all platforms, but the Windows and Linux compilers (not the Mac one) raise a warning saying :
+> 
+> Flavor: r-devel-windows-x86_64
+>   testsCpp.cpp:478:28: warning: ISO C++ forbids variable length array 'spl1' [-Wvla]
+> 
+> Flavor: r-devel-linux-x86_64-debian-gcc
+>    testsCpp.cpp:478:19: warning: variable length arrays are a C99 feature [-Wvla-extension]
+> 
+> This warning happens here:
+> 
+> testsCpp.cpp: In function 'arma::vec RVintrarandtestCpp(const arma::mat&, const arma::mat&, Rcpp::IntegerVector, int)':
+> testsCpp.cpp:478:28: warning: ISO C++ forbids variable length array 'spl1' [-Wvla]
+>  478 |                 Rcpp::List spl1[i];
+>      |                            ^~~~
+> 
+> Here is the C++ code, as you can see I declare a Rcpp::List of Rcpp::List with varying lengths (these lists are used to store the row numbers of a data table that belong to the same levels of a factor). So my question is: what should I do about this warning ? Do I need to find a workaround (which one ?), or should I ignore it ?
+> 
+> Sorry for the long message, and thanks in advance for any help...
+> 
+> Jean
+> 
+> 
+> // [[Rcpp::export]]
+> arma::vec RVintrarandtestCpp(const arma::mat & X, const arma::mat & Y, Rcpp::IntegerVector fac, const int nrepet)
+> {
+> /*--------------------------------------------------
+> Get the number of levels of the factor
+> --------------------------------------------------*/
+> Rcpp::CharacterVector faclevs = fac.attr("levels");
+> int nlev = faclevs.length();
+> /*--------------------------------------------------
+> List of lists to store the row numbers belonging to each factor level
+> --------------------------------------------------*/
+> Rcpp::List spl1(nlev);
+> for (i=0; i<nlev; i++) {
+> Rcpp::List spl1[i];
+> }
+> /*--------------------------------------------------
+> Fill the list with the row numbers that belong to each factor level
+> --------------------------------------------------*/
+> for (j=0;  j<nlev; j++) {
+> Rcpp::List listej;
+> for (i=0; i<l1; i++) {
+> if (fac(i) == j+1) {
+> listej.push_back(i+1);
+> }
+> }
+> spl1[j] = listej;
+> }
+> 
+> —-
+> Jean THIOULOUSE - https://urlz.fr/jmA8 (Lab home page)
+> https://orcid.org/0000-0001-7664-0598 (ORCID page)
+> https://www.springer.com/fr/book/9781493988488 (ade4 Book)
+> https://jthome.thioulouse.fr/ref/
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+
+
+From zheng.b at wustl.edu  Mon Jan 30 19:11:10 2023
+From: zheng.b at wustl.edu (Zheng, Binghan)
+Date: Mon, 30 Jan 2023 18:11:10 +0000
+Subject: [Rcpp-devel] Package RMD check warning
+Message-ID: <A4C0D19F-4154-45F1-A2A0-F6116ED2B965@wustl.edu>
+
+Hi,
+
+I’m preparing a package to be released through CRAN for Dr. Jacob Montgomery at WUSTL and I’m running into a warning that I can’t seem to resolve.
+
+The RCMD check is being run in R 4.2.2 on MacOS.
+After running devtools::check() on the labelR package, it returns this warning:
+ checking dependencies in R code ... WARNING
+  'loadNamespace' or 'requireNamespace' call not declared from: ‘Rcpp’
+  Package in Depends field not imported from: ‘methods’
+    These packages need to be imported from (in the NAMESPACE file)
+    for when this namespace is loaded but not attached.
+
+@imports ‘Rcpp’ has been included in all relevant functions
+It is currently in the scripts as requireNamespace(“Rcpp”) since we are using requireNamespace(“rstan”). We have tried loadNamespace(“Rcpp”) which did not resolve the issue.
+Imports(‘Rcpp’) is within NAMESPACE.
+Within the DESCRIPTION file, Rcpp is under Imports. We have tried moving it to Suggests, but that also did not resolve the issue. It’s unclear what the error is stemming from and we would appreciate any input to resolve this warning.
+
+Thank you,
+
+Bingham
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230130/efd830b6/attachment-0001.html>
+
+From edd at debian.org  Mon Jan 30 19:45:55 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 30 Jan 2023 12:45:55 -0600
+Subject: [Rcpp-devel] Package RMD check warning
+In-Reply-To: <A4C0D19F-4154-45F1-A2A0-F6116ED2B965@wustl.edu>
+References: <A4C0D19F-4154-45F1-A2A0-F6116ED2B965@wustl.edu>
+Message-ID: <25560.4195.881538.363813@rob.eddelbuettel.com>
+
+
+On 30 January 2023 at 18:11, Zheng, Binghan wrote:
+| I’m preparing a package to be released through CRAN for Dr. Jacob Montgomery at WUSTL and I’m running into a warning that I can’t seem to resolve.
+| 
+| The RCMD check is being run in R 4.2.2 on MacOS.
+| After running devtools::check() on the labelR package, it returns this warning:
+
+I personally (and strongly) prefer the clarity of the R CMD ... commands over
+the combination of obfuscations and convenience offered by other wrappers
+(but yes I understand they are convenient and powerful--but harder to
+debug). I would recommend you try to solve this with base commands.
+
+|  checking dependencies in R code ... WARNING
+|   'loadNamespace' or 'requireNamespace' call not declared from: ‘Rcpp’
+|   Package in Depends field not imported from: ‘methods’
+
+It's a guess as we cannot see your sources (if there is a GitHub (or alike)
+repo, always post a link!) but I suspect you have a Depends: Rcpp when you
+should have an Imports: Rcpp *and* also a standard line in NAMESPACE such as
+
+   importFrom(Rcpp,evalCpp)
+
+(where it doesn't matter _which_ function you tag, what matters is that the
+package get imported at startup which intializes a few things that are
+needed).  You need both.
+
+|     These packages need to be imported from (in the NAMESPACE file)
+|     for when this namespace is loaded but not attached.
+| 
+| @imports ‘Rcpp’ has been included in all relevant functions
+
+You need  "@importFrom Rcpp sourceCpp"  to create the line above.  Again,
+roxygen2 obfuscates here. I always documented it as 'better by hand'.
+
+| It is currently in the scripts as requireNamespace(“Rcpp”) since we are using requireNamespace(“rstan”). We have tried loadNamespace(“Rcpp”) which did not resolve the issue.
+| Imports(‘Rcpp’) is within NAMESPACE.
+| Within the DESCRIPTION file, Rcpp is under Imports. We have tried moving it to Suggests, but that also did not resolve the issue. It’s unclear what the error is stemming from and we would appreciate any input to resolve this warning.
+
+If in doubt, also try to look at a working package. For Rcpp you now have
+well over 2600 to choose from at CRAN :)  As well as working package creators
+that provide this.  You can always start from an empty package that you can
+grow to contain your content.
+
+Best, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

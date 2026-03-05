@@ -1,0 +1,4624 @@
+From s.boehringer at lumc.nl  Fri Feb  6 17:19:36 2015
+From: s.boehringer at lumc.nl (Stefan Boehringer (lumc))
+Date: Fri, 6 Feb 2015 17:19:36 +0100
+Subject: [Rcpp-devel] Using C++ class exposed by Module in R class
+Message-ID: <54D4E998.1000101@lumc.nl>
+
+Dear all,
+
+I have the following problem:
+I define a Referenceclass as follows
+
+myClassObject = setRefClass('myClass', contains = c('class1', 'class2'),
+    fields = list(
+        reconstruction = 'ClassFromModule',
+    ),
+    methods = list(
+    )
+);
+
+ClassFromModule is a C++ class exposed by a Rcpp Module. I had somewhat
+irreproducible results with this approach.
+On installing I get the following error message:
+
+Error in refClassInformation(Class, contains, fields, methods, where) :
+  class "ClassFromModule" for field 'reconstruction' is not defined
+
+I can forward define the class by inserting:
+setRefClass('ClassFromModule');
+before the class definition.
+
+Error in envRefInferField(x, what, getClass(class(x)), selfEnv) :
+  ?reconstructionsAll? is not a valid field or method name for reference
+class ?Rcpp_ClassFromModule?
+
+This problem appeared at some point in time as I have an installed
+version of the package that did compile. However, I have not clue (and
+understanding) what the expected behavior would be.
+
+
+Is there a recipe available for using Rcpp exposed C++ classes in pure R
+reference classes?
+
+Thank you very much in advance, best,
+
+    Stefan
+
+
+
+-- 
+http://s-boehringer.org
+
+
+
+From mammana at molgen.mpg.de  Tue Feb 10 13:09:10 2015
+From: mammana at molgen.mpg.de (Alessandro Mammana)
+Date: Tue, 10 Feb 2015 13:09:10 +0100
+Subject: [Rcpp-devel] The proper way of wrapping an R object
+Message-ID: <CA+RJ7GMiMfy5jAH_LHGg0_aWUq=FRseARuxLhHzqvpG5fboWUg@mail.gmail.com>
+
+Dear all,
+the following is not about "how to make it work", because it already
+works, it is only about "what's the best, cleanest way of doing it".
+
+I have an s4 object with three slots, and many Rcpp functions dealing with it.
+My goal is to have a C struct (or class) equivalent to the s4 object,
+i.e. where each field is an s4 slot.
+
+Right now I defined the struct in this way:
+
+struct CountSignals {
+    Rcpp::IntegerVector counts;
+    Rcpp::IntegerVector breaks;
+    bool ss;
+
+    CountSignals(Rcpp::RObject csig) {
+        if (not csig.inherits("CountSignals")) Rcpp::stop("expecting a
+CountSignals object");
+        counts = Rcpp::as<Rcpp::IntegerVector>(csig.slot("counts"));
+        breaks = Rcpp::as<Rcpp::IntegerVector>(csig.slot("breaks"));
+        ss = Rcpp::as<bool>(csig.slot("ss"));
+    }
+};
+
+
+And then each method starts like this, for example:
+
+// [[Rcpp::export]]
+Rcpp::List asList(Rcpp::RObject csig){
+    CountSignals x(csig);
+....
+
+As said before, this is working fine, but I am skeptical about the
+following things:
+1. in the assignment operators in the CountSignals constructor, am I
+copying the whole vector or am I copying a pointer to it? I need to
+make sure that nothing is copied (as these vectors can be very long).
+2. Even cleaner would be to start a method in this way:
+
+// [[Rcpp::export]]
+Rcpp::List asList(CountSignals x){
+....
+
+do you know if/how I can achieve that? (All of this code is inside an
+R package).
+
+Thanks a lot!
+
+-- 
+Alessandro Mammana, PhD Student
+Max Planck Institute for Molecular Genetics
+Ihnestra?e 63-73
+D-14195 Berlin, Germany
+
+From tkeitt at utexas.edu  Tue Feb 10 22:50:31 2015
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Tue, 10 Feb 2015 15:50:31 -0600
+Subject: [Rcpp-devel] CharacterVector::is_na
+Message-ID: <CANnL8gqr-nVS5Kp4M3htybsSq_0jhmA6z4Sy8f5rHjAFpMZ+Ew@mail.gmail.com>
+
+library(Rcpp)
+def = "bool is_na_character_vector(CharacterVector x) { return
+CharacterVector::is_na(x); }"
+f = cppFunction(def)
+print(f(as.character(NA))) # FALSE
+
+What am I missing?
+
+THK
+
+-- 
+http://www.keittlab.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150210/e9d077e2/attachment.html>
+
+From hye at ucsd.edu  Tue Feb 10 23:05:42 2015
+From: hye at ucsd.edu (Hao Ye)
+Date: Tue, 10 Feb 2015 14:05:42 -0800
+Subject: [Rcpp-devel] CharacterVector::is_na
+In-Reply-To: <CANnL8gqr-nVS5Kp4M3htybsSq_0jhmA6z4Sy8f5rHjAFpMZ+Ew@mail.gmail.com>
+References: <CANnL8gqr-nVS5Kp4M3htybsSq_0jhmA6z4Sy8f5rHjAFpMZ+Ew@mail.gmail.com>
+Message-ID: <2A00A1D3-4BB7-4BF4-8EB5-EB58BBA9EC63@ucsd.edu>
+
+Hi Tim,
+
+> def = "bool is_na_character_vector(CharacterVector x) { return CharacterVector::is_na(x); }"
+
+x is a CharacterVector, so you need to check is_na on each element separately. Try:
+
+def = "bool is_first_character_na(CharacterVector x) {return CharacterVector::is_na(x[0]);}"
+
+and see the Rcpp gallery for more examples:
+http://gallery.rcpp.org/articles/working-with-missing-values/
+
+Best,
+--
+Hao Ye
+hye at ucsd.edu
+
+On Feb 10, 2015, at 1:50 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+
+> library(Rcpp)
+> def = "bool is_na_character_vector(CharacterVector x) { return CharacterVector::is_na(x); }"
+> f = cppFunction(def)
+> print(f(as.character(NA))) # FALSE
+> 
+> What am I missing?
+> 
+> THK
+> 
+> -- 
+> http://www.keittlab.org/
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150210/4336fa23/attachment.html>
+
+From tkeitt at utexas.edu  Tue Feb 10 23:25:55 2015
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Tue, 10 Feb 2015 16:25:55 -0600
+Subject: [Rcpp-devel] CharacterVector::is_na
+In-Reply-To: <2A00A1D3-4BB7-4BF4-8EB5-EB58BBA9EC63@ucsd.edu>
+References: <CANnL8gqr-nVS5Kp4M3htybsSq_0jhmA6z4Sy8f5rHjAFpMZ+Ew@mail.gmail.com>
+ <2A00A1D3-4BB7-4BF4-8EB5-EB58BBA9EC63@ucsd.edu>
+Message-ID: <CANnL8gqYWGkmky00U6zxwfnB0obikMmPgLA7RWceHxPhy2QJQA@mail.gmail.com>
+
+On Tue, Feb 10, 2015 at 4:05 PM, Hao Ye <hye at ucsd.edu> wrote:
+
+> Hi Tim,
+>
+> def = "bool is_na_character_vector(CharacterVector x) { return
+> CharacterVector::is_na(x); }"
+>
+>
+> x is a CharacterVector, so you need to check is_na on each element
+> separately. Try:
+>
+> def = "bool is_first_character_na(CharacterVector x) {return
+> CharacterVector::is_na(x[0]);}"
+>
+> and see the Rcpp gallery for more examples:
+> http://gallery.rcpp.org/articles/working-with-missing-values/
+>
+
+Argh. Yes. I knew that was the problem, but tested it with x[1] not x[0] --
+too much switching back and forth between R and C++....
+
+Thanks.
+
+THK
+
+
+>
+> Best,
+> --
+> Hao Ye
+> hye at ucsd.edu
+>
+> On Feb 10, 2015, at 1:50 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+>
+> library(Rcpp)
+> def = "bool is_na_character_vector(CharacterVector x) { return
+> CharacterVector::is_na(x); }"
+> f = cppFunction(def)
+> print(f(as.character(NA))) # FALSE
+>
+> What am I missing?
+>
+> THK
+>
+> --
+> http://www.keittlab.org/
+>  _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+http://www.keittlab.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150210/5427f102/attachment.html>
+
+From jack at jackwasey.com  Sat Feb 14 12:59:07 2015
+From: jack at jackwasey.com (Jack Wasey)
+Date: Sat, 14 Feb 2015 06:59:07 -0500
+Subject: [Rcpp-devel] appearance  of matrix returned from Rcpp
+Message-ID: <54DF388B.8010508@jackwasey.com>
+
+Hello,
+
+I am trying to return a matrix derived from a std::vector<bool> with row
+names.
+
+I followed the advice of Kevin and Dirk I read at
+https://stackoverflow.com/questions/19864226/convert-stdvector-to-rcpp-matrix
+
+Strangely, the matrix is correct, but when I print it in R, it prints
+differently to defining it in R:
+
+#include <Rcpp.h>
+#include <string>
+// [[Rcpp::export]]
+SEXP make_mat(std::vector<bool> x, std::vector<std::string> n, int nrow,
+int ncol) {
+Rcpp::LogicalVector y = Rcpp::wrap(x);
+y.attr("dim") = Rcpp::Dimension(nrow, ncol);
+y.attr(".Dimnames") = Rcpp::List::create(n, R_NilValue);
+return y;
+}
+
+rcpp_mat <- make_mat(c(T,T,F,F), c("a", "b"), 2, 2)
+rcpp_mat
+     [,1]  [,2]
+[1,] TRUE FALSE
+[2,] TRUE FALSE
+attr(,".Dimnames")
+attr(,".Dimnames")[[1]]
+[1] "a" "b"
+
+attr(,".Dimnames")[[2]]
+NULL
+
+rmat
+  [,1]  [,2]
+a TRUE FALSE
+b TRUE FALSE
+
+> typeof(rmat)
+[1] "logical"
+> typeof(rcpp_mat)
+[1] "logical"
+> class(rmat)
+[1] "matrix"
+> class(rcpp_mat)
+[1] "matrix"
+
+identical(rmat, rcpp_mat)
+[1] FALSE
+
+What's going on here, please?
+
+Ideally, I'd rather construct a LogicalMatrix directly from
+std::vector<bool>, but I don't think you have that constructor.
+
+Thanks, Jack.
+
+From jack at jackwasey.com  Sat Feb 14 13:26:11 2015
+From: jack at jackwasey.com (Jack Wasey)
+Date: Sat, 14 Feb 2015 07:26:11 -0500
+Subject: [Rcpp-devel] appearance of matrix returned from Rcpp
+Message-ID: <54DF3EE3.5070204@jackwasey.com>
+
+I figured it out: attribute is called "dimnames" not ".Dimnames".
+
+> .Internal(inspect(rmat))
+@34d39b0 10 LGLSXP g0c2 [MARK,NAM(2),ATT] (len=4, tl=0) 1,1,0,0
+ATTRIB:
+  @32b8228 02 LISTSXP g0c0 [MARK]
+    TAG: @e83798 01 SYMSXP g1c0 [MARK,LCK,gp=0x4000] "dim" (has value)
+    @33d78c8 13 INTSXP g0c1 [MARK,NAM(2)] (len=2, tl=0) 2,2
+    TAG: @e83808 01 SYMSXP g1c0 [MARK,LCK,gp=0x4000] "dimnames" (has value)
+    @34d3978 19 VECSXP g0c2 [MARK,NAM(2)] (len=2, tl=0)
+      @34d3a20 16 STRSXP g0c2 [MARK,NAM(2)] (len=2, tl=0)
+	@103d408 09 CHARSXP g1c1 [MARK,gp=0x61] [ASCII] [cached] "a"
+	@1217678 09 CHARSXP g1c1 [MARK,gp=0x61] [ASCII] [cached] "b"
+      @e83b18 00 NILSXP g1c0 [MARK,NAM(2)]
+> .Internal(inspect(rcpp_mat))
+@34f5f80 10 LGLSXP g0c2 [MARK,NAM(2),ATT] (len=4, tl=0) 1,1,0,0
+ATTRIB:
+  @32b9100 02 LISTSXP g0c0 [MARK]
+    TAG: @e83798 01 SYMSXP g1c0 [MARK,LCK,gp=0x4000] "dim" (has value)
+    @33d76e8 13 INTSXP g0c1 [MARK,NAM(2)] (len=2, tl=0) 2,2
+    TAG: @1ab0878 01 SYMSXP g0c0 [MARK] ".Dimnames"
+    @34f5f48 19 VECSXP g0c2 [MARK] (len=2, tl=0)
+      @34f5f10 16 STRSXP g0c2 [MARK] (len=2, tl=0)
+	@103d408 09 CHARSXP g1c1 [MARK,gp=0x61] [ASCII] [cached] "a"
+	@1217678 09 CHARSXP g1c1 [MARK,gp=0x61] [ASCII] [cached] "b"
+      @e83b18 00 NILSXP g1c0 [MARK,NAM(2)]
+
+From nate at verse.com  Mon Feb 16 20:19:44 2015
+From: nate at verse.com (Nathan Kurz)
+Date: Mon, 16 Feb 2015 11:19:44 -0800
+Subject: [Rcpp-devel] Avoiding memory allocations when using Armadillo, BLAS,
+	and LAPACK
+Message-ID: <CAFAN8vwPAAHfTZy3ka3E_GmwXseOHez3pHGFTk+NTt5AvLhGEQ@mail.gmail.com>
+
+I'm trying to minimize the "churn" of memory in R, since I've found
+that the cost of allocation plus eventual garbage collection is
+frequently the most expensive part of my program.  Being able to make
+"in place" modifications is helpful, although I don't yet understand
+when a copy is made of an an argument and when an original is passed.
+What code would I look at to see how an argument is handled as it is
+passed from R to an Rcpp function?   Does the potential duplication
+occur only in .Call() or are there Rcpp specific conditions as well?
+
+I think the sort of interface I'm looking for is:
+outMatrix = operation(inMatrix1, inMatrix2, optionalOutMatrix)
+
+If the 'optionalOutMatrix' is of sufficient size for the answer, it
+will be used and returned.   If it's not provided, or too small, a new
+allocation will be made in the way it is done currently.   Are there
+any existing interfaces to the BLAS and LAPACK libraries that take
+this form, ideally already using the Rcpp classes?   My quick
+examination of Armadillo hasn't shown me how to make it work in this
+fashion.
+
+My rambling question with more details, measurements, and sample code
+is here: http://stackoverflow.com/questions/28532493/reusing-existing-memory-for-blas-operations-in-r
+
+Thanks,
+
+Nathan Kurz
+nate at verse.com
+
+From rsparapa at mcw.edu  Tue Feb 17 20:53:42 2015
+From: rsparapa at mcw.edu (Sparapani, Rodney)
+Date: Tue, 17 Feb 2015 19:53:42 +0000
+Subject: [Rcpp-devel] Eigen-like pointer mappings in Rcpp?
+Message-ID: <1424202822.11887.6.camel@mothra.biostat.mcw.edu>
+
+Hi Gang:
+
+I am working with some C++ code that uses pointers.  I know I could 
+change the code.  But, I was wondering if there is an easy way to
+map the double pointer into the R data via Rcpp.  I have been using 
+RcppEigen to do that.  For example...
+
+RcppExport SEXP myfunc(SEXP _n, SEXP _x) {
+   const int n=Rcpp::as<int>(_n);
+
+   double *x=(double *)malloc(n*sizeof(double));
+
+   Eigen::Map<Eigen::VectorXd> map_x(x, n);
+
+   map_x=Rcpp::as< Eigen::Map<Eigen::VectorXd> >(_x);
+
+   double a=fit(x, n);
+
+...
+
+It seems to me there should be an easier way like ...
+
+RcppExport SEXP myfunc(SEXP _n, SEXP _x) {
+   const int n=Rcpp::as<int>(_n);
+
+   double *x=Rcpp::as<double*>(_x); // or a const-correct version
+
+   double a=fit(x, n);
+
+...
+
+Thanks,
+
+Rodney
+
+
+
+From yixuan.qiu at cos.name  Tue Feb 17 21:57:13 2015
+From: yixuan.qiu at cos.name (Yixuan Qiu)
+Date: Tue, 17 Feb 2015 15:57:13 -0500
+Subject: [Rcpp-devel] Eigen-like pointer mappings in Rcpp?
+In-Reply-To: <1424202822.11887.6.camel@mothra.biostat.mcw.edu>
+References: <1424202822.11887.6.camel@mothra.biostat.mcw.edu>
+Message-ID: <CAFr_7yHTF8oFmB=ZhdC236SBBEFG2ztmk2P_ot0zpv-nJzAFTQ@mail.gmail.com>
+
+Hello Rodney,
+If all you need is to pass a pointer to the fit() function (assuming fit()
+does not modify x) and get the result a, you do not need to make a copy.
+Simply wrap _x by a NumericVector and call the data() method.
+
+Rcpp::NumericVector x(_x);
+double a = fit(x.data(), n);
+
+You can even directly use the R API without creating an Rcpp object.
+
+double a = fit(REAL(_x), n);
+
+
+
+Best,
+Yixuan
+
+
+
+
+
+2015-02-17 14:53 GMT-05:00 Sparapani, Rodney <rsparapa at mcw.edu>:
+
+> Hi Gang:
+>
+> I am working with some C++ code that uses pointers.  I know I could
+> change the code.  But, I was wondering if there is an easy way to
+> map the double pointer into the R data via Rcpp.  I have been using
+> RcppEigen to do that.  For example...
+>
+> RcppExport SEXP myfunc(SEXP _n, SEXP _x) {
+>    const int n=Rcpp::as<int>(_n);
+>
+>    double *x=(double *)malloc(n*sizeof(double));
+>
+>    Eigen::Map<Eigen::VectorXd> map_x(x, n);
+>
+>    map_x=Rcpp::as< Eigen::Map<Eigen::VectorXd> >(_x);
+>
+>    double a=fit(x, n);
+>
+> ...
+>
+> It seems to me there should be an easier way like ...
+>
+> RcppExport SEXP myfunc(SEXP _n, SEXP _x) {
+>    const int n=Rcpp::as<int>(_n);
+>
+>    double *x=Rcpp::as<double*>(_x); // or a const-correct version
+>
+>    double a=fit(x, n);
+>
+> ...
+>
+> Thanks,
+>
+> Rodney
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Yixuan Qiu <yixuan.qiu at cos.name>
+Department of Statistics,
+Purdue University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150217/0833d908/attachment.html>
+
+From rsparapa at mcw.edu  Wed Feb 18 00:12:43 2015
+From: rsparapa at mcw.edu (Sparapani, Rodney)
+Date: Tue, 17 Feb 2015 23:12:43 +0000
+Subject: [Rcpp-devel] Eigen-like pointer mappings in Rcpp?
+In-Reply-To: <CAFr_7yHTF8oFmB=ZhdC236SBBEFG2ztmk2P_ot0zpv-nJzAFTQ@mail.gmail.com>
+References: <1424202822.11887.6.camel@mothra.biostat.mcw.edu>
+ <CAFr_7yHTF8oFmB=ZhdC236SBBEFG2ztmk2P_ot0zpv-nJzAFTQ@mail.gmail.com>
+Message-ID: <1424214763.11887.7.camel@mothra.biostat.mcw.edu>
+
+On Tue, 2015-02-17 at 15:57 -0500, Yixuan Qiu wrote:
+> Hello Rodney,
+> 
+> If all you need is to pass a pointer to the fit() function (assuming
+> fit() does not modify x) and get the result a, you do not need to make
+> a copy. Simply wrap _x by a NumericVector and call the data() method.
+> 
+> Rcpp::NumericVector x(_x);
+> 
+> double a = fit(x.data(), n);
+> 
+> You can even directly use the R API without creating an Rcpp object.
+> 
+> double a = fit(REAL(_x), n);
+> 
+> 
+> Best,
+> 
+> Yixuan
+
+Hi Yixuan:
+
+That's exactly what I wanted!  However, I can't seem to find that method 
+at http://dirk.eddelbuettel.com/code/rcpp/html
+
+Can you please point me to it?
+
+From this...
+
+Rcpp::NumericVector x(_x);
+
+double a = fit(x.data(), n);
+
+I get...
+
+error: class Rcpp::NumericVector has no member named data
+
+Am I doing something dumb?
+
+I'm using Rcpp 0.10.3 w/ 2.15.3 R and GCC 4.4.7 if it matters.
+
+Thanks,
+
+Rodney
+
+
+From edd at debian.org  Wed Feb 18 00:31:32 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 17 Feb 2015 17:31:32 -0600
+Subject: [Rcpp-devel] Eigen-like pointer mappings in Rcpp?
+In-Reply-To: <1424214763.11887.7.camel@mothra.biostat.mcw.edu>
+References: <1424202822.11887.6.camel@mothra.biostat.mcw.edu>
+ <CAFr_7yHTF8oFmB=ZhdC236SBBEFG2ztmk2P_ot0zpv-nJzAFTQ@mail.gmail.com>
+ <1424214763.11887.7.camel@mothra.biostat.mcw.edu>
+Message-ID: <21731.53076.55657.689234@max.nulle.part>
+
+
+On 17 February 2015 at 23:12, Sparapani, Rodney wrote:
+| That's exactly what I wanted!  However, I can't seem to find that method 
+| at http://dirk.eddelbuettel.com/code/rcpp/html
+
+The documentation is for version 0.11.4.
+
+| I'm using Rcpp 0.10.3 w/ 2.15.3 R and GCC 4.4.7 if it matters.
+
+Ouch.
+
+You could "grow your own" and use the Doxyfile in the repository to locally
+re-create this documentation for the (much) older and (more than somewhat)
+outdated version if you (poor soul) are in fact constrained to use it.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From yixuan.qiu at cos.name  Wed Feb 18 00:31:43 2015
+From: yixuan.qiu at cos.name (Yixuan Qiu)
+Date: Tue, 17 Feb 2015 18:31:43 -0500
+Subject: [Rcpp-devel] Eigen-like pointer mappings in Rcpp?
+In-Reply-To: <1424214763.11887.7.camel@mothra.biostat.mcw.edu>
+References: <1424202822.11887.6.camel@mothra.biostat.mcw.edu>
+ <CAFr_7yHTF8oFmB=ZhdC236SBBEFG2ztmk2P_ot0zpv-nJzAFTQ@mail.gmail.com>
+ <1424214763.11887.7.camel@mothra.biostat.mcw.edu>
+Message-ID: <CAFr_7yGekmpGekD_=TwvRn+GWdJeZoZtBtcGqCBtgBKVDCvj5g@mail.gmail.com>
+
+Oops sorry, should be begin(). data() is the Eigen method.
+
+Best,
+Yixuan
+On Feb 17, 2015 6:12 PM, "Sparapani, Rodney" <rsparapa at mcw.edu> wrote:
+
+> On Tue, 2015-02-17 at 15:57 -0500, Yixuan Qiu wrote:
+> > Hello Rodney,
+> >
+> > If all you need is to pass a pointer to the fit() function (assuming
+> > fit() does not modify x) and get the result a, you do not need to make
+> > a copy. Simply wrap _x by a NumericVector and call the data() method.
+> >
+> > Rcpp::NumericVector x(_x);
+> >
+> > double a = fit(x.data(), n);
+> >
+> > You can even directly use the R API without creating an Rcpp object.
+> >
+> > double a = fit(REAL(_x), n);
+> >
+> >
+> > Best,
+> >
+> > Yixuan
+>
+> Hi Yixuan:
+>
+> That's exactly what I wanted!  However, I can't seem to find that method
+> at http://dirk.eddelbuettel.com/code/rcpp/html
+>
+> Can you please point me to it?
+>
+> From this...
+>
+> Rcpp::NumericVector x(_x);
+>
+> double a = fit(x.data(), n);
+>
+> I get...
+>
+> error: class Rcpp::NumericVector has no member named data
+>
+> Am I doing something dumb?
+>
+> I'm using Rcpp 0.10.3 w/ 2.15.3 R and GCC 4.4.7 if it matters.
+>
+> Thanks,
+>
+> Rodney
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150217/0a23fbca/attachment.html>
+
+From lmiratrix at fas.harvard.edu  Wed Feb 18 01:41:33 2015
+From: lmiratrix at fas.harvard.edu (Miratrix, Luke)
+Date: Wed, 18 Feb 2015 00:41:33 +0000
+Subject: [Rcpp-devel] assert() for Rcpp?
+Message-ID: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+
+
+Dirk Eddelbuettel and I were discussing how people do not seem to be
+putting assert() statements in their C code in Rcpp packages.  I expect
+the reason is because assert() prints to cerr, which is a violation of the
+CRAN policies of proper packages.  However, the assert() command is a
+simple macro, and we could tweak it so it is compliant with CRAN
+standards.  Below, I have an example of what might be included.  Dirk
+suggested that this idea be posted to this list to gather peoples insights
+and thoughts (and to catch any memory management issues, for example, that
+might exist with the code below).
+
+The traditional assert() is a macro that calls a function __assert() which
+in turn seems fairly simple, but the C program for Rcpp should not just
+abort but instead throw an error, I think.  (The macro allows for
+detection of line numbers in the code, and also allows for a NDEBUG flag
+to omit all asserts for efficient code.)
+
+The proposed code:
+
+#include <stdio.h>
+
+#ifdef NDEBUG
+# define assert(EX)
+#else
+# define assert(EX) (void)((EX) || (__assert (#EX, __FILE__, __LINE__),0))
+#endif
+
+void __assert (const char *msg, const char *file, int line) {
+    char buffer [100];
+    snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg, file,
+line );
+    ::Rf_error( buffer );
+}
+
+
+
+Anyway, I would love to hear people?s thoughts on this.  I found assert()
+useful in wrapping an existing spaghetti code base with an R package; it
+seems like a nice tool to provide enhanced ability to track down bugs.  I
+am currently using the above in my package ?textreg? and it appears to
+work great.
+
+
+
+Sincerely,
+
+Luke Miratrix
+Assistant Professor of Statistics
+
+	Note: Due to my RSI (wrist trouble), e-mail often abrupt.
+
+
+--
+
+Department of Statistics
+Science Center
+
+Harvard University
+1 Oxford Street
+Cambridge MA 02138-2901
+
+
+lmiratrix at stat.harvard.edu
+510-735-7635
+
+
+
+
+
+From jj.allaire at gmail.com  Wed Feb 18 01:53:27 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Tue, 17 Feb 2015 17:53:27 -0700
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+Message-ID: <CAKw=oCwAfOxci9K4BjT850AeRqtntLL_6=aB3weT0BX9orY3gw@mail.gmail.com>
+
+I agree that having an assert which complies with CRAN standards would
+be valuable.
+
+One piece of immediate feedback on your initial implementation: you
+can't call Rf_error from C++ code (as it will bypass C++ destructors
+on the stack). Rather, you should throw Rcpp::exception.
+
+Whether assert should throw is another issue entirely. The traditional
+semantics of assert don't give it control flow behavior (either do
+nothing in release mode or blow the process up in debug mode) so I'm
+not sure whether we'd want to introduce a variation of it that does
+have control flow. A couple of options:
+
+(1) Create another function e.g. "verify" with the semantics you
+suggest (with the different name not fooling people into thinking it
+has traditional assert semantics)
+
+(2) Call it assert but have it call Rcpp::warning rather than yielding an error.
+
+
+On Tue, Feb 17, 2015 at 5:41 PM, Miratrix, Luke
+<lmiratrix at fas.harvard.edu> wrote:
+>
+> Dirk Eddelbuettel and I were discussing how people do not seem to be
+> putting assert() statements in their C code in Rcpp packages.  I expect
+> the reason is because assert() prints to cerr, which is a violation of the
+> CRAN policies of proper packages.  However, the assert() command is a
+> simple macro, and we could tweak it so it is compliant with CRAN
+> standards.  Below, I have an example of what might be included.  Dirk
+> suggested that this idea be posted to this list to gather peoples insights
+> and thoughts (and to catch any memory management issues, for example, that
+> might exist with the code below).
+>
+> The traditional assert() is a macro that calls a function __assert() which
+> in turn seems fairly simple, but the C program for Rcpp should not just
+> abort but instead throw an error, I think.  (The macro allows for
+> detection of line numbers in the code, and also allows for a NDEBUG flag
+> to omit all asserts for efficient code.)
+>
+> The proposed code:
+>
+> #include <stdio.h>
+>
+> #ifdef NDEBUG
+> # define assert(EX)
+> #else
+> # define assert(EX) (void)((EX) || (__assert (#EX, __FILE__, __LINE__),0))
+> #endif
+>
+> void __assert (const char *msg, const char *file, int line) {
+>     char buffer [100];
+>     snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg, file,
+> line );
+>     ::Rf_error( buffer );
+> }
+>
+>
+>
+> Anyway, I would love to hear people?s thoughts on this.  I found assert()
+> useful in wrapping an existing spaghetti code base with an R package; it
+> seems like a nice tool to provide enhanced ability to track down bugs.  I
+> am currently using the above in my package ?textreg? and it appears to
+> work great.
+>
+>
+>
+> Sincerely,
+>
+> Luke Miratrix
+> Assistant Professor of Statistics
+>
+>         Note: Due to my RSI (wrist trouble), e-mail often abrupt.
+>
+>
+> --
+>
+> Department of Statistics
+> Science Center
+>
+> Harvard University
+> 1 Oxford Street
+> Cambridge MA 02138-2901
+>
+>
+> lmiratrix at stat.harvard.edu
+> 510-735-7635
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Wed Feb 18 02:00:07 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 17 Feb 2015 19:00:07 -0600
+Subject: [Rcpp-devel] Eigen-like pointer mappings in Rcpp?
+In-Reply-To: <CAFr_7yGekmpGekD_=TwvRn+GWdJeZoZtBtcGqCBtgBKVDCvj5g@mail.gmail.com>
+References: <1424202822.11887.6.camel@mothra.biostat.mcw.edu>
+ <CAFr_7yHTF8oFmB=ZhdC236SBBEFG2ztmk2P_ot0zpv-nJzAFTQ@mail.gmail.com>
+ <1424214763.11887.7.camel@mothra.biostat.mcw.edu>
+ <CAFr_7yGekmpGekD_=TwvRn+GWdJeZoZtBtcGqCBtgBKVDCvj5g@mail.gmail.com>
+Message-ID: <21731.58391.44884.504071@max.nulle.part>
+
+
+On 17 February 2015 at 18:31, Yixuan Qiu wrote:
+| Oops sorry, should be begin(). data() is the Eigen method.
+
+Ah, indeed. 
+
+And begin() has been there for a loooong time.  And we have shown the
+trick of initializing with it several dozen times too -- all the early
+RcppArmadillo docs show it.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Feb 18 17:00:28 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 18 Feb 2015 10:00:28 -0600
+Subject: [Rcpp-devel] Avoiding memory allocations when using Armadillo,
+	BLAS, and LAPACK
+In-Reply-To: <CAFAN8vwPAAHfTZy3ka3E_GmwXseOHez3pHGFTk+NTt5AvLhGEQ@mail.gmail.com>
+References: <CAFAN8vwPAAHfTZy3ka3E_GmwXseOHez3pHGFTk+NTt5AvLhGEQ@mail.gmail.com>
+Message-ID: <21732.46876.395065.339681@max.nulle.part>
+
+
+Nathan,
+
+It is a little challenging to keep up with your ability to ask this question
+here, on StackOverflow and again on r-devel. As I first saw it here, I'll
+answer here.
+
+R is a dynamically-typed interpreted language with many bells and whistles,
+but also opaque memory management.  My recommendation always is to "if in
+doubt and when working with large objects" to maybe just step aside and do
+something different outside of R.
+
+You mentioned logistic regression.  And we did something similar at work: use
+Rcpp as well as bigmemory via external pointers (ie Rcpp::XPtr) so that *you*
+can allocate one chunk of memory *you* control, and keep at arm's length of
+R. Implementing a simple glm-alike wrapper over that to fit a logistic
+regression in then not so hard.  We even did it in a multicore context to get
+extra parallelism still using only that one (large!!) chunk of memory.
+
+There are several articles in the Rcpp Gallery that should get you started.
+
+Hope this helps, Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rsparapa at mcw.edu  Wed Feb 18 17:08:07 2015
+From: rsparapa at mcw.edu (Sparapani, Rodney)
+Date: Wed, 18 Feb 2015 16:08:07 +0000
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <CAKw=oCwAfOxci9K4BjT850AeRqtntLL_6=aB3weT0BX9orY3gw@mail.gmail.com>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAKw=oCwAfOxci9K4BjT850AeRqtntLL_6=aB3weT0BX9orY3gw@mail.gmail.com>
+Message-ID: <1424275687.22109.0.camel@mothra.biostat.mcw.edu>
+
+On Tue, 2015-02-17 at 17:53 -0700, JJ Allaire wrote:
+> One piece of immediate feedback on your initial implementation: you
+> can't call Rf_error from C++ code (as it will bypass C++ destructors
+> on the stack). Rather, you should throw Rcpp::exception.
+
+Hi JJ:
+
+Ok, this puzzles me.  We can't call Rf_error from C++ code, but we can
+call it from within the exception handler, right?  It would seem so
+since Dirk has written a nice gallery post that does it that way...
+http://gallery.rcpp.org/articles/intro-to-exceptions
+
+Just my $0.02, but I would stick to exceptions and avoid assert in C++.
+
+Rodney
+
+
+
+
+From jj.allaire at gmail.com  Wed Feb 18 17:31:29 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Wed, 18 Feb 2015 09:31:29 -0700
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <1424275687.22109.0.camel@mothra.biostat.mcw.edu>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAKw=oCwAfOxci9K4BjT850AeRqtntLL_6=aB3weT0BX9orY3gw@mail.gmail.com>
+ <1424275687.22109.0.camel@mothra.biostat.mcw.edu>
+Message-ID: <CAKw=oCzSGiM0G=SA3FtwzJhDfCqero2qbyop-spC-2O4GDKGnA@mail.gmail.com>
+
+We *can* call Rf_error from C++ code, but when we do it bypasses all
+C++ destructors on the stack, so we don't do it so as not leak memory
+and otherwise have deterministic behavior around
+construction/destruction.
+
+You'll notice in Dirk's example that there are no C++ objects on the
+stack when he calls Rf_error. The core idea in Rcpp is to use
+exceptions to get high enough in the stack that there are no more
+destructors.
+
+On Wed, Feb 18, 2015 at 9:08 AM, Sparapani, Rodney <rsparapa at mcw.edu> wrote:
+> On Tue, 2015-02-17 at 17:53 -0700, JJ Allaire wrote:
+>> One piece of immediate feedback on your initial implementation: you
+>> can't call Rf_error from C++ code (as it will bypass C++ destructors
+>> on the stack). Rather, you should throw Rcpp::exception.
+>
+> Hi JJ:
+>
+> Ok, this puzzles me.  We can't call Rf_error from C++ code, but we can
+> call it from within the exception handler, right?  It would seem so
+> since Dirk has written a nice gallery post that does it that way...
+> http://gallery.rcpp.org/articles/intro-to-exceptions
+>
+> Just my $0.02, but I would stick to exceptions and avoid assert in C++.
+>
+> Rodney
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From krthornt at uci.edu  Wed Feb 18 17:34:08 2015
+From: krthornt at uci.edu (Kevin Thornton)
+Date: Wed, 18 Feb 2015 08:34:08 -0800
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+Message-ID: <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+
+Isn't there a potential issue if a package depends on multiple header-only C++ libraries, each of which may include <cassert>?  You'd have multiple definitions of the macro floating around, and the compiler will barf.
+
+--Kevi
+
+> On Feb 17, 2015, at 4:41 PM, Miratrix, Luke <lmiratrix at fas.harvard.edu> wrote:
+> 
+> 
+> Dirk Eddelbuettel and I were discussing how people do not seem to be
+> putting assert() statements in their C code in Rcpp packages.  I expect
+> the reason is because assert() prints to cerr, which is a violation of the
+> CRAN policies of proper packages.  However, the assert() command is a
+> simple macro, and we could tweak it so it is compliant with CRAN
+> standards.  Below, I have an example of what might be included.  Dirk
+> suggested that this idea be posted to this list to gather peoples insights
+> and thoughts (and to catch any memory management issues, for example, that
+> might exist with the code below).
+> 
+> The traditional assert() is a macro that calls a function __assert() which
+> in turn seems fairly simple, but the C program for Rcpp should not just
+> abort but instead throw an error, I think.  (The macro allows for
+> detection of line numbers in the code, and also allows for a NDEBUG flag
+> to omit all asserts for efficient code.)
+> 
+> The proposed code:
+> 
+> #include <stdio.h>
+> 
+> #ifdef NDEBUG
+> # define assert(EX)
+> #else
+> # define assert(EX) (void)((EX) || (__assert (#EX, __FILE__, __LINE__),0))
+> #endif
+> 
+> void __assert (const char *msg, const char *file, int line) {
+>    char buffer [100];
+>    snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg, file,
+> line );
+>    ::Rf_error( buffer );
+> }
+> 
+> 
+> 
+> Anyway, I would love to hear people?s thoughts on this.  I found assert()
+> useful in wrapping an existing spaghetti code base with an R package; it
+> seems like a nice tool to provide enhanced ability to track down bugs.  I
+> am currently using the above in my package ?textreg? and it appears to
+> work great.
+> 
+> 
+> 
+> Sincerely,
+> 
+> Luke Miratrix
+> Assistant Professor of Statistics
+> 
+> 	Note: Due to my RSI (wrist trouble), e-mail often abrupt.
+> 
+> 
+> --
+> 
+> Department of Statistics
+> Science Center
+> 
+> Harvard University
+> 1 Oxford Street
+> Cambridge MA 02138-2901
+> 
+> 
+> lmiratrix at stat.harvard.edu
+> 510-735-7635
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+___________________________
+Kevin Thornton
+Associate Professor
+Ecology and Evolutionary Biology
+University of California, Irvine
+http://www.molpopgen.org
+http://github.com/molpopgen
+http://github.com/ThorntonLab
+
+
+
+
+
+
+
+From edd at debian.org  Wed Feb 18 17:53:46 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 18 Feb 2015 10:53:46 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+Message-ID: <21732.50074.144217.122718@max.nulle.part>
+
+
+On 18 February 2015 at 08:34, Kevin Thornton wrote:
+| Isn't there a potential issue if a package depends on multiple header-only C++ libraries, each of which may include <cassert>?  You'd have multiple definitions of the macro floating around, and the compiler will barf.
+
+Been there, done that -- this whole discussion started because the most
+recent Rcpp release had accidentally borked Luke's use of assert (as we
+didn't prevent the newly added and hany 'tinyformat' one-header-library from
+re-defining assert).  (And Kevin also added some other push/pop logic to only
+define some other macros when we need them and to generally avoid spillage.)
+
+So now that this has been taken care of, we are discussing how to provide a
+more useful feature "not unlike assert" with proper Rcpp semantics.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From krthornt at uci.edu  Wed Feb 18 18:02:49 2015
+From: krthornt at uci.edu (Kevin Thornton)
+Date: Wed, 18 Feb 2015 09:02:49 -0800
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <21732.50074.144217.122718@max.nulle.part>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+ <21732.50074.144217.122718@max.nulle.part>
+Message-ID: <59435898-60E7-47B0-A268-73CE3E6937D4@uci.edu>
+
+Hi Dirk,
+
+Sorry, but your response is unclear to me.  What was "taken care of"?  What is 'tinyformat'?  Are you trying to say that this method of defining assert will work with any other C++ library that includes <cassert>?
+
+--Kevin
+
+> On Feb 18, 2015, at 8:53 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 18 February 2015 at 08:34, Kevin Thornton wrote:
+> | Isn't there a potential issue if a package depends on multiple header-only C++ libraries, each of which may include <cassert>?  You'd have multiple definitions of the macro floating around, and the compiler will barf.
+> 
+> Been there, done that -- this whole discussion started because the most
+> recent Rcpp release had accidentally borked Luke's use of assert (as we
+> didn't prevent the newly added and hany 'tinyformat' one-header-library from
+> re-defining assert).  (And Kevin also added some other push/pop logic to only
+> define some other macros when we need them and to generally avoid spillage.)
+> 
+> So now that this has been taken care of, we are discussing how to provide a
+> more useful feature "not unlike assert" with proper Rcpp semantics.
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+___________________________
+Kevin Thornton
+Associate Professor
+Ecology and Evolutionary Biology
+University of California, Irvine
+http://www.molpopgen.org
+http://github.com/molpopgen
+http://github.com/ThorntonLab
+
+
+
+
+
+
+
+From edd at debian.org  Wed Feb 18 18:22:29 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 18 Feb 2015 11:22:29 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <59435898-60E7-47B0-A268-73CE3E6937D4@uci.edu>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+ <21732.50074.144217.122718@max.nulle.part>
+ <59435898-60E7-47B0-A268-73CE3E6937D4@uci.edu>
+Message-ID: <21732.51797.800413.282391@max.nulle.part>
+
+
+Hi Kevin,
+
+On 18 February 2015 at 09:02, Kevin Thornton wrote:
+| Hi Dirk,
+| 
+| Sorry, but your response is unclear to me.  What was "taken care of"?  What is 'tinyformat'?  Are you trying to say that this method of defining assert will work with any other C++ library that includes <cassert>?
+
+May I suggest you look at the ChangeLog and NEWS files in the git repo, or
+your installed version? They should answer both your questions.
+
+You are claiming breakage with cassert, while not providing a reproducible
+example.  See an existence proof below -- hope this helps. It works for me at
+home (Rcpp recent from git) and work (Rcpp current with CRAN).
+
+Dirk
+
+## Running example
+
+R> library(Rcpp)
+R> sourceCpp("/tmp/kt.cpp")
+
+R> happyNow()
+[1] TRUE
+R> 
+
+## Code below
+
+
+#include <cassert>
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+bool happyNow() {
+  assert(1 > 0);
+  return true;
+}
+
+/*** R
+happyNow()
+*/
+
+
+
+| 
+| --Kevin
+| 
+| > On Feb 18, 2015, at 8:53 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| > 
+| > 
+| > On 18 February 2015 at 08:34, Kevin Thornton wrote:
+| > | Isn't there a potential issue if a package depends on multiple header-only C++ libraries, each of which may include <cassert>?  You'd have multiple definitions of the macro floating around, and the compiler will barf.
+| > 
+| > Been there, done that -- this whole discussion started because the most
+| > recent Rcpp release had accidentally borked Luke's use of assert (as we
+| > didn't prevent the newly added and hany 'tinyformat' one-header-library from
+| > re-defining assert).  (And Kevin also added some other push/pop logic to only
+| > define some other macros when we need them and to generally avoid spillage.)
+| > 
+| > So now that this has been taken care of, we are discussing how to provide a
+| > more useful feature "not unlike assert" with proper Rcpp semantics.
+| > 
+| > Dirk
+| > 
+| > -- 
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+| ___________________________
+| Kevin Thornton
+| Associate Professor
+| Ecology and Evolutionary Biology
+| University of California, Irvine
+| http://www.molpopgen.org
+| http://github.com/molpopgen
+| http://github.com/ThorntonLab
+| 
+| 
+| 
+| 
+| 
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From krthornt at uci.edu  Wed Feb 18 18:31:32 2015
+From: krthornt at uci.edu (Kevin Thornton)
+Date: Wed, 18 Feb 2015 09:31:32 -0800
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <21732.51797.800413.282391@max.nulle.part>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+ <21732.50074.144217.122718@max.nulle.part>
+ <59435898-60E7-47B0-A268-73CE3E6937D4@uci.edu>
+ <21732.51797.800413.282391@max.nulle.part>
+Message-ID: <A4C8C19C-0B1C-498D-84FE-08ED4EBE4196@uci.edu>
+
+Hi Dirk,
+
+Thanks.  I did check the recent Rcpp announcement, which corresponds to my installed version, and mentions nothing re: assert (https://www.mail-archive.com/rcpp-devel at lists.r-forge.r-project.org/msg07977.html).
+
+--Kevin
+
+> On Feb 18, 2015, at 9:22 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> Hi Kevin,
+> 
+> On 18 February 2015 at 09:02, Kevin Thornton wrote:
+> | Hi Dirk,
+> | 
+> | Sorry, but your response is unclear to me.  What was "taken care of"?  What is 'tinyformat'?  Are you trying to say that this method of defining assert will work with any other C++ library that includes <cassert>?
+> 
+> May I suggest you look at the ChangeLog and NEWS files in the git repo, or
+> your installed version? They should answer both your questions.
+> 
+> You are claiming breakage with cassert, while not providing a reproducible
+> example.  See an existence proof below -- hope this helps. It works for me at
+> home (Rcpp recent from git) and work (Rcpp current with CRAN).
+> 
+> Dirk
+> 
+> ## Running example
+> 
+> R> library(Rcpp)
+> R> sourceCpp("/tmp/kt.cpp")
+> 
+> R> happyNow()
+> [1] TRUE
+> R> 
+> 
+> ## Code below
+> 
+> 
+> #include <cassert>
+> #include <Rcpp.h>
+> 
+> // [[Rcpp::export]]
+> bool happyNow() {
+>  assert(1 > 0);
+>  return true;
+> }
+> 
+> /*** R
+> happyNow()
+> */
+> 
+> 
+> 
+> | 
+> | --Kevin
+> | 
+> | > On Feb 18, 2015, at 8:53 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> | > 
+> | > 
+> | > On 18 February 2015 at 08:34, Kevin Thornton wrote:
+> | > | Isn't there a potential issue if a package depends on multiple header-only C++ libraries, each of which may include <cassert>?  You'd have multiple definitions of the macro floating around, and the compiler will barf.
+> | > 
+> | > Been there, done that -- this whole discussion started because the most
+> | > recent Rcpp release had accidentally borked Luke's use of assert (as we
+> | > didn't prevent the newly added and hany 'tinyformat' one-header-library from
+> | > re-defining assert).  (And Kevin also added some other push/pop logic to only
+> | > define some other macros when we need them and to generally avoid spillage.)
+> | > 
+> | > So now that this has been taken care of, we are discussing how to provide a
+> | > more useful feature "not unlike assert" with proper Rcpp semantics.
+> | > 
+> | > Dirk
+> | > 
+> | > -- 
+> | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | 
+> | ___________________________
+> | Kevin Thornton
+> | Associate Professor
+> | Ecology and Evolutionary Biology
+> | University of California, Irvine
+> | http://www.molpopgen.org
+> | http://github.com/molpopgen
+> | http://github.com/ThorntonLab
+> | 
+> | 
+> | 
+> | 
+> | 
+> | 
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+___________________________
+Kevin Thornton
+Associate Professor
+Ecology and Evolutionary Biology
+University of California, Irvine
+http://www.molpopgen.org
+http://github.com/molpopgen
+http://github.com/ThorntonLab
+
+
+
+
+
+
+
+From edd at debian.org  Wed Feb 18 18:35:11 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 18 Feb 2015 11:35:11 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <21732.51797.800413.282391@max.nulle.part>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+ <21732.50074.144217.122718@max.nulle.part>
+ <59435898-60E7-47B0-A268-73CE3E6937D4@uci.edu>
+ <21732.51797.800413.282391@max.nulle.part>
+Message-ID: <21732.52559.108894.528393@max.nulle.part>
+
+
+On 18 February 2015 at 11:22, Dirk Eddelbuettel wrote:
+| 
+| Hi Kevin,
+| 
+| On 18 February 2015 at 09:02, Kevin Thornton wrote:
+| | Hi Dirk,
+| | 
+| | Sorry, but your response is unclear to me.  What was "taken care of"?  What is 'tinyformat'?  Are you trying to say that this method of defining assert will work with any other C++ library that includes <cassert>?
+| 
+| May I suggest you look at the ChangeLog and NEWS files in the git repo, or
+| your installed version? They should answer both your questions.
+| 
+| You are claiming breakage with cassert, while not providing a reproducible
+| example.  See an existence proof below -- hope this helps. It works for me at
+| home (Rcpp recent from git) and work (Rcpp current with CRAN).
+| 
+| Dirk
+| 
+| ## Running example
+| 
+| R> library(Rcpp)
+| R> sourceCpp("/tmp/kt.cpp")
+| 
+| R> happyNow()
+| [1] TRUE
+| R> 
+| 
+| ## Code below
+| 
+
+And you also need  
+
+   #undef NDEBUG here
+
+Dirk
+ 
+| #include <cassert>
+| #include <Rcpp.h>
+| 
+| // [[Rcpp::export]]
+| bool happyNow() {
+|   assert(1 > 0);
+|   return true;
+| }
+| 
+| /*** R
+| happyNow()
+| */
+| 
+| 
+| 
+| | 
+| | --Kevin
+| | 
+| | > On Feb 18, 2015, at 8:53 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| | > 
+| | > 
+| | > On 18 February 2015 at 08:34, Kevin Thornton wrote:
+| | > | Isn't there a potential issue if a package depends on multiple header-only C++ libraries, each of which may include <cassert>?  You'd have multiple definitions of the macro floating around, and the compiler will barf.
+| | > 
+| | > Been there, done that -- this whole discussion started because the most
+| | > recent Rcpp release had accidentally borked Luke's use of assert (as we
+| | > didn't prevent the newly added and hany 'tinyformat' one-header-library from
+| | > re-defining assert).  (And Kevin also added some other push/pop logic to only
+| | > define some other macros when we need them and to generally avoid spillage.)
+| | > 
+| | > So now that this has been taken care of, we are discussing how to provide a
+| | > more useful feature "not unlike assert" with proper Rcpp semantics.
+| | > 
+| | > Dirk
+| | > 
+| | > -- 
+| | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| | 
+| | ___________________________
+| | Kevin Thornton
+| | Associate Professor
+| | Ecology and Evolutionary Biology
+| | University of California, Irvine
+| | http://www.molpopgen.org
+| | http://github.com/molpopgen
+| | http://github.com/ThorntonLab
+| | 
+| | 
+| | 
+| | 
+| | 
+| | 
+| 
+| -- 
+| http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tkeitt at utexas.edu  Wed Feb 18 19:43:47 2015
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Wed, 18 Feb 2015 12:43:47 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <21732.50074.144217.122718@max.nulle.part>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+ <21732.50074.144217.122718@max.nulle.part>
+Message-ID: <CANnL8grb=rdda40KOW3N3k4HAfsjaxnuNkS2kfAya3VM0TthBg@mail.gmail.com>
+
+On Wed, Feb 18, 2015 at 10:53 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> So now that this has been taken care of, we are discussing how to provide a
+> more useful feature "not unlike assert" with proper Rcpp semantics.
+>
+>
+Something like:
+
+#define stopifnot(a) if (!(a)) stop(#a)
+
+?
+
+THK
+
+-- 
+http://www.keittlab.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150218/72fc01d1/attachment.html>
+
+From edd at debian.org  Wed Feb 18 19:53:59 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 18 Feb 2015 12:53:59 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <A4C8C19C-0B1C-498D-84FE-08ED4EBE4196@uci.edu>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+ <21732.50074.144217.122718@max.nulle.part>
+ <59435898-60E7-47B0-A268-73CE3E6937D4@uci.edu>
+ <21732.51797.800413.282391@max.nulle.part>
+ <A4C8C19C-0B1C-498D-84FE-08ED4EBE4196@uci.edu>
+Message-ID: <21732.57287.416318.979142@max.nulle.part>
+
+
+On 18 February 2015 at 09:31, Kevin Thornton wrote:
+| Hi Dirk,
+| 
+| Thanks.  I did check the recent Rcpp announcement, which corresponds to my installed version, and mentions nothing re: assert (https://www.mail-archive.com/rcpp-devel at lists.r-forge.r-project.org/msg07977.html).
+
+See eg 
+
+    https://github.com/RcppCore/Rcpp/issues/237
+    https://github.com/RcppCore/Rcpp/pull/238
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From krthornt at uci.edu  Wed Feb 18 20:04:02 2015
+From: krthornt at uci.edu (Kevin Thornton)
+Date: Wed, 18 Feb 2015 11:04:02 -0800
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <21732.57287.416318.979142@max.nulle.part>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <6227BF8F-54D5-4DCA-96B3-BD615DF2A4E5@uci.edu>
+ <21732.50074.144217.122718@max.nulle.part>
+ <59435898-60E7-47B0-A268-73CE3E6937D4@uci.edu>
+ <21732.51797.800413.282391@max.nulle.part>
+ <A4C8C19C-0B1C-498D-84FE-08ED4EBE4196@uci.edu>
+ <21732.57287.416318.979142@max.nulle.part>
+Message-ID: <1A71DD67-770D-4E53-8D2F-44AAC8765BB1@uci.edu>
+
+Thanks--this helps.  I have a project based on Rcpp and another header-only library where this could have been an issue.
+
+> On Feb 18, 2015, at 10:53 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 18 February 2015 at 09:31, Kevin Thornton wrote:
+> | Hi Dirk,
+> | 
+> | Thanks.  I did check the recent Rcpp announcement, which corresponds to my installed version, and mentions nothing re: assert (https://www.mail-archive.com/rcpp-devel at lists.r-forge.r-project.org/msg07977.html).
+> 
+> See eg 
+> 
+>    https://github.com/RcppCore/Rcpp/issues/237
+>    https://github.com/RcppCore/Rcpp/pull/238
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+___________________________
+Kevin Thornton
+Associate Professor
+Ecology and Evolutionary Biology
+University of California, Irvine
+http://www.molpopgen.org
+http://github.com/molpopgen
+http://github.com/ThorntonLab
+
+
+
+
+
+
+
+From nate at verse.com  Wed Feb 18 21:18:56 2015
+From: nate at verse.com (Nathan Kurz)
+Date: Wed, 18 Feb 2015 12:18:56 -0800
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+Message-ID: <CAFAN8vwUGV78oz9V2kZMvvM9TQ_TpdGsgFmBO=+znMh0=gQBkA@mail.gmail.com>
+
+On Tue, Feb 17, 2015 at 4:41 PM, Miratrix, Luke
+<lmiratrix at fas.harvard.edu> wrote:
+> The proposed code:
+>
+> #include <stdio.h>
+>
+> #ifdef NDEBUG
+> # define assert(EX)
+> #else
+> # define assert(EX) (void)((EX) || (__assert (#EX, __FILE__, __LINE__),0))
+> #endif
+>
+> void __assert (const char *msg, const char *file, int line) {
+>     char buffer [100];
+>     snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg, file,
+> line );
+>     ::Rf_error( buffer );
+> }
+
+Getting more people using assert-like macros seems like a great idea.
+Weighing in as a C programmer with limited knowledge of Rcpp, I'd
+suggest:
+
+1) Don't redefine assert() or __assert().  You'll confuse people and
+it will somehow manage to break things.  Instead, define your own
+macro with a different name, likely one in all caps that starts with
+"R_" or "RCPP_".
+
+2) Only keep the name 'assert' in the macro if you are keeping the
+semantics of assert(), that is, it dies on failure if NDEBUG not
+defined.  If it prints a warning and recovers, or defaults to off, use
+a different word.   I personally don't like the inverted NDEBUG
+approach, so would suggest a different semantics and different word.
+
+3) It's debatable if you want to allow it to be turned off or not.
+If it can be turned off, people will misuse it to guard against errors
+and be surprised when it doesn't.   I often use a noisy warning that
+only runs when DEBUG is positively defined (DEBUG_WARN_IF) and an
+abort that  cannot be turned off (ERROR_ABORT_IF).
+
+4) Don't try to snprintf() to a local buffer and then return.   I
+don't know C++ semantics for exceptions, but at least in C, combining
+local stack variables with stack unwinding is asking for trouble.  If
+you are aborting, print to STDERR directly.  If you are continuing,
+use a normal heap allocation.
+
+Nathan Kurz
+nate at verse.com
+
+From DSmith at nexidia.com  Wed Feb 18 21:25:58 2015
+From: DSmith at nexidia.com (Dale Smith)
+Date: Wed, 18 Feb 2015 20:25:58 +0000
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <CAFAN8vwUGV78oz9V2kZMvvM9TQ_TpdGsgFmBO=+znMh0=gQBkA@mail.gmail.com>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAFAN8vwUGV78oz9V2kZMvvM9TQ_TpdGsgFmBO=+znMh0=gQBkA@mail.gmail.com>
+Message-ID: <E7226FC0F5F75642AA1F294CE3C551722DEE4B@MBX029-E1-VA-2.EXCH029.DOMAIN.LOCAL>
+
+I haven't been very active lately with Rcpp, but I like Nathan's advice below. Don't redefine assert(), I think that's not friendly to inexperienced people and will just generate more questions.
+
+Dale Smith, Ph.D. | Data Scientist | nexidia | office: +1 404 495 7220 ext 4008 | fax: +1 404 495 7221| nexidia.com
+
+-----Original Message-----
+From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of Nathan Kurz
+Sent: Wednesday, February 18, 2015 3:19 PM
+To: Miratrix, Luke
+Cc: rcpp-devel at lists.r-forge.r-project.org
+Subject: Re: [Rcpp-devel] assert() for Rcpp?
+
+On Tue, Feb 17, 2015 at 4:41 PM, Miratrix, Luke <lmiratrix at fas.harvard.edu> wrote:
+> The proposed code:
+>
+> #include <stdio.h>
+>
+> #ifdef NDEBUG
+> # define assert(EX)
+> #else
+> # define assert(EX) (void)((EX) || (__assert (#EX, __FILE__, 
+> __LINE__),0)) #endif
+>
+> void __assert (const char *msg, const char *file, int line) {
+>     char buffer [100];
+>     snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg, 
+> file, line );
+>     ::Rf_error( buffer );
+> }
+
+Getting more people using assert-like macros seems like a great idea.
+Weighing in as a C programmer with limited knowledge of Rcpp, I'd
+suggest:
+
+1) Don't redefine assert() or __assert().  You'll confuse people and it will somehow manage to break things.  Instead, define your own macro with a different name, likely one in all caps that starts with "R_" or "RCPP_".
+
+2) Only keep the name 'assert' in the macro if you are keeping the semantics of assert(), that is, it dies on failure if NDEBUG not defined.  If it prints a warning and recovers, or defaults to off, use
+a different word.   I personally don't like the inverted NDEBUG
+approach, so would suggest a different semantics and different word.
+
+3) It's debatable if you want to allow it to be turned off or not.
+If it can be turned off, people will misuse it to guard against errors
+and be surprised when it doesn't.   I often use a noisy warning that
+only runs when DEBUG is positively defined (DEBUG_WARN_IF) and an abort that  cannot be turned off (ERROR_ABORT_IF).
+
+4) Don't try to snprintf() to a local buffer and then return.   I
+don't know C++ semantics for exceptions, but at least in C, combining local stack variables with stack unwinding is asking for trouble.  If you are aborting, print to STDERR directly.  If you are continuing, use a normal heap allocation.
+
+Nathan Kurz
+nate at verse.com
+_______________________________________________
+Rcpp-devel mailing list
+Rcpp-devel at lists.r-forge.r-project.org
+https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From nate at verse.com  Wed Feb 18 22:31:11 2015
+From: nate at verse.com (Nathan Kurz)
+Date: Wed, 18 Feb 2015 13:31:11 -0800
+Subject: [Rcpp-devel] Avoiding memory allocations when using Armadillo,
+ BLAS, and LAPACK
+In-Reply-To: <21732.46876.395065.339681@max.nulle.part>
+References: <CAFAN8vwPAAHfTZy3ka3E_GmwXseOHez3pHGFTk+NTt5AvLhGEQ@mail.gmail.com>
+ <21732.46876.395065.339681@max.nulle.part>
+Message-ID: <CAFAN8vwbZ76jWTjNxY8BOSXc2c8dqSVWjN9GCFm2dbY_LAmVKg@mail.gmail.com>
+
+On Wed, Feb 18, 2015 at 8:00 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> It is a little challenging to keep up with your ability to ask this question
+> here, on StackOverflow and again on r-devel. As I first saw it here, I'll
+> answer here.
+
+Sorry about that.  I was planning to do it first only on StackOverflow
+so the code samples would be better formatted, and then saw your
+frequent exhortations to use Rcpp-devel instead.   The r-devel post is
+actually a separate issue that happens to share the same example.  In
+that one, I'm exploring a patch along the lines of Radford's pqr work
+that would require changing the way R-core handles all of it's
+allocations.
+
+> R is a dynamically-typed interpreted language with many bells and whistles,
+> but also opaque memory management.
+
+>From the Rcpp point of view, it probably should be considered opaque.
+>From the R-core side, I think it would be useful if there were more
+people exploring ways to improve it.  From the measurements I've made,
+I think improving R's memory management might be the lowest hanging
+fruit for improving R's overall performance.
+
+> My recommendation always is to "if in
+> doubt and when working with large objects" to maybe just step aside and do
+> something different outside of R.
+
+Sidestepping R is definitely a clear path to high performance, but for
+this particular project I'm trying to figure out ways to write things
+that interoperate with existing R code and can be modified by R
+programmers unfamiliar with C++.   I'm hoping that there is a subset
+of R "design patterns" that produces acceptably high performance.   In
+order of preference, I'm hoping to:
+
+1) Find a way to write high performance code in straight R.
+2) Failing that, write an Rcpp extension for high performance BLAS.
+3) Failing that, write a C/C++ library and an Rcpp interface to it.
+
+The r-devel thread is concentrating on the first, how to improve the
+performance of core R code by reducing memory churn.  The thread here
+is concentrating on the second, how to write Rcpp extensions that use
+BLAS/LAPACK functions more efficiently.  You'll be happy to know that
+I've not yet started a thread on the third approach!
+
+> You mentioned logistic regression.
+
+I added a more complete code sample to the StackOverflow question.
+For the actual work, I'm thinking to implement Komareks LR-TRIRLS,
+since the algorithmic advantage is probably going to be greater than
+the implementation difference.
+
+> And we did something similar at work: use
+> Rcpp as well as bigmemory via external pointers (ie Rcpp::XPtr) so that *you*
+> can allocate one chunk of memory *you* control, and keep at arm's length of
+> R.
+
+The bigmemory/bigalgebra combination comes quite close to what I'm
+trying to do, but I'm scared to rely on it.  The namespace is a
+hodgepodge, I don't need the large than memory aspects, it's not
+actively maintained, and some parts seem broken or missing.
+
+XPtr is interesting, but conceptually it seems like there should be a
+way to work with R's memory management rather than trying to sidestep
+it.  Perhaps I'm being naive.
+
+> Implementing a simple glm-alike wrapper over that to fit a logistic
+> regression in then not so hard.
+
+Mostly yes, with the possible exception of the question I'm focussing on :)
+
+How do I enable the R syntax "wQ = w * Q" to reuse the preallocated
+space for wQ  rather than allocating a new temporary?   While doing a
+system level malloc() is cheaper than letting R handle it, it's still
+much less efficient than reuse.
+
+> We even did it in a multicore context to get
+> extra parallelism still using only that one (large!!) chunk of memory.
+
+Yes, fork() plus copy-on-write seems like a great performance
+combination.   But as long as the memory isn't modified, I think this
+should work just as well for native R variables (or Rcpp::Numeric) as
+for external pointers.
+
+--nate
+
+From jj.allaire at gmail.com  Fri Feb 20 14:41:22 2015
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Fri, 20 Feb 2015 06:41:22 -0700
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <810FE2DD-FE89-4C18-9420-88D7725A35AE@r-enthusiasts.com>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAKw=oCwAfOxci9K4BjT850AeRqtntLL_6=aB3weT0BX9orY3gw@mail.gmail.com>
+ <1424275687.22109.0.camel@mothra.biostat.mcw.edu>
+ <CAKw=oCzSGiM0G=SA3FtwzJhDfCqero2qbyop-spC-2O4GDKGnA@mail.gmail.com>
+ <810FE2DD-FE89-4C18-9420-88D7725A35AE@r-enthusiasts.com>
+Message-ID: <CAKw=oCxtVre9x2FG9T6iwdC80hyx0wCpGp=ijx0gpuXs9qsaow@mail.gmail.com>
+
+>
+> This would still bypass the dror for the RNGscope object automatically added by Rcpp::export right ?
+>
+
+Indeed it would. I think Dirk's example is really just an illustration
+of how we handle exceptions internally via the BEGIN/END macros and
+not something that user code should ever emulate (unless it's outside
+of Rcpp::export and doesn't use the BEGIN/END macros.
+
+From tds151 at gmail.com  Fri Feb 20 19:14:49 2015
+From: tds151 at gmail.com (terrance savitsky)
+Date: Fri, 20 Feb 2015 13:14:49 -0500
+Subject: [Rcpp-devel] RcppArmadillo generates warning with
+	arma_rng::set_seed_random()
+Message-ID: <CAL6JAJZxzFEkdZsyz58b3OXuszkyF0tUEXkTKpqOM-4B230oJA@mail.gmail.com>
+
+When using - arma_rng::set_seed_random(),
+to initialize the RNG in RcppArmadillo, the following warning is generated,
+
+When called from R, the RNG seed has to be set at the R level via set.seed()
+
+
+This warning seems appropriate when using set_seed(), but not
+set_seed_random() since setting a random seed does not represent a mistaken
+attempt to fix an Armadillo random seed at the R level.
+
+Thanks for your comment,
+
+Terrance
+
+-- 
+Thank you, Terrance Savitsky
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150220/702a9095/attachment.html>
+
+From edd at debian.org  Fri Feb 20 20:24:26 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 20 Feb 2015 13:24:26 -0600
+Subject: [Rcpp-devel] RcppArmadillo generates warning
+	with	arma_rng::set_seed_random()
+In-Reply-To: <CAL6JAJZxzFEkdZsyz58b3OXuszkyF0tUEXkTKpqOM-4B230oJA@mail.gmail.com>
+References: <CAL6JAJZxzFEkdZsyz58b3OXuszkyF0tUEXkTKpqOM-4B230oJA@mail.gmail.com>
+Message-ID: <21735.35306.869559.32534@max.nulle.part>
+
+
+On 20 February 2015 at 13:14, terrance savitsky wrote:
+| When using - arma_rng::set_seed_random(),
+| to initialize the RNG in RcppArmadillo, the following warning is generated,
+| 
+| When called from R, the RNG seed has to be set at the R level via set.seed()
+| 
+| 
+| This warning seems appropriate when using set_seed(), but not set_seed_random()
+| since setting a random seed does not represent a mistaken attempt to fix an
+| Armadillo random seed at the R level.
+
+See the source file eg via
+
+  https://github.com/RcppCore/RcppArmadillo/blob/master/inst/include/RcppArmadillo/Alt_R_RNG.h
+
+IIRC this all started because R CMD check started to notice use of rand() by
+Armadillo and warns against that (as there have been bad rand() versions in C
+and old C++ libraries).
+
+If it bugs you greatly you can either use R's RNGs directly, use Boost's, use
+the ones from the C++(11) library, or grow your own.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From lmiratrix at fas.harvard.edu  Tue Feb 24 16:45:01 2015
+From: lmiratrix at fas.harvard.edu (Miratrix, Luke)
+Date: Tue, 24 Feb 2015 15:45:01 +0000
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <E7226FC0F5F75642AA1F294CE3C551722DEE4B@MBX029-E1-VA-2.EXCH029.DOMAIN.LOCAL>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAFAN8vwUGV78oz9V2kZMvvM9TQ_TpdGsgFmBO=+znMh0=gQBkA@mail.gmail.com>
+ <E7226FC0F5F75642AA1F294CE3C551722DEE4B@MBX029-E1-VA-2.EXCH029.DOMAIN.LOCAL>
+Message-ID: <3FE94EEDCF567746B6910851F1DB7B6C753DB2E9@HARVANDMBX04.fasmail.priv>
+
+
+As an inexperienced person myself, I was trying to wrap a C++ stand-alone
+package so it could be called from R and was trying to preserve some of
+the safety features and error-checking.  My understanding of asserts is
+they are to catch disasters that indicate bugs in the code itself, and are
+thus distinct from normal exceptions.  They therefore print out the failed
+check and a line-number in the source file and bail.
+
+When using Rcpp, I came up against CRAN?s admonition to not print to
+stderr and so couldn?t use assert() and stay ?legal.?  But I found this
+out only after annoying people by not doing what I was supposed to do.
+Given that, having assert() redefined so it is compliant with CRAN and
+plays nice with R, but also maintains its behavior would be pretty cool, I
+think.
+
+All this being said, Nathan Kurz?s comments also seem good except I think
+it is ?illegal? to print to STDERR directly before aborting, since it is
+only aborting the C++ part, and not the entire R session.  Hence my hack
+of printing to a string buffer and then handing it to the Rf_error call.
+I don?t know the guts of Rf_error, but I had assumed it would copy the
+string to its own world before unwinding the stack.  If it doesn?t then I
+agree this is going to cause problems.  What is the correct way to pass a
+message up, then?
+
+
+(Sorry for delay in posting this: the rcpp devel list does not get along
+with my mail client.)
+
+
+
+Sincerely,
+
+Luke Miratrix
+Assistant Professor of Statistics
+
+	Note: Due to my RSI (wrist trouble), e-mail often abrupt.
+
+
+--
+
+Department of Statistics
+Science Center
+
+Harvard University
+1 Oxford Street
+Cambridge MA 02138-2901
+
+
+lmiratrix at stat.harvard.edu
+510-735-7635
+
+
+
+
+
+
+On 2/18/15, 3:25 PM, "Dale Smith" <DSmith at nexidia.com> wrote:
+
+>I haven't been very active lately with Rcpp, but I like Nathan's advice
+>below. Don't redefine assert(), I think that's not friendly to
+>inexperienced people and will just generate more questions.
+>
+>Dale Smith, Ph.D. | Data Scientist | nexidia | office: +1 404 495 7220
+>ext 4008 | fax: +1 404 495 7221| nexidia.com
+>
+>-----Original Message-----
+>From: rcpp-devel-bounces at lists.r-forge.r-project.org
+>[mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of
+>Nathan Kurz
+>Sent: Wednesday, February 18, 2015 3:19 PM
+>To: Miratrix, Luke
+>Cc: rcpp-devel at lists.r-forge.r-project.org
+>Subject: Re: [Rcpp-devel] assert() for Rcpp?
+>
+>On Tue, Feb 17, 2015 at 4:41 PM, Miratrix, Luke
+><lmiratrix at fas.harvard.edu> wrote:
+>> The proposed code:
+>>
+>> #include <stdio.h>
+>>
+>> #ifdef NDEBUG
+>> # define assert(EX)
+>> #else
+>> # define assert(EX) (void)((EX) || (__assert (#EX, __FILE__,
+>> __LINE__),0)) #endif
+>>
+>> void __assert (const char *msg, const char *file, int line) {
+>>     char buffer [100];
+>>     snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg,
+>> file, line );
+>>     ::Rf_error( buffer );
+>> }
+>
+>Getting more people using assert-like macros seems like a great idea.
+>Weighing in as a C programmer with limited knowledge of Rcpp, I'd
+>suggest:
+>
+>1) Don't redefine assert() or __assert().  You'll confuse people and it
+>will somehow manage to break things.  Instead, define your own macro with
+>a different name, likely one in all caps that starts with "R_" or "RCPP_".
+>
+>2) Only keep the name 'assert' in the macro if you are keeping the
+>semantics of assert(), that is, it dies on failure if NDEBUG not defined.
+> If it prints a warning and recovers, or defaults to off, use
+>a different word.   I personally don't like the inverted NDEBUG
+>approach, so would suggest a different semantics and different word.
+>
+>3) It's debatable if you want to allow it to be turned off or not.
+>If it can be turned off, people will misuse it to guard against errors
+>and be surprised when it doesn't.   I often use a noisy warning that
+>only runs when DEBUG is positively defined (DEBUG_WARN_IF) and an abort
+>that  cannot be turned off (ERROR_ABORT_IF).
+>
+>4) Don't try to snprintf() to a local buffer and then return.   I
+>don't know C++ semantics for exceptions, but at least in C, combining
+>local stack variables with stack unwinding is asking for trouble.  If you
+>are aborting, print to STDERR directly.  If you are continuing, use a
+>normal heap allocation.
+>
+>Nathan Kurz
+>nate at verse.com
+>_______________________________________________
+>Rcpp-devel mailing list
+>Rcpp-devel at lists.r-forge.r-project.org
+>https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From tkeitt at utexas.edu  Tue Feb 24 17:59:49 2015
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Tue, 24 Feb 2015 10:59:49 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <3FE94EEDCF567746B6910851F1DB7B6C753DB2E9@HARVANDMBX04.fasmail.priv>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAFAN8vwUGV78oz9V2kZMvvM9TQ_TpdGsgFmBO=+znMh0=gQBkA@mail.gmail.com>
+ <E7226FC0F5F75642AA1F294CE3C551722DEE4B@MBX029-E1-VA-2.EXCH029.DOMAIN.LOCAL>
+ <3FE94EEDCF567746B6910851F1DB7B6C753DB2E9@HARVANDMBX04.fasmail.priv>
+Message-ID: <CANnL8grSzpAd+1UY3HjM9HFTOa2VW=VpxKNCYmc=mPpkX30Khg@mail.gmail.com>
+
+On Tue, Feb 24, 2015 at 9:45 AM, Miratrix, Luke <lmiratrix at fas.harvard.edu>
+wrote:
+
+>
+> As an inexperienced person myself, I was trying to wrap a C++ stand-alone
+> package so it could be called from R and was trying to preserve some of
+> the safety features and error-checking.  My understanding of asserts is
+> they are to catch disasters that indicate bugs in the code itself, and are
+> thus distinct from normal exceptions.  They therefore print out the failed
+> check and a line-number in the source file and bail.
+>
+> When using Rcpp, I came up against CRAN?s admonition to not print to
+> stderr and so couldn?t use assert() and stay ?legal.?  But I found this
+> out only after annoying people by not doing what I was supposed to do.
+> Given that, having assert() redefined so it is compliant with CRAN and
+> plays nice with R, but also maintains its behavior would be pretty cool, I
+> think.
+>
+> All this being said, Nathan Kurz?s comments also seem good except I think
+> it is ?illegal? to print to STDERR directly before aborting, since it is
+> only aborting the C++ part, and not the entire R session.  Hence my hack
+> of printing to a string buffer and then handing it to the Rf_error call.
+> I don?t know the guts of Rf_error, but I had assumed it would copy the
+> string to its own world before unwinding the stack.  If it doesn?t then I
+> agree this is going to cause problems.  What is the correct way to pass a
+> message up, then?
+>
+
+If I recall, the other prohibition of CRAN is to never ever call abort (R
+owns the event loop) so assert-like behavior is not gonna fly.
+
+THK
+
+
+>
+>
+> (Sorry for delay in posting this: the rcpp devel list does not get along
+> with my mail client.)
+>
+>
+>
+> Sincerely,
+>
+> Luke Miratrix
+> Assistant Professor of Statistics
+>
+>         Note: Due to my RSI (wrist trouble), e-mail often abrupt.
+>
+>
+> --
+>
+> Department of Statistics
+> Science Center
+>
+> Harvard University
+> 1 Oxford Street
+> Cambridge MA 02138-2901
+>
+>
+> lmiratrix at stat.harvard.edu
+> 510-735-7635
+>
+>
+>
+>
+>
+>
+> On 2/18/15, 3:25 PM, "Dale Smith" <DSmith at nexidia.com> wrote:
+>
+> >I haven't been very active lately with Rcpp, but I like Nathan's advice
+> >below. Don't redefine assert(), I think that's not friendly to
+> >inexperienced people and will just generate more questions.
+> >
+> >Dale Smith, Ph.D. | Data Scientist | nexidia | office: +1 404 495 7220
+> >ext 4008 | fax: +1 404 495 7221| nexidia.com
+> >
+> >-----Original Message-----
+> >From: rcpp-devel-bounces at lists.r-forge.r-project.org
+> >[mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of
+> >Nathan Kurz
+> >Sent: Wednesday, February 18, 2015 3:19 PM
+> >To: Miratrix, Luke
+> >Cc: rcpp-devel at lists.r-forge.r-project.org
+> >Subject: Re: [Rcpp-devel] assert() for Rcpp?
+> >
+> >On Tue, Feb 17, 2015 at 4:41 PM, Miratrix, Luke
+> ><lmiratrix at fas.harvard.edu> wrote:
+> >> The proposed code:
+> >>
+> >> #include <stdio.h>
+> >>
+> >> #ifdef NDEBUG
+> >> # define assert(EX)
+> >> #else
+> >> # define assert(EX) (void)((EX) || (__assert (#EX, __FILE__,
+> >> __LINE__),0)) #endif
+> >>
+> >> void __assert (const char *msg, const char *file, int line) {
+> >>     char buffer [100];
+> >>     snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg,
+> >> file, line );
+> >>     ::Rf_error( buffer );
+> >> }
+> >
+> >Getting more people using assert-like macros seems like a great idea.
+> >Weighing in as a C programmer with limited knowledge of Rcpp, I'd
+> >suggest:
+> >
+> >1) Don't redefine assert() or __assert().  You'll confuse people and it
+> >will somehow manage to break things.  Instead, define your own macro with
+> >a different name, likely one in all caps that starts with "R_" or "RCPP_".
+> >
+> >2) Only keep the name 'assert' in the macro if you are keeping the
+> >semantics of assert(), that is, it dies on failure if NDEBUG not defined.
+> > If it prints a warning and recovers, or defaults to off, use
+> >a different word.   I personally don't like the inverted NDEBUG
+> >approach, so would suggest a different semantics and different word.
+> >
+> >3) It's debatable if you want to allow it to be turned off or not.
+> >If it can be turned off, people will misuse it to guard against errors
+> >and be surprised when it doesn't.   I often use a noisy warning that
+> >only runs when DEBUG is positively defined (DEBUG_WARN_IF) and an abort
+> >that  cannot be turned off (ERROR_ABORT_IF).
+> >
+> >4) Don't try to snprintf() to a local buffer and then return.   I
+> >don't know C++ semantics for exceptions, but at least in C, combining
+> >local stack variables with stack unwinding is asking for trouble.  If you
+> >are aborting, print to STDERR directly.  If you are continuing, use a
+> >normal heap allocation.
+> >
+> >Nathan Kurz
+> >nate at verse.com
+> >_______________________________________________
+> >Rcpp-devel mailing list
+> >Rcpp-devel at lists.r-forge.r-project.org
+> >https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+
+-- 
+http://www.keittlab.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150224/a950b7aa/attachment.html>
+
+From tkeitt at utexas.edu  Tue Feb 24 18:00:22 2015
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Tue, 24 Feb 2015 11:00:22 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <CANnL8grSzpAd+1UY3HjM9HFTOa2VW=VpxKNCYmc=mPpkX30Khg@mail.gmail.com>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAFAN8vwUGV78oz9V2kZMvvM9TQ_TpdGsgFmBO=+znMh0=gQBkA@mail.gmail.com>
+ <E7226FC0F5F75642AA1F294CE3C551722DEE4B@MBX029-E1-VA-2.EXCH029.DOMAIN.LOCAL>
+ <3FE94EEDCF567746B6910851F1DB7B6C753DB2E9@HARVANDMBX04.fasmail.priv>
+ <CANnL8grSzpAd+1UY3HjM9HFTOa2VW=VpxKNCYmc=mPpkX30Khg@mail.gmail.com>
+Message-ID: <CANnL8gony_-P+APhc1yFGBK1a7e+tSRaAOWbZ18-FW_L4SsL7Q@mail.gmail.com>
+
+On Tue, Feb 24, 2015 at 10:59 AM, Tim Keitt <tkeitt at utexas.edu> wrote:
+
+>
+>
+> On Tue, Feb 24, 2015 at 9:45 AM, Miratrix, Luke <lmiratrix at fas.harvard.edu
+> > wrote:
+>
+>>
+>> As an inexperienced person myself, I was trying to wrap a C++ stand-alone
+>> package so it could be called from R and was trying to preserve some of
+>> the safety features and error-checking.  My understanding of asserts is
+>> they are to catch disasters that indicate bugs in the code itself, and are
+>> thus distinct from normal exceptions.  They therefore print out the failed
+>> check and a line-number in the source file and bail.
+>>
+>> When using Rcpp, I came up against CRAN?s admonition to not print to
+>> stderr and so couldn?t use assert() and stay ?legal.?  But I found this
+>> out only after annoying people by not doing what I was supposed to do.
+>> Given that, having assert() redefined so it is compliant with CRAN and
+>> plays nice with R, but also maintains its behavior would be pretty cool, I
+>> think.
+>>
+>> All this being said, Nathan Kurz?s comments also seem good except I think
+>> it is ?illegal? to print to STDERR directly before aborting, since it is
+>> only aborting the C++ part, and not the entire R session.  Hence my hack
+>> of printing to a string buffer and then handing it to the Rf_error call.
+>> I don?t know the guts of Rf_error, but I had assumed it would copy the
+>> string to its own world before unwinding the stack.  If it doesn?t then I
+>> agree this is going to cause problems.  What is the correct way to pass a
+>> message up, then?
+>>
+>
+> If I recall, the other prohibition of CRAN is to never ever call abort (R
+> owns the event loop) so assert-like behavior is not gonna fly.
+>
+
+Double negative, but you get the idea.
+
+
+>
+> THK
+>
+>
+>>
+>>
+>> (Sorry for delay in posting this: the rcpp devel list does not get along
+>> with my mail client.)
+>>
+>>
+>>
+>> Sincerely,
+>>
+>> Luke Miratrix
+>> Assistant Professor of Statistics
+>>
+>>         Note: Due to my RSI (wrist trouble), e-mail often abrupt.
+>>
+>>
+>> --
+>>
+>> Department of Statistics
+>> Science Center
+>>
+>> Harvard University
+>> 1 Oxford Street
+>> Cambridge MA 02138-2901
+>>
+>>
+>> lmiratrix at stat.harvard.edu
+>> 510-735-7635
+>>
+>>
+>>
+>>
+>>
+>>
+>> On 2/18/15, 3:25 PM, "Dale Smith" <DSmith at nexidia.com> wrote:
+>>
+>> >I haven't been very active lately with Rcpp, but I like Nathan's advice
+>> >below. Don't redefine assert(), I think that's not friendly to
+>> >inexperienced people and will just generate more questions.
+>> >
+>> >Dale Smith, Ph.D. | Data Scientist | nexidia | office: +1 404 495 7220
+>> >ext 4008 | fax: +1 404 495 7221| nexidia.com
+>> >
+>> >-----Original Message-----
+>> >From: rcpp-devel-bounces at lists.r-forge.r-project.org
+>> >[mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of
+>> >Nathan Kurz
+>> >Sent: Wednesday, February 18, 2015 3:19 PM
+>> >To: Miratrix, Luke
+>> >Cc: rcpp-devel at lists.r-forge.r-project.org
+>> >Subject: Re: [Rcpp-devel] assert() for Rcpp?
+>> >
+>> >On Tue, Feb 17, 2015 at 4:41 PM, Miratrix, Luke
+>> ><lmiratrix at fas.harvard.edu> wrote:
+>> >> The proposed code:
+>> >>
+>> >> #include <stdio.h>
+>> >>
+>> >> #ifdef NDEBUG
+>> >> # define assert(EX)
+>> >> #else
+>> >> # define assert(EX) (void)((EX) || (__assert (#EX, __FILE__,
+>> >> __LINE__),0)) #endif
+>> >>
+>> >> void __assert (const char *msg, const char *file, int line) {
+>> >>     char buffer [100];
+>> >>     snprintf( buffer, 100, "Assert Failure: %s at %s line #%d", msg,
+>> >> file, line );
+>> >>     ::Rf_error( buffer );
+>> >> }
+>> >
+>> >Getting more people using assert-like macros seems like a great idea.
+>> >Weighing in as a C programmer with limited knowledge of Rcpp, I'd
+>> >suggest:
+>> >
+>> >1) Don't redefine assert() or __assert().  You'll confuse people and it
+>> >will somehow manage to break things.  Instead, define your own macro with
+>> >a different name, likely one in all caps that starts with "R_" or
+>> "RCPP_".
+>> >
+>> >2) Only keep the name 'assert' in the macro if you are keeping the
+>> >semantics of assert(), that is, it dies on failure if NDEBUG not defined.
+>> > If it prints a warning and recovers, or defaults to off, use
+>> >a different word.   I personally don't like the inverted NDEBUG
+>> >approach, so would suggest a different semantics and different word.
+>> >
+>> >3) It's debatable if you want to allow it to be turned off or not.
+>> >If it can be turned off, people will misuse it to guard against errors
+>> >and be surprised when it doesn't.   I often use a noisy warning that
+>> >only runs when DEBUG is positively defined (DEBUG_WARN_IF) and an abort
+>> >that  cannot be turned off (ERROR_ABORT_IF).
+>> >
+>> >4) Don't try to snprintf() to a local buffer and then return.   I
+>> >don't know C++ semantics for exceptions, but at least in C, combining
+>> >local stack variables with stack unwinding is asking for trouble.  If you
+>> >are aborting, print to STDERR directly.  If you are continuing, use a
+>> >normal heap allocation.
+>> >
+>> >Nathan Kurz
+>> >nate at verse.com
+>> >_______________________________________________
+>> >Rcpp-devel mailing list
+>> >Rcpp-devel at lists.r-forge.r-project.org
+>> >https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+> --
+> http://www.keittlab.org/
+>
+
+
+
+-- 
+http://www.keittlab.org/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150224/462ce648/attachment-0001.html>
+
+From deter088 at umn.edu  Tue Feb 24 19:30:24 2015
+From: deter088 at umn.edu (Charles Determan Jr)
+Date: Tue, 24 Feb 2015 12:30:24 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+Message-ID: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+
+Greetings,
+
+I have run in to an error when compiling an R package that has the
+following headers in the only cpp file at the moment:
+
+#include <string>
+#include <iostream>
+#include <cmath>
+
+#define R_NO_REMAP
+
+#include <R.h>
+#include <Rinternals.h>
+#include <Rdefines.h>
+
+Now, I am also trying to use RcppArmadillo with:
+
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]
+
+However, when I try and build the package, it errors out with a bunch of
+errors such as:
+
+/usr/include/c++/4.8/bits/fstream.tcc:824:60: error: macro "length" passed
+4 arguments, but takes just 1
+
+which is repeated multiple times on different lines.  I haven't included
+the entire output as it is rather lengthly but could provide if it would
+help further.  I tried searching for help but the closest I found was this
+previous post (
+http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2013-February/005325.html)
+but the R_NO_REMAP hasn't helped here.  I suspect something must be
+conflicted between the R headers and RcppArmadillo because it works just
+fine if I only use Rcpp.h (but I want to use RcppArmadillo).  Any thoughts?
+
+Regards,
+
+-- 
+Dr. Charles Determan, PhD
+Integrated Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150224/3d3befe7/attachment.html>
+
+From edd at debian.org  Tue Feb 24 19:59:32 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 24 Feb 2015 12:59:32 -0600
+Subject: [Rcpp-devel] assert() for Rcpp?
+In-Reply-To: <3FE94EEDCF567746B6910851F1DB7B6C753DB2E9@HARVANDMBX04.fasmail.priv>
+References: <3FE94EEDCF567746B6910851F1DB7B6C753D8601@HARVANDMBX04.fasmail.priv>
+ <CAFAN8vwUGV78oz9V2kZMvvM9TQ_TpdGsgFmBO=+znMh0=gQBkA@mail.gmail.com>
+ <E7226FC0F5F75642AA1F294CE3C551722DEE4B@MBX029-E1-VA-2.EXCH029.DOMAIN.LOCAL>
+ <3FE94EEDCF567746B6910851F1DB7B6C753DB2E9@HARVANDMBX04.fasmail.priv>
+Message-ID: <21740.51732.948684.129862@max.nulle.part>
+
+
+On 24 February 2015 at 15:45, Miratrix, Luke wrote:
+| As an inexperienced person myself, I was trying to wrap a C++ stand-alone
+| package so it could be called from R and was trying to preserve some of
+| the safety features and error-checking.  My understanding of asserts is
+| they are to catch disasters that indicate bugs in the code itself, and are
+| thus distinct from normal exceptions.  They therefore print out the failed
+| check and a line-number in the source file and bail.
+| 
+| When using Rcpp, I came up against CRAN?s admonition to not print to
+| stderr and so couldn?t use assert() and stay ?legal.?  But I found this
+| out only after annoying people by not doing what I was supposed to do.
+| Given that, having assert() redefined so it is compliant with CRAN and
+| plays nice with R, but also maintains its behavior would be pretty cool, I
+| think.
+|
+| All this being said, Nathan Kurz?s comments also seem good except I think
+| it is ?illegal? to print to STDERR directly before aborting, since it is
+
+You are allowed to use Rcpp::Cerr which redirects into R's error stream.
+
+| only aborting the C++ part, and not the entire R session.  Hence my hack
+| of printing to a string buffer and then handing it to the Rf_error call.
+| I don?t know the guts of Rf_error, but I had assumed it would copy the
+| string to its own world before unwinding the stack.  If it doesn?t then I
+| agree this is going to cause problems.  What is the correct way to pass a
+| message up, then?
+
+You are close. We are doing similar things with exceptions we catch; we
+create a string and pass it to Rf_errror.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Feb 24 20:06:27 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 24 Feb 2015 13:06:27 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+Message-ID: <21740.52147.785683.653278@max.nulle.part>
+
+
+On 24 February 2015 at 12:30, Charles Determan Jr wrote:
+| Greetings,
+| 
+| I have run in to an error when compiling an R package that has the following
+| headers in the only cpp file at the moment:
+| 
+| #include <string>
+| #include <iostream>
+| #include <cmath>
+| 
+| #define R_NO_REMAP
+| 
+| #include <R.h>
+| #include <Rinternals.h>
+| #include <Rdefines.h>
+| 
+| Now, I am also trying to use RcppArmadillo with:
+| 
+| #include <RcppArmadillo.h>
+| // [[Rcpp::depends(RcppArmadillo)]
+| 
+| However, when I try and build the package, it errors out with a bunch of errors
+| such as:
+| 
+| /usr/include/c++/4.8/bits/fstream.tcc:824:60: error: macro "length" passed 4
+| arguments, but takes just 1
+| 
+| which is repeated multiple times on different lines.? I haven't included the
+| entire output as it is rather lengthly but could provide if it would help
+| further.? I tried searching for help but the closest I found was this previous
+| post (http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2013-February/
+| 005325.html) but the R_NO_REMAP hasn't helped here.? I suspect something must
+| be conflicted between the R headers and RcppArmadillo because it works just
+| fine if I only use Rcpp.h (but I want to use RcppArmadillo).? Any thoughts?
+
+I definitely have fought this too way back when.  I think we generally do the
+right thing now as it no longer "spills" out of Rcpp proper.  
+
+You do have a bit of a mess here with headers:
+
+  a) you may not need all of string, iostream, cmath; I think we include some
+    (all?) of these.  You may need just iostream
+
+  b) you do not need R.h; you probably do not need the others
+
+  c) just RcppArmadillo is good and often self-sufficient
+
+so I would quickly restart from the inside out with just RcppArmadillo.h and
+then add code paragraph by paragraph and judiciously only add the headers you
+need. 
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From wdunlap at tibco.com  Tue Feb 24 21:01:03 2015
+From: wdunlap at tibco.com (William Dunlap)
+Date: Tue, 24 Feb 2015 12:01:03 -0800
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+Message-ID: <CAF8bMcZ17XfoJ7QCMkNETJXaDNSOkU8k8o2vB5fjiig=c=jS3g@mail.gmail.com>
+
+Do you really need the macros like GET_LENGTH that are defined in
+   #include <Rdefines.h>
+?  It looks like they are meant to ease porting of C code written for S or
+S+,
+but very little code these days is written for S or S+ and certainly not
+Rcpp
+code.
+
+Bill Dunlap
+TIBCO Software
+wdunlap tibco.com
+
+On Tue, Feb 24, 2015 at 10:30 AM, Charles Determan Jr <deter088 at umn.edu>
+wrote:
+
+> Greetings,
+>
+> I have run in to an error when compiling an R package that has the
+> following headers in the only cpp file at the moment:
+>
+> #include <string>
+> #include <iostream>
+> #include <cmath>
+>
+> #define R_NO_REMAP
+>
+> #include <R.h>
+> #include <Rinternals.h>
+> #include <Rdefines.h>
+>
+> Now, I am also trying to use RcppArmadillo with:
+>
+> #include <RcppArmadillo.h>
+> // [[Rcpp::depends(RcppArmadillo)]
+>
+> However, when I try and build the package, it errors out with a bunch of
+> errors such as:
+>
+> /usr/include/c++/4.8/bits/fstream.tcc:824:60: error: macro "length" passed
+> 4 arguments, but takes just 1
+>
+> which is repeated multiple times on different lines.  I haven't included
+> the entire output as it is rather lengthly but could provide if it would
+> help further.  I tried searching for help but the closest I found was this
+> previous post (
+> http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2013-February/005325.html)
+> but the R_NO_REMAP hasn't helped here.  I suspect something must be
+> conflicted between the R headers and RcppArmadillo because it works just
+> fine if I only use Rcpp.h (but I want to use RcppArmadillo).  Any thoughts?
+>
+> Regards,
+>
+> --
+> Dr. Charles Determan, PhD
+> Integrated Biosciences
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150224/ded8244e/attachment.html>
+
+From deter088 at umn.edu  Tue Feb 24 21:41:37 2015
+From: deter088 at umn.edu (Charles Determan Jr)
+Date: Tue, 24 Feb 2015 14:41:37 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <21740.52147.785683.653278@max.nulle.part>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+Message-ID: <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+
+Thank you for that clarification, I always seem to forget that Rcpp
+packages have many libraries loaded by default.  I have trimmed the headers
+down to the following to just
+
+#include <RcppArmadillo>
+
+However, some further background, I am working on extending the bigalgebra
+package (hence the interest in RcppArmadillo) so their are some additional
+headers that are now included in this problem.  The total headers now looks
+like this:
+
+#include "bigmemory/BigMatrix.h"
+
+#include <RcppArmadillo.h>
+
+#ifdef REFBLAS
+#include "refblas64longlong.h"
+#define INT long long
+#else
+#include <R_ext/BLAS.h>
+#include <R_ext/Lapack.h>
+#define INT int
+#endif
+
+Again, if I simply change RcppArmadillo to Rcpp it compiles without a
+problem but with RcppArmadillo more of the 'length passed 4 arguments' and
+also 'const string has no member name 'Rf_length' errors.
+
+Thanks again,
+Charles
+
+
+On Tue, Feb 24, 2015 at 1:06 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 24 February 2015 at 12:30, Charles Determan Jr wrote:
+> | Greetings,
+> |
+> | I have run in to an error when compiling an R package that has the
+> following
+> | headers in the only cpp file at the moment:
+> |
+> | #include <string>
+> | #include <iostream>
+> | #include <cmath>
+> |
+> | #define R_NO_REMAP
+> |
+> | #include <R.h>
+> | #include <Rinternals.h>
+> | #include <Rdefines.h>
+> |
+> | Now, I am also trying to use RcppArmadillo with:
+> |
+> | #include <RcppArmadillo.h>
+> | // [[Rcpp::depends(RcppArmadillo)]
+> |
+> | However, when I try and build the package, it errors out with a bunch of
+> errors
+> | such as:
+> |
+> | /usr/include/c++/4.8/bits/fstream.tcc:824:60: error: macro "length"
+> passed 4
+> | arguments, but takes just 1
+> |
+> | which is repeated multiple times on different lines.  I haven't included
+> the
+> | entire output as it is rather lengthly but could provide if it would help
+> | further.  I tried searching for help but the closest I found was this
+> previous
+> | post (
+> http://lists.r-forge.r-project.org/pipermail/rcpp-devel/2013-February/
+> | 005325.html) but the R_NO_REMAP hasn't helped here.  I suspect something
+> must
+> | be conflicted between the R headers and RcppArmadillo because it works
+> just
+> | fine if I only use Rcpp.h (but I want to use RcppArmadillo).  Any
+> thoughts?
+>
+> I definitely have fought this too way back when.  I think we generally do
+> the
+> right thing now as it no longer "spills" out of Rcpp proper.
+>
+> You do have a bit of a mess here with headers:
+>
+>   a) you may not need all of string, iostream, cmath; I think we include
+> some
+>     (all?) of these.  You may need just iostream
+>
+>   b) you do not need R.h; you probably do not need the others
+>
+>   c) just RcppArmadillo is good and often self-sufficient
+>
+> so I would quickly restart from the inside out with just RcppArmadillo.h
+> and
+> then add code paragraph by paragraph and judiciously only add the headers
+> you
+> need.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+
+-- 
+Dr. Charles Determan, PhD
+Integrated Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150224/02fdd674/attachment-0001.html>
+
+From edd at debian.org  Tue Feb 24 21:51:11 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 24 Feb 2015 14:51:11 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+Message-ID: <21740.58431.21948.967025@max.nulle.part>
+
+
+On 24 February 2015 at 14:41, Charles Determan Jr wrote:
+| Thank you for that clarification, I always seem to forget that Rcpp packages
+| have many libraries loaded by default.? I have trimmed the headers down to the
+| following to just?
+| 
+| #include <RcppArmadillo>
+| 
+| However, some further background, I am working on extending the bigalgebra
+| package (hence the interest in RcppArmadillo) so their are some additional
+| headers that are now included in this problem.? The total headers now looks
+| like this:
+| 
+| #include "bigmemory/BigMatrix.h"
+| 
+| #include <RcppArmadillo.h>
+| 
+| #ifdef REFBLAS
+| #include "refblas64longlong.h"
+| #define INT long long
+| #else
+| #include <R_ext/BLAS.h>
+| #include <R_ext/Lapack.h>
+| #define INT int
+| #endif
+| 
+| Again, if I simply change RcppArmadillo to Rcpp it compiles without a problem
+| but with RcppArmadillo more of the 'length passed 4 arguments' and also 'const
+| string has no member name 'Rf_length' errors.
+
+Try reordering: Have #include <RcppArmadillo.h> last.  
+
+And possibly #include "bigmemory/BigMatrix.h" next to last.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From deter088 at umn.edu  Tue Feb 24 22:06:56 2015
+From: deter088 at umn.edu (Charles Determan Jr)
+Date: Tue, 24 Feb 2015 15:06:56 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <21740.58431.21948.967025@max.nulle.part>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+Message-ID: <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+
+Unfortunately I get the same errors with #include <RcppArmadillo.h> last as
+well as #include "bigmemory/BigMatrix.h" next to last.  The latter results
+in additional errors in BigMatrix.h with the expansion of INT.  Both
+scenarios still have "length passed 4 arguments" errors.
+
+On Tue, Feb 24, 2015 at 2:51 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 24 February 2015 at 14:41, Charles Determan Jr wrote:
+> | Thank you for that clarification, I always seem to forget that Rcpp
+> packages
+> | have many libraries loaded by default.  I have trimmed the headers down
+> to the
+> | following to just
+> |
+> | #include <RcppArmadillo>
+> |
+> | However, some further background, I am working on extending the
+> bigalgebra
+> | package (hence the interest in RcppArmadillo) so their are some
+> additional
+> | headers that are now included in this problem.  The total headers now
+> looks
+> | like this:
+> |
+> | #include "bigmemory/BigMatrix.h"
+> |
+> | #include <RcppArmadillo.h>
+> |
+> | #ifdef REFBLAS
+> | #include "refblas64longlong.h"
+> | #define INT long long
+> | #else
+> | #include <R_ext/BLAS.h>
+> | #include <R_ext/Lapack.h>
+> | #define INT int
+> | #endif
+> |
+> | Again, if I simply change RcppArmadillo to Rcpp it compiles without a
+> problem
+> | but with RcppArmadillo more of the 'length passed 4 arguments' and also
+> 'const
+> | string has no member name 'Rf_length' errors.
+>
+> Try reordering: Have #include <RcppArmadillo.h> last.
+>
+> And possibly #include "bigmemory/BigMatrix.h" next to last.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+
+-- 
+Dr. Charles Determan, PhD
+Integrated Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150224/329bf11a/attachment.html>
+
+From edd at debian.org  Tue Feb 24 22:29:49 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 24 Feb 2015 15:29:49 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+Message-ID: <21740.60749.847351.807857@max.nulle.part>
+
+
+On 24 February 2015 at 15:06, Charles Determan Jr wrote:
+| Unfortunately I get the same errors with #include <RcppArmadillo.h> last as
+| well as?#include "bigmemory/BigMatrix.h" next to last.? The latter results in
+| additional errors in BigMatrix.h with the expansion of INT.? Both scenarios
+| still have "length passed 4 arguments" errors.
+
+Someone defines.  Add an #ifdef test followed by an #undef.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From deter088 at umn.edu  Tue Feb 24 22:37:20 2015
+From: deter088 at umn.edu (Charles Determan Jr)
+Date: Tue, 24 Feb 2015 15:37:20 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <21740.60749.847351.807857@max.nulle.part>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+Message-ID: <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+
+Adding the #ifdef test removes the error with INT but I don't follow if you
+are suggesting something else for the #ifdef test?  I sadly continue to see
+the same "length" errors once I fix the INT error in the BigMatrix.h file.
+
+Current headers:
+
+#ifdef REFBLAS
+#include "refblas64longlong.h"
+#define INT long long
+#else
+#include <R_ext/BLAS.h>
+#include <R_ext/Lapack.h>
+#define INT int
+#endif
+
+#include "bigmemory/BigMatrix.h"
+
+#include <RcppArmadillo.h>
+
+On Tue, Feb 24, 2015 at 3:29 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 24 February 2015 at 15:06, Charles Determan Jr wrote:
+> | Unfortunately I get the same errors with #include <RcppArmadillo.h> last
+> as
+> | well as #include "bigmemory/BigMatrix.h" next to last.  The latter
+> results in
+> | additional errors in BigMatrix.h with the expansion of INT.  Both
+> scenarios
+> | still have "length passed 4 arguments" errors.
+>
+> Someone defines.  Add an #ifdef test followed by an #undef.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+
+-- 
+Dr. Charles Determan, PhD
+Integrated Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150224/5bc249ce/attachment.html>
+
+From edd at debian.org  Tue Feb 24 22:52:10 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 24 Feb 2015 15:52:10 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+Message-ID: <21740.62090.796335.765145@max.nulle.part>
+
+
+Hi Charles,
+
+I understand this is frustrating for you but we are wasting everybody's time
+here.  Can you please prepare a minimally reproducible example?
+
+Also, maybe try some bisection. Does the problem go away after you remove
+bigmemory/bigalgebra?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From deter088 at umn.edu  Wed Feb 25 14:36:37 2015
+From: deter088 at umn.edu (Charles Determan Jr)
+Date: Wed, 25 Feb 2015 07:36:37 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <21740.62090.796335.765145@max.nulle.part>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+Message-ID: <CAOLJphky4igbL7_GEi+iq_gs8331Hqs-Jj6R8HLGuJQC0sCbVQ@mail.gmail.com>
+
+My apologies, I should have just did this from the start.  I thought it may
+be something simple.  I create a git repo to access the stripped down
+package (just the first cpp function and a simple R function).  If you
+clone it with:
+
+git clone https://github.com/cdeterman/test.git
+
+And try to build it you will get the errors I keep mentioning.  If you
+switch #include <RcppArmadillo.h> to <Rcpp.h> it will compile fine.
+
+I truly do appreciate the help from this list, thank you for taking the
+time for this.
+
+Best regards,
+Charles
+
+On Tue, Feb 24, 2015 at 3:52 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Charles,
+>
+> I understand this is frustrating for you but we are wasting everybody's
+> time
+> here.  Can you please prepare a minimally reproducible example?
+>
+> Also, maybe try some bisection. Does the problem go away after you remove
+> bigmemory/bigalgebra?
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+
+-- 
+Dr. Charles Determan, PhD
+Integrated Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150225/31b3888b/attachment.html>
+
+From deter088 at umn.edu  Wed Feb 25 16:26:33 2015
+From: deter088 at umn.edu (Charles Determan Jr)
+Date: Wed, 25 Feb 2015 09:26:33 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJphky4igbL7_GEi+iq_gs8331Hqs-Jj6R8HLGuJQC0sCbVQ@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+ <CAOLJphky4igbL7_GEi+iq_gs8331Hqs-Jj6R8HLGuJQC0sCbVQ@mail.gmail.com>
+Message-ID: <CAOLJphkUy340=0NH1dxS3DNRVarVBazvO9MWwEV=GBoBJBYzTA@mail.gmail.com>
+
+I have finally solved the problem.  After coming across another posting
+http://r.789695.n4.nabble.com/rtools-fstream-error-td4702713.html I
+discovered the problem.  I needed to include #define R_NO_REMAP at the
+start of my file and then append Rf_ to any function I use from
+Rdefines.h.  The package now compiles without error.
+
+Thanks for your help Dirk, I know this was a long chain back and forth.
+
+Regards,
+Charles
+
+On Wed, Feb 25, 2015 at 7:36 AM, Charles Determan Jr <deter088 at umn.edu>
+wrote:
+
+> My apologies, I should have just did this from the start.  I thought it
+> may be something simple.  I create a git repo to access the stripped down
+> package (just the first cpp function and a simple R function).  If you
+> clone it with:
+>
+> git clone https://github.com/cdeterman/test.git
+>
+> And try to build it you will get the errors I keep mentioning.  If you
+> switch #include <RcppArmadillo.h> to <Rcpp.h> it will compile fine.
+>
+> I truly do appreciate the help from this list, thank you for taking the
+> time for this.
+>
+> Best regards,
+> Charles
+>
+> On Tue, Feb 24, 2015 at 3:52 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> Hi Charles,
+>>
+>> I understand this is frustrating for you but we are wasting everybody's
+>> time
+>> here.  Can you please prepare a minimally reproducible example?
+>>
+>> Also, maybe try some bisection. Does the problem go away after you remove
+>> bigmemory/bigalgebra?
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+>
+>
+> --
+> Dr. Charles Determan, PhD
+> Integrated Biosciences
+>
+
+
+
+-- 
+Dr. Charles Determan, PhD
+Integrated Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150225/fb7e7797/attachment.html>
+
+From edd at debian.org  Wed Feb 25 16:31:29 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 25 Feb 2015 09:31:29 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJphkUy340=0NH1dxS3DNRVarVBazvO9MWwEV=GBoBJBYzTA@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+ <CAOLJphky4igbL7_GEi+iq_gs8331Hqs-Jj6R8HLGuJQC0sCbVQ@mail.gmail.com>
+ <CAOLJphkUy340=0NH1dxS3DNRVarVBazvO9MWwEV=GBoBJBYzTA@mail.gmail.com>
+Message-ID: <21741.60113.983605.117854@max.nulle.part>
+
+
+On 25 February 2015 at 09:26, Charles Determan Jr wrote:
+| I have finally solved the problem.? After coming across another posting http://
+| r.789695.n4.nabble.com/rtools-fstream-error-td4702713.html I discovered the
+| problem.? I needed to include #define R_NO_REMAP at the start of my file and
+| then append Rf_ to any function I use from Rdefines.h.? The package now
+| compiles without error.
+| 
+| Thanks for your help Dirk, I know this was a long chain back and forth.
+
+I am so sorry --- this approach is of course "known" (and eg explained in
+Writing R Extensions).  It needs to be explained better on our side too.
+
+I'll draft a new paragraph for the Rcpp-FAQ and have you glance at it, ok?
+
+Glad you have it working now, and thanks for closing the loop here.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From wdunlap at tibco.com  Wed Feb 25 16:36:35 2015
+From: wdunlap at tibco.com (William Dunlap)
+Date: Wed, 25 Feb 2015 07:36:35 -0800
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAOLJphkUy340=0NH1dxS3DNRVarVBazvO9MWwEV=GBoBJBYzTA@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+ <CAOLJphky4igbL7_GEi+iq_gs8331Hqs-Jj6R8HLGuJQC0sCbVQ@mail.gmail.com>
+ <CAOLJphkUy340=0NH1dxS3DNRVarVBazvO9MWwEV=GBoBJBYzTA@mail.gmail.com>
+Message-ID: <CAF8bMcaFcSaLgLsMEuY5TuCGGEPGGz33Qniph1O-Lfbo-gKB7Q@mail.gmail.com>
+
+Why do you include "Rdefines.h" in your Rcpp code?  It contains errors
+(e.g., it leaves the initial Rf_ off of the length function).  Also, in my
+opinion, it is obsolete, especially for Rcpp code, since it is for writing
+code that works in R and S (including S+) and Rcpp will never work in S+.
+
+Bill Dunlap
+TIBCO Software
+wdunlap tibco.com
+
+On Wed, Feb 25, 2015 at 7:26 AM, Charles Determan Jr <deter088 at umn.edu>
+wrote:
+
+> I have finally solved the problem.  After coming across another posting
+> http://r.789695.n4.nabble.com/rtools-fstream-error-td4702713.html I
+> discovered the problem.  I needed to include #define R_NO_REMAP at the
+> start of my file and then append Rf_ to any function I use from
+> Rdefines.h.  The package now compiles without error.
+>
+> Thanks for your help Dirk, I know this was a long chain back and forth.
+>
+> Regards,
+> Charles
+>
+> On Wed, Feb 25, 2015 at 7:36 AM, Charles Determan Jr <deter088 at umn.edu>
+> wrote:
+>
+>> My apologies, I should have just did this from the start.  I thought it
+>> may be something simple.  I create a git repo to access the stripped down
+>> package (just the first cpp function and a simple R function).  If you
+>> clone it with:
+>>
+>> git clone https://github.com/cdeterman/test.git
+>>
+>> And try to build it you will get the errors I keep mentioning.  If you
+>> switch #include <RcppArmadillo.h> to <Rcpp.h> it will compile fine.
+>>
+>> I truly do appreciate the help from this list, thank you for taking the
+>> time for this.
+>>
+>> Best regards,
+>> Charles
+>>
+>> On Tue, Feb 24, 2015 at 3:52 PM, Dirk Eddelbuettel <edd at debian.org>
+>> wrote:
+>>
+>>>
+>>> Hi Charles,
+>>>
+>>> I understand this is frustrating for you but we are wasting everybody's
+>>> time
+>>> here.  Can you please prepare a minimally reproducible example?
+>>>
+>>> Also, maybe try some bisection. Does the problem go away after you remove
+>>> bigmemory/bigalgebra?
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>
+>>
+>>
+>>
+>> --
+>> Dr. Charles Determan, PhD
+>> Integrated Biosciences
+>>
+>
+>
+>
+> --
+> Dr. Charles Determan, PhD
+> Integrated Biosciences
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150225/e412e931/attachment-0001.html>
+
+From deter088 at umn.edu  Wed Feb 25 20:57:20 2015
+From: deter088 at umn.edu (Charles Determan Jr)
+Date: Wed, 25 Feb 2015 13:57:20 -0600
+Subject: [Rcpp-devel] RcppArmadillo and Rdefines
+In-Reply-To: <CAF8bMcaFcSaLgLsMEuY5TuCGGEPGGz33Qniph1O-Lfbo-gKB7Q@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+ <CAOLJphky4igbL7_GEi+iq_gs8331Hqs-Jj6R8HLGuJQC0sCbVQ@mail.gmail.com>
+ <CAOLJphkUy340=0NH1dxS3DNRVarVBazvO9MWwEV=GBoBJBYzTA@mail.gmail.com>
+ <CAF8bMcaFcSaLgLsMEuY5TuCGGEPGGz33Qniph1O-Lfbo-gKB7Q@mail.gmail.com>
+Message-ID: <CAOLJphn+YYSb4WDhhRMZscNB6bE-vgySHHB7ZuhBAahty2FSmw@mail.gmail.com>
+
+William,
+
+To close this point on the use of Rdefines.h on the list it was my
+oversight to include all the R header files.  I have now removed them.  I
+initially only retained those headers as the initial package contained
+them.  I was unaware that Rcpp includes the necessary components and I can
+use the Rf_ prefix.  The problem has now been solved as I use the Rf_
+prefix and define R_NO_REMAP.
+
+Regards,
+Charles
+
+On Wed, Feb 25, 2015 at 9:36 AM, William Dunlap <wdunlap at tibco.com> wrote:
+
+> Why do you include "Rdefines.h" in your Rcpp code?  It contains errors
+> (e.g., it leaves the initial Rf_ off of the length function).  Also, in my
+> opinion, it is obsolete, especially for Rcpp code, since it is for writing
+> code that works in R and S (including S+) and Rcpp will never work in S+.
+>
+> Bill Dunlap
+> TIBCO Software
+> wdunlap tibco.com
+>
+> On Wed, Feb 25, 2015 at 7:26 AM, Charles Determan Jr <deter088 at umn.edu>
+> wrote:
+>
+>> I have finally solved the problem.  After coming across another posting
+>> http://r.789695.n4.nabble.com/rtools-fstream-error-td4702713.html I
+>> discovered the problem.  I needed to include #define R_NO_REMAP at the
+>> start of my file and then append Rf_ to any function I use from
+>> Rdefines.h.  The package now compiles without error.
+>>
+>> Thanks for your help Dirk, I know this was a long chain back and forth.
+>>
+>> Regards,
+>> Charles
+>>
+>> On Wed, Feb 25, 2015 at 7:36 AM, Charles Determan Jr <deter088 at umn.edu>
+>> wrote:
+>>
+>>> My apologies, I should have just did this from the start.  I thought it
+>>> may be something simple.  I create a git repo to access the stripped down
+>>> package (just the first cpp function and a simple R function).  If you
+>>> clone it with:
+>>>
+>>> git clone https://github.com/cdeterman/test.git
+>>>
+>>> And try to build it you will get the errors I keep mentioning.  If you
+>>> switch #include <RcppArmadillo.h> to <Rcpp.h> it will compile fine.
+>>>
+>>> I truly do appreciate the help from this list, thank you for taking the
+>>> time for this.
+>>>
+>>> Best regards,
+>>> Charles
+>>>
+>>> On Tue, Feb 24, 2015 at 3:52 PM, Dirk Eddelbuettel <edd at debian.org>
+>>> wrote:
+>>>
+>>>>
+>>>> Hi Charles,
+>>>>
+>>>> I understand this is frustrating for you but we are wasting everybody's
+>>>> time
+>>>> here.  Can you please prepare a minimally reproducible example?
+>>>>
+>>>> Also, maybe try some bisection. Does the problem go away after you
+>>>> remove
+>>>> bigmemory/bigalgebra?
+>>>>
+>>>> Dirk
+>>>>
+>>>> --
+>>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>>
+>>>
+>>>
+>>>
+>>> --
+>>> Dr. Charles Determan, PhD
+>>> Integrated Biosciences
+>>>
+>>
+>>
+>>
+>> --
+>> Dr. Charles Determan, PhD
+>> Integrated Biosciences
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+
+
+-- 
+Dr. Charles Determan, PhD
+Integrated Biosciences
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150225/8ddaaf56/attachment.html>
+
+From Pierre.Gloaguen at ifremer.fr  Thu Feb 26 16:16:49 2015
+From: Pierre.Gloaguen at ifremer.fr (Pierre GLOAGUEN)
+Date: Thu, 26 Feb 2015 16:16:49 +0100
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <21740.62090.796335.765145@max.nulle.part>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+Message-ID: <54EF38E1.1060305@ifremer.fr>
+
+
+Hello everybody,
+
+I have a very simple example
+I have a vector vec_CMA which length is a multiple of 6.
+I want to get the exact same vector, except the last element which is 
+the exponential of the last element of vec_CMA
+The code is the following
+
+//myfun.cpp
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+NumericVector par_CMAtR(NumericVector vec_CMA){
+   int K = (vec_CMA.size())/6;
+   NumericVector out(6*K);
+   out = vec_CMA;
+   out[6*K-1] = exp(vec_CMA[6*K-1]);
+   return out;
+}
+
+I apply the function with the R code
+sourceCpp("myfun.cpp")
+vec_C <- rep(1,6)
+par_CMAtR(vec_C)
+[1] 1 1 1 1 1 2.718282
+
+8
+
+works fine. Except the vec_C is modified too!
+vec_C
+[1] 1 1 1 1 1 2.718282
+
+It's the first time I have this kind of problem. What is wrong in my code?
+Thanks for your help,
+
+Pierre Gloaguen
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150226/97703046/attachment.html>
+
+From jeffpollock9 at gmail.com  Thu Feb 26 16:30:58 2015
+From: jeffpollock9 at gmail.com (Jeffrey Pollock)
+Date: Thu, 26 Feb 2015 15:30:58 +0000
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <54EF38E1.1060305@ifremer.fr>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part> <54EF38E1.1060305@ifremer.fr>
+Message-ID: <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+
+Perhaps use the clone() function?
+
+library(Rcpp)
+
+cppFunction("
+NumericVector par_CMAtR(NumericVector vec_CMA) {
+    NumericVector out = clone(vec_CMA);
+    out[5] = exp(out[5]);
+    return out;
+}
+")
+
+vec_C <- rep(1, 6)
+par_CMAtR(vec_C)
+print(vec_C)
+
+On Thu, Feb 26, 2015 at 3:16 PM, Pierre GLOAGUEN <Pierre.Gloaguen at ifremer.fr
+> wrote:
+
+>
+> Hello everybody,
+>
+> I have a very simple example
+> I have a vector vec_CMA which length is a multiple of 6.
+> I want to get the exact same vector, except the last element which is the
+> exponential of the last element of vec_CMA
+> The code is the following
+>
+> //myfun.cpp
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> // [[Rcpp::export]]
+> NumericVector par_CMAtR(NumericVector vec_CMA){
+>   int K = (vec_CMA.size())/6;
+>   NumericVector out(6*K);
+>   out = vec_CMA;
+>   out[6*K-1] = exp(vec_CMA[6*K-1]);
+>   return out;
+> }
+>
+> I apply the function with the R code
+> sourceCpp("myfun.cpp")
+> vec_C <- rep(1,6)
+> par_CMAtR(vec_C)
+> [1] 1 1 1 1 1 2.718282
+>
+> 8
+>
+> works fine. Except the vec_C is modified too!
+> vec_C
+> [1] 1 1 1 1 1 2.718282
+>
+> It's the first time I have this kind of problem. What is wrong in my code?
+> Thanks for your help,
+>
+> Pierre Gloaguen
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150226/7d2c53f4/attachment.html>
+
+From Pierre.Gloaguen at ifremer.fr  Thu Feb 26 16:37:24 2015
+From: Pierre.Gloaguen at ifremer.fr (Pierre GLOAGUEN)
+Date: Thu, 26 Feb 2015 16:37:24 +0100
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part> <54EF38E1.1060305@ifremer.fr>
+ <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+Message-ID: <54EF3DB4.7000706@ifremer.fr>
+
+Thanks, it works!
+I'm not familiar with C++, is it necessary to always use such a function 
+in C++ or is it because of R/C++ interface?
+Thanks again for your help,
+
+Pierre
+
+Le 26/02/2015 16:30, Jeffrey Pollock a ?crit :
+> Perhaps use the clone() function?
+>
+> library(Rcpp)
+>
+> cppFunction("
+> NumericVector par_CMAtR(NumericVector vec_CMA) {
+>     NumericVector out = clone(vec_CMA);
+>     out[5] = exp(out[5]);
+>     return out;
+> }
+> ")
+>
+> vec_C <- rep(1, 6)
+> par_CMAtR(vec_C)
+> print(vec_C)
+>
+> On Thu, Feb 26, 2015 at 3:16 PM, Pierre GLOAGUEN 
+> <Pierre.Gloaguen at ifremer.fr <mailto:Pierre.Gloaguen at ifremer.fr>> wrote:
+>
+>
+>     Hello everybody,
+>
+>     I have a very simple example
+>     I have a vector vec_CMA which length is a multiple of 6.
+>     I want to get the exact same vector, except the last element which
+>     is the exponential of the last element of vec_CMA
+>     The code is the following
+>
+>     //myfun.cpp
+>     #include <Rcpp.h>
+>     using namespace Rcpp;
+>
+>     // [[Rcpp::export]]
+>     NumericVector par_CMAtR(NumericVector vec_CMA){
+>       int K = (vec_CMA.size())/6;
+>       NumericVector out(6*K);
+>       out = vec_CMA;
+>       out[6*K-1] = exp(vec_CMA[6*K-1]);
+>       return out;
+>     }
+>
+>     I apply the function with the R code
+>     sourceCpp("myfun.cpp")
+>     vec_C <- rep(1,6)
+>     par_CMAtR(vec_C)
+>     [1] 1 1 1 1 1 2.718282
+>
+>     8
+>
+>     works fine. Except the vec_C is modified too!
+>     vec_C
+>     [1] 1 1 1 1 1 2.718282
+>
+>     It's the first time I have this kind of problem. What is wrong in
+>     my code?
+>     Thanks for your help,
+>
+>     Pierre Gloaguen
+>
+>
+>     _______________________________________________
+>     Rcpp-devel mailing list
+>     Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150226/7d1c8ab7/attachment.html>
+
+From edd at debian.org  Thu Feb 26 16:51:16 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 26 Feb 2015 09:51:16 -0600
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <54EF3DB4.7000706@ifremer.fr>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+ <54EF38E1.1060305@ifremer.fr>
+ <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+ <54EF3DB4.7000706@ifremer.fr>
+Message-ID: <21743.16628.401524.633261@max.nulle.part>
+
+
+On 26 February 2015 at 16:37, Pierre GLOAGUEN wrote:
+| Thanks, it works!
+| I'm not familiar with C++, is it necessary to always use such a function in C++
+| or is it because of R/C++ interface?
+
+Please use a Google search (or equivalent) for Rcpp::clone.  This has been
+discussed extensively on numerous occassions.
+
+Dirk
+
+| Thanks again for your help,
+| 
+| Pierre
+| 
+| Le 26/02/2015 16:30, Jeffrey Pollock a ?crit?:
+| 
+|     Perhaps use the clone() function?
+| 
+|     library(Rcpp)
+| 
+|     cppFunction("
+|     NumericVector par_CMAtR(NumericVector vec_CMA) {
+|     ??? NumericVector out = clone(vec_CMA);
+|     ??? out[5] = exp(out[5]);
+|     ??? return out;
+|     }
+|     ")
+| 
+|     vec_C <- rep(1, 6)
+|     par_CMAtR(vec_C)
+|     print(vec_C)
+| 
+|     On Thu, Feb 26, 2015 at 3:16 PM, Pierre GLOAGUEN <
+|     Pierre.Gloaguen at ifremer.fr> wrote:
+| 
+| 
+|         Hello everybody,
+| 
+|         I have a very simple example
+|         I have a vector vec_CMA which length is a multiple of 6.
+|         I want to get the exact same vector, except the last element which is
+|         the exponential of the last element of vec_CMA
+|         The code is the following
+| 
+|         //myfun.cpp
+|         #include <Rcpp.h>
+|         using namespace Rcpp;
+| 
+|         // [[Rcpp::export]]
+|         NumericVector par_CMAtR(NumericVector vec_CMA){
+|         ? int K = (vec_CMA.size())/6;
+|         ? NumericVector out(6*K);
+|         ? out = vec_CMA;
+|         ? out[6*K-1] = exp(vec_CMA[6*K-1]);
+|         ? return out;
+|         }
+| 
+|         I apply the function with the R code
+|         sourceCpp("myfun.cpp")
+|         vec_C <- rep(1,6)
+|         par_CMAtR(vec_C)
+|         [1] 1 1 1 1 1 2.718282
+| 
+|         8
+| 
+|         works fine. Except the vec_C is modified too!
+|         vec_C
+|         [1] 1 1 1 1 1 2.718282
+| 
+|         It's the first time I have this kind of problem. What is wrong in my
+|         code?
+|         Thanks for your help,
+| 
+|         Pierre Gloaguen
+| 
+| 
+|         _______________________________________________
+|         Rcpp-devel mailing list
+|         Rcpp-devel at lists.r-forge.r-project.org
+|         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| 
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Pierre.Gloaguen at ifremer.fr  Thu Feb 26 17:13:36 2015
+From: Pierre.Gloaguen at ifremer.fr (Pierre GLOAGUEN)
+Date: Thu, 26 Feb 2015 17:13:36 +0100
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <21743.16628.401524.633261@max.nulle.part>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part> <54EF38E1.1060305@ifremer.fr>
+ <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+ <54EF3DB4.7000706@ifremer.fr> <21743.16628.401524.633261@max.nulle.part>
+Message-ID: <54EF4630.5090004@ifremer.fr>
+
+Ok, i'll do this.
+Thanks and have a nice day,
+
+Pierre
+
+Le 26/02/2015 16:51, Dirk Eddelbuettel a ?crit :
+> On 26 February 2015 at 16:37, Pierre GLOAGUEN wrote:
+> | Thanks, it works!
+> | I'm not familiar with C++, is it necessary to always use such a function in C++
+> | or is it because of R/C++ interface?
+>
+> Please use a Google search (or equivalent) for Rcpp::clone.  This has been
+> discussed extensively on numerous occassions.
+>
+> Dirk
+>
+> | Thanks again for your help,
+> |
+> | Pierre
+> |
+> | Le 26/02/2015 16:30, Jeffrey Pollock a ?crit :
+> |
+> |     Perhaps use the clone() function?
+> |
+> |     library(Rcpp)
+> |
+> |     cppFunction("
+> |     NumericVector par_CMAtR(NumericVector vec_CMA) {
+> |         NumericVector out = clone(vec_CMA);
+> |         out[5] = exp(out[5]);
+> |         return out;
+> |     }
+> |     ")
+> |
+> |     vec_C<- rep(1, 6)
+> |     par_CMAtR(vec_C)
+> |     print(vec_C)
+> |
+> |     On Thu, Feb 26, 2015 at 3:16 PM, Pierre GLOAGUEN<
+> |     Pierre.Gloaguen at ifremer.fr>  wrote:
+> |
+> |
+> |         Hello everybody,
+> |
+> |         I have a very simple example
+> |         I have a vector vec_CMA which length is a multiple of 6.
+> |         I want to get the exact same vector, except the last element which is
+> |         the exponential of the last element of vec_CMA
+> |         The code is the following
+> |
+> |         //myfun.cpp
+> |         #include<Rcpp.h>
+> |         using namespace Rcpp;
+> |
+> |         // [[Rcpp::export]]
+> |         NumericVector par_CMAtR(NumericVector vec_CMA){
+> |           int K = (vec_CMA.size())/6;
+> |           NumericVector out(6*K);
+> |           out = vec_CMA;
+> |           out[6*K-1] = exp(vec_CMA[6*K-1]);
+> |           return out;
+> |         }
+> |
+> |         I apply the function with the R code
+> |         sourceCpp("myfun.cpp")
+> |         vec_C<- rep(1,6)
+> |         par_CMAtR(vec_C)
+> |         [1] 1 1 1 1 1 2.718282
+> |
+> |         8
+> |
+> |         works fine. Except the vec_C is modified too!
+> |         vec_C
+> |         [1] 1 1 1 1 1 2.718282
+> |
+> |         It's the first time I have this kind of problem. What is wrong in my
+> |         code?
+> |         Thanks for your help,
+> |
+> |         Pierre Gloaguen
+> |
+> |
+> |         _______________________________________________
+> |         Rcpp-devel mailing list
+> |         Rcpp-devel at lists.r-forge.r-project.org
+> |         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> |
+> |
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+From matdzb at gmail.com  Thu Feb 26 18:35:52 2015
+From: matdzb at gmail.com (Matt D.)
+Date: Thu, 26 Feb 2015 18:35:52 +0100
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <54EF3DB4.7000706@ifremer.fr>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part> <54EF38E1.1060305@ifremer.fr>
+ <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+ <54EF3DB4.7000706@ifremer.fr>
+Message-ID: <54EF5978.4090509@gmail.com>
+
+On 2/26/2015 16:37, Pierre GLOAGUEN wrote:
+> Thanks, it works!
+> I'm not familiar with C++, is it necessary to always use such a 
+> function in C++ or is it because of R/C++ interface?
+Hi Pierre!
+
+You're witnessing yet another fascinating difference between (usual in 
+the world of C++) value semantics and (not that usual in the world of 
+C++) reference semantics:
+Compare the difference in behavior of `vector_reference` (using 
+`Rcpp::NumericVector`) and `vector_value` (using `std::vector<double>`) 
+in the code attached below.
+
+To make things clear: no, in C++ you're not (not by default and not in 
+the standard world) supposed to care about (nor use) a function such as 
+`clone` -- this is idiomatic in programming languages with reference 
+semantics, like Java: https://en.wikipedia.org/wiki/Clone_%28Java_method%29
+
+If this makes you feel better: If you're coming from C++ your 
+expectations are perfectly reasonable and this is how any well-designed 
+(as in: not violating the POLS) C++ library (including the C++ standard 
+library) will behave by default.
+Which incidentally brings me to the advice I usually give in these 
+situations: unless you're absolutely dependent on the "features" of 
+`Rcpp::NumericVector` just forget about it and replace all uses with the 
+standard container `std::vector<double>`.
+// Arguably, NumericVector's POLS violation -- as illustrated by the 
+numerous posts raising similar questions -- perhaps isn't necessarily 
+the optimal design choice?
+
+Everything will behave just as you expect and as well-documented in the 
+usual places -- e.g., http://en.cppreference.com/w/cpp/container/vector
+In contrast, `help.search("Rcpp::NumericVector")` happily announces "No 
+results found" at the moment -- and, as mentioned in another reply, 
+you're apparently expected to Google around to find methods for solving 
+problems you wouldn't even encounter otherwise.
+As fun as it can be to learn-via-a-search-engine, if you don't find the 
+curiosities like the aforementioned reference-vs-value-semantics 
+differences _all_ _that_ fascinating, I think you may find yourself more 
+productive and better served by sticking to the standard containers :-)
+
+HTH!
+
+#include <Rcpp.h>
+
+// [[Rcpp::export]]
+Rcpp::NumericVector vector_reference(Rcpp::NumericVector input)
+{
+     Rcpp::NumericVector output(input);
+     if (output.size() >= 1) output[0] = 123;
+     return output;
+}
+
+// [[Rcpp::export]]
+std::vector<double> vector_value(const std::vector<double> & input)
+{
+     std::vector<double> output(input);
+     if (output.size() >= 1) output[0] = 123;
+     return output;
+}
+
+/*** R
+v = rep(1, 6)
+vector_reference(v)
+show(v)
+
+v = rep(1, 6)
+vector_value(v)
+show(v)
+
+#Output:
+
+#> v = rep(1, 6)
+#> vector_reference(v)
+#[1] 123   1   1   1   1   1
+#> show(v)
+#[1] 123   1   1   1   1   1
+
+#> v = rep(1, 6)
+#> vector_value(v)
+#[1] 123   1   1   1   1   1
+#> show(v)
+#[1] 1 1 1 1 1 1
+*/
+
+Best,
+
+Matt
+> Thanks again for your help,
+>
+> Pierre
+>
+> Le 26/02/2015 16:30, Jeffrey Pollock a ?crit :
+>> Perhaps use the clone() function?
+>>
+>> library(Rcpp)
+>>
+>> cppFunction("
+>> NumericVector par_CMAtR(NumericVector vec_CMA) {
+>>     NumericVector out = clone(vec_CMA);
+>>     out[5] = exp(out[5]);
+>>     return out;
+>> }
+>> ")
+>>
+>> vec_C <- rep(1, 6)
+>> par_CMAtR(vec_C)
+>> print(vec_C)
+>>
+>> On Thu, Feb 26, 2015 at 3:16 PM, Pierre GLOAGUEN 
+>> <Pierre.Gloaguen at ifremer.fr <mailto:Pierre.Gloaguen at ifremer.fr>> wrote:
+>>
+>>
+>>     Hello everybody,
+>>
+>>     I have a very simple example
+>>     I have a vector vec_CMA which length is a multiple of 6.
+>>     I want to get the exact same vector, except the last element
+>>     which is the exponential of the last element of vec_CMA
+>>     The code is the following
+>>
+>>     //myfun.cpp
+>>     #include <Rcpp.h>
+>>     using namespace Rcpp;
+>>
+>>     // [[Rcpp::export]]
+>>     NumericVector par_CMAtR(NumericVector vec_CMA){
+>>       int K = (vec_CMA.size())/6;
+>>       NumericVector out(6*K);
+>>       out = vec_CMA;
+>>       out[6*K-1] = exp(vec_CMA[6*K-1]);
+>>       return out;
+>>     }
+>>
+>>     I apply the function with the R code
+>>     sourceCpp("myfun.cpp")
+>>     vec_C <- rep(1,6)
+>>     par_CMAtR(vec_C)
+>>     [1] 1 1 1 1 1 2.718282
+>>
+>>     8
+>>
+>>     works fine. Except the vec_C is modified too!
+>>     vec_C
+>>     [1] 1 1 1 1 1 2.718282
+>>
+>>     It's the first time I have this kind of problem. What is wrong in
+>>     my code?
+>>     Thanks for your help,
+>>
+>>     Pierre Gloaguen
+>>
+>>
+>>     _______________________________________________
+>>     Rcpp-devel mailing list
+>>     Rcpp-devel at lists.r-forge.r-project.org
+>>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150226/817d6af0/attachment.html>
+
+From edd at debian.org  Thu Feb 26 18:59:34 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 26 Feb 2015 11:59:34 -0600
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <54EF5978.4090509@gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part>
+ <54EF38E1.1060305@ifremer.fr>
+ <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+ <54EF3DB4.7000706@ifremer.fr> <54EF5978.4090509@gmail.com>
+Message-ID: <21743.24326.821378.626744@max.nulle.part>
+
+
+On 26 February 2015 at 18:35, Matt D. wrote:
+| Which incidentally brings me to the advice I usually give in these situations:
+| unless you're absolutely dependent on the "features" of `Rcpp::NumericVector`
+| just forget about it and replace all uses with the standard container
+| `std::vector<double>`.
+
+Note that this means you will always force a copy on the way in, and on the
+way out.  That is a guaranteed performance penalty.
+
+So with this you guarantee that someone else will always be able to write
+faster code.  That said, I too like std::vector<>, but I also like arma::vec,
+and those are (in the recent versions) lightweight.
+
+| found" at the moment -- and, as mentioned in another reply, you're apparently
+| expected to Google around to find methods for solving problems you wouldn't
+
+We have called these object "proxy models" since almost certainly 2010.  This
+is referenced in the standard introductory paper (published peer-reviewed in
+JSS in 2011) and included as a vignette in the package. 
+
+If you ignore the avilable documentation, then you may indeed have to "google
+at random" as you claim.  I'd call that a self-inflicted wound.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From matdzb at gmail.com  Thu Feb 26 21:28:25 2015
+From: matdzb at gmail.com (Matt D.)
+Date: Thu, 26 Feb 2015 21:28:25 +0100
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <21743.24326.821378.626744@max.nulle.part>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>	<21740.52147.785683.653278@max.nulle.part>	<CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>	<21740.58431.21948.967025@max.nulle.part>	<CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>	<21740.60749.847351.807857@max.nulle.part>	<CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>	<21740.62090.796335.765145@max.nulle.part>	<54EF38E1.1060305@ifremer.fr>	<CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>	<54EF3DB4.7000706@ifremer.fr>	<54EF5978.4090509@gmail.com>
+ <21743.24326.821378.626744@max.nulle.part>
+Message-ID: <54EF81E9.2070505@gmail.com>
+
+On 2/26/2015 18:59, Dirk Eddelbuettel wrote:
+> On 26 February 2015 at 18:35, Matt D. wrote:
+> | Which incidentally brings me to the advice I usually give in these situations:
+> | unless you're absolutely dependent on the "features" of `Rcpp::NumericVector`
+> | just forget about it and replace all uses with the standard container
+> | `std::vector<double>`.
+>
+> Note that this means you will always force a copy on the way in, and on the
+> way out.  That is a guaranteed performance penalty.
+>
+> So with this you guarantee that someone else will always be able to write
+> faster code.  That said, I too like std::vector<>, but I also like arma::vec,
+> and those are (in the recent versions) lightweight.
+Sure!
+In the realm of all possible general cases with a particular focus on 
+the use-cases not running into the discussed problem and not having to 
+use `clone`: Fair enough -- this is the usual point made when discussing 
+the advantages of shallow (over deep) copy semantics (or even the 
+copy-on-write in-between).
+(In the case under consideration: Not avoidable, since `clone` already 
+does the copy.)
+
+In general, it's certainly a reasonable point that there is a trade-off 
+to be made -- user-friendliness against the potential extra copies (not 
+sure whether this has ever been measured -- as in counting the cases of 
+`clone`-less existing code-bases where this was the actual performance 
+bottleneck).
+
+However, it still violates the POLS even for the users coming from pure R:
+ > f = function(v) { u = w; if (length(u) > 1) { u[1] = 123 }; u }
+ > w = rep(1, 3)
+ > f(w)
+[1] 123   1   1
+ > w
+[1] 1 1 1
+
+In the "general" scenario it's not really user-friendly to abandon R 
+(and well as C++) semantics by default.
+Perhaps there's another solution -- continuing with the proxy aspect:
+>
+> | found" at the moment -- and, as mentioned in another reply, you're apparently
+> | expected to Google around to find methods for solving problems you wouldn't
+>
+> We have called these object "proxy models" since almost certainly 2010.  This
+> is referenced in the standard introductory paper (published peer-reviewed in
+> JSS in 2011) and included as a vignette in the package.
+>
+> If you ignore the avilable documentation, then you may indeed have to "google
+> at random" as you claim.  I'd call that a self-inflicted wound.
+Sure: At the same time, to give a somewhat related example, 
+`std::vector<bool>` has been known to be a proxied container since at 
+least 1998 -- when the original (pre-standard) STL's implementation has 
+been partially adopted with the choice to specialize to what used to be 
+a `bit_vector` instead of following the usual container requirements 
+(with some earlier / pre-standard implementations available): 
+https://www.sgi.com/tech/stl/bit_vector.html
+
+Just the same, as of 2013 programmers still weren't 100% clear on the 
+implications:
+http://stackoverflow.com/questions/17794569/why-is-vectorbool-not-a-stl-container
+I imagine blaming these programmers for "ignoring" ISO/IEC 14882 and 
+advising them to use a search engine after the failure to read it in its 
+entirety is certainly _an_ approach.
+After all, this design has been also chosen with optimization in mind 
+(albeit with space-efficient allocation as the goal).
+
+At the same time, nowadays the design choice made for 
+`std::vector<bool>` is referred to (variably) as "totally broken", a 
+"defect", a "mistake", or an "abomination":
+http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2007/n2160.html
+https://www.informit.com/guides/content.aspx?g=cplusplus&seqNum=98
+http://isocpp.org/blog/2012/11/on-vectorbool
+http://www.gotw.ca/publications/mill09.htm
+
+Today `std::vector<bool>` is a textbook example of premature 
+optimization in design (http://www.gotw.ca/gotw/050.htm) -- with all the 
+usual caveats:
+
+"std::vector<bool> forces a specific optimization on all users by 
+enshrining it in the standard. That's not a good idea; different users 
+have different requirements, and now all users of vector<bool> must pay 
+the performance penalty even if they don't want or need the space savings.
+
+Bottom line: If you care more about speed than you do about size, you 
+shouldn't use std::vector<bool>. Instead, you should hack around this 
+optimization by using a std::vector<char> or the like instead, which is 
+unfortunate but still the best you can do."
+
+Perhaps a better self-documenting code could attempt to help the users 
+by having, say, `Rcpp::NumericVectorView` (or 
+`Rcpp::NumericVectorProxy`) used for view (proxy) purposes -- and 
+sticking with the default (expected by R -- as well as C++ -- 
+programmers) for `Rcpp::NumericVector`?
+
+(Alternatively, making `f(Rcpp::NumericVector & v)` signify the need for 
+mutation, while keeping the expected copied-value behavior for 
+`f(Rcpp::NumericVector v)`; or is implementing this inherently blocked 
+by the way RCpp has to interoperate with R through SEXPs? Similarly for 
+`f(std::vector<double> & v)` vs `f(std::vector<double> v)` vs `f(const 
+std::vector<double> & v)`?).
+
+As it stands, despite its name, `Rcpp::NumericVector` isn't really a 
+numeric vector. As you rightly point out, it is a view (or a proxy). 
+This is surprising for a type named `Rcpp::NumericVector`. I don't think 
+it's unreasonable for the users to ask questions given the source of the 
+astonishment. Just as it isn't surprising to see users confused about 
+`std::vector<bool>` some decades after its behavior has been 
+standardized. Rcpp is a relatively young project, perhaps this will 
+change over time...
+
+The trade-off in general case of "what's the good default" seems to be 
+pitting copy-optimization against user-friendliness; the current 
+(reference semantics) approach presumes an unstated assumption that the 
+regular users will know about `Rcpp::NumericVector` being different (and 
+the need to `clone`) and that performance experts won't be capable of 
+optimizing their code if this isn't done for them.
+
+Perhaps leaving regular users with a regularly behaving 
+`Rcpp::NumericVector` by default -- while leaving performance experts 
+the option to use `Rcpp::NumericVectorView` on as-needed basis -- would 
+cut the amount of help required in the first place?
+
+Granted: to an extent this is all academic -- chances are there is some 
+code somewhere relying on this and this ship has sailed 
+(http://xkcd.com/1172/) (unless there's a potential for redesign / 
+backward incompatibility in the future).
+
+That being said, as for the "what to do by default" advice, for anyone 
+finding themselves in a need to `clone` -- `std::vector<double>` seems 
+like the safer, better documented option.
+
+Best,
+
+Matt
+>
+> Dirk
+>
+
+
+From xian at unm.edu  Thu Feb 26 23:05:14 2015
+From: xian at unm.edu (Christian Gunning)
+Date: Thu, 26 Feb 2015 17:05:14 -0500
+Subject: [Rcpp-devel] Rcpp-devel Digest, Vol 64, Issue 16
+In-Reply-To: <1dc9403b59fe466ba7853b3074d88fac@CO1PR07MB395.namprd07.prod.outlook.com>
+References: <1dc9403b59fe466ba7853b3074d88fac@CO1PR07MB395.namprd07.prod.outlook.com>
+Message-ID: <CADNH-PsR13Gky+cV2chudszs2pMQEXyns5kX=B6-EK4v0O4aEQ@mail.gmail.com>
+
+I thought I'd step in and grab this one :)
+
+"In general, it's certainly a reasonable point that there is a trade-off
+to be made -- user-friendliness against the potential extra copies (not
+sure whether this has ever been measured -- as in counting the cases of
+`clone`-less existing code-bases where this was the actual performance
+bottleneck)."
+
+Short answer is yes, benefits are well documented via the list.  In
+short, the relative effect size grows with the size of the object
+cloned, and the number of times cloned.  As you might expect.  It's
+pretty easy to cook up a trivial example to test this for yourself -
+try summing a 1e3*1e3 matrix 1e4 times, for example.
+
+"That being said, as for the "what to do by default" advice, for anyone
+finding themselves in a need to `clone` -- `std::vector<double>` seems
+like the safer, better documented option."
+
+R.e. "default options", do things work as you expect if you follow
+const-correctness?
+http://isocpp.org/wiki/faq/const-correctness
+It seems like one option is to tell the compiler what you want *not*
+changed (forcing you to clone anything that should be changed).  This
+is a genuine question.
+
+To answer your implied concerns:
+
+* Yes, that ship has sailed.  Many packages use Rcpp, and it's been
+around for years.
+
+* Rcpp is much *easier* than writing C code for R.  There's a minimum
+expectation of developer experience for Rcpp users.  That minimum
+level is way *lower* than alternate high-performance R/C integration
+methods, but some google-fu / gmane searching is not an unreasonable
+request.
+
+* Rcpp is the work of a relatively small number of individuals working
+on a mostly (all?) volunteer basis.  If you don't like the tools,
+you're welcome to make something else.
+http://xkcd.com/927/
+
+* Yes, the in-R documentation of is sometimes lacking (e.g.,
+?"Rcpp::NumericVector").  The mailing list support, however, is
+generally very responsive, and is considered congenial compared to
+R-help.  In addition, there are a number of published manuscripts,
+vignettes, unit-tests, and a gallery.  Again, you're welcome to help
+organize this, write help manuals for R, etc.
+
+hth,
+-Christian
+
+-- 
+A man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!
+
+From nate at verse.com  Thu Feb 26 23:28:54 2015
+From: nate at verse.com (Nathan Kurz)
+Date: Thu, 26 Feb 2015 14:28:54 -0800
+Subject: [Rcpp-devel] function modifying it self its argument
+In-Reply-To: <54EF81E9.2070505@gmail.com>
+References: <CAOLJphki_DHe+=SqFvS41rFNj4NxVQYU+_H2wCY-=KgeH+kn4Q@mail.gmail.com>
+ <21740.52147.785683.653278@max.nulle.part>
+ <CAOLJph=hJeMC0DtHJ7KA+TQB31nN_0rAuSth68rLpqs4opqJTw@mail.gmail.com>
+ <21740.58431.21948.967025@max.nulle.part>
+ <CAOLJphmR=bhwcpaGG8cXrtt9rQE+fy=XyBY-Ut4vADaFiEaO6g@mail.gmail.com>
+ <21740.60749.847351.807857@max.nulle.part>
+ <CAOLJphn-445Jg2c8qrHCmQm_77c=TkZA-QzsjYdUdupJ_0b4wA@mail.gmail.com>
+ <21740.62090.796335.765145@max.nulle.part> <54EF38E1.1060305@ifremer.fr>
+ <CAG992jJy2yRVAXa-USvjFqV4HeDMghgvMoPpQ_qPSeoLK6VD5g@mail.gmail.com>
+ <54EF3DB4.7000706@ifremer.fr> <54EF5978.4090509@gmail.com>
+ <21743.24326.821378.626744@max.nulle.part> <54EF81E9.2070505@gmail.com>
+Message-ID: <CAFAN8vzO6VFMO53xvvJogPA8+d1H5iSzLA_tREuXE5TsYMSjiw@mail.gmail.com>
+
+On Thu, Feb 26, 2015 at 12:28 PM, Matt D. <matdzb at gmail.com> wrote:
+> On 2/26/2015 18:59, Dirk Eddelbuettel wrote:
+>>
+>> On 26 February 2015 at 18:35, Matt D. wrote:
+>> | Which incidentally brings me to the advice I usually give in these
+>> situations:
+>> | unless you're absolutely dependent on the "features" of
+>> `Rcpp::NumericVector`
+>> | just forget about it and replace all uses with the standard container
+>> | `std::vector<double>`.
+>>
+>> Note that this means you will always force a copy on the way in, and on
+>> the
+>> way out.  That is a guaranteed performance penalty.
+>
+> Perhaps a better self-documenting code could attempt to help the users by
+> having, say, `Rcpp::NumericVectorView` (or `Rcpp::NumericVectorProxy`) used
+> for view (proxy) purposes -- and sticking with the default (expected by R --
+> as well as C++ -- programmers) for `Rcpp::NumericVector`?
+
+>From the perspective of a performance oriented C programmer using Rcpp
+to improve performance of R algorithms, Matt's approach would be
+completely backward to my expectation.   Optimized computation is
+cheap enough to rarely be a bottleneck, but memory access is
+expensive.  Garbage collection is one of R's weakest spots.   Almost
+my entire reason for dropping to Rcpp is to avoid unnecessary copies.
+
+But I agree with Matt that things could be clearer.  The main issue I
+have is the interaction with R's "multiple names" behavior.   If the
+vector is already multi-named, a copy is silently made as part of
+passing it.  This is "correct" if you are making changes in place, but
+if you are calling a function that operates read-only on a multi-GB
+vector in a loop, this can destroy performance.
+
+The best solution I've found is to proactively make a single copy
+outside the loop by doing some sort of null-op (like A = A + 0), but
+this certainly feels hackish.   And unless you do this everywhere, it
+doesn't solve the problem that a small change elsewhere in your
+program can drastically alter performance in the critical section.
+
+> (Alternatively, making `f(Rcpp::NumericVector & v)` signify the need for
+> mutation, while keeping the expected copied-value behavior for
+> `f(Rcpp::NumericVector v)`; or is implementing this inherently blocked by
+> the way RCpp has to interoperate with R through SEXPs? Similarly for
+> `f(std::vector<double> & v)` vs `f(std::vector<double> v)` vs `f(const
+> std::vector<double> & v)`?).
+
+I like this approach.  Even better would be if it paid attention to
+'const' such that no copy was made even if the R function call rules
+would normally require it:
+
+f(Rcpp::NumericVector &v):
+  no copy unless multi-named SEXP
+
+f(Rcpp::NumericVector v) :
+  copy unless no outside references possible (temp var)
+
+f(Rcpp::NumericVector const v):
+  read only, no copy ever, blows up if contract violated
+
+In my world, it would be wonderful if the "&v" version had an option
+that either printed a warning or returned an error if a copy was
+required to pass the argument.   I don't know if "const &v" could be
+shoehorned into providing this, or if it would be clear enough.
+
+--nate
+
+From edd at debian.org  Fri Feb 27 04:10:13 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 26 Feb 2015 21:10:13 -0600
+Subject: [Rcpp-devel] [ANN] RcppArmadillo 0.4.650.1.1 (and even 0.4.650.2.0)
+Message-ID: <21743.57365.363809.206504@max.nulle.part>
+
+
+New RcppArmadillo relase(s) -- I just posted the following (with proper
+links and highlighting) to  
+  http://dirk.eddelbuettel.com/blog/2015/02/26#rcpparmadillo_0.4.650.1.1
+
+In short, a new RcppArmadillo is on CRAN, and an even newer is available via
+a drat repo.  See other recent posts on my blog about drat -- a helpful new tool.
+
+Dirk
+
+
+  Thu, 26 Feb 2015
+
+  RcppArmadillo 0.4.650.1.1 (and also 0.4.650.2.0)
+
+  A new Armadillo release 4.650.1 was released by Conrad a few days ago.
+  Armadillo is a powerful and expressive C++ template library for linear
+  algebra aiming towards a good balance between speed and ease of use with a
+  syntax deliberately close to a Matlab.
+
+  It turned out that this release had one shortcoming with respect to the
+  C++11 RNG initializations in the R use case (where we need to protect the
+  users from the C++98 RNG deemed unsuitable by the CRAN gatekeepers). And
+  this lead to upstream release 4.650.1 which we wrapped into RcppArmadillo
+  0.4.650.1.1. As before this, was tested against all 107 reverse
+  dependencies of RcppArmadillo on the CRAN repo.
+
+  This version is now on CRAN, and was just uploaded to Debian. Its changes
+  are summarized below based on the NEWS.Rd file.
+
+   Changes in RcppArmadillo version 0.4.650.1.1 (2015-02-25)
+
+      * Upgraded to Armadillo release Version 4.650.1 ("Intravenous Caffeine
+        Injector")
+
+           * added randg() for generating random values from gamma
+             distributions (C++11 only)
+
+           * added .head_rows() and .tail_rows() to submatrix views
+
+           * added .head_cols() and .tail_cols() to submatrix views
+
+           * expanded eigs_sym() to optionally calculate eigenvalues with
+             smallest/largest algebraic values fixes for handling of sparse
+             matrices
+
+      * Applied small correction to main header file to set up C++11 RNG
+        whether or not the alternate RNG (based on R, our default) is used
+
+  Now, it turns out that another small fix was needed for the corner case of
+  a submatrix within a submatrix, ie V.subvec(1,10).tail(5). I decided not
+  to re-release this to CRAN given the CRAN Repository Policy preference for
+  releases "no more than every 1-2 months".
+
+  But fear not, for we now have drat. I created a drat package repository in
+  the RcppCore account (to not put a larger package into my main drat
+  repository often used via a fork to initialize a drat). So now with these
+  two simple commands
+
+  ## if needed, first install 'drat' via:   install.packages("drat")
+  drat:::add("RcppCore")
+  update.packages()
+
+  you will get the newest RcppArmadillo via this drat package repository.
+  And course install.packages("RcppArmadillo") would also work, but takes
+  longer to type :)
+
+  Lastly, courtesy of CRANberries, there is also a diffstat report for the
+  most recent CRAN release. As always, more detailed information is on the
+  RcppArmadillo page. Questions, comments etc should go to the rcpp-devel
+  mailing list off the R-Forge page.
+
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From zeloff+rcpp at zeloff.org  Sat Feb 28 20:34:33 2015
+From: zeloff+rcpp at zeloff.org (Ze Loff)
+Date: Sat, 28 Feb 2015 19:34:33 +0000
+Subject: [Rcpp-devel] Rcpp Armadillo's configure script's hashbang
+Message-ID: <20150228193431.GA16631@scomber.wlan.phistat.com>
+
+
+Hi
+
+Can #!/bin/bash be replaced by something more portable (e.g. #!/bin/sh)
+on the configure script? Since I don't think that there are any
+bash-isms on the configure script, and that most UNIX-like OS have
+either some version of the Bourne Shell or link /bin/sh to a compatible
+shell (e.g. OS X hardlinks /bin/sh to /bin/bash), I believe switching to
+#!/bin/sh would improve portability.
+
+(In my case, installation of RcppArmadillo failed on OpenBSD since I
+don't have bash installed, but it installed fine from source after
+changing to #!/bin/sh)
+
+Cheers
+Z?
+
+-- 
+
+From edd at debian.org  Sat Feb 28 20:55:43 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 28 Feb 2015 13:55:43 -0600
+Subject: [Rcpp-devel] Rcpp Armadillo's configure script's hashbang
+In-Reply-To: <20150228193431.GA16631@scomber.wlan.phistat.com>
+References: <20150228193431.GA16631@scomber.wlan.phistat.com>
+Message-ID: <21746.7487.922241.529038@max.nulle.part>
+
+
+On 28 February 2015 at 19:34, Ze Loff wrote:
+| 
+| Hi
+| 
+| Can #!/bin/bash be replaced by something more portable (e.g. #!/bin/sh)
+| on the configure script? Since I don't think that there are any
+| bash-isms on the configure script, and that most UNIX-like OS have
+| either some version of the Bourne Shell or link /bin/sh to a compatible
+| shell (e.g. OS X hardlinks /bin/sh to /bin/bash), I believe switching to
+| #!/bin/sh would improve portability.
+| 
+| (In my case, installation of RcppArmadillo failed on OpenBSD since I
+| don't have bash installed, but it installed fine from source after
+| changing to #!/bin/sh)
+
+That is rather unlikely as I explained here 
+
+   https://github.com/RcppCore/RcppArmadillo/pull/35
+
+when rejecting that PR. Which came unannounced and undiscussed, which is
+generally a bad idea; always preferable to file an issue ticket fist, or
+discuss here as you did.
+
+Changing this creates extra work for me as I need to clean the shell script
+of things bash has for free.  I happen to like bash as a basic shell.
+
+If your system is large enough to have room for R and extra packages, I'd
+argue that it should have room for bash too: per the respective Debian/Ubuntu
+packages size, bash is actually smaller than RcppArmadillo.  And if you
+really can't then you can always locally patch the tarball.
+
+At some point this test will go away and we'll just assume a good enough LAPACK.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From zeloff+rcpp at zeloff.org  Sat Feb 28 22:11:02 2015
+From: zeloff+rcpp at zeloff.org (=?iso-8859-1?Q?Z=E9?= Loff)
+Date: Sat, 28 Feb 2015 21:11:02 +0000
+Subject: [Rcpp-devel] Rcpp Armadillo's configure script's hashbang
+In-Reply-To: <21746.7487.922241.529038@max.nulle.part>
+References: <20150228193431.GA16631@scomber.wlan.phistat.com>
+ <21746.7487.922241.529038@max.nulle.part>
+Message-ID: <20150228211102.GB16631@scomber.wlan.phistat.com>
+
+On Sat, Feb 28, 2015 at 01:55:43PM -0600, Dirk Eddelbuettel wrote:
+> 
+> On 28 February 2015 at 19:34, Ze Loff wrote:
+> | 
+> | Hi
+> | 
+> | Can #!/bin/bash be replaced by something more portable (e.g. #!/bin/sh)
+> | on the configure script? Since I don't think that there are any
+> | bash-isms on the configure script, and that most UNIX-like OS have
+> | either some version of the Bourne Shell or link /bin/sh to a compatible
+> | shell (e.g. OS X hardlinks /bin/sh to /bin/bash), I believe switching to
+> | #!/bin/sh would improve portability.
+> | 
+> | (In my case, installation of RcppArmadillo failed on OpenBSD since I
+> | don't have bash installed, but it installed fine from source after
+> | changing to #!/bin/sh)
+> 
+> That is rather unlikely as I explained here 
+> 
+>    https://github.com/RcppCore/RcppArmadillo/pull/35
+> 
+> when rejecting that PR. Which came unannounced and undiscussed, which
+> is generally a bad idea; always preferable to file an issue ticket
+> fist, or discuss here as you did.
+
+Sorry for not noticing this first and (thus) for asking a (somewhat)
+already answered question.
+> 
+> Changing this creates extra work for me as I need to clean the shell
+> script of things bash has for free.  I happen to like bash as a basic
+> shell.
+
+If I save you the trouble of cleaning the script, would you consider it?
+
+> If your system is large enough to have room for R and extra packages,
+> I'd argue that it should have room for bash too: per the respective
+> Debian/Ubuntu packages size, bash is actually smaller than
+> RcppArmadillo.  And if you really can't then you can always locally
+> patch the tarball.
+
+It's not a matter of space, its first of all a matter of principle
+(installing a new shell interpreter because of a 19 lines long configure
+script on an R package, really?), second a matter of improving
+portability (and I have seen by now I am hardly the first to come up
+with this problem) and third (although hardly) a matter of security (I
+could live without having to worry about the security holes in another
+shell interpreter).
+
+Also, on github's issue #15 you mention "side-effects with other CRAN
+installations". Does this mean that there is something about CRAN that
+mandates using bash?
+
+In a nutshell, if using bash its just a matter of convenience or it not
+being worth the trouble of rewriting the script -- and please don't take
+this the wrong way, I deeply respect your right to prefer bash and
+having more useful things do to with your time than fixing this -- I'll
+be glad to take that work off your hands. If there are unavoidable
+'technical' issues with other shell interpreters that make bash a strict
+requirement, I'll glady drop the issue and go back to patching.
+
+All the best
+Z?
+
+> At some point this test will go away and we'll just assume a good
+> enough LAPACK.
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Feb 28 22:42:41 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 28 Feb 2015 15:42:41 -0600
+Subject: [Rcpp-devel] Rcpp Armadillo's configure script's hashbang
+In-Reply-To: <20150228211102.GB16631@scomber.wlan.phistat.com>
+References: <20150228193431.GA16631@scomber.wlan.phistat.com>
+ <21746.7487.922241.529038@max.nulle.part>
+ <20150228211102.GB16631@scomber.wlan.phistat.com>
+Message-ID: <21746.13905.340258.487442@max.nulle.part>
+
+
+As I tried to explain, I stand behind this as maintainer interfacing
+gatekeepers enforcing coding and package standards at both Debian and CRAN.
+
+I have hard-earned experience in dealing with these folks and standards
+since, respectively, the mid 1990s and early 2000s. And not-infrequently did
+I have to dumb-down shell scripts to make them work with the minimal /bin/sh
+implementations.  More so at Debian after /bin/sh (from ash) became the
+default shell, but IIRC also at CRAN.
+
+And I plainly don't like those.  I simply prefer bash and somewhat richer
+shells.  So bash it is.  The installed bash package is still smaller than
+RcppArmadillo. 
+
+As I said, that configure script will go away at some point too, so I'd
+really prefer if we could drop the issue now.
+
+So after having explained this in
+ -- the configure shell script itself in two paragraphs
+ -- a lengthy thread in the PR #15 which I rejected
+ -- this email thread
+may I ask that we table this?
+
+Thanks,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

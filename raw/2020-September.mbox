@@ -1,0 +1,1814 @@
+From akhilakollasrinu424jf at gmail.com  Fri Sep  4 20:24:54 2020
+From: akhilakollasrinu424jf at gmail.com (Akhila Chowdary Kolla)
+Date: Fri, 4 Sep 2020 11:24:54 -0700
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+Message-ID: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+
+Hello Everyone,
+
+I am trying to use NA_REAL, NA_INTEGER, and R_NaN in my CPP code(doesn't
+use R main). When I compile and run my code,* NA_REAL* it gives the value
+as *nan* and *NA_INTEGER* gives the value as *-2147483648, and R_NaN as 0*.
+
+I used the following code(from Rcpp FAQ):
+Rcpp::IntegerVector Missing_I() {
+  Rcpp::IntegerVector v(1);
+  v[0] = NA_INTEGER; // NA
+  return v;
+}
+Rcpp::NumericVector Missing_N() {
+  Rcpp::NumericVector v(4);
+  v[0] = R_NegInf; // -Inf
+  v[1] = NA_REAL; // NA
+  v[2] = R_PosInf; // Inf
+  v[3] = R_NaN; // nan
+  return v;
+}
+
+When I compile the functions using sourceCpp() I get the output as expected:
+> sourceCpp("~/R/RcppDeepState/inst/extdata/filesave.cpp")
+> Missing_I()
+[1] NA
+> Missing_N()
+[1] -Inf   NA  Inf  NaN
+
+But when I compile the code using the TestHarness it gives me the following
+output:
+missing_n values: -inf nan inf 0
+missing_i values: -2147483648
+
+I saved the above functions(Missing_I, Missing_N) in a header file and made
+a call to those functions from the testharness:
+
+TEST(deepstate_test,datatype){
+RInside();
+Rcpp::IntegerVector missing_i = Missing_I();
+std::cout <<"missing_i values: "<< missing_i << std::endl;
+Rcpp::NumericVector missing_n = Missing_N();
+std::cout <<"missing_n values: "<< missing_n << std::endl;
+}
+
+How can I get the results as expected? Any help is appreciated.
+
+Thanks,
+Akhila
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200904/f3b7c88e/attachment.html>
+
+From edd at debian.org  Sat Sep  5 00:15:23 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 4 Sep 2020 17:15:23 -0500
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+In-Reply-To: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+References: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+Message-ID: <24402.48251.810419.213636@rob.eddelbuettel.com>
+
+
+On 4 September 2020 at 11:24, Akhila Chowdary Kolla wrote:
+| Hello Everyone,
+| 
+| I am trying to use NA_REAL, NA_INTEGER, and R_NaN in my CPP code(doesn't
+| use R main). When I compile and run my code,* NA_REAL* it gives the value
+| as *nan* and *NA_INTEGER* gives the value as *-2147483648, and R_NaN as 0*.
+| 
+| I used the following code(from Rcpp FAQ):
+| Rcpp::IntegerVector Missing_I() {
+|   Rcpp::IntegerVector v(1);
+|   v[0] = NA_INTEGER; // NA
+|   return v;
+| }
+| Rcpp::NumericVector Missing_N() {
+|   Rcpp::NumericVector v(4);
+|   v[0] = R_NegInf; // -Inf
+|   v[1] = NA_REAL; // NA
+|   v[2] = R_PosInf; // Inf
+|   v[3] = R_NaN; // nan
+|   return v;
+| }
+| 
+| When I compile the functions using sourceCpp() I get the output as expected:
+| > sourceCpp("~/R/RcppDeepState/inst/extdata/filesave.cpp")
+| > Missing_I()
+| [1] NA
+| > Missing_N()
+| [1] -Inf   NA  Inf  NaN
+| 
+| But when I compile the code using the TestHarness it gives me the following
+| output:
+| missing_n values: -inf nan inf 0
+| missing_i values: -2147483648
+| 
+| I saved the above functions(Missing_I, Missing_N) in a header file and made
+| a call to those functions from the testharness:
+| 
+| TEST(deepstate_test,datatype){
+| RInside();
+| Rcpp::IntegerVector missing_i = Missing_I();
+| std::cout <<"missing_i values: "<< missing_i << std::endl;
+| Rcpp::NumericVector missing_n = Missing_N();
+| std::cout <<"missing_n values: "<< missing_n << std::endl;
+| }
+| 
+| How can I get the results as expected? Any help is appreciated.
+
+Am I understanding you correctly that you would like _the R behaviour_ but in
+a non-R context (such as a catch or Google gtest harness) ?  You can't as
+easily as R actively adds some extensions. I.e. IEEE 754 defines this for
+doubles, but "nobody" besides R does it for Int. So you would have to add
+your print function.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From akhilakollasrinu424jf at gmail.com  Wed Sep  9 01:03:51 2020
+From: akhilakollasrinu424jf at gmail.com (Akhila Chowdary Kolla)
+Date: Tue, 8 Sep 2020 16:03:51 -0700
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+In-Reply-To: <24402.48251.810419.213636@rob.eddelbuettel.com>
+References: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+ <24402.48251.810419.213636@rob.eddelbuettel.com>
+Message-ID: <CAM0Afv2nbJb+=hZht3oh5fPVDyXoZfq5uhq++nW0uvqsfwpx-w@mail.gmail.com>
+
+Thanks a lot for your quick response, Dirk. Instead of printing the vector
+values using std::cout I am planning to serialize those objects using
+saveRDS and trying to retrieve the stored values using readRDS. I am trying
+to make use of the RInside instance to make a call to R functions. Although
+the class variable is recognized as an integer in the below example, when I
+use readRDS it says unknown input format. Is there a method to serialize
+Rcpp objects using RInside from a testharness?
+
+*Example:*
+TEST(deepstate_test,datatype){
+RInside R;
+R["ms"] = 5;
+std::string cmd = "cat(class(ms));saveRDS(ms,\"mtest.Rds\");
+readRDS(\"mtest.Rds\")";
+R.parseEval(cmd);
+}
+*Output:*
+akhila at akhila-VirtualBox:~$ ./newtest
+
+
+
+
+
+
+
+*TRACE: Running: deepstate_test_datatype from newtest.cpp(6)EXTERNAL:
+integerEXTERNAL: �EXTERNAL: Error in readRDS("mtest.Rds") : unknown input
+formatterminate called after throwing an instance of 'std::runtime_error'
+what():  Error evaluating: cat(class(ms));saveRDS(ms,"mtest.Rds");
+readRDS("mtest.Rds")ERROR: Failed: deepstate_test_datatype*
+
+Also, I tried using the below code in my Cpp function. I still get the same
+unknown input format error.
+
+Rcpp::NumericMatrix mat = RcppDeepState_NumericMatrix();
+Environment base("package:base");
+Function saveRDS = base["saveRDS"];
+saveRDS(mat,Named("file","mat.RDs"));
+Function readRDS = base["readRDS"];
+readRDS("mat.RDs");
+
+Any help is appreciated. Thanks in advance
+
+Regards,
+Akhila Chowdary Kolla
+
+On Fri, Sep 4, 2020 at 3:15 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 4 September 2020 at 11:24, Akhila Chowdary Kolla wrote:
+> | Hello Everyone,
+> |
+> | I am trying to use NA_REAL, NA_INTEGER, and R_NaN in my CPP code(doesn't
+> | use R main). When I compile and run my code,* NA_REAL* it gives the value
+> | as *nan* and *NA_INTEGER* gives the value as *-2147483648, and R_NaN as
+> 0*.
+> |
+> | I used the following code(from Rcpp FAQ):
+> | Rcpp::IntegerVector Missing_I() {
+> |   Rcpp::IntegerVector v(1);
+> |   v[0] = NA_INTEGER; // NA
+> |   return v;
+> | }
+> | Rcpp::NumericVector Missing_N() {
+> |   Rcpp::NumericVector v(4);
+> |   v[0] = R_NegInf; // -Inf
+> |   v[1] = NA_REAL; // NA
+> |   v[2] = R_PosInf; // Inf
+> |   v[3] = R_NaN; // nan
+> |   return v;
+> | }
+> |
+> | When I compile the functions using sourceCpp() I get the output as
+> expected:
+> | > sourceCpp("~/R/RcppDeepState/inst/extdata/filesave.cpp")
+> | > Missing_I()
+> | [1] NA
+> | > Missing_N()
+> | [1] -Inf   NA  Inf  NaN
+> |
+> | But when I compile the code using the TestHarness it gives me the
+> following
+> | output:
+> | missing_n values: -inf nan inf 0
+> | missing_i values: -2147483648
+> |
+> | I saved the above functions(Missing_I, Missing_N) in a header file and
+> made
+> | a call to those functions from the testharness:
+> |
+> | TEST(deepstate_test,datatype){
+> | RInside();
+> | Rcpp::IntegerVector missing_i = Missing_I();
+> | std::cout <<"missing_i values: "<< missing_i << std::endl;
+> | Rcpp::NumericVector missing_n = Missing_N();
+> | std::cout <<"missing_n values: "<< missing_n << std::endl;
+> | }
+> |
+> | How can I get the results as expected? Any help is appreciated.
+>
+> Am I understanding you correctly that you would like _the R behaviour_ but
+> in
+> a non-R context (such as a catch or Google gtest harness) ?  You can't as
+> easily as R actively adds some extensions. I.e. IEEE 754 defines this for
+> doubles, but "nobody" besides R does it for Int. So you would have to add
+> your print function.
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200908/24e264f4/attachment.html>
+
+From edd at debian.org  Wed Sep  9 01:11:42 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Sep 2020 18:11:42 -0500
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+In-Reply-To: <CAM0Afv2nbJb+=hZht3oh5fPVDyXoZfq5uhq++nW0uvqsfwpx-w@mail.gmail.com>
+References: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+ <24402.48251.810419.213636@rob.eddelbuettel.com>
+ <CAM0Afv2nbJb+=hZht3oh5fPVDyXoZfq5uhq++nW0uvqsfwpx-w@mail.gmail.com>
+Message-ID: <24408.4014.138965.503171@rob.eddelbuettel.com>
+
+
+On 8 September 2020 at 16:03, Akhila Chowdary Kolla wrote:
+| Thanks a lot for your quick response, Dirk. Instead of printing the vector
+| values using std::cout I am planning to serialize those objects using
+| saveRDS and trying to retrieve the stored values using readRDS. I am trying
+| to make use of the RInside instance to make a call to R functions. Although
+| the class variable is recognized as an integer in the below example, when I
+| use readRDS it says unknown input format. Is there a method to serialize
+| Rcpp objects using RInside from a testharness?
+| 
+| *Example:*
+| TEST(deepstate_test,datatype){
+| RInside R;
+| R["ms"] = 5;
+| std::string cmd = "cat(class(ms));saveRDS(ms,\"mtest.Rds\");
+| readRDS(\"mtest.Rds\")";
+| R.parseEval(cmd);
+| }
+| *Output:*
+| akhila at akhila-VirtualBox:~$ ./newtest
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| *TRACE: Running: deepstate_test_datatype from newtest.cpp(6)EXTERNAL:
+| integerEXTERNAL: �EXTERNAL: Error in readRDS("mtest.Rds") : unknown input
+| formatterminate called after throwing an instance of 'std::runtime_error'
+| what():  Error evaluating: cat(class(ms));saveRDS(ms,"mtest.Rds");
+| readRDS("mtest.Rds")ERROR: Failed: deepstate_test_datatype*
+| 
+| Also, I tried using the below code in my Cpp function. I still get the same
+| unknown input format error.
+| 
+| Rcpp::NumericMatrix mat = RcppDeepState_NumericMatrix();
+| Environment base("package:base");
+| Function saveRDS = base["saveRDS"];
+| saveRDS(mat,Named("file","mat.RDs"));
+| Function readRDS = base["readRDS"];
+| readRDS("mat.RDs");
+| 
+| Any help is appreciated. Thanks in advance
+
+That leaves me a little puzzled. No immediate suggestion.
+
+Restoring an R-written RDS with another R session should always work.  Strange.
+
+Dirk
+ 
+| Regards,
+| Akhila Chowdary Kolla
+| 
+| On Fri, Sep 4, 2020 at 3:15 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > On 4 September 2020 at 11:24, Akhila Chowdary Kolla wrote:
+| > | Hello Everyone,
+| > |
+| > | I am trying to use NA_REAL, NA_INTEGER, and R_NaN in my CPP code(doesn't
+| > | use R main). When I compile and run my code,* NA_REAL* it gives the value
+| > | as *nan* and *NA_INTEGER* gives the value as *-2147483648, and R_NaN as
+| > 0*.
+| > |
+| > | I used the following code(from Rcpp FAQ):
+| > | Rcpp::IntegerVector Missing_I() {
+| > |   Rcpp::IntegerVector v(1);
+| > |   v[0] = NA_INTEGER; // NA
+| > |   return v;
+| > | }
+| > | Rcpp::NumericVector Missing_N() {
+| > |   Rcpp::NumericVector v(4);
+| > |   v[0] = R_NegInf; // -Inf
+| > |   v[1] = NA_REAL; // NA
+| > |   v[2] = R_PosInf; // Inf
+| > |   v[3] = R_NaN; // nan
+| > |   return v;
+| > | }
+| > |
+| > | When I compile the functions using sourceCpp() I get the output as
+| > expected:
+| > | > sourceCpp("~/R/RcppDeepState/inst/extdata/filesave.cpp")
+| > | > Missing_I()
+| > | [1] NA
+| > | > Missing_N()
+| > | [1] -Inf   NA  Inf  NaN
+| > |
+| > | But when I compile the code using the TestHarness it gives me the
+| > following
+| > | output:
+| > | missing_n values: -inf nan inf 0
+| > | missing_i values: -2147483648
+| > |
+| > | I saved the above functions(Missing_I, Missing_N) in a header file and
+| > made
+| > | a call to those functions from the testharness:
+| > |
+| > | TEST(deepstate_test,datatype){
+| > | RInside();
+| > | Rcpp::IntegerVector missing_i = Missing_I();
+| > | std::cout <<"missing_i values: "<< missing_i << std::endl;
+| > | Rcpp::NumericVector missing_n = Missing_N();
+| > | std::cout <<"missing_n values: "<< missing_n << std::endl;
+| > | }
+| > |
+| > | How can I get the results as expected? Any help is appreciated.
+| >
+| > Am I understanding you correctly that you would like _the R behaviour_ but
+| > in
+| > a non-R context (such as a catch or Google gtest harness) ?  You can't as
+| > easily as R actively adds some extensions. I.e. IEEE 754 defines this for
+| > doubles, but "nobody" besides R does it for Int. So you would have to add
+| > your print function.
+| >
+| > Dirk
+| >
+| > --
+| > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From williamwdunlap at gmail.com  Wed Sep  9 01:29:48 2020
+From: williamwdunlap at gmail.com (Bill Dunlap)
+Date: Tue, 8 Sep 2020 16:29:48 -0700
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+In-Reply-To: <24408.4014.138965.503171@rob.eddelbuettel.com>
+References: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+ <24402.48251.810419.213636@rob.eddelbuettel.com>
+ <CAM0Afv2nbJb+=hZht3oh5fPVDyXoZfq5uhq++nW0uvqsfwpx-w@mail.gmail.com>
+ <24408.4014.138965.503171@rob.eddelbuettel.com>
+Message-ID: <CAHqSRuS3D-d-i154PZZjmS_8z4VNCosACcr7Ck=pfq8PwrmcDA@mail.gmail.com>
+
+a) Does the 'rds' file you tried to make exist?
+   file.exists("mat.RDs")
+b) It should have a more than c. 10 bytes in it.
+   file.size("mat.RDs")
+c) It should start with the with the 2-byte "magic number" for gzip files,
+1f 8b:
+   readBin("mat.RDs", what=raw(), n=20)
+ [1] 1f 8b 08 00 00 00 00 00 00 06 8b e0 62 60 60 60 66 60 61 60
+d) When unzipped it should start with the rds header, 58 0a, then version 3,
+then the version of R that made it (4 0 2), and the earliest version of R
+that can
+read it (3 5 0):
+  readBin(gzfile("mat.RDs","rb"), what=raw(), n=20)
+ [1] 58 0a 00 00 00 03 00 04 00 02 00 03 05 00 00 00 00 06 43 50
+
+Failure of d will give you the "unknown input format" error'.  Failure
+of c means you used compress=FALSE in the call to saveRDS.
+
+-Bill
+
+On Tue, Sep 8, 2020 at 4:11 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 8 September 2020 at 16:03, Akhila Chowdary Kolla wrote:
+> | Thanks a lot for your quick response, Dirk. Instead of printing the
+> vector
+> | values using std::cout I am planning to serialize those objects using
+> | saveRDS and trying to retrieve the stored values using readRDS. I am
+> trying
+> | to make use of the RInside instance to make a call to R functions.
+> Although
+> | the class variable is recognized as an integer in the below example,
+> when I
+> | use readRDS it says unknown input format. Is there a method to serialize
+> | Rcpp objects using RInside from a testharness?
+> |
+> | *Example:*
+> | TEST(deepstate_test,datatype){
+> | RInside R;
+> | R["ms"] = 5;
+> | std::string cmd = "cat(class(ms));saveRDS(ms,\"mtest.Rds\");
+> | readRDS(\"mtest.Rds\")";
+> | R.parseEval(cmd);
+> | }
+> | *Output:*
+> | akhila at akhila-VirtualBox:~$ ./newtest
+> |
+> |
+> |
+> |
+> |
+> |
+> |
+> | *TRACE: Running: deepstate_test_datatype from newtest.cpp(6)EXTERNAL:
+> | integerEXTERNAL: �EXTERNAL: Error in readRDS("mtest.Rds") : unknown input
+> | formatterminate called after throwing an instance of 'std::runtime_error'
+> | what():  Error evaluating: cat(class(ms));saveRDS(ms,"mtest.Rds");
+> | readRDS("mtest.Rds")ERROR: Failed: deepstate_test_datatype*
+> |
+> | Also, I tried using the below code in my Cpp function. I still get the
+> same
+> | unknown input format error.
+> |
+> | Rcpp::NumericMatrix mat = RcppDeepState_NumericMatrix();
+> | Environment base("package:base");
+> | Function saveRDS = base["saveRDS"];
+> | saveRDS(mat,Named("file","mat.RDs"));
+> | Function readRDS = base["readRDS"];
+> | readRDS("mat.RDs");
+> |
+> | Any help is appreciated. Thanks in advance
+>
+> That leaves me a little puzzled. No immediate suggestion.
+>
+> Restoring an R-written RDS with another R session should always work.
+> Strange.
+>
+> Dirk
+>
+> | Regards,
+> | Akhila Chowdary Kolla
+> |
+> | On Fri, Sep 4, 2020 at 3:15 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+> |
+> | >
+> | > On 4 September 2020 at 11:24, Akhila Chowdary Kolla wrote:
+> | > | Hello Everyone,
+> | > |
+> | > | I am trying to use NA_REAL, NA_INTEGER, and R_NaN in my CPP
+> code(doesn't
+> | > | use R main). When I compile and run my code,* NA_REAL* it gives the
+> value
+> | > | as *nan* and *NA_INTEGER* gives the value as *-2147483648, and R_NaN
+> as
+> | > 0*.
+> | > |
+> | > | I used the following code(from Rcpp FAQ):
+> | > | Rcpp::IntegerVector Missing_I() {
+> | > |   Rcpp::IntegerVector v(1);
+> | > |   v[0] = NA_INTEGER; // NA
+> | > |   return v;
+> | > | }
+> | > | Rcpp::NumericVector Missing_N() {
+> | > |   Rcpp::NumericVector v(4);
+> | > |   v[0] = R_NegInf; // -Inf
+> | > |   v[1] = NA_REAL; // NA
+> | > |   v[2] = R_PosInf; // Inf
+> | > |   v[3] = R_NaN; // nan
+> | > |   return v;
+> | > | }
+> | > |
+> | > | When I compile the functions using sourceCpp() I get the output as
+> | > expected:
+> | > | > sourceCpp("~/R/RcppDeepState/inst/extdata/filesave.cpp")
+> | > | > Missing_I()
+> | > | [1] NA
+> | > | > Missing_N()
+> | > | [1] -Inf   NA  Inf  NaN
+> | > |
+> | > | But when I compile the code using the TestHarness it gives me the
+> | > following
+> | > | output:
+> | > | missing_n values: -inf nan inf 0
+> | > | missing_i values: -2147483648
+> | > |
+> | > | I saved the above functions(Missing_I, Missing_N) in a header file
+> and
+> | > made
+> | > | a call to those functions from the testharness:
+> | > |
+> | > | TEST(deepstate_test,datatype){
+> | > | RInside();
+> | > | Rcpp::IntegerVector missing_i = Missing_I();
+> | > | std::cout <<"missing_i values: "<< missing_i << std::endl;
+> | > | Rcpp::NumericVector missing_n = Missing_N();
+> | > | std::cout <<"missing_n values: "<< missing_n << std::endl;
+> | > | }
+> | > |
+> | > | How can I get the results as expected? Any help is appreciated.
+> | >
+> | > Am I understanding you correctly that you would like _the R behaviour_
+> but
+> | > in
+> | > a non-R context (such as a catch or Google gtest harness) ?  You can't
+> as
+> | > easily as R actively adds some extensions. I.e. IEEE 754 defines this
+> for
+> | > doubles, but "nobody" besides R does it for Int. So you would have to
+> add
+> | > your print function.
+> | >
+> | > Dirk
+> | >
+> | > --
+> | > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | >
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200908/9a570578/attachment-0001.html>
+
+From akhilakollasrinu424jf at gmail.com  Wed Sep  9 01:55:13 2020
+From: akhilakollasrinu424jf at gmail.com (Akhila Chowdary Kolla)
+Date: Tue, 8 Sep 2020 16:55:13 -0700
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+In-Reply-To: <CAHqSRuS3D-d-i154PZZjmS_8z4VNCosACcr7Ck=pfq8PwrmcDA@mail.gmail.com>
+References: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+ <24402.48251.810419.213636@rob.eddelbuettel.com>
+ <CAM0Afv2nbJb+=hZht3oh5fPVDyXoZfq5uhq++nW0uvqsfwpx-w@mail.gmail.com>
+ <24408.4014.138965.503171@rob.eddelbuettel.com>
+ <CAHqSRuS3D-d-i154PZZjmS_8z4VNCosACcr7Ck=pfq8PwrmcDA@mail.gmail.com>
+Message-ID: <CAM0Afv3fgrUA1k1DzDme_-DRNsfZwgiz04VOZRvJUPods5mCbw@mail.gmail.com>
+
+Hello Bill,
+
+Thanks for the information.When I run the specified commands on the
+generated mat.RDs file I get the following:
+
+> file.exists("mat.RDs")
+[1] TRUE
+> file.size("mat.RDs")
+[1] 37
+> readBin("mat.RDs", what=raw(), n=20)
+ [1] 8b e0 62 60 60 60 66 60 66 03 62 56 20 93 81 35 34 c4 4d d7
+> readBin(gzfile("mat.RDs","rb"), what=raw(), n=20)
+ [1] 8b e0 62 60 60 60 66 60 66 03 62 56 20 93 81 35 34 c4 4d d7
+>
+
+I used compress=TRUE in saveRDS function call while generating the
+file(mat.RDs) it still gives me the result starting with 8b instead of 1f.
+Please Advice.
+
+Thanks,
+Akhila Chowdary
+
+On Tue, Sep 8, 2020 at 4:29 PM Bill Dunlap <williamwdunlap at gmail.com> wrote:
+
+> a) Does the 'rds' file you tried to make exist?
+>    file.exists("mat.RDs")
+> b) It should have a more than c. 10 bytes in it.
+>    file.size("mat.RDs")
+> c) It should start with the with the 2-byte "magic number" for gzip files,
+> 1f 8b:
+>    readBin("mat.RDs", what=raw(), n=20)
+>  [1] 1f 8b 08 00 00 00 00 00 00 06 8b e0 62 60 60 60 66 60 61 60
+> d) When unzipped it should start with the rds header, 58 0a, then version
+> 3,
+> then the version of R that made it (4 0 2), and the earliest version of R
+> that can
+> read it (3 5 0):
+>   readBin(gzfile("mat.RDs","rb"), what=raw(), n=20)
+>  [1] 58 0a 00 00 00 03 00 04 00 02 00 03 05 00 00 00 00 06 43 50
+>
+> Failure of d will give you the "unknown input format" error'.  Failure
+> of c means you used compress=FALSE in the call to saveRDS.
+>
+> -Bill
+>
+> On Tue, Sep 8, 2020 at 4:11 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 8 September 2020 at 16:03, Akhila Chowdary Kolla wrote:
+>> | Thanks a lot for your quick response, Dirk. Instead of printing the
+>> vector
+>> | values using std::cout I am planning to serialize those objects using
+>> | saveRDS and trying to retrieve the stored values using readRDS. I am
+>> trying
+>> | to make use of the RInside instance to make a call to R functions.
+>> Although
+>> | the class variable is recognized as an integer in the below example,
+>> when I
+>> | use readRDS it says unknown input format. Is there a method to serialize
+>> | Rcpp objects using RInside from a testharness?
+>> |
+>> | *Example:*
+>> | TEST(deepstate_test,datatype){
+>> | RInside R;
+>> | R["ms"] = 5;
+>> | std::string cmd = "cat(class(ms));saveRDS(ms,\"mtest.Rds\");
+>> | readRDS(\"mtest.Rds\")";
+>> | R.parseEval(cmd);
+>> | }
+>> | *Output:*
+>> | akhila at akhila-VirtualBox:~$ ./newtest
+>> |
+>> |
+>> |
+>> |
+>> |
+>> |
+>> |
+>> | *TRACE: Running: deepstate_test_datatype from newtest.cpp(6)EXTERNAL:
+>> | integerEXTERNAL: �EXTERNAL: Error in readRDS("mtest.Rds") : unknown
+>> input
+>> | formatterminate called after throwing an instance of
+>> 'std::runtime_error'
+>> | what():  Error evaluating: cat(class(ms));saveRDS(ms,"mtest.Rds");
+>> | readRDS("mtest.Rds")ERROR: Failed: deepstate_test_datatype*
+>> |
+>> | Also, I tried using the below code in my Cpp function. I still get the
+>> same
+>> | unknown input format error.
+>> |
+>> | Rcpp::NumericMatrix mat = RcppDeepState_NumericMatrix();
+>> | Environment base("package:base");
+>> | Function saveRDS = base["saveRDS"];
+>> | saveRDS(mat,Named("file","mat.RDs"));
+>> | Function readRDS = base["readRDS"];
+>> | readRDS("mat.RDs");
+>> |
+>> | Any help is appreciated. Thanks in advance
+>>
+>> That leaves me a little puzzled. No immediate suggestion.
+>>
+>> Restoring an R-written RDS with another R session should always work.
+>> Strange.
+>>
+>> Dirk
+>>
+>> | Regards,
+>> | Akhila Chowdary Kolla
+>> |
+>> | On Fri, Sep 4, 2020 at 3:15 PM Dirk Eddelbuettel <edd at debian.org>
+>> wrote:
+>> |
+>> | >
+>> | > On 4 September 2020 at 11:24, Akhila Chowdary Kolla wrote:
+>> | > | Hello Everyone,
+>> | > |
+>> | > | I am trying to use NA_REAL, NA_INTEGER, and R_NaN in my CPP
+>> code(doesn't
+>> | > | use R main). When I compile and run my code,* NA_REAL* it gives the
+>> value
+>> | > | as *nan* and *NA_INTEGER* gives the value as *-2147483648, and
+>> R_NaN as
+>> | > 0*.
+>> | > |
+>> | > | I used the following code(from Rcpp FAQ):
+>> | > | Rcpp::IntegerVector Missing_I() {
+>> | > |   Rcpp::IntegerVector v(1);
+>> | > |   v[0] = NA_INTEGER; // NA
+>> | > |   return v;
+>> | > | }
+>> | > | Rcpp::NumericVector Missing_N() {
+>> | > |   Rcpp::NumericVector v(4);
+>> | > |   v[0] = R_NegInf; // -Inf
+>> | > |   v[1] = NA_REAL; // NA
+>> | > |   v[2] = R_PosInf; // Inf
+>> | > |   v[3] = R_NaN; // nan
+>> | > |   return v;
+>> | > | }
+>> | > |
+>> | > | When I compile the functions using sourceCpp() I get the output as
+>> | > expected:
+>> | > | > sourceCpp("~/R/RcppDeepState/inst/extdata/filesave.cpp")
+>> | > | > Missing_I()
+>> | > | [1] NA
+>> | > | > Missing_N()
+>> | > | [1] -Inf   NA  Inf  NaN
+>> | > |
+>> | > | But when I compile the code using the TestHarness it gives me the
+>> | > following
+>> | > | output:
+>> | > | missing_n values: -inf nan inf 0
+>> | > | missing_i values: -2147483648
+>> | > |
+>> | > | I saved the above functions(Missing_I, Missing_N) in a header file
+>> and
+>> | > made
+>> | > | a call to those functions from the testharness:
+>> | > |
+>> | > | TEST(deepstate_test,datatype){
+>> | > | RInside();
+>> | > | Rcpp::IntegerVector missing_i = Missing_I();
+>> | > | std::cout <<"missing_i values: "<< missing_i << std::endl;
+>> | > | Rcpp::NumericVector missing_n = Missing_N();
+>> | > | std::cout <<"missing_n values: "<< missing_n << std::endl;
+>> | > | }
+>> | > |
+>> | > | How can I get the results as expected? Any help is appreciated.
+>> | >
+>> | > Am I understanding you correctly that you would like _the R
+>> behaviour_ but
+>> | > in
+>> | > a non-R context (such as a catch or Google gtest harness) ?  You
+>> can't as
+>> | > easily as R actively adds some extensions. I.e. IEEE 754 defines this
+>> for
+>> | > doubles, but "nobody" besides R does it for Int. So you would have to
+>> add
+>> | > your print function.
+>> | >
+>> | > Dirk
+>> | >
+>> | > --
+>> | > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> | >
+>>
+>> --
+>> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200908/87f73833/attachment.html>
+
+From williamwdunlap at gmail.com  Wed Sep  9 02:43:49 2020
+From: williamwdunlap at gmail.com (Bill Dunlap)
+Date: Tue, 8 Sep 2020 17:43:49 -0700
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+In-Reply-To: <CAM0Afv3fgrUA1k1DzDme_-DRNsfZwgiz04VOZRvJUPods5mCbw@mail.gmail.com>
+References: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+ <24402.48251.810419.213636@rob.eddelbuettel.com>
+ <CAM0Afv2nbJb+=hZht3oh5fPVDyXoZfq5uhq++nW0uvqsfwpx-w@mail.gmail.com>
+ <24408.4014.138965.503171@rob.eddelbuettel.com>
+ <CAHqSRuS3D-d-i154PZZjmS_8z4VNCosACcr7Ck=pfq8PwrmcDA@mail.gmail.com>
+ <CAM0Afv3fgrUA1k1DzDme_-DRNsfZwgiz04VOZRvJUPods5mCbw@mail.gmail.com>
+Message-ID: <CAHqSRuSQicTTRyymR=OjrZ9ryDPMJ9mtyhXDfMF6LOcz-BQbHw@mail.gmail.com>
+
+That pattern of bytes does not ring a bell with me.
+
+-Bill
+
+On Tue, Sep 8, 2020 at 4:55 PM Akhila Chowdary Kolla <
+akhilakollasrinu424jf at gmail.com> wrote:
+
+> Hello Bill,
+>
+> Thanks for the information.When I run the specified commands on the
+> generated mat.RDs file I get the following:
+>
+> > file.exists("mat.RDs")
+> [1] TRUE
+> > file.size("mat.RDs")
+> [1] 37
+> > readBin("mat.RDs", what=raw(), n=20)
+>  [1] 8b e0 62 60 60 60 66 60 66 03 62 56 20 93 81 35 34 c4 4d d7
+> > readBin(gzfile("mat.RDs","rb"), what=raw(), n=20)
+>  [1] 8b e0 62 60 60 60 66 60 66 03 62 56 20 93 81 35 34 c4 4d d7
+> >
+>
+> I used compress=TRUE in saveRDS function call while generating the
+> file(mat.RDs) it still gives me the result starting with 8b instead of 1f.
+> Please Advice.
+>
+> Thanks,
+> Akhila Chowdary
+>
+> On Tue, Sep 8, 2020 at 4:29 PM Bill Dunlap <williamwdunlap at gmail.com>
+> wrote:
+>
+>> a) Does the 'rds' file you tried to make exist?
+>>    file.exists("mat.RDs")
+>> b) It should have a more than c. 10 bytes in it.
+>>    file.size("mat.RDs")
+>> c) It should start with the with the 2-byte "magic number" for gzip
+>> files, 1f 8b:
+>>    readBin("mat.RDs", what=raw(), n=20)
+>>  [1] 1f 8b 08 00 00 00 00 00 00 06 8b e0 62 60 60 60 66 60 61 60
+>> d) When unzipped it should start with the rds header, 58 0a, then version
+>> 3,
+>> then the version of R that made it (4 0 2), and the earliest version of R
+>> that can
+>> read it (3 5 0):
+>>   readBin(gzfile("mat.RDs","rb"), what=raw(), n=20)
+>>  [1] 58 0a 00 00 00 03 00 04 00 02 00 03 05 00 00 00 00 06 43 50
+>>
+>> Failure of d will give you the "unknown input format" error'.  Failure
+>> of c means you used compress=FALSE in the call to saveRDS.
+>>
+>> -Bill
+>>
+>> On Tue, Sep 8, 2020 at 4:11 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>>>
+>>> On 8 September 2020 at 16:03, Akhila Chowdary Kolla wrote:
+>>> | Thanks a lot for your quick response, Dirk. Instead of printing the
+>>> vector
+>>> | values using std::cout I am planning to serialize those objects using
+>>> | saveRDS and trying to retrieve the stored values using readRDS. I am
+>>> trying
+>>> | to make use of the RInside instance to make a call to R functions.
+>>> Although
+>>> | the class variable is recognized as an integer in the below example,
+>>> when I
+>>> | use readRDS it says unknown input format. Is there a method to
+>>> serialize
+>>> | Rcpp objects using RInside from a testharness?
+>>> |
+>>> | *Example:*
+>>> | TEST(deepstate_test,datatype){
+>>> | RInside R;
+>>> | R["ms"] = 5;
+>>> | std::string cmd = "cat(class(ms));saveRDS(ms,\"mtest.Rds\");
+>>> | readRDS(\"mtest.Rds\")";
+>>> | R.parseEval(cmd);
+>>> | }
+>>> | *Output:*
+>>> | akhila at akhila-VirtualBox:~$ ./newtest
+>>> |
+>>> |
+>>> |
+>>> |
+>>> |
+>>> |
+>>> |
+>>> | *TRACE: Running: deepstate_test_datatype from newtest.cpp(6)EXTERNAL:
+>>> | integerEXTERNAL: �EXTERNAL: Error in readRDS("mtest.Rds") : unknown
+>>> input
+>>> | formatterminate called after throwing an instance of
+>>> 'std::runtime_error'
+>>> | what():  Error evaluating: cat(class(ms));saveRDS(ms,"mtest.Rds");
+>>> | readRDS("mtest.Rds")ERROR: Failed: deepstate_test_datatype*
+>>> |
+>>> | Also, I tried using the below code in my Cpp function. I still get the
+>>> same
+>>> | unknown input format error.
+>>> |
+>>> | Rcpp::NumericMatrix mat = RcppDeepState_NumericMatrix();
+>>> | Environment base("package:base");
+>>> | Function saveRDS = base["saveRDS"];
+>>> | saveRDS(mat,Named("file","mat.RDs"));
+>>> | Function readRDS = base["readRDS"];
+>>> | readRDS("mat.RDs");
+>>> |
+>>> | Any help is appreciated. Thanks in advance
+>>>
+>>> That leaves me a little puzzled. No immediate suggestion.
+>>>
+>>> Restoring an R-written RDS with another R session should always work.
+>>> Strange.
+>>>
+>>> Dirk
+>>>
+>>> | Regards,
+>>> | Akhila Chowdary Kolla
+>>> |
+>>> | On Fri, Sep 4, 2020 at 3:15 PM Dirk Eddelbuettel <edd at debian.org>
+>>> wrote:
+>>> |
+>>> | >
+>>> | > On 4 September 2020 at 11:24, Akhila Chowdary Kolla wrote:
+>>> | > | Hello Everyone,
+>>> | > |
+>>> | > | I am trying to use NA_REAL, NA_INTEGER, and R_NaN in my CPP
+>>> code(doesn't
+>>> | > | use R main). When I compile and run my code,* NA_REAL* it gives
+>>> the value
+>>> | > | as *nan* and *NA_INTEGER* gives the value as *-2147483648, and
+>>> R_NaN as
+>>> | > 0*.
+>>> | > |
+>>> | > | I used the following code(from Rcpp FAQ):
+>>> | > | Rcpp::IntegerVector Missing_I() {
+>>> | > |   Rcpp::IntegerVector v(1);
+>>> | > |   v[0] = NA_INTEGER; // NA
+>>> | > |   return v;
+>>> | > | }
+>>> | > | Rcpp::NumericVector Missing_N() {
+>>> | > |   Rcpp::NumericVector v(4);
+>>> | > |   v[0] = R_NegInf; // -Inf
+>>> | > |   v[1] = NA_REAL; // NA
+>>> | > |   v[2] = R_PosInf; // Inf
+>>> | > |   v[3] = R_NaN; // nan
+>>> | > |   return v;
+>>> | > | }
+>>> | > |
+>>> | > | When I compile the functions using sourceCpp() I get the output as
+>>> | > expected:
+>>> | > | > sourceCpp("~/R/RcppDeepState/inst/extdata/filesave.cpp")
+>>> | > | > Missing_I()
+>>> | > | [1] NA
+>>> | > | > Missing_N()
+>>> | > | [1] -Inf   NA  Inf  NaN
+>>> | > |
+>>> | > | But when I compile the code using the TestHarness it gives me the
+>>> | > following
+>>> | > | output:
+>>> | > | missing_n values: -inf nan inf 0
+>>> | > | missing_i values: -2147483648
+>>> | > |
+>>> | > | I saved the above functions(Missing_I, Missing_N) in a header file
+>>> and
+>>> | > made
+>>> | > | a call to those functions from the testharness:
+>>> | > |
+>>> | > | TEST(deepstate_test,datatype){
+>>> | > | RInside();
+>>> | > | Rcpp::IntegerVector missing_i = Missing_I();
+>>> | > | std::cout <<"missing_i values: "<< missing_i << std::endl;
+>>> | > | Rcpp::NumericVector missing_n = Missing_N();
+>>> | > | std::cout <<"missing_n values: "<< missing_n << std::endl;
+>>> | > | }
+>>> | > |
+>>> | > | How can I get the results as expected? Any help is appreciated.
+>>> | >
+>>> | > Am I understanding you correctly that you would like _the R
+>>> behaviour_ but
+>>> | > in
+>>> | > a non-R context (such as a catch or Google gtest harness) ?  You
+>>> can't as
+>>> | > easily as R actively adds some extensions. I.e. IEEE 754 defines
+>>> this for
+>>> | > doubles, but "nobody" besides R does it for Int. So you would have
+>>> to add
+>>> | > your print function.
+>>> | >
+>>> | > Dirk
+>>> | >
+>>> | > --
+>>> | > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>> | >
+>>>
+>>> --
+>>> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200908/2e88efe2/attachment-0001.html>
+
+From edd at debian.org  Wed Sep  9 02:55:41 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 8 Sep 2020 19:55:41 -0500
+Subject: [Rcpp-devel] Incorrect result of NA_REAL and NA_INTEGER
+In-Reply-To: <CAHqSRuSQicTTRyymR=OjrZ9ryDPMJ9mtyhXDfMF6LOcz-BQbHw@mail.gmail.com>
+References: <CAM0Afv1cpOVkToYREg1rU_Z38o92fTnE27WES-j9O_EUcSK5Gg@mail.gmail.com>
+ <24402.48251.810419.213636@rob.eddelbuettel.com>
+ <CAM0Afv2nbJb+=hZht3oh5fPVDyXoZfq5uhq++nW0uvqsfwpx-w@mail.gmail.com>
+ <24408.4014.138965.503171@rob.eddelbuettel.com>
+ <CAHqSRuS3D-d-i154PZZjmS_8z4VNCosACcr7Ck=pfq8PwrmcDA@mail.gmail.com>
+ <CAM0Afv3fgrUA1k1DzDme_-DRNsfZwgiz04VOZRvJUPods5mCbw@mail.gmail.com>
+ <CAHqSRuSQicTTRyymR=OjrZ9ryDPMJ9mtyhXDfMF6LOcz-BQbHw@mail.gmail.com>
+Message-ID: <24408.10253.660167.820972@rob.eddelbuettel.com>
+
+
+On 8 September 2020 at 17:43, Bill Dunlap wrote:
+| That pattern of bytes does not ring a bell with me.
+
+And Bill is spot on which leads to a suggested debug route:
+ - write a test RDS file with a simple RInside app outside of DeepState
+ - read it back in, also outside of DeepState
+
+If that works then you have a side effect from your setup. Maybe some library
+gets shadowed or what not.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From evan.biederstedt at gmail.com  Sat Sep 19 16:14:41 2020
+From: evan.biederstedt at gmail.com (Evan Biederstedt)
+Date: Sat, 19 Sep 2020 10:14:41 -0400
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows i386
+Message-ID: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+
+Hello there
+
+I'm in the process uploading an R package to CRAN, which is a relatively
+simple interface to a C++ library: https://github.com/kharchenkolab/N2R
+
+The windows binaries just became available for RcppSpdLog, so I wanted to
+check how it installed on windows before CRAN submission.
+
+The package currently installs on Linux and Mac OS, but when I check with
+`devtools::check_win_devel()`, I'm getting a Windows-related error.
+
+The error appears to be related to RcppEigen, not the C++ library---this
+feels like something easily fixable, but I'm a bit nonplussed how to fix
+this:
+
+"""
+
+d:/RCompile/CRANpkg/lib/4.1/RcppEigen/include/Eigen/src/Core/DenseCoeffsBase.h:650:34:
+warning: ignoring attributes on template argument
+'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long
+long int'} [-Wignored-attributes]
+   return internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);
+
+^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+make: *** [D:/RCompile/recent/R/etc/i386/Makeconf:244: n2knn.o] Error 1
+ERROR: compilation failed for package 'N2R'
+* removing 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+* restoring previous 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+
+"""
+
+"'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long long
+int'} [-Wignored-attributes]" appears to be a somewhat standard warning,
+but I'm not sure how to resolve
+"internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);"
+which is causing the compilation error.
+
+I've tried with C++11 and C++14; same result. I've seen some discussion
+elsewhere that this could be related to the -fopenmp flags here:
+https://github.com/kharchenkolab/N2R/blob/master/src/n2/Makefile
+Perhaps there's something here which clashes with RcppEigen on windows?
+
+Any help is appreciated. Here is the CRAN builds:
+https://win-builder.r-project.org/D98h1Y2Rr004/
+
+Best, Evan
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200919/73e968d3/attachment.html>
+
+From edd at debian.org  Sat Sep 19 19:01:51 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 19 Sep 2020 12:01:51 -0500
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+Message-ID: <24422.14719.83329.3365@rob.eddelbuettel.com>
+
+
+Hi Evan,
+
+On 19 September 2020 at 10:14, Evan Biederstedt wrote:
+| I'm in the process uploading an R package to CRAN, which is a relatively
+| simple interface to a C++ library: https://github.com/kharchenkolab/N2R
+| 
+| The windows binaries just became available for RcppSpdLog, so I wanted to
+| check how it installed on windows before CRAN submission.
+| 
+| The package currently installs on Linux and Mac OS, but when I check with
+| `devtools::check_win_devel()`, I'm getting a Windows-related error.
+| 
+| The error appears to be related to RcppEigen, not the C++ library---this
+| feels like something easily fixable, but I'm a bit nonplussed how to fix
+| this:
+| 
+| """
+| 
+| d:/RCompile/CRANpkg/lib/4.1/RcppEigen/include/Eigen/src/Core/DenseCoeffsBase.h:650:34:
+| warning: ignoring attributes on template argument
+| 'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long
+| long int'} [-Wignored-attributes]
+|
+|    return internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);
+| 
+| ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| make: *** [D:/RCompile/recent/R/etc/i386/Makeconf:244: n2knn.o] Error 1
+| ERROR: compilation failed for package 'N2R'
+| * removing 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+| * restoring previous 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+| 
+| """
+| 
+| "'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long long
+| int'} [-Wignored-attributes]" appears to be a somewhat standard warning,
+
+Right. Eigen is very verbose. For my local compilations I often set something
+like this in ~/.R/Makevars (uncommented, of course, and later in the file
+used in CXX*FLAGS):
+
+  #PEDANTIC=-pedantic -DBOOST_NO_AUTO_PTR -Wno-ignored-attributes
+  #PEDANTIC= -DBOOST_NO_AUTO_PTR -Wno-sign-compare -Wno-parentheses -Wno-maybe-uninitialized
+
+
+| but I'm not sure how to resolve
+| "internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);"
+| which is causing the compilation error.
+
+That is worse. It seems to rely on 64bit layout. Yet is uses 'int' as opposed
+to 'int64_t' which would hardwire the size.
+
+Is the 'int' under your control?  Can you make that an int64_t?
+
+I don't have any other suggestions. :-/
+
+Dirk
+
+| I've tried with C++11 and C++14; same result. I've seen some discussion
+| elsewhere that this could be related to the -fopenmp flags here:
+| https://github.com/kharchenkolab/N2R/blob/master/src/n2/Makefile
+| Perhaps there's something here which clashes with RcppEigen on windows?
+| 
+| Any help is appreciated. Here is the CRAN builds:
+| https://win-builder.r-project.org/D98h1Y2Rr004/
+| 
+| Best, Evan
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From evan.biederstedt at gmail.com  Sat Sep 19 21:40:01 2020
+From: evan.biederstedt at gmail.com (Evan Biederstedt)
+Date: Sat, 19 Sep 2020 15:40:01 -0400
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <24422.14719.83329.3365@rob.eddelbuettel.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+ <24422.14719.83329.3365@rob.eddelbuettel.com>
+Message-ID: <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+
+Hi Dirk and friends
+
+Thanks for the help. In my attempt to isolate the issue, I wonder if
+there's an issue with linking to RcppSpdlog.
+
+I tried compiling with "LinkingTo: Rcpp, RcppEigen, RcppSpdlog", and the
+error exists:
+https://win-builder.r-project.org/F2g5vjpw6M1T
+https://github.com/kharchenkolab/N2R/tree/341fe9ff37a0f3082e1daff03d4b01ecf03d83b2
+
+But when I remove `RcppSpdlog`, it successfully compiles:
+https://win-builder.r-project.org/G0PRavw4yuhZ/
+https://github.com/kharchenkolab/N2R/commit/fd49332c6c25655e0926b0935c9741ff8adcfecf
+
+Could this be some issues with linking to both RcppEigen and RcppSpdlog?
+Issues with RcppSpglog windows binaries?
+
+As some background, I was using the spdlog library directly, which compiles
+correctly on windows as well:
+https://github.com/kharchenkolab/N2R/tree/338f380df4c49da76c797f2e5a3791f978c64156
+https://win-builder.r-project.org/ju94MKp8YSD5/
+
+I wanted to switch to RcppSpdlog to stop the CRAN notes/warnings.
+
+
+*> That is worse. It seems to rely on 64bit layout. Yet is uses 'int' as
+opposed to 'int64_t' which would hardwire the size.> Is the 'int' under
+your control?  Can you make that an int64_t?*
+
+So the above makes me wonder if there's an issue linking to RcppSpdlog and
+RcppEigen, because there are no issues with 64-bit otherwise.
+
+I'm not making extensive or complicated calls with spdlog either:
+https://github.com/kharchenkolab/N2R/blob/master/src/n2/hnsw.cc#L67-L71
+
+Just 'spdlog::get()' and either 'spdlog::stdout_logger_mt()' (in the
+standard spdlog library) or 'spdlog::r_sink_mt()' (in the RcppSpdlog
+library).
+
+Hopefully the above is clear, and thanks for any insight.
+Best, Evan
+
+
+On Sat, Sep 19, 2020 at 1:01 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Evan,
+>
+> On 19 September 2020 at 10:14, Evan Biederstedt wrote:
+> | I'm in the process uploading an R package to CRAN, which is a relatively
+> | simple interface to a C++ library: https://github.com/kharchenkolab/N2R
+> |
+> | The windows binaries just became available for RcppSpdLog, so I wanted to
+> | check how it installed on windows before CRAN submission.
+> |
+> | The package currently installs on Linux and Mac OS, but when I check with
+> | `devtools::check_win_devel()`, I'm getting a Windows-related error.
+> |
+> | The error appears to be related to RcppEigen, not the C++ library---this
+> | feels like something easily fixable, but I'm a bit nonplussed how to fix
+> | this:
+> |
+> | """
+> |
+> |
+> d:/RCompile/CRANpkg/lib/4.1/RcppEigen/include/Eigen/src/Core/DenseCoeffsBase.h:650:34:
+> | warning: ignoring attributes on template argument
+> | 'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long
+> | long int'} [-Wignored-attributes]
+> |
+> |    return
+> internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);
+> |
+> | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> | make: *** [D:/RCompile/recent/R/etc/i386/Makeconf:244: n2knn.o] Error 1
+> | ERROR: compilation failed for package 'N2R'
+> | * removing 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+> | * restoring previous 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+> |
+> | """
+> |
+> | "'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long long
+> | int'} [-Wignored-attributes]" appears to be a somewhat standard warning,
+>
+> Right. Eigen is very verbose. For my local compilations I often set
+> something
+> like this in ~/.R/Makevars (uncommented, of course, and later in the file
+> used in CXX*FLAGS):
+>
+>   #PEDANTIC=-pedantic -DBOOST_NO_AUTO_PTR -Wno-ignored-attributes
+>   #PEDANTIC= -DBOOST_NO_AUTO_PTR -Wno-sign-compare -Wno-parentheses
+> -Wno-maybe-uninitialized
+>
+>
+> | but I'm not sure how to resolve
+> |
+> "internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);"
+> | which is causing the compilation error.
+>
+> That is worse. It seems to rely on 64bit layout. Yet is uses 'int' as
+> opposed
+> to 'int64_t' which would hardwire the size.
+>
+> Is the 'int' under your control?  Can you make that an int64_t?
+>
+> I don't have any other suggestions. :-/
+>
+> Dirk
+>
+> | I've tried with C++11 and C++14; same result. I've seen some discussion
+> | elsewhere that this could be related to the -fopenmp flags here:
+> | https://github.com/kharchenkolab/N2R/blob/master/src/n2/Makefile
+> | Perhaps there's something here which clashes with RcppEigen on windows?
+> |
+> | Any help is appreciated. Here is the CRAN builds:
+> | https://win-builder.r-project.org/D98h1Y2Rr004/
+> |
+> | Best, Evan
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200919/e2a1e112/attachment.html>
+
+From edd at debian.org  Sat Sep 19 22:00:22 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 19 Sep 2020 15:00:22 -0500
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+ <24422.14719.83329.3365@rob.eddelbuettel.com>
+ <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+Message-ID: <24422.25430.425123.938038@rob.eddelbuettel.com>
+
+
+Evan,
+
+On 19 September 2020 at 15:40, Evan Biederstedt wrote:
+| Hi Dirk and friends
+| 
+| Thanks for the help. In my attempt to isolate the issue, I wonder if
+| there's an issue with linking to RcppSpdlog.
+
+It is always possible that a new package has a side effect. That said,
+ - if you suspect an issue with an optional package, remove it to see if things change
+ - there is no "linking"; spdlog is a header-only library and so is RcppSpdlog
+ 
+| I tried compiling with "LinkingTo: Rcpp, RcppEigen, RcppSpdlog", and the
+| error exists:
+| https://win-builder.r-project.org/F2g5vjpw6M1T
+| https://github.com/kharchenkolab/N2R/tree/341fe9ff37a0f3082e1daff03d4b01ecf03d83b2
+| 
+| But when I remove `RcppSpdlog`, it successfully compiles:
+| https://win-builder.r-project.org/G0PRavw4yuhZ/
+| https://github.com/kharchenkolab/N2R/commit/fd49332c6c25655e0926b0935c9741ff8adcfecf
+| 
+| Could this be some issues with linking to both RcppEigen and RcppSpdlog?
+
+Maybe. A minimally reproducible example may help.
+
+| Issues with RcppSpglog windows binaries?
+| 
+| As some background, I was using the spdlog library directly, which compiles
+| correctly on windows as well:
+| https://github.com/kharchenkolab/N2R/tree/338f380df4c49da76c797f2e5a3791f978c64156
+| https://win-builder.r-project.org/ju94MKp8YSD5/
+| 
+| I wanted to switch to RcppSpdlog to stop the CRAN notes/warnings.
+
+Can you explain that sentence? I am unsure I understand what you aim to
+change or fix.
+
+Do you mean warnings due to spdlog and stout/stderr etc? Then you must ise
+the R sink as in the included example. It does NOT magically make your other
+code silent.
+ 
+| *> That is worse. It seems to rely on 64bit layout. Yet is uses 'int' as
+| opposed to 'int64_t' which would hardwire the size.> Is the 'int' under
+| your control?  Can you make that an int64_t?*
+
+[ I use a text reader for mail. Your quoting convention makes it harder to
+see who wrote what. Indenting is a common way to show that. ]
+ 
+| So the above makes me wonder if there's an issue linking to RcppSpdlog and
+| RcppEigen, because there are no issues with 64-bit otherwise.
+
+As I mentioned, int is 64 bit on a 64-bit machine (hence the name) and 32-bit
+on a 32-bit machine.  Which is my many of use the
+
+   int64_t
+   int32_t
+
+types instead to be explicit and _to always have the same bit size. That
+could help with the actual compile error you showed earlire.
+ 
+| I'm not making extensive or complicated calls with spdlog either:
+| https://github.com/kharchenkolab/N2R/blob/master/src/n2/hnsw.cc#L67-L71
+| 
+| Just 'spdlog::get()' and either 'spdlog::stdout_logger_mt()' (in the
+| standard spdlog library) or 'spdlog::r_sink_mt()' (in the RcppSpdlog
+| library).
+
+Again, you could remove the logger, and use the facility of spdlog (just like
+other loggers do) to be compiler-time dependent on value you can switch on
+and off, and which you could switch off by default.
+
+Hope this helps,  Dirk
+
+| Hopefully the above is clear, and thanks for any insight.
+|
+| Best, Evan
+| 
+| 
+| On Sat, Sep 19, 2020 at 1:01 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > Hi Evan,
+| >
+| > On 19 September 2020 at 10:14, Evan Biederstedt wrote:
+| > | I'm in the process uploading an R package to CRAN, which is a relatively
+| > | simple interface to a C++ library: https://github.com/kharchenkolab/N2R
+| > |
+| > | The windows binaries just became available for RcppSpdLog, so I wanted to
+| > | check how it installed on windows before CRAN submission.
+| > |
+| > | The package currently installs on Linux and Mac OS, but when I check with
+| > | `devtools::check_win_devel()`, I'm getting a Windows-related error.
+| > |
+| > | The error appears to be related to RcppEigen, not the C++ library---this
+| > | feels like something easily fixable, but I'm a bit nonplussed how to fix
+| > | this:
+| > |
+| > | """
+| > |
+| > |
+| > d:/RCompile/CRANpkg/lib/4.1/RcppEigen/include/Eigen/src/Core/DenseCoeffsBase.h:650:34:
+| > | warning: ignoring attributes on template argument
+| > | 'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long
+| > | long int'} [-Wignored-attributes]
+| > |
+| > |    return
+| > internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);
+| > |
+| > | ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+| > | make: *** [D:/RCompile/recent/R/etc/i386/Makeconf:244: n2knn.o] Error 1
+| > | ERROR: compilation failed for package 'N2R'
+| > | * removing 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+| > | * restoring previous 'd:/RCompile/CRANguest/R-devel/lib/N2R'
+| > |
+| > | """
+| > |
+| > | "'Eigen::internal::packet_traits<int>::type' {aka '__vector(2) long long
+| > | int'} [-Wignored-attributes]" appears to be a somewhat standard warning,
+| >
+| > Right. Eigen is very verbose. For my local compilations I often set
+| > something
+| > like this in ~/.R/Makevars (uncommented, of course, and later in the file
+| > used in CXX*FLAGS):
+| >
+| >   #PEDANTIC=-pedantic -DBOOST_NO_AUTO_PTR -Wno-ignored-attributes
+| >   #PEDANTIC= -DBOOST_NO_AUTO_PTR -Wno-sign-compare -Wno-parentheses
+| > -Wno-maybe-uninitialized
+| >
+| >
+| > | but I'm not sure how to resolve
+| > |
+| > "internal::first_aligned<int(unpacket_traits<DefaultPacketType>::alignment),Derived>(m);"
+| > | which is causing the compilation error.
+| >
+| > That is worse. It seems to rely on 64bit layout. Yet is uses 'int' as
+| > opposed
+| > to 'int64_t' which would hardwire the size.
+| >
+| > Is the 'int' under your control?  Can you make that an int64_t?
+| >
+| > I don't have any other suggestions. :-/
+| >
+| > Dirk
+| >
+| > | I've tried with C++11 and C++14; same result. I've seen some discussion
+| > | elsewhere that this could be related to the -fopenmp flags here:
+| > | https://github.com/kharchenkolab/N2R/blob/master/src/n2/Makefile
+| > | Perhaps there's something here which clashes with RcppEigen on windows?
+| > |
+| > | Any help is appreciated. Here is the CRAN builds:
+| > | https://win-builder.r-project.org/D98h1Y2Rr004/
+| > |
+| > | Best, Evan
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| > --
+| > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sun Sep 20 00:25:19 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 19 Sep 2020 17:25:19 -0500
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <24422.25430.425123.938038@rob.eddelbuettel.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+ <24422.14719.83329.3365@rob.eddelbuettel.com>
+ <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+ <24422.25430.425123.938038@rob.eddelbuettel.com>
+Message-ID: <24422.34127.755846.112389@rob.eddelbuettel.com>
+
+
+Evan,
+
+As you posted a link to the repo, I took a look -- given my recent work on
+RcppSpdlog this was of obvious interest.
+
+Now, as I understand it, you are fighting two battles here:
+
+1. You get an R CMD check warning on use of stderr. That is understandable as
+you included _upstream_ spdlog. It will do that. Once you instrument it the
+way RcppSpdlog does, this issue goes away.  The change is minimal as we can
+simply create the 'r_sink_mt' instance we need in the Hnsw constructor. I
+will send you a PR for that in a minute.
+
+2. The 32bit issue. I have not yet looked into this but it might be best to
+disentangle this.  As I mentioned, _maybe_ we need to switch to int64_t
+use. Very very worst case you could simply disable the code via #define and
+state that 'legacy systems' will no longer be supported ;-).  I am
+half-kidding here but it is an option. Nobody is running your genomics
+workload on systems from 15 years ago so ...
+
+Cheers, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From evan.biederstedt at gmail.com  Sun Sep 20 06:34:20 2020
+From: evan.biederstedt at gmail.com (Evan Biederstedt)
+Date: Sun, 20 Sep 2020 00:34:20 -0400
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <24422.34127.755846.112389@rob.eddelbuettel.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+ <24422.14719.83329.3365@rob.eddelbuettel.com>
+ <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+ <24422.25430.425123.938038@rob.eddelbuettel.com>
+ <24422.34127.755846.112389@rob.eddelbuettel.com>
+Message-ID: <CABFhwYPpxfPM7xTuP44=pmu-wAWhgkZdzEqwVtsTVrfLh359Hg@mail.gmail.com>
+
+Hey Dirk
+
+I really appreciate the help here. I've been trying this via Mac OS with
+VMWare Fusion using a Windows 10 32-bit ISO. (Yeesh, it's slow.)
+
+> 1. You get an R CMD check warning on use of stderr. That is
+understandable as
+you included _upstream_ spdlog. It will do that. Once you instrument it the
+way RcppSpdlog does, this issue goes away.  The change is minimal as we can
+simply create the 'r_sink_mt' instance we need in the Hnsw constructor. I
+will send you a PR for that in a minute.
+
+
+Yes, this is entirely correct. Although the spdlog library installs
+successfully, I would love to use RcppSpdlog to get rid of the stderr
+warning.
+
+RcppSpdlog does precisely what I need here :) Thank you
+
+> 2. The 32bit issue. I have not yet looked into this but it might be best
+to
+disentangle this.  As I mentioned, _maybe_ we need to switch to int64_t
+use. Very very worst case you could simply disable the code via #define and
+state that 'legacy systems' will no longer be supported ;-).  I am
+half-kidding here but it is an option. Nobody is running your genomics
+workload on systems from 15 years ago so ..
+
+
+I have no successful updates, sadly. I'm using int64_t for every `int`
+here: https://github.com/kharchenkolab/N2R/blob/master/src/n2knn.cpp
+I still get this error.
+
+What's difficult for me is that it's only RcppEigen code, so I'm finding it
+a bit difficult to trace back where the issue is.
+
+I guess the next step could be explicitly made every 'int' in the /src
+int64_t...
+
+I'd also be very welcome to disable code for 32-bit systems, if CRAN would
+allow this. I think a warning message suggesting developers no longer
+support this is entirely appropriate. :)
+
+Best, Evan
+
+
+
+On Sat, Sep 19, 2020 at 6:25 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Evan,
+>
+> As you posted a link to the repo, I took a look -- given my recent work on
+> RcppSpdlog this was of obvious interest.
+>
+> Now, as I understand it, you are fighting two battles here:
+>
+> 1. You get an R CMD check warning on use of stderr. That is understandable
+> as
+> you included _upstream_ spdlog. It will do that. Once you instrument it the
+> way RcppSpdlog does, this issue goes away.  The change is minimal as we can
+> simply create the 'r_sink_mt' instance we need in the Hnsw constructor. I
+> will send you a PR for that in a minute.
+>
+> 2. The 32bit issue. I have not yet looked into this but it might be best to
+> disentangle this.  As I mentioned, _maybe_ we need to switch to int64_t
+> use. Very very worst case you could simply disable the code via #define and
+> state that 'legacy systems' will no longer be supported ;-).  I am
+> half-kidding here but it is an option. Nobody is running your genomics
+> workload on systems from 15 years ago so ...
+>
+> Cheers, Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200920/dc3e3d84/attachment.html>
+
+From evan.biederstedt at gmail.com  Sun Sep 20 07:58:55 2020
+From: evan.biederstedt at gmail.com (Evan Biederstedt)
+Date: Sun, 20 Sep 2020 01:58:55 -0400
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <CABFhwYPpxfPM7xTuP44=pmu-wAWhgkZdzEqwVtsTVrfLh359Hg@mail.gmail.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+ <24422.14719.83329.3365@rob.eddelbuettel.com>
+ <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+ <24422.25430.425123.938038@rob.eddelbuettel.com>
+ <24422.34127.755846.112389@rob.eddelbuettel.com>
+ <CABFhwYPpxfPM7xTuP44=pmu-wAWhgkZdzEqwVtsTVrfLh359Hg@mail.gmail.com>
+Message-ID: <CABFhwYPi2Cb8xbVMueaZkvE9Tf8J0BfjSFZggJs1B9GxDrPMXw@mail.gmail.com>
+
+Hey there
+
+The thing that remains extremely puzzling to me is that using `Linking to:
+Rcpp, RcppEigen` (without the RcppSpdlog calls), it compiles correctly on
+i386. I've created a branch here:
+https://github.com/kharchenkolab/N2R/tree/without_RcppSpdlog
+
+https://win-builder.r-project.org/04120gdc336K/
+
+It compiles correctly, and the package words as intended.
+
+Why would including `Linking to: Rcpp, RcppEigen, RcppSpdlog` result in
+these 32-bit/64-bit errors, in particular that RcppEigen error?
+
+It's a bit strange---I'll keep looking into this.
+
+
+
+On Sun, Sep 20, 2020 at 12:34 AM Evan Biederstedt <
+evan.biederstedt at gmail.com> wrote:
+
+> Hey Dirk
+>
+> I really appreciate the help here. I've been trying this via Mac OS with
+> VMWare Fusion using a Windows 10 32-bit ISO. (Yeesh, it's slow.)
+>
+> > 1. You get an R CMD check warning on use of stderr. That is
+> understandable as
+> you included _upstream_ spdlog. It will do that. Once you instrument it the
+> way RcppSpdlog does, this issue goes away.  The change is minimal as we can
+> simply create the 'r_sink_mt' instance we need in the Hnsw constructor. I
+> will send you a PR for that in a minute.
+>
+>
+> Yes, this is entirely correct. Although the spdlog library installs
+> successfully, I would love to use RcppSpdlog to get rid of the stderr
+> warning.
+>
+> RcppSpdlog does precisely what I need here :) Thank you
+>
+> > 2. The 32bit issue. I have not yet looked into this but it might be best
+> to
+> disentangle this.  As I mentioned, _maybe_ we need to switch to int64_t
+> use. Very very worst case you could simply disable the code via #define and
+> state that 'legacy systems' will no longer be supported ;-).  I am
+> half-kidding here but it is an option. Nobody is running your genomics
+> workload on systems from 15 years ago so ..
+>
+>
+> I have no successful updates, sadly. I'm using int64_t for every `int`
+> here: https://github.com/kharchenkolab/N2R/blob/master/src/n2knn.cpp
+> I still get this error.
+>
+> What's difficult for me is that it's only RcppEigen code, so I'm finding
+> it a bit difficult to trace back where the issue is.
+>
+> I guess the next step could be explicitly made every 'int' in the /src
+> int64_t...
+>
+> I'd also be very welcome to disable code for 32-bit systems, if CRAN would
+> allow this. I think a warning message suggesting developers no longer
+> support this is entirely appropriate. :)
+>
+> Best, Evan
+>
+>
+>
+> On Sat, Sep 19, 2020 at 6:25 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> Evan,
+>>
+>> As you posted a link to the repo, I took a look -- given my recent work on
+>> RcppSpdlog this was of obvious interest.
+>>
+>> Now, as I understand it, you are fighting two battles here:
+>>
+>> 1. You get an R CMD check warning on use of stderr. That is
+>> understandable as
+>> you included _upstream_ spdlog. It will do that. Once you instrument it
+>> the
+>> way RcppSpdlog does, this issue goes away.  The change is minimal as we
+>> can
+>> simply create the 'r_sink_mt' instance we need in the Hnsw constructor. I
+>> will send you a PR for that in a minute.
+>>
+>> 2. The 32bit issue. I have not yet looked into this but it might be best
+>> to
+>> disentangle this.  As I mentioned, _maybe_ we need to switch to int64_t
+>> use. Very very worst case you could simply disable the code via #define
+>> and
+>> state that 'legacy systems' will no longer be supported ;-).  I am
+>> half-kidding here but it is an option. Nobody is running your genomics
+>> workload on systems from 15 years ago so ...
+>>
+>> Cheers, Dirk
+>>
+>> --
+>> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200920/913c1809/attachment.html>
+
+From edd at debian.org  Sun Sep 20 15:31:15 2020
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 20 Sep 2020 08:31:15 -0500
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <CABFhwYPi2Cb8xbVMueaZkvE9Tf8J0BfjSFZggJs1B9GxDrPMXw@mail.gmail.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+ <24422.14719.83329.3365@rob.eddelbuettel.com>
+ <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+ <24422.25430.425123.938038@rob.eddelbuettel.com>
+ <24422.34127.755846.112389@rob.eddelbuettel.com>
+ <CABFhwYPpxfPM7xTuP44=pmu-wAWhgkZdzEqwVtsTVrfLh359Hg@mail.gmail.com>
+ <CABFhwYPi2Cb8xbVMueaZkvE9Tf8J0BfjSFZggJs1B9GxDrPMXw@mail.gmail.com>
+Message-ID: <24423.22947.630367.142849@rob.eddelbuettel.com>
+
+
+Evan,
+
+Let's consider this discussion moved to GitHub as it is flowing here
+  https://github.com/kharchenkolab/N2R/pull/2
+I don't really have the energy to repeat everything in two places.
+
+Let's recap here once we have a solution.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From evan.biederstedt at gmail.com  Mon Sep 21 08:10:45 2020
+From: evan.biederstedt at gmail.com (Evan Biederstedt)
+Date: Mon, 21 Sep 2020 02:10:45 -0400
+Subject: [Rcpp-devel] RcppEigen-related compilation error for Windows
+	i386
+In-Reply-To: <24423.22947.630367.142849@rob.eddelbuettel.com>
+References: <CABFhwYMSACtSuOH4+UsuaEkxvLdhhTOq23o3T4vy78CfM7WwTw@mail.gmail.com>
+ <24422.14719.83329.3365@rob.eddelbuettel.com>
+ <CABFhwYPR+a-P-3vpOnkA7n1-eNz1WR0mJq2KbV5X2Joi4Y67KQ@mail.gmail.com>
+ <24422.25430.425123.938038@rob.eddelbuettel.com>
+ <24422.34127.755846.112389@rob.eddelbuettel.com>
+ <CABFhwYPpxfPM7xTuP44=pmu-wAWhgkZdzEqwVtsTVrfLh359Hg@mail.gmail.com>
+ <CABFhwYPi2Cb8xbVMueaZkvE9Tf8J0BfjSFZggJs1B9GxDrPMXw@mail.gmail.com>
+ <24423.22947.630367.142849@rob.eddelbuettel.com>
+Message-ID: <CABFhwYPVNmTsdjXhiGtC5aJU-UhFugpJ9ZTEq9o2Ti_1xbJZQw@mail.gmail.com>
+
+Thanks Dirk for the help!
+
+As a summary, based on the discussion here, it now compiles successfully on
+i386.
+https://github.com/kharchenkolab/N2R/pull/2
+https://github.com/kharchenkolab/N2R/pull/3
+
+Here is the rough outline of steps to do this:
+
+*  use `int64_t` instead of `int`
+
+* must place the '#include <RcppEigen.h>'' header before the '#include
+<RcppSpdlog>'' header
+
+* explicitly use
+
+```
+#define R_NO_MAP
+#define STRICT_R_HEADERS
+```
+
+Thank you, and I'm so glad we got this resolved! It really does help
+genomics research, and the contributions via Rcpp has been massive!
+
+Best, Evan
+
+On Sun, Sep 20, 2020 at 9:31 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Evan,
+>
+> Let's consider this discussion moved to GitHub as it is flowing here
+>   https://github.com/kharchenkolab/N2R/pull/2
+> I don't really have the energy to repeat everything in two places.
+>
+> Let's recap here once we have a solution.
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20200921/34303143/attachment.html>
+

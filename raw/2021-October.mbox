@@ -1,0 +1,623 @@
+From djsamperi at gmail.com  Sat Oct  2 03:50:27 2021
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Fri, 1 Oct 2021 21:50:27 -0400
+Subject: [Rcpp-devel] Any recent change that would remove
+	Rcpp_precious_remove?
+In-Reply-To: <24816.9790.765864.646219@rob.eddelbuettel.com>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+ <24816.9790.765864.646219@rob.eddelbuettel.com>
+Message-ID: <CADUbQ5jmE=BfRAzyC7n-PBcVthMK9BjNS2GFNLpU8tbSHYczhA@mail.gmail.com>
+
+Hello Dirk,
+
+I have what appears to be a reproducible example of the
+"Rcpp_precious_remove"
+problem that a few people have complained about. It is reproducible on my
+Mac Mini, but may not appears when you try because it is OS and compiler
+dependent. There is no problem under Windows, for example. There
+seems to be a gc bug lurking.
+
+The test C++ source file (a simple REPL loop), makefile, and
+lldb (debugger) backtrace are attached to this message.
+When I compile and run on my Mac is fails with a seg fault every time.
+
+I have been able to trigger this problem
+under Ubuntu in a more complicated project using CMake. It
+fails every time. Furthermore, gdb shows that the failure happens on
+line 261 of RInside.cpp (where global_env_m = new Rcpp::Environment()).
+
+The comment immediately above this failure point says
+there is exposure to "a minimal risk of garbage collection" (based on
+feedback from Doug Bates and Luke Tierney). Perhaps the risk is greater
+than you anticipated?
+
+BTW, if I build the REPL app and link to a locally built version of
+RInside library, and not to the version installed by R, the REPL
+app works on my Mac Mini! This is probably due to the fact
+that stack/heap corruption can reveal itself in mysterious ways
+depending on the precise configuration employed.
+
+Thanks,
+Dominick
+
+
+On Thu, Jul 15, 2021 at 8:13 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 15 July 2021 at 08:24, ma wh wrote:
+> | Colleague of mine wrote some R last week that was working OK, and hasn't
+> been changed in itself since that time. This week it's ceased working( I've
+> tried it on my machine and also see a fail, the following error is
+> encountered:
+> |
+> | Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided
+> by package 'Rcpp'
+> |
+> | Searching around there aren't many hits. Those I do find seem quite
+> recent (stackoverflow questions or GitHub issues logged in various
+> projects, dates of posting are within the last few days). None of the
+> posted queries seem to have a solution, one person said restarting RStudio
+> helped, but not in my case. The SO question I found was marked as deleted.
+> The GitHub issue I found was "I solved it" but no mention of how. The SO
+> question was asking about svg export:
+> https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function
+> | The GitHub were also asking about packages I don't use -
+> | https://github.com/r-spatial/spdep/issues/60
+> | https://github.com/drizopoulos/JMbayes2/issues/5
+> |
+> | Anyone on the list have any pointers? Thanks
+>
+> Packages following a the GNU style often have a file ChangeLog which
+> "details
+> changes made to the code". Rcpp follows this convention, see 2021-07-05 and
+> 2021-01-017.
+>
+> Packages following the R packaging conventions often have a file
+> inst/NEWS.rd
+> (also rendered as NEWS at CRAN). Rcpp follow this conventions, see the Rcpp
+> 1.0.7 release (even if the functions is not named).
+>
+> Packages have source code you can search.I like `ag` aka "the
+> silversearcher":
+>
+>   edd at rob:~/git/rcpp(master)$ ag -c Rcpp_precious_remove
+>   ChangeLog:2
+>   inst/include/Rcpp/routines.h:3
+>   inst/include/RcppCommon.h:2
+>   src/rcpp_init.cpp:1
+>   src/barrier.cpp:1
+>   edd at rob:~/git/rcpp(master)$
+>
+> It is still there, and available via the standard export mechanism.
+>
+> I recommend your friend take a look. The function is a) still there yet has
+> also b) been supplanted by a more sufficient alternative.
+>
+> Otherwise, a reproducible example would be the only way to make this
+> concrete.
+>
+> Hope this helps, Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211001/80621187/attachment.html>
+-------------- next part --------------
+(lldb) bt
+* thread #1, queue = com.apple.main-thread, stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
+  * frame #0: 0x000000010647ee99 Rcpp.so`Rcpp::Rcpp_precious_remove(token=0x0000000000000000) at barrier.cpp:[opt]
+    frame #1: 0x0000000100003467 repl`Rcpp::Rcpp_precious_remove(SEXPREC*) + 119
+    frame #2: 0x00000001000033e5 repl`Rcpp::Rcpp_PreciousRelease(SEXPREC*) + 21
+    frame #3: 0x00000001000033ad repl`Rcpp::PreserveStorage<Rcpp::RObject_Impl<Rcpp::PreserveStorage> >::~PreserveStorage() + 29
+    frame #4: 0x0000000100003388 repl`Rcpp::RObject_Impl<Rcpp::PreserveStorage>::~RObject_Impl() + 24
+    frame #5: 0x0000000100003365 repl`Rcpp::RObject_Impl<Rcpp::PreserveStorage>::~RObject_Impl() + 21
+    frame #6: 0x0000000100003345 repl`RInside::Proxy::~Proxy() + 21
+    frame #7: 0x0000000100002fd5 repl`RInside::Proxy::~Proxy() + 21
+    frame #8: 0x0000000100002e77 repl`main + 183
+    frame #9: 0x00007fff7260bcc9 libdyld.dylib`start + 1
+(lldb) exit
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: makefile
+Type: application/octet-stream
+Size: 306 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211001/80621187/attachment.obj>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: repl.cpp
+Type: text/x-c++src
+Size: 236 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211001/80621187/attachment.cpp>
+
+From djsamperi at gmail.com  Sat Oct  2 04:10:14 2021
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Fri, 1 Oct 2021 22:10:14 -0400
+Subject: [Rcpp-devel] Any recent change that would remove
+	Rcpp_precious_remove?
+In-Reply-To: <CADUbQ5jmE=BfRAzyC7n-PBcVthMK9BjNS2GFNLpU8tbSHYczhA@mail.gmail.com>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+ <24816.9790.765864.646219@rob.eddelbuettel.com>
+ <CADUbQ5jmE=BfRAzyC7n-PBcVthMK9BjNS2GFNLpU8tbSHYczhA@mail.gmail.com>
+Message-ID: <CADUbQ5ht68Kk-D98L=4Qb9hdsaq0ToPKGaTnZ0c2kncmRbeQVQ@mail.gmail.com>
+
+I forgot to mention, this testing was done using R 4.1.1, Rcpp 1.0.7, and
+RInside 0.2.16, using MacOS version 10.15.7 (Catalina), and Apple clang
+version 12.0.0.
+
+On Fri, Oct 1, 2021 at 9:50 PM Dominick Samperi <djsamperi at gmail.com> wrote:
+
+> Hello Dirk,
+>
+> I have what appears to be a reproducible example of the
+> "Rcpp_precious_remove"
+> problem that a few people have complained about. It is reproducible on my
+> Mac Mini, but may not appears when you try because it is OS and compiler
+> dependent. There is no problem under Windows, for example. There
+> seems to be a gc bug lurking.
+>
+> The test C++ source file (a simple REPL loop), makefile, and
+> lldb (debugger) backtrace are attached to this message.
+> When I compile and run on my Mac is fails with a seg fault every time.
+>
+> I have been able to trigger this problem
+> under Ubuntu in a more complicated project using CMake. It
+> fails every time. Furthermore, gdb shows that the failure happens on
+> line 261 of RInside.cpp (where global_env_m = new Rcpp::Environment()).
+>
+> The comment immediately above this failure point says
+> there is exposure to "a minimal risk of garbage collection" (based on
+> feedback from Doug Bates and Luke Tierney). Perhaps the risk is greater
+> than you anticipated?
+>
+> BTW, if I build the REPL app and link to a locally built version of
+> RInside library, and not to the version installed by R, the REPL
+> app works on my Mac Mini! This is probably due to the fact
+> that stack/heap corruption can reveal itself in mysterious ways
+> depending on the precise configuration employed.
+>
+> Thanks,
+> Dominick
+>
+>
+> On Thu, Jul 15, 2021 at 8:13 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 15 July 2021 at 08:24, ma wh wrote:
+>> | Colleague of mine wrote some R last week that was working OK, and
+>> hasn't been changed in itself since that time. This week it's ceased
+>> working( I've tried it on my machine and also see a fail, the following
+>> error is encountered:
+>> |
+>> | Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not
+>> provided by package 'Rcpp'
+>> |
+>> | Searching around there aren't many hits. Those I do find seem quite
+>> recent (stackoverflow questions or GitHub issues logged in various
+>> projects, dates of posting are within the last few days). None of the
+>> posted queries seem to have a solution, one person said restarting RStudio
+>> helped, but not in my case. The SO question I found was marked as deleted.
+>> The GitHub issue I found was "I solved it" but no mention of how. The SO
+>> question was asking about svg export:
+>> https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function
+>> | The GitHub were also asking about packages I don't use -
+>> | https://github.com/r-spatial/spdep/issues/60
+>> | https://github.com/drizopoulos/JMbayes2/issues/5
+>> |
+>> | Anyone on the list have any pointers? Thanks
+>>
+>> Packages following a the GNU style often have a file ChangeLog which
+>> "details
+>> changes made to the code". Rcpp follows this convention, see 2021-07-05
+>> and
+>> 2021-01-017.
+>>
+>> Packages following the R packaging conventions often have a file
+>> inst/NEWS.rd
+>> (also rendered as NEWS at CRAN). Rcpp follow this conventions, see the
+>> Rcpp
+>> 1.0.7 release (even if the functions is not named).
+>>
+>> Packages have source code you can search.I like `ag` aka "the
+>> silversearcher":
+>>
+>>   edd at rob:~/git/rcpp(master)$ ag -c Rcpp_precious_remove
+>>   ChangeLog:2
+>>   inst/include/Rcpp/routines.h:3
+>>   inst/include/RcppCommon.h:2
+>>   src/rcpp_init.cpp:1
+>>   src/barrier.cpp:1
+>>   edd at rob:~/git/rcpp(master)$
+>>
+>> It is still there, and available via the standard export mechanism.
+>>
+>> I recommend your friend take a look. The function is a) still there yet
+>> has
+>> also b) been supplanted by a more sufficient alternative.
+>>
+>> Otherwise, a reproducible example would be the only way to make this
+>> concrete.
+>>
+>> Hope this helps, Dirk
+>>
+>> --
+>> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211001/832f7479/attachment.html>
+
+From edd at debian.org  Sat Oct  2 04:50:52 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 1 Oct 2021 21:50:52 -0500
+Subject: [Rcpp-devel] Any recent change that would remove
+	Rcpp_precious_remove?
+In-Reply-To: <CADUbQ5ht68Kk-D98L=4Qb9hdsaq0ToPKGaTnZ0c2kncmRbeQVQ@mail.gmail.com>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+ <24816.9790.765864.646219@rob.eddelbuettel.com>
+ <CADUbQ5jmE=BfRAzyC7n-PBcVthMK9BjNS2GFNLpU8tbSHYczhA@mail.gmail.com>
+ <CADUbQ5ht68Kk-D98L=4Qb9hdsaq0ToPKGaTnZ0c2kncmRbeQVQ@mail.gmail.com>
+Message-ID: <24919.51468.897553.306783@rob.eddelbuettel.com>
+
+
+Howdy,
+
+Somone (on r-help which I don't really follow for lack of time) called [3]
+this a 'quasi-FAQ':
+
+  This problem is pratically a StackOverflow FAQ [1], with link to the 
+  Rcpp-devel mailing list [2].
+
+  [1] https://stackoverflow.com/questions/68416435/rcpp-package-doesnt-include-rcpp-precious-remove
+  [2] https://www.mail-archive.com/rcpp-devel at lists.r-forge.r-project.org/msg10226.html
+
+With Rcpp 1.0.7 (July 2021) we made one cleanup. But it required you to
+upgrade Rcpp itself _if you used any package compiled against 1.0.7_. So the
+simple fix as in all those posts ... is to simply ensure that along with
+updated packages uses Rcpp you also use the most recent Rcpp version. Then
+(generally speaking) everything just as works as usual.
+
+Hope this helps,  Dirk
+
+[3] https://stat.ethz.ch/pipermail/r-help/2021-September/472416.html
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Sat Oct  2 04:51:50 2021
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Fri, 1 Oct 2021 22:51:50 -0400
+Subject: [Rcpp-devel] Any recent change that would remove
+	Rcpp_precious_remove?
+In-Reply-To: <24816.9790.765864.646219@rob.eddelbuettel.com>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+ <24816.9790.765864.646219@rob.eddelbuettel.com>
+Message-ID: <CADUbQ5izYxZXsvnwthxFr4ZZWXngBS1oShK+9reRxo8e0vxD1Q@mail.gmail.com>
+
+Hello Dirk,
+
+I have what appears to be a reproducible example of the
+"Rcpp_precious_remove"
+problem that a few people have complained about. It is reproducible on my
+Mac Mini, but may not appear when you try because it is OS and compiler
+dependent. There is no problem under Windows, for example. There
+seems to be a gc bug lurking.
+
+The test C++ source file (a simple REPL loop), makefile, and
+lldb (debugger) backtrace are attached to this message.
+When I compile and run on my Mac it fails with a seg fault.
+
+This was tested using R 4.1.1, Rcpp 1.0.7, RInside 0.2.16,
+MacOS 10.15.7, and Apple clang 12.0.0.
+
+I have been able to trigger this problem under Ubuntu in
+a more complicated project using CMake. It fails every time.
+Furthermore, gdb shows that the failure happens on
+line 261 of RInside.cpp (where global_env_m = new Rcpp::Environment()).
+
+The comment immediately above this failure point says
+there is exposure to "a minimal risk of garbage collection" (based on
+feedback from Doug Bates and Luke Tierney). Perhaps the risk is greater
+than you anticipated?
+
+BTW, if I build the REPL app and link to a locally built version of
+RInside library, and not to the version installed by R, the REPL
+app works on my Mac Mini! This is probably due to the fact
+that stack/heap corruption can reveal itself in mysterious ways
+depending on the precise configuration employed.
+
+Thanks,
+Dominick
+
+On Thu, Jul 15, 2021 at 8:13 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 15 July 2021 at 08:24, ma wh wrote:
+> | Colleague of mine wrote some R last week that was working OK, and hasn't
+> been changed in itself since that time. This week it's ceased working( I've
+> tried it on my machine and also see a fail, the following error is
+> encountered:
+> |
+> | Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided
+> by package 'Rcpp'
+> |
+> | Searching around there aren't many hits. Those I do find seem quite
+> recent (stackoverflow questions or GitHub issues logged in various
+> projects, dates of posting are within the last few days). None of the
+> posted queries seem to have a solution, one person said restarting RStudio
+> helped, but not in my case. The SO question I found was marked as deleted.
+> The GitHub issue I found was "I solved it" but no mention of how. The SO
+> question was asking about svg export:
+> https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function
+> | The GitHub were also asking about packages I don't use -
+> | https://github.com/r-spatial/spdep/issues/60
+> | https://github.com/drizopoulos/JMbayes2/issues/5
+> |
+> | Anyone on the list have any pointers? Thanks
+>
+> Packages following a the GNU style often have a file ChangeLog which
+> "details
+> changes made to the code". Rcpp follows this convention, see 2021-07-05 and
+> 2021-01-017.
+>
+> Packages following the R packaging conventions often have a file
+> inst/NEWS.rd
+> (also rendered as NEWS at CRAN). Rcpp follow this conventions, see the Rcpp
+> 1.0.7 release (even if the functions is not named).
+>
+> Packages have source code you can search.I like `ag` aka "the
+> silversearcher":
+>
+>   edd at rob:~/git/rcpp(master)$ ag -c Rcpp_precious_remove
+>   ChangeLog:2
+>   inst/include/Rcpp/routines.h:3
+>   inst/include/RcppCommon.h:2
+>   src/rcpp_init.cpp:1
+>   src/barrier.cpp:1
+>   edd at rob:~/git/rcpp(master)$
+>
+> It is still there, and available via the standard export mechanism.
+>
+> I recommend your friend take a look. The function is a) still there yet has
+> also b) been supplanted by a more sufficient alternative.
+>
+> Otherwise, a reproducible example would be the only way to make this
+> concrete.
+>
+> Hope this helps, Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211001/f326779f/attachment.html>
+-------------- next part --------------
+(lldb) bt
+* thread #1, queue = com.apple.main-thread, stop reason = EXC_BAD_ACCESS (code=1, address=0x0)
+  * frame #0: 0x000000010647ee99 Rcpp.so`Rcpp::Rcpp_precious_remove(token=0x0000000000000000) at barrier.cpp:[opt]
+    frame #1: 0x0000000100003467 repl`Rcpp::Rcpp_precious_remove(SEXPREC*) + 119
+    frame #2: 0x00000001000033e5 repl`Rcpp::Rcpp_PreciousRelease(SEXPREC*) + 21
+    frame #3: 0x00000001000033ad repl`Rcpp::PreserveStorage<Rcpp::RObject_Impl<Rcpp::PreserveStorage> >::~PreserveStorage() + 29
+    frame #4: 0x0000000100003388 repl`Rcpp::RObject_Impl<Rcpp::PreserveStorage>::~RObject_Impl() + 24
+    frame #5: 0x0000000100003365 repl`Rcpp::RObject_Impl<Rcpp::PreserveStorage>::~RObject_Impl() + 21
+    frame #6: 0x0000000100003345 repl`RInside::Proxy::~Proxy() + 21
+    frame #7: 0x0000000100002fd5 repl`RInside::Proxy::~Proxy() + 21
+    frame #8: 0x0000000100002e77 repl`main + 183
+    frame #9: 0x00007fff7260bcc9 libdyld.dylib`start + 1
+(lldb) exit
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: repl.cpp
+Type: text/x-c++src
+Size: 236 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211001/f326779f/attachment.cpp>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: makefile
+Type: application/octet-stream
+Size: 306 bytes
+Desc: not available
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211001/f326779f/attachment.obj>
+
+From djsamperi at gmail.com  Sat Oct  2 14:55:02 2021
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Sat, 2 Oct 2021 08:55:02 -0400
+Subject: [Rcpp-devel] Any recent change that would remove
+	Rcpp_precious_remove?
+In-Reply-To: <24816.9790.765864.646219@rob.eddelbuettel.com>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+ <24816.9790.765864.646219@rob.eddelbuettel.com>
+Message-ID: <CADUbQ5i+cihTu2csXCZw8OAQpH7qyie0YThriJ8w_PkE09iDVQ@mail.gmail.com>
+
+Forcing source install of the latest versions of Rcpp and RInside is
+required
+under MacOS. By default MacOS installs binary versions of the latest
+versions, 1.0.7 and 0.2.16, resp., and a simple repl app seg faults.
+
+It appears that there is a problem with the current binary distribution
+under
+MacOS.
+
+Under Ubuntu the packages are installed from source by default, and
+there are no problems. There are also no problems under Windows.
+
+
+
+On Thu, Jul 15, 2021 at 8:13 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 15 July 2021 at 08:24, ma wh wrote:
+> | Colleague of mine wrote some R last week that was working OK, and hasn't
+> been changed in itself since that time. This week it's ceased working( I've
+> tried it on my machine and also see a fail, the following error is
+> encountered:
+> |
+> | Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided
+> by package 'Rcpp'
+> |
+> | Searching around there aren't many hits. Those I do find seem quite
+> recent (stackoverflow questions or GitHub issues logged in various
+> projects, dates of posting are within the last few days). None of the
+> posted queries seem to have a solution, one person said restarting RStudio
+> helped, but not in my case. The SO question I found was marked as deleted.
+> The GitHub issue I found was "I solved it" but no mention of how. The SO
+> question was asking about svg export:
+> https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function
+> | The GitHub were also asking about packages I don't use -
+> | https://github.com/r-spatial/spdep/issues/60
+> | https://github.com/drizopoulos/JMbayes2/issues/5
+> |
+> | Anyone on the list have any pointers? Thanks
+>
+> Packages following a the GNU style often have a file ChangeLog which
+> "details
+> changes made to the code". Rcpp follows this convention, see 2021-07-05 and
+> 2021-01-017.
+>
+> Packages following the R packaging conventions often have a file
+> inst/NEWS.rd
+> (also rendered as NEWS at CRAN). Rcpp follow this conventions, see the Rcpp
+> 1.0.7 release (even if the functions is not named).
+>
+> Packages have source code you can search.I like `ag` aka "the
+> silversearcher":
+>
+>   edd at rob:~/git/rcpp(master)$ ag -c Rcpp_precious_remove
+>   ChangeLog:2
+>   inst/include/Rcpp/routines.h:3
+>   inst/include/RcppCommon.h:2
+>   src/rcpp_init.cpp:1
+>   src/barrier.cpp:1
+>   edd at rob:~/git/rcpp(master)$
+>
+> It is still there, and available via the standard export mechanism.
+>
+> I recommend your friend take a look. The function is a) still there yet has
+> also b) been supplanted by a more sufficient alternative.
+>
+> Otherwise, a reproducible example would be the only way to make this
+> concrete.
+>
+> Hope this helps, Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211002/e5bb9fde/attachment.html>
+
+From simon.urbanek at R-project.org  Tue Oct  5 00:04:00 2021
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Tue, 5 Oct 2021 11:04:00 +1300
+Subject: [Rcpp-devel] Any recent change that would remove
+ Rcpp_precious_remove?
+In-Reply-To: <CADUbQ5i+cihTu2csXCZw8OAQpH7qyie0YThriJ8w_PkE09iDVQ@mail.gmail.com>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+ <24816.9790.765864.646219@rob.eddelbuettel.com>
+ <CADUbQ5i+cihTu2csXCZw8OAQpH7qyie0YThriJ8w_PkE09iDVQ@mail.gmail.com>
+Message-ID: <4410C325-BE26-4617-90F8-299A1C341DB4@R-project.org>
+
+Dominick,
+
+in that case this would be best reported on R-SIG-Mac. I just happen to be on this list so it worked ;). 
+
+Re-building RInside seems to fix the issue, now updated.
+
+While I have you here, unrelated, but please note that linking to packages dynamically is not supported (see R-exts 5.8), so your makefile needs to be fixed to use static libRInside.a (and RInside shouldn't be really creating or installing .dylib at all as it cannot be used reliably). 
+
+Cheers,
+Simon
+
+
+
+> On Oct 3, 2021, at 1:55 AM, Dominick Samperi <djsamperi at gmail.com> wrote:
+> 
+> Forcing source install of the latest versions of Rcpp and RInside is required
+> under MacOS. By default MacOS installs binary versions of the latest
+> versions, 1.0.7 and 0.2.16, resp., and a simple repl app seg faults.
+> 
+> It appears that there is a problem with the current binary distribution under
+> MacOS.
+> 
+> Under Ubuntu the packages are installed from source by default, and
+> there are no problems. There are also no problems under Windows.
+> 
+> 
+> 
+> On Thu, Jul 15, 2021 at 8:13 AM Dirk Eddelbuettel <edd at debian.org <mailto:edd at debian.org>> wrote:
+> 
+> On 15 July 2021 at 08:24, ma wh wrote:
+> | Colleague of mine wrote some R last week that was working OK, and hasn't been changed in itself since that time. This week it's ceased working( I've tried it on my machine and also see a fail, the following error is encountered:
+> | 
+> | Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+> | 
+> | Searching around there aren't many hits. Those I do find seem quite recent (stackoverflow questions or GitHub issues logged in various projects, dates of posting are within the last few days). None of the posted queries seem to have a solution, one person said restarting RStudio helped, but not in my case. The SO question I found was marked as deleted. The GitHub issue I found was "I solved it" but no mention of how. The SO question was asking about svg export: https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function <https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function>
+> | The GitHub were also asking about packages I don't use -
+> | https://github.com/r-spatial/spdep/issues/60 <https://github.com/r-spatial/spdep/issues/60>
+> | https://github.com/drizopoulos/JMbayes2/issues/5 <https://github.com/drizopoulos/JMbayes2/issues/5>
+> | 
+> | Anyone on the list have any pointers? Thanks
+> 
+> Packages following a the GNU style often have a file ChangeLog which "details
+> changes made to the code". Rcpp follows this convention, see 2021-07-05 and
+> 2021-01-017.
+> 
+> Packages following the R packaging conventions often have a file inst/NEWS.rd
+> (also rendered as NEWS at CRAN). Rcpp follow this conventions, see the Rcpp
+> 1.0.7 release (even if the functions is not named).
+> 
+> Packages have source code you can search.I like `ag` aka "the
+> silversearcher":
+> 
+>   edd at rob:~/git/rcpp(master)$ ag -c Rcpp_precious_remove
+>   ChangeLog:2
+>   inst/include/Rcpp/routines.h:3
+>   inst/include/RcppCommon.h:2
+>   src/rcpp_init.cpp:1
+>   src/barrier.cpp:1
+>   edd at rob:~/git/rcpp(master)$ 
+> 
+> It is still there, and available via the standard export mechanism.
+> 
+> I recommend your friend take a look. The function is a) still there yet has
+> also b) been supplanted by a more sufficient alternative.
+> 
+> Otherwise, a reproducible example would be the only way to make this
+> concrete.
+> 
+> Hope this helps, Dirk
+> 
+> -- 
+> https://dirk.eddelbuettel.com <https://dirk.eddelbuettel.com/> | @eddelbuettel | edd at debian.org <mailto:edd at debian.org>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>_______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211005/32125c1d/attachment.html>
+

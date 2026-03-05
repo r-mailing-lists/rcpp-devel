@@ -1,0 +1,716 @@
+From hmamoucheyussef at gmail.com  Wed Feb  7 16:20:16 2018
+From: hmamoucheyussef at gmail.com (Hmamouche Youssef)
+Date: Wed, 7 Feb 2018 16:20:16 +0100
+Subject: [Rcpp-devel] Setting seed using Rcpp
+Message-ID: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+
+Hi,
+
+I get a note from R CMD check for an Rcpp package:
+
+  Found ?_srand?, possibly from ?srand?
+
+ Found no calls to: ?R_registerRoutines?, ?R_useDynamicSymbols?
+
+
+Is there some an  equivalent function for srand from Rcpp, which i can use
+it inside c++ code?
+
+Best regards,
+Youssef
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180207/efcd959e/attachment.html>
+
+From serguei.sokol at gmail.com  Wed Feb  7 16:36:11 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Wed, 7 Feb 2018 16:36:11 +0100
+Subject: [Rcpp-devel] Setting seed using Rcpp
+In-Reply-To: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+References: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+Message-ID: <ad172492-f6fc-d8c0-ccba-fc3f4c8f794d@gmail.com>
+
+Le 07/02/2018 ? 16:20, Hmamouche Youssef a ?crit?:
+> Hi,
+> 
+> I get a note from R CMD check for an Rcpp package:
+> 
+> Found ?_srand?, possibly from ?srand?
+> 
+> Found no calls to: ?R_registerRoutines?, ?R_useDynamicSymbols?
+> 
+> 
+> 
+> Is there some an? equivalent function for srand from Rcpp, which i can use it inside c++ code?
+If you try "rcpp random number generation" in a search engine,
+the first line will point to
+
+http://gallery.rcpp.org/articles/random-number-generation/
+
+which probably has your answer.
+
+Best,
+Serguei.
+
+From edd at debian.org  Wed Feb  7 16:36:28 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 7 Feb 2018 09:36:28 -0600
+Subject: [Rcpp-devel] Setting seed using Rcpp
+In-Reply-To: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+References: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+Message-ID: <23163.7420.296011.795672@rob.eddelbuettel.com>
+
+
+On 7 February 2018 at 16:20, Hmamouche Youssef wrote:
+| Hi,
+| 
+| I get a note from R CMD check for an Rcpp package:
+| 
+|   Found ?_srand?, possibly from ?srand?
+| 
+|  Found no calls to: ?R_registerRoutines?, ?R_useDynamicSymbols?
+| 
+| 
+| Is there some an  equivalent function for srand from Rcpp, which i can use
+| it inside c++ code?
+
+In short, no.
+
+Slightly longer: All Rcpp code is set up to be used _from R_ so by design you
+are always in R before you call code containing Rcpp.  So just call the R
+function set.seed(...) as we work hard to make sure the state is properly set
+and passed before and after.
+
+Even longer: srand() is always wrong and bad (long literature on that ...)
+and has nothing to do with R's RNG.  You are entirely free to define and
+implement your own RNG (see my RcppZiggurrat package revisiting Marsaglia's
+Ziggurat RNG) or call others (C++11 has some) or ...  But you probably want
+to use R's RNGs, and for that you have to set them from R (or use
+Rcpp::Function()).  Also see the docs on the R Math Library (Section 6.16 of
+Writing R Extensions) which gives you special functions and RNGs and even
+set_seed() but that is for use _apart from R_ which is NOT what we do here.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From hye at ucsd.edu  Wed Feb  7 16:44:03 2018
+From: hye at ucsd.edu (Hao Ye)
+Date: Wed, 7 Feb 2018 10:44:03 -0500
+Subject: [Rcpp-devel] Setting seed using Rcpp
+In-Reply-To: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+References: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+Message-ID: <CAK1kXLzrfYPjRQsHDOkNLWaHSCgd9HD8K0acVGLOZGs4x0q4dQ@mail.gmail.com>
+
+Hi Youssef,
+
+Rcpp has sugar for the R random number generators. This is nice if you want
+to let your users set the random seed in R code outside of the package for
+reproducibility: http://gallery.rcpp.org/articles/random-number-generation/
+
+Alternatively, if you enable C++11, there are some random number generators
+in std: https://www.guyrutenberg.com/2014/05/03/c-mt19937-example/
+
+Best,
+--
+Hao Ye
+
+On Wed, Feb 7, 2018 at 10:20 AM, Hmamouche Youssef <
+hmamoucheyussef at gmail.com> wrote:
+
+> Hi,
+>
+> I get a note from R CMD check for an Rcpp package:
+>
+>   Found ?_srand?, possibly from ?srand?
+>
+>  Found no calls to: ?R_registerRoutines?, ?R_useDynamicSymbols?
+>
+>
+> Is there some an  equivalent function for srand from Rcpp, which i can
+> use it inside c++ code?
+>
+> Best regards,
+> Youssef
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180207/b750f01c/attachment.html>
+
+From hmamoucheyussef at gmail.com  Wed Feb  7 17:20:08 2018
+From: hmamoucheyussef at gmail.com (Hmamouche Youssef)
+Date: Wed, 7 Feb 2018 17:20:08 +0100
+Subject: [Rcpp-devel] Setting seed using Rcpp
+In-Reply-To: <CAK1kXLzrfYPjRQsHDOkNLWaHSCgd9HD8K0acVGLOZGs4x0q4dQ@mail.gmail.com>
+References: <CALp=_qGGgKsUOxRQ705m7=S_hhFCxMbBX1hAfo523e_6uSg0MQ@mail.gmail.com>
+ <CAK1kXLzrfYPjRQsHDOkNLWaHSCgd9HD8K0acVGLOZGs4x0q4dQ@mail.gmail.com>
+Message-ID: <CALp=_qFNLYFNGAa=8H33At4JO-0Eo6zGqxTmy9+cs0Z9zB4_zw@mail.gmail.com>
+
+Thank you all for these answers.
+
+ If you try "rcpp random number generation" in a search engine,
+ the first line will point to
+
+ http://gallery.rcpp.org/articles/random-number-generation/
+
+ which probably has your answer.
+
+ Best,
+ Serguei
+
+Yes of course i tried http://gallery.rcpp.org/articl
+es/random-number-generation/, which helps to replace the rand function, and
+effectively, i found the set.seed () (from R), just i didn't know how t use
+it in C++.
+-----------------------------------------------------------------
+-----------------
+
+In short, no.
+
+Slightly longer: All Rcpp code is set up to be used _from R_ so by design
+you
+are always in R before you call code containing Rcpp.  So just call the R
+function set.seed(...) as we work hard to make sure the state is properly
+set
+and passed before and after.
+
+Even longer: srand() is always wrong and bad (long literature on that ...)
+and has nothing to do with R's RNG.  You are entirely free to define and
+implement your own RNG (see my RcppZiggurrat package revisiting Marsaglia's
+Ziggurat RNG) or call others (C++11 has some) or ...  But you probably want
+to use R's RNGs, and for that you have to set them from R (or use
+Rcpp::Function()).  Also see the docs on the R Math Library (Section 6.16 of
+Writing R Extensions) which gives you special functions and RNGs and even
+set_seed() but that is for use _apart from R_ which is NOT what we do here.
+
+Thx, I will look at RcppZiggurrat package, and also try other C++ functions.
+-----------------------------------------------------------------
+-----------------
+
+Hi Youssef,
+
+Rcpp has sugar for the R random number generators. This is nice if you want
+to let your users set the random seed in R code outside of the package for
+reproducibility: http://gallery.rcpp.org/articles/random-number-generation/
+
+Alternatively, if you enable C++11, there are some random number generators
+in std: https://www.guyrutenberg.com/2014/05/03/c-mt19937-example/
+
+Best,
+--
+Hao Ye
+
+Thx, in my case, i have it initialize the number generator, so i will try
+check the proposed link.
+-----------------------------------------------------------------
+-----------------
+
+
+Best regards,
+Youssef
+
+
+
+2018-02-07 16:44 GMT+01:00 Hao Ye <hye at ucsd.edu>:
+
+> Hi Youssef,
+>
+> Rcpp has sugar for the R random number generators. This is nice if you
+> want to let your users set the random seed in R code outside of the package
+> for reproducibility: http://gallery.rcpp.org/articles/
+> random-number-generation/
+>
+> Alternatively, if you enable C++11, there are some random number
+> generators in std: https://www.guyrutenberg.com/2014/05/03/c-mt19937-
+> example/
+>
+> Best,
+> --
+> Hao Ye
+>
+> On Wed, Feb 7, 2018 at 10:20 AM, Hmamouche Youssef <
+> hmamoucheyussef at gmail.com> wrote:
+>
+>> Hi,
+>>
+>> I get a note from R CMD check for an Rcpp package:
+>>
+>>   Found ?_srand?, possibly from ?srand?
+>>
+>>  Found no calls to: ?R_registerRoutines?, ?R_useDynamicSymbols?
+>>
+>>
+>> Is there some an  equivalent function for srand from Rcpp, which i can
+>> use it inside c++ code?
+>>
+>> Best regards,
+>> Youssef
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180207/0f457ed0/attachment-0001.html>
+
+From cdetermanjr at gmail.com  Wed Feb  7 17:21:57 2018
+From: cdetermanjr at gmail.com (Charles Determan)
+Date: Wed, 7 Feb 2018 10:21:57 -0600
+Subject: [Rcpp-devel] OpenACC, Rcpp and RStudio on Windows
+In-Reply-To: <CANM+bMKDfNuu4iuosQW+_RHfcgLi23Qu_gV+aZLkCCGDb+k2wg@mail.gmail.com>
+References: <CANM+bM+-f6vUBygsyUY=AjDPAhGynTrHcxz2VRnhoxgCgWf34Q@mail.gmail.com>
+ <23140.45355.260325.662925@bud.eddelbuettel.com>
+ <CANM+bMJiFWqh3qLxFL1hQxGZkO8zyvXLT_261V_t2cy9pMB7NQ@mail.gmail.com>
+ <CAKxd1KNBjNbwQ6LhWuGfjZtUwc54fZCJfGWd_HnajBv-GtHTnA@mail.gmail.com>
+ <CANM+bMJvfuHgLTxvvMHDa=VzFgLN8tKCQYsqPTGwnNji_vW=bw@mail.gmail.com>
+ <23142.47034.199790.345751@bud.eddelbuettel.com>
+ <CANM+bM+-mdjY7bL-Rrz0rSji=vj00xZOr7TeNhqdk0+tM+smQQ@mail.gmail.com>
+ <CAJ_LAMBOzeWFYKhLmwuKkpsYp_7KYGXB9fm+C4kbcaOEj5sqQA@mail.gmail.com>
+ <CANM+bMKDfNuu4iuosQW+_RHfcgLi23Qu_gV+aZLkCCGDb+k2wg@mail.gmail.com>
+Message-ID: <CAKxd1KNbAJtLQ8Z_RR+NczEGUkt1kO-k34cQX27XtioqKwXKNA@mail.gmail.com>
+
+It is worth noting on this thread that the LightGBM package actually
+doesn't have a CUDA backend for Windows.  It requires an OpenCL SDK as
+noted here (https://github.com/Microsoft/LightGBM/issues/1236).
+
+Regards,
+Charles
+
+On Tue, Jan 23, 2018 at 11:10 AM, Emmanuel Hamel <manu.hamel at gmail.com>
+wrote:
+
+> Here is a message that I received that was not in the "email chain" ...
+>
+>
+> Hi Emmanuel. Probably you take a look to the approach taken by Microsoft
+> in LightGBM R package. I do not know details (so approach could be
+> irrelevant to what you've asked), but on windows they build package (even
+> with gpu support) using Visual Studio toolchain. You can check here -
+> https://github.com/Microsoft/LightGBM/tree/master/R-package.
+>
+> If you will find it useful please report back to this mailing list, so we
+> will be aware of it. Thanks.
+>
+>
+> 2018-01-23 15:00 GMT+04:00 <rcpp-devel-request at lists.r-forge.r-project.org
+> >:
+>
+>> Send Rcpp-devel mailing list submissions to
+>>         rcpp-devel at lists.r-forge.r-project.org
+>>
+>> To subscribe or unsubscribe via the World Wide Web, visit
+>>         https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo
+>> /rcpp-devel
+>>
+>> or, via email, send a message with subject or body 'help' to
+>>         rcpp-devel-request at lists.r-forge.r-project.org
+>>
+>> You can reach the person managing the list at
+>>         rcpp-devel-owner at lists.r-forge.r-project.org
+>>
+>> When replying, please edit your Subject line so it is more specific
+>> than "Re: Contents of Rcpp-devel digest..."
+>
+>
+> 2018-01-23 11:28 GMT-05:00 Qiang Kou <qkou at umail.iu.edu>:
+>
+>> On Mon, Jan 22, 2018 at 11:24 PM, Emmanuel Hamel <manu.hamel at gmail.com>
+>> wrote:
+>>
+>>>
+>>> For the moment, I compile the GPU code with Visual studio 2015 to make ?
+>>> DLL, and then I call it from R. It is the only solution I found for the
+>>> moment.
+>>>
+>>>
+>> In MXNet R package, we also compile the cuda code using visual studio to
+>> generate the dll.
+>>
+>> This is the easiest way I know.
+>>
+>> Best,
+>>
+>> KK
+>>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180207/cbfb81a4/attachment.html>
+
+From edd at debian.org  Sat Feb 10 21:12:57 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 10 Feb 2018 14:12:57 -0600
+Subject: [Rcpp-devel] RcppArmadillo 0.8.399.0.0 off Armadillo 8.400.rc1
+Message-ID: <23167.21065.59174.285900@rob.eddelbuettel.com>
+
+
+Conrad released a first release candidate for Armadillo 8.400. I wrapped this
+up as 0.8.399.0.0 (so that R's version sorting can allow later 0.8.400.*
+releases) and put it into the rcpp-drat at https://rcppcore.github.io/drat/
+
+Via
+   drat:::add("RcppCore")
+   install.packages("RcppArmadillo")
+you can get the source tarball.  Please test this.
+
+Conrad's notes:
+  8.400-RC1 (Release Candidate 1) contains new features, enhancements, speedups and bug fixes.
+  Available from http://sourceforge.net/projects/arma/files/armadillo-8.400-RC1.tar.xz
+  Please test and report any issues.
+
+  Changes:
+  - faster handling of sparse matrices by repmat()
+  - faster loading of CSV files
+  - expanded kron() to handle sparse matrices
+  - expanded index_min() and index_max() to handle cubes
+  - expanded randi(), randu(), randn(), randg() to output single scalars
+  - added submatrix & subcube iterators
+  - added normcdf()
+  - added chi2rnd() for generation of chi-squared random numbers
+  - added wishrnd() and iwishrnd() for generation of random Wishart matrices
+
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Feb 22 01:24:42 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 21 Feb 2018 18:24:42 -0600
+Subject: [Rcpp-devel] RcppArmadillo 0.8.400.0.0
+Message-ID: <23182.3530.341125.954127@rob.eddelbuettel.com>
+
+
+I uploaded RcppArmadillo to CRAN 2 1/2 days ago --- but just like every now
+and so often it just sits there, and nobody cares to tell us what, if
+anything, is holding it up.
+
+So I put it into the Rcpp drat repo from where you can install the usual way,
+if you're so inclined:
+
+   drat:::add("RcppCore")
+   install.packages("RcppArmadillo", type="source")
+
+More at https://rcppcore.github.io/drat/
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From briank.lists at gmail.com  Tue Feb 27 21:43:03 2018
+From: briank.lists at gmail.com (brian knaus)
+Date: Tue, 27 Feb 2018 12:43:03 -0800
+Subject: [Rcpp-devel] RcppParallel with string or char?
+Message-ID: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+
+Hello,
+
+I have an Rcpp function that I would like to speed up, so RcppParallel
+seemed like a solution. The issue I'm having is that my data is not
+numeric. I currently use an Rcpp::StringMatrix as input and
+Rcpp::CharacterMatrix as output from the function. The examples at the Rcpp
+Gallery all seem to consist of RMatrix<double> or RVector<double>. I was
+able to find the below SO post which seems to ask my question but does not
+appear to have resolved successfully.
+
+https://stackoverflow.com/questions/29105531/rcppparallel-converting-charactermatrix-to-rmatrixt/29115437
+
+Is there a thread safe non-numeric data structure that can be used with
+RcppParallel?
+
+Thank you!
+Brian Knaus
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180227/b112f1a7/attachment.html>
+
+From edd at debian.org  Tue Feb 27 23:30:10 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 27 Feb 2018 16:30:10 -0600
+Subject: [Rcpp-devel] RcppParallel with string or char?
+In-Reply-To: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+References: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+Message-ID: <23189.56306.690217.879423@rob.eddelbuettel.com>
+
+
+On 27 February 2018 at 12:43, brian knaus wrote:
+| I have an Rcpp function that I would like to speed up, so RcppParallel
+| seemed like a solution. The issue I'm having is that my data is not
+| numeric. I currently use an Rcpp::StringMatrix as input and
+| Rcpp::CharacterMatrix as output from the function. The examples at the Rcpp
+| Gallery all seem to consist of RMatrix<double> or RVector<double>. I was
+| able to find the below SO post which seems to ask my question but does not
+| appear to have resolved successfully.
+| 
+| https://stackoverflow.com/questions/29105531/rcppparallel-converting-charactermatrix-to-rmatrixt/29115437
+| 
+| Is there a thread safe non-numeric data structure that can be used with
+| RcppParallel?
+
+You may have to craft a container similar to RMatrix:
+https://github.com/RcppCore/RcppParallel/blob/master/inst/include/RcppParallel/RMatrix.h
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From briank.lists at gmail.com  Wed Feb 28 00:46:52 2018
+From: briank.lists at gmail.com (brian knaus)
+Date: Tue, 27 Feb 2018 15:46:52 -0800
+Subject: [Rcpp-devel] RcppParallel with string or char?
+In-Reply-To: <23189.56306.690217.879423@rob.eddelbuettel.com>
+References: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+ <23189.56306.690217.879423@rob.eddelbuettel.com>
+Message-ID: <CAEp5mpCu3mo44svLpM1x6uEtof8hxiukP+eBQWNng5OLa-nq=A@mail.gmail.com>
+
+Thanks for your suggestion Dirk! But it may be beyond my abilities. I may
+have to learn more than I anticipated on this one.
+
+Brian
+
+On Tue, Feb 27, 2018 at 2:30 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 27 February 2018 at 12:43, brian knaus wrote:
+> | I have an Rcpp function that I would like to speed up, so RcppParallel
+> | seemed like a solution. The issue I'm having is that my data is not
+> | numeric. I currently use an Rcpp::StringMatrix as input and
+> | Rcpp::CharacterMatrix as output from the function. The examples at the
+> Rcpp
+> | Gallery all seem to consist of RMatrix<double> or RVector<double>. I was
+> | able to find the below SO post which seems to ask my question but does
+> not
+> | appear to have resolved successfully.
+> |
+> | https://stackoverflow.com/questions/29105531/rcppparallel-converting-
+> charactermatrix-to-rmatrixt/29115437
+> |
+> | Is there a thread safe non-numeric data structure that can be used with
+> | RcppParallel?
+>
+> You may have to craft a container similar to RMatrix:
+> https://github.com/RcppCore/RcppParallel/blob/master/inst/
+> include/RcppParallel/RMatrix.h
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180227/84dc3d9c/attachment.html>
+
+From edd at debian.org  Wed Feb 28 00:51:22 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 27 Feb 2018 17:51:22 -0600
+Subject: [Rcpp-devel] RcppParallel with string or char?
+In-Reply-To: <CAEp5mpCu3mo44svLpM1x6uEtof8hxiukP+eBQWNng5OLa-nq=A@mail.gmail.com>
+References: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+ <23189.56306.690217.879423@rob.eddelbuettel.com>
+ <CAEp5mpCu3mo44svLpM1x6uEtof8hxiukP+eBQWNng5OLa-nq=A@mail.gmail.com>
+Message-ID: <23189.61178.314047.351095@rob.eddelbuettel.com>
+
+
+On 27 February 2018 at 15:46, brian knaus wrote:
+| Thanks for your suggestion Dirk! But it may be beyond my abilities. I may
+| have to learn more than I anticipated on this one.
+
+Yes, it looks like a handful.
+
+OTOH you may be able to get by with standard C++ container, possibly at the
+cost of one initial copy.  Maybe std::vector<std::string> can do the trick
+for you and we do already have converters to those.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From briank.lists at gmail.com  Wed Feb 28 03:38:13 2018
+From: briank.lists at gmail.com (brian knaus)
+Date: Tue, 27 Feb 2018 18:38:13 -0800
+Subject: [Rcpp-devel] RcppParallel with string or char?
+In-Reply-To: <23189.61178.314047.351095@rob.eddelbuettel.com>
+References: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+ <23189.56306.690217.879423@rob.eddelbuettel.com>
+ <CAEp5mpCu3mo44svLpM1x6uEtof8hxiukP+eBQWNng5OLa-nq=A@mail.gmail.com>
+ <23189.61178.314047.351095@rob.eddelbuettel.com>
+Message-ID: <CAEp5mpAfFP7cQKtpA-3oYe35GaLR1joHdMnbqz-Rq7atgwVYeQ@mail.gmail.com>
+
+Thanks for the suggestion! Unfortunately, I don't follow you. This is
+likely because this is my first attempt at parallel code outside of one-off
+mclapply(). My hope is to use this in a package on CRAN, so I'd like
+something more portable than mclapply().
+
+My understanding is that we need to work with 'thread safe' data
+structures. For example, in the worker in (
+http://gallery.rcpp.org/articles/parallel-matrix-transform/)
+RMatrix<double> is used for input and output matrices. And part of the
+point of RMatrix and RVector are to provide these 'thread safe' data
+structures so the rest of us do not need to learn the details of their
+complexities. When you say I could try using std::vector<std::string> do
+you mean as a substitute for RMatrix in the worker? Or perhaps
+std::vector<std::vector<std::string>> as a substitute for RMatrix?
+
+Thank you!
+Brian
+
+On Tue, Feb 27, 2018 at 3:51 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 27 February 2018 at 15:46, brian knaus wrote:
+> | Thanks for your suggestion Dirk! But it may be beyond my abilities. I may
+> | have to learn more than I anticipated on this one.
+>
+> Yes, it looks like a handful.
+>
+> OTOH you may be able to get by with standard C++ container, possibly at the
+> cost of one initial copy.  Maybe std::vector<std::string> can do the trick
+> for you and we do already have converters to those.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180227/9da45e96/attachment.html>
+
+From edd at debian.org  Wed Feb 28 03:58:33 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 27 Feb 2018 20:58:33 -0600
+Subject: [Rcpp-devel] RcppParallel with string or char?
+In-Reply-To: <CAEp5mpAfFP7cQKtpA-3oYe35GaLR1joHdMnbqz-Rq7atgwVYeQ@mail.gmail.com>
+References: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+ <23189.56306.690217.879423@rob.eddelbuettel.com>
+ <CAEp5mpCu3mo44svLpM1x6uEtof8hxiukP+eBQWNng5OLa-nq=A@mail.gmail.com>
+ <23189.61178.314047.351095@rob.eddelbuettel.com>
+ <CAEp5mpAfFP7cQKtpA-3oYe35GaLR1joHdMnbqz-Rq7atgwVYeQ@mail.gmail.com>
+Message-ID: <23190.6873.448769.138352@rob.eddelbuettel.com>
+
+
+On 27 February 2018 at 18:38, brian knaus wrote:
+| Thanks for the suggestion! Unfortunately, I don't follow you. This is
+| likely because this is my first attempt at parallel code outside of one-off
+| mclapply(). My hope is to use this in a package on CRAN, so I'd like
+| something more portable than mclapply().
+| 
+| My understanding is that we need to work with 'thread safe' data
+| structures. For example, in the worker in (
+| http://gallery.rcpp.org/articles/parallel-matrix-transform/)
+| RMatrix<double> is used for input and output matrices. And part of the
+| point of RMatrix and RVector are to provide these 'thread safe' data
+| structures so the rest of us do not need to learn the details of their
+| complexities. When you say I could try using std::vector<std::string> do
+| you mean as a substitute for RMatrix in the worker? Or perhaps
+| std::vector<std::vector<std::string>> as a substitute for RMatrix?
+
+RMatrix (and RVector) exist because we cannot use Rcpp::NumericMatrix (and
+Rcpp::NumericVector) as those are "proxy objects" which reuse the R-allocated
+memory. That is not thread safe as R may have a gc event. 
+
+So converting your R text objects into std::vector<std::string> is also
+thread-safe as it provides a distinct copy. Which is why I suggested it
+earlier.
+
+You said you had string data, so you likely need something just like
+std::list<std::string> or std::vector<std::string> anyway.
+
+Does that make sense?   One word of caution, though:  RcppParallel and
+friends are user-friendly compared to doing it by hand using OpenMP etc, but
+not quite as easy as mlapply.  Maybe just cooking up a simpler C++ based
+package and have that used on the parallel instances governed by mclapply?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From briank.lists at gmail.com  Wed Feb 28 17:18:35 2018
+From: briank.lists at gmail.com (brian knaus)
+Date: Wed, 28 Feb 2018 08:18:35 -0800
+Subject: [Rcpp-devel] RcppParallel with string or char?
+In-Reply-To: <23190.6873.448769.138352@rob.eddelbuettel.com>
+References: <CAEp5mpB+O6dHdPLK1oEt_xJSdVdSvhZ_f+pHD5h7FeAEy7VLww@mail.gmail.com>
+ <23189.56306.690217.879423@rob.eddelbuettel.com>
+ <CAEp5mpCu3mo44svLpM1x6uEtof8hxiukP+eBQWNng5OLa-nq=A@mail.gmail.com>
+ <23189.61178.314047.351095@rob.eddelbuettel.com>
+ <CAEp5mpAfFP7cQKtpA-3oYe35GaLR1joHdMnbqz-Rq7atgwVYeQ@mail.gmail.com>
+ <23190.6873.448769.138352@rob.eddelbuettel.com>
+Message-ID: <CAEp5mpD6ReTmzjAeLjhvOG5Le+PSDbdm3FiHe47mmX2QwuZv+A@mail.gmail.com>
+
+Thanks Dirk! I think that does make sense. I'll work on trying to implement
+it. I don't think I'll get to it today, but I'll try to post back to the
+group if I arrive at a solution.
+
+Thanks!
+Brian
+
+On Tue, Feb 27, 2018 at 6:58 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 27 February 2018 at 18:38, brian knaus wrote:
+> | Thanks for the suggestion! Unfortunately, I don't follow you. This is
+> | likely because this is my first attempt at parallel code outside of
+> one-off
+> | mclapply(). My hope is to use this in a package on CRAN, so I'd like
+> | something more portable than mclapply().
+> |
+> | My understanding is that we need to work with 'thread safe' data
+> | structures. For example, in the worker in (
+> | http://gallery.rcpp.org/articles/parallel-matrix-transform/)
+> | RMatrix<double> is used for input and output matrices. And part of the
+> | point of RMatrix and RVector are to provide these 'thread safe' data
+> | structures so the rest of us do not need to learn the details of their
+> | complexities. When you say I could try using std::vector<std::string> do
+> | you mean as a substitute for RMatrix in the worker? Or perhaps
+> | std::vector<std::vector<std::string>> as a substitute for RMatrix?
+>
+> RMatrix (and RVector) exist because we cannot use Rcpp::NumericMatrix (and
+> Rcpp::NumericVector) as those are "proxy objects" which reuse the
+> R-allocated
+> memory. That is not thread safe as R may have a gc event.
+>
+> So converting your R text objects into std::vector<std::string> is also
+> thread-safe as it provides a distinct copy. Which is why I suggested it
+> earlier.
+>
+> You said you had string data, so you likely need something just like
+> std::list<std::string> or std::vector<std::string> anyway.
+>
+> Does that make sense?   One word of caution, though:  RcppParallel and
+> friends are user-friendly compared to doing it by hand using OpenMP etc,
+> but
+> not quite as easy as mlapply.  Maybe just cooking up a simpler C++ based
+> package and have that used on the parallel instances governed by mclapply?
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20180228/fa3cb275/attachment.html>
+

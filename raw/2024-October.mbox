@@ -1,0 +1,1091 @@
+From cheval at zaclys.net  Tue Oct  1 15:53:30 2024
+From: cheval at zaclys.net (Denis Haine)
+Date: Tue, 01 Oct 2024 09:53:30 -0400
+Subject: [Rcpp-devel] for loop and random draws
+Message-ID: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+
+
+
+Hi,
+
+I have two different results within a for loop if a random draw is 
+followed by an additional operation, i.e.:
+
+// [[Rcpp::export]]
+NumericMatrix define_e(int iter, NumericMatrix obs_mat, NumericVector 
+draws) {
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericMatrix e(d.length(), iter);
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e(_, i) = cpprbinom(d.length(), 1, pr);
+   }
+   return e;
+}
+
+// [[Rcpp::export]]
+NumericMatrix define_e2(int iter, NumericMatrix obs_mat, NumericVector 
+draws) {
+   Environment pkg = Environment::namespace_env("fastglm");
+   Function f = pkg["fastglm"];
+   Function s = pkg["summary.fastglm"];
+
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericVector e = no_init(d.length());
+   Rcpp::NumericMatrix e_mat(d.length(), iter);
+
+   Rcpp::NumericMatrix ematrix(d.length(), 2);
+   Rcpp::NumericVector v(d.length(), 1);
+   ematrix(_, 0) = v;
+   Rcpp::List mod_pois;
+   Rcpp::NumericVector mod_coef = no_init(d.length());
+   double coef;
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e = cpprbinom(d.length(), 1, pr);
+     e_mat(_, i) = e; // save e as matrix for sake of comparison with 
+define_e function
+
+     ematrix(_, 1) = e;
+     if (all(is_na(e)).is_true()) {
+       coef = NA_REAL;
+       } else {
+       mod_pois = f(Named("x", ematrix), Named("y", d), Named("family", 
+"poisson"));
+       mod_coef = mod_pois["coefficients"];
+       coef = {mod_coef[1]};
+     }
+   }
+   return e_mat;
+}
+
+define_e saves the random draws in a matrix (cpprbinom is from 
+https://stackoverflow.com/questions/29430726/vectorised-rcpp-random-binomial-draws), 
+while define_e2 uses a vector to be provided to a regression model. 
+Without the regression model in define_e2(), the two functions output 
+the same values for e(), but not after. I absolutely have no clue why 
+that is (maybe some "wiggling" with RNG seed??) and how to get the same 
+output as with define_e but without saving as a matrix (as it can 
+quickly become unmanageable for memory with N rows X number of 
+iterations X 8k). Any help is welcome! Thanks,
+
+Denis
+
+> draws <- rbeta(200, 100, 60)
+> obs_mat <- cbind(c(rep(1, 40), rep(0, 60)), c(rep(1, 20), rep(0, 80)))
+> iter <- length(draws)
+> set.seed(1234)
+> t1 <- define_e(iter, obs_mat, draws)
+> set.seed(1234)
+> t2 <- define_e2(iter, obs_mat, draws)
+> all.equal(t1, t2)
+[1] "Mean relative difference: 2.270964"
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241001/926b10ed/attachment.htm>
+
+From edd at debian.org  Tue Oct  1 16:59:38 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 1 Oct 2024 09:59:38 -0500
+Subject: [Rcpp-devel] for loop and random draws
+In-Reply-To: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+References: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+Message-ID: <26364.3674.189407.454295@rob.eddelbuettel.com>
+
+
+Denis,
+
+This is not reproducible. You show two functions, they both take arguments,
+you do not supply those. We cannot run this, so we cannot really help you.
+
+Please try rephrasing this as a _self-contained_ example.
+
+Now, it is always possibly that while the RNG seeds get reset properly on
+'normal' C++ function brought to R via Rcpp, it may be that repeated use of
+Rcpp::Function as you aim to do may 'break that contract'. You should always
+be able to add the setter and getter of RNG seeds described in WRE yourself
+if need.
+
+But my advice would be to simplify to a self-contained example, and see if it
+reproduces with / without extended use of R functions called from Rcpp code.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Oct  1 17:14:36 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 1 Oct 2024 10:14:36 -0500
+Subject: [Rcpp-devel] for loop and random draws
+In-Reply-To: <26364.3674.189407.454295@rob.eddelbuettel.com>
+References: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+ <26364.3674.189407.454295@rob.eddelbuettel.com>
+Message-ID: <26364.4572.685247.487221@rob.eddelbuettel.com>
+
+
+On 1 October 2024 at 09:59, Dirk Eddelbuettel wrote:
+| This is not reproducible. You show two functions, they both take arguments,
+| you do not supply those. We cannot run this, so we cannot really help you.
+
+I missed the lines at the bottom past your signature, so I was wrong. My bad.
+
+I would still encourage you to _simplify_. You have a pair of moderately
+complex functions, and they do not reproduce the same results after two runs
+despite re-seeding. So I would trim elements from them one by one to see
+which removal leads to identical results. Or, inversely, start from twice
+drawing from an RNG after reseed and assert first that the draws are
+identical. Then add your processing.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From cheval at zaclys.net  Tue Oct  1 17:57:34 2024
+From: cheval at zaclys.net (Denis Haine)
+Date: Tue, 01 Oct 2024 11:57:34 -0400
+Subject: [Rcpp-devel] for loop and random draws
+In-Reply-To: <26364.4572.685247.487221@rob.eddelbuettel.com>
+References: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+ <26364.3674.189407.454295@rob.eddelbuettel.com>
+ <26364.4572.685247.487221@rob.eddelbuettel.com>
+Message-ID: <27954dbe4cb24a85520388bd8c805fb2@zaclys.net>
+
+
+
+Sorry, I missed sharing that part comparing the two functions, vector 
+vs. matrix without the regression.
+
+// [[Rcpp::export]]
+NumericMatrix define_e(int iter, NumericMatrix obs_mat, NumericVector 
+draws) {
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericMatrix e(d.length(), iter);
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e(_, i) = cpprbinom(d.length(), 1, pr);
+   }
+   return e;
+}
+
+// [[Rcpp::export]]
+NumericMatrix define_e1(int iter, NumericMatrix obs_mat, NumericVector 
+draws) {
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericVector e = no_init(d.length());
+   Rcpp::NumericMatrix e_mat(d.length(), iter);
+
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e = cpprbinom(d.length(), 1, pr);
+     e_mat(_, i) = e; // save e as matrix for sake of demonstration
+   }
+   return e_mat;
+}
+
+So these two give the same output:
+
+> draws <- rbeta(200, 100, 60)
+> obs_mat <- cbind(c(rep(1, 40), rep(0, 60)), c(rep(1, 20), rep(0, 80)))
+> iter <- length(draws)
+> set.seed(1234)
+> t0 <- define_e(iter, obs_mat, draws)
+> set.seed(1234)
+> t1 <- define_e1(iter, obs_mat, draws)
+> all.equal(t0, t1)
+[1] TRUE
+
+But adding the regression to define_e1() (as define_e2() in previous 
+email) does not give the same. The first iteration in the loop is 
+identical in both, but not the subsequent ones. That's why I was 
+thinking it could be linked to the seed, but (sorry for my limited 
+knowledge of C++) it would be strange to manually "re-seed" at each 
+iteration. Moreover, I believe the seed set in R is transferred to Rcpp 
+and so does not need to be taken specifically care of.
+
+Denis
+
+Le 2024-10-01 11:14, Dirk Eddelbuettel a ?crit :
+
+> On 1 October 2024 at 09:59, Dirk Eddelbuettel wrote:
+> | This is not reproducible. You show two functions, they both take 
+> arguments,
+> | you do not supply those. We cannot run this, so we cannot really help 
+> you.
+> 
+> I missed the lines at the bottom past your signature, so I was wrong. 
+> My bad.
+> 
+> I would still encourage you to _simplify_. You have a pair of 
+> moderately
+> complex functions, and they do not reproduce the same results after two 
+> runs
+> despite re-seeding. So I would trim elements from them one by one to 
+> see
+> which removal leads to identical results. Or, inversely, start from 
+> twice
+> drawing from an RNG after reseed and assert first that the draws are
+> identical. Then add your processing.
+> 
+> Dirk
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241001/2c4cadd1/attachment.htm>
+
+From edd at debian.org  Tue Oct  1 19:19:22 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 1 Oct 2024 12:19:22 -0500
+Subject: [Rcpp-devel] for loop and random draws
+In-Reply-To: <27954dbe4cb24a85520388bd8c805fb2@zaclys.net>
+References: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+ <26364.3674.189407.454295@rob.eddelbuettel.com>
+ <26364.4572.685247.487221@rob.eddelbuettel.com>
+ <27954dbe4cb24a85520388bd8c805fb2@zaclys.net>
+Message-ID: <26364.12058.420286.951546@rob.eddelbuettel.com>
+
+
+On 1 October 2024 at 11:57, Denis Haine wrote:
+| But adding the regression to define_e1() (as define_e2() in previous email)
+| does not give the same. The first iteration in the loop is identical in both,
+| but not the subsequent ones. That's why I was thinking it could be linked to
+| the seed, but (sorry for my limited knowledge of C++) it would be strange to
+| manually "re-seed" at each iteration. Moreover, I believe the seed set in R is
+| transferred to Rcpp and so does not need to be taken specifically care of.
+
+Nice. So it seems to me that you identified fastglm as the source of your
+problem. When we call it, your results differ and there is a side-effect.
+
+But when we don't it is still true. I added
+
+  Environment pkg2 = Environment::namespace_env("base");
+  Function f2 = pkg2["dim"];
+
+  // ...
+
+      RObject ro = f2(ematrix);
+
+while keeping the lines relevant to fastglm calls and result storage
+commented out.  Now we get TRUE from all.equal(t0,t1).
+
+That seems to rule out Rcpp::Function, and may indicate you need to look into
+what fastglm may be doing.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From john.clarke at cornerstonenw.com  Fri Oct  4 12:29:26 2024
+From: john.clarke at cornerstonenw.com (John Clarke)
+Date: Fri, 4 Oct 2024 12:29:26 +0200
+Subject: [Rcpp-devel] rcmdcheck() failing on "Undocumented S4 class" with
+ RCPP_Module
+Message-ID: <CAF0e1n9dN0cSoZnuUem-rscd_kBaAYLT3wNpE8SyN+d3ZS-6rA@mail.gmail.com>
+
+Hello all,
+
+I'm encountering a similar problem to the one resolved (in 2017) at
+the bottom of this e-mail. I'm getting the same error from
+rcmdcheck(). However, my RCPP_MODULE class is in C++ (not R) and the
+'@alias' solution that Dirk proposed doesn't appear to work in my
+case.
+
+In ./src/wrapper.cpp, I do something like:
+
+RCPP_MODULE(MyModule) {
+   using namespace Rcpp;
+//' MyCPPClass Class
+//' @name MyCPPClass
+//' @title Test title MyCPPClass
+//' @export
+//' @description Type the name of the class to see its methods
+//' @field new Constructor
+//' @field mult Multiply by another Double object \itemize{
+//' \item Parameter: other - The other Double object
+//' \item Returns: product of the values
+//' }
+   class_<MyCPPClass>("MyCPPClass")
+
+And roxygen2 generates MyCPPClass.Rd but not Rcpp_MyCPPClass.Rd (which
+makes sense to me because I understand it to essentially be an alias
+to MyCPPClass). However, when I run rcmdcheck() I get the following
+error pertaining to Rcpp_MyCPPClass. Adding @alias or @aliases doesn't
+seem to work either. rcmdcheck() appears to be looking for
+Rcpp_MyCPPClass.Rd
+
+? checking for missing documentation entries ... WARNING
+  Undocumented S4 classes:
+    ?Rcpp_MyCPPClass?
+  All user-level objects in a package (including S4 classes and methods)
+  should have documentation entries.
+  See chapter ?Writing R documentation files? in the ?Writing R
+  Extensions? manual.
+
+Is there a way to satisfy the documentation requirements for these
+kinds of "Rcpp_" S4 classes that are (I guess) generated by RCPP?
+
+RELATED problem and solution for reference:
+
+On 15 August 2017 at 16:12, Luis Avila wrote:
+
+|* I've used Roxygen to document my R classes
+*|* but having problems now documenting Rcpp exposed classes from my C++ code.
+*| |* I am creating .Rd files manually and that partially solves the problem but
+*|* looking for a better way.
+*| |* I have a module expossing c++ classes Model and NormalModel.
+*|* Running R CMD check --as-cran I get:
+*| |* Undocumented code objects:
+*|* 'Model'
+*| |* Undocumented S4 classes
+*|* 'Rcpp_Model' 'Rcpp_NormalModel'
+*| |* I managed to get the "undocumented code object" message to stop reporting
+*|* "NormalModel" as undocumented by manually setting up a NormalModel-class.Rd
+*|* file in man but can't get rid of Rcpp_NormalModel.
+*
+One \alias{} entry in the Rd should do. See eg the (still rather basic /
+stub) page I put in for RcppAnnoy (which is just Rcpp Modules):
+https://github.com/eddelbuettel/rcppannoy/blob/master/man/RcppAnnoy-package.Rd
+
+You can write it as Rd, or you can write it in an (empty) R file to be used
+by roxygen2 (though I still never let roxygen touch my NAMESPACE, DESCRIPTION
+or other files -- but Rd creation I trust).
+
+Dirk
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241004/37a91204/attachment.htm>
+
+From edd at debian.org  Fri Oct  4 16:50:40 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 4 Oct 2024 09:50:40 -0500
+Subject: [Rcpp-devel] rcmdcheck() failing on "Undocumented S4 class"
+ with RCPP_Module
+In-Reply-To: <CAF0e1n9dN0cSoZnuUem-rscd_kBaAYLT3wNpE8SyN+d3ZS-6rA@mail.gmail.com>
+References: <CAF0e1n9dN0cSoZnuUem-rscd_kBaAYLT3wNpE8SyN+d3ZS-6rA@mail.gmail.com>
+Message-ID: <26368.192.969647.796595@rob.eddelbuettel.com>
+
+
+Hi John,
+
+That looks like a limitation in roxygen2 which appears to fully documented
+(as you desire) an S4 class.  As you may know, you prod roxygen2 with 'NULL'
+blocks to add extra documentation -- that is likely what you need here. The
+roxygen2 docs will have more on this.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From john.clarke at cornerstonenw.com  Fri Oct  4 17:21:49 2024
+From: john.clarke at cornerstonenw.com (John Clarke)
+Date: Fri, 4 Oct 2024 17:21:49 +0200
+Subject: [Rcpp-devel] rcmdcheck() failing on "Undocumented S4 class"
+ with RCPP_Module
+In-Reply-To: <26368.192.969647.796595@rob.eddelbuettel.com>
+References: <CAF0e1n9dN0cSoZnuUem-rscd_kBaAYLT3wNpE8SyN+d3ZS-6rA@mail.gmail.com>
+ <26368.192.969647.796595@rob.eddelbuettel.com>
+Message-ID: <CAF0e1n-fKnAk=muWnuQTQVPkEEy+aL3_1Z_EgKZ+6mc=g9mnCw@mail.gmail.com>
+
+Thanks Dirk,
+
+Indeed roxygen2 docs will help with a workaround, I think. I've temporarily
+added a Rcpp_MyClass-class.RD based on promptClass("Rcpp_MyClass") and that
+seems to satisfy the R CMD check.
+
+However, I feel my confusion comes from the (I think) RCPP-generated
+*RCPP_MyClass* class. I don't explicitly declare that class name, it just
+seems to appear magically in the R CMD warnings -- but is definitely
+derived from my MyClass declaration. If this is the case, then I'm guessing
+everyone who uses RCPP with a module in C++ would have the same issue and
+they too will wonder how they should add documentation to the (duplicate)
+RCPP_MyClass class. I believe this is a DRY violation -- we already have a
+class declared and documented: the MyClass class, why should we also add
+(duplicate) documentation for its magically created twin?
+
+Maybe I'm missing something here -- I'm new to R and RCPP. Feel free to
+ignore.
+
+Thanks again,
+
+-John
+
+
+On Fri, Oct 4, 2024 at 4:50?PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi John,
+>
+> That looks like a limitation in roxygen2 which appears to fully documented
+> (as you desire) an S4 class.  As you may know, you prod roxygen2 with
+> 'NULL'
+> blocks to add extra documentation -- that is likely what you need here. The
+> roxygen2 docs will have more on this.
+>
+> Cheers, Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241004/184a7b03/attachment.htm>
+
+From edd at debian.org  Fri Oct  4 18:22:18 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 4 Oct 2024 11:22:18 -0500
+Subject: [Rcpp-devel] rcmdcheck() failing on "Undocumented S4 class"
+ with RCPP_Module
+In-Reply-To: <CAF0e1n-fKnAk=muWnuQTQVPkEEy+aL3_1Z_EgKZ+6mc=g9mnCw@mail.gmail.com>
+References: <CAF0e1n9dN0cSoZnuUem-rscd_kBaAYLT3wNpE8SyN+d3ZS-6rA@mail.gmail.com>
+ <26368.192.969647.796595@rob.eddelbuettel.com>
+ <CAF0e1n-fKnAk=muWnuQTQVPkEEy+aL3_1Z_EgKZ+6mc=g9mnCw@mail.gmail.com>
+Message-ID: <26368.5690.576737.349288@rob.eddelbuettel.com>
+
+
+John,
+
+As an aside, Rcpp has been spelled as 'Rcpp' (uppercase R, lowercase cpp,
+just as one often does for file extenions) for the roughly 20 years of its
+existence.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Oct  4 18:52:35 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 4 Oct 2024 11:52:35 -0500
+Subject: [Rcpp-devel] rcmdcheck() failing on "Undocumented S4 class"
+ with RCPP_Module
+In-Reply-To: <CAF0e1n-fKnAk=muWnuQTQVPkEEy+aL3_1Z_EgKZ+6mc=g9mnCw@mail.gmail.com>
+References: <CAF0e1n9dN0cSoZnuUem-rscd_kBaAYLT3wNpE8SyN+d3ZS-6rA@mail.gmail.com>
+ <26368.192.969647.796595@rob.eddelbuettel.com>
+ <CAF0e1n-fKnAk=muWnuQTQVPkEEy+aL3_1Z_EgKZ+6mc=g9mnCw@mail.gmail.com>
+Message-ID: <26368.7507.813679.272943@rob.eddelbuettel.com>
+
+
+On 4 October 2024 at 17:21, John Clarke wrote:
+| Indeed roxygen2 docs will help with a workaround, I think. I've temporarily
+| added a Rcpp_MyClass-class.RD based on promptClass("Rcpp_MyClass") and that
+| seems to satisfy the R CMD check.
+
+Nice, and I think that is about as it good as you will get it.  Note that
+Rcpp basically never mentions roxygen2 (we support in C++ files where
+compileAttributes() carries it to the R file where it gets picked up), and
+neither does Writing R Extensions. The only official way is writing Rd
+files. Be it by hand, be it with roxygen2 help and workarounds.
+
+The only other idea I had was to use @name to give your existing entry the
+(missing) desired name and try @aliases to map back.  No idea if that would
+work.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From john.clarke at cornerstonenw.com  Tue Oct  8 13:19:41 2024
+From: john.clarke at cornerstonenw.com (John Clarke)
+Date: Tue, 8 Oct 2024 13:19:41 +0200
+Subject: [Rcpp-devel] rcmdcheck() failing on "Undocumented S4 class"
+ with RCPP_Module
+In-Reply-To: <26368.7507.813679.272943@rob.eddelbuettel.com>
+References: <CAF0e1n9dN0cSoZnuUem-rscd_kBaAYLT3wNpE8SyN+d3ZS-6rA@mail.gmail.com>
+ <26368.192.969647.796595@rob.eddelbuettel.com>
+ <CAF0e1n-fKnAk=muWnuQTQVPkEEy+aL3_1Z_EgKZ+6mc=g9mnCw@mail.gmail.com>
+ <26368.7507.813679.272943@rob.eddelbuettel.com>
+Message-ID: <CAF0e1n-uhbxzyehiOjMkzNzNohDNfjoy7FF45_BCi_qxBNoofw@mail.gmail.com>
+
+Thanks again Dirk,
+
+So, I think my remaining issue is not to do with how we get the documents
+(roxygen2 or manually) but rather that there appears to be two (2)
+documents required by the R CMD check for the same class: *Rcpp_MyClass*
+and *MyClass*. and Rcpp_MyClass doesn't appear to be relevant to the
+end-user. But maybe I've got this wrong. I don't even really know how to
+document Rcpp_MyClass because it is generated by Rcpp (correct?). I feel
+I'm not getting something here -- should there be two classes that R CMD is
+detecting? If so, what is the canonical way to document them? Maybe the
+answer is simple: there will be duplicate documentation. But this doesn't
+seem right to me.
+
+Thanks,
+
+-John
+
+On Fri, Oct 4, 2024 at 6:52?PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 4 October 2024 at 17:21, John Clarke wrote:
+> | Indeed roxygen2 docs will help with a workaround, I think. I've
+> temporarily
+> | added a Rcpp_MyClass-class.RD based on promptClass("Rcpp_MyClass") and
+> that
+> | seems to satisfy the R CMD check.
+>
+> Nice, and I think that is about as it good as you will get it.  Note that
+> Rcpp basically never mentions roxygen2 (we support in C++ files where
+> compileAttributes() carries it to the R file where it gets picked up), and
+> neither does Writing R Extensions. The only official way is writing Rd
+> files. Be it by hand, be it with roxygen2 help and workarounds.
+>
+> The only other idea I had was to use @name to give your existing entry the
+> (missing) desired name and try @aliases to map back.  No idea if that would
+> work.
+>
+> Cheers, Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241008/46785b13/attachment.htm>
+
+From robin28liu at gmail.com  Fri Oct 18 18:39:03 2024
+From: robin28liu at gmail.com (Robin Liu)
+Date: Fri, 18 Oct 2024 09:39:03 -0700
+Subject: [Rcpp-devel] Inverting a triangular matrix appears slow using
+ Armadillo and openblas
+Message-ID: <CADjxTxiq2mL=zKG6QC-ahk4TM=FK6kvFtBfLj6uZ3mM2H_pBBQ@mail.gmail.com>
+
+Dear all,
+
+Computing the Cholesky factor of a matrix is on the order of n^3 while
+inverting a triangular system is n^2. However, it appears that these two
+operations take roughly the same time using armadillo.
+
+Unit: milliseconds
+     ticker   mean     sd    min    max neval
+       chol  80.81  3.001  75.84  88.11    20
+   inv-chol  84.89  4.449  80.78  97.30    20
+ inv-direct 274.39 10.787 260.85 303.20    20
+
+Inverting the triangular Cholesky factor is fast relative to direct
+inversion, but is of the same order as computing the factor itself. Is this
+to be expected? I am running with
+BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
+LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;
+ LAPACK version 3.10.0
+along with OPENBLAS_NUM_THREADS=1.
+
+I admit my question is not specific to Rcpp or RcppArmadillo, but I thought
+someone on this list could advise.
+
+My code follows:
+```
+library(Rcpp)
+library(RcppArmadillo)
+
+src <-
+  r"(#include <RcppArmadillo.h>
+#include "/usr/local/lib/R/site-library/RcppClock/include/RcppClock.h"
+using namespace arma;
+
+// [[Rcpp:depends(RcppClock)]]
+// [[Rcpp::depends(RcppArmadillo)]]
+// [[Rcpp::export]]
+void chol_and_inv(const arma::mat &V) {
+  Rcpp::Clock clock;
+  mat R, Rinv, Vinv;
+  for (int i = 0; i < 20; i++) {
+    clock.tick("chol");
+    R = chol(V);
+    clock.tock("chol");
+    clock.tick("inv-chol");
+    Rinv = inv(trimatu(R));
+    clock.tock("inv-chol");
+    clock.tick("inv-direct");
+    Vinv = inv(V);
+    clock.tock("inv-direct");
+  }
+  clock.stop("timer");
+  return;
+})"
+
+# Create large PD matrix
+size <- 2000
+set.seed(123)
+m <- matrix(rnorm(size^2), size, size)
+m <- tcrossprod(m)
+diag(m) <- rowSums(abs(m)) + 2
+
+sourceCpp(code = src)
+result <- chol_and_inv(m)
+library(RcppClock)
+timer
+```
+Best wishes,
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241018/dd1fb7f0/attachment.htm>
+
+From edd at debian.org  Fri Oct 18 20:04:35 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 18 Oct 2024 13:04:35 -0500
+Subject: [Rcpp-devel] Inverting a triangular matrix appears slow using
+ Armadillo and openblas
+In-Reply-To: <CADjxTxiq2mL=zKG6QC-ahk4TM=FK6kvFtBfLj6uZ3mM2H_pBBQ@mail.gmail.com>
+References: <CADjxTxiq2mL=zKG6QC-ahk4TM=FK6kvFtBfLj6uZ3mM2H_pBBQ@mail.gmail.com>
+Message-ID: <26386.41779.648250.717605@rob.eddelbuettel.com>
+
+
+On 18 October 2024 at 09:39, Robin Liu wrote:
+| Dear all,
+| 
+| Computing the Cholesky factor of a matrix is on the order of n^3 while
+| inverting a triangular system is n^2. However, it appears that these two
+| operations take roughly the same time using armadillo.
+| 
+| Unit: milliseconds
+| ? ? ?ticker ? mean ? ? sd ? ?min ? ?max neval
+| ? ? ? ?chol ?80.81 ?3.001 ?75.84 ?88.11 ? ?20
+| ? ?inv-chol ?84.89 ?4.449 ?80.78 ?97.30 ? ?20
+| ?inv-direct 274.39 10.787 260.85 303.20 ? ?20
+| 
+| Inverting the triangular Cholesky factor is fast relative to direct inversion,
+| but is of the same order as computing the factor itself. Is this to be
+| expected? I am running with?
+| BLAS: ? /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
+| LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;
+| ?LAPACK version 3.10.0?
+| along with OPENBLAS_NUM_THREADS=1.
+
+The point of OpenBLAS is to be multithreaded. Why do you constrain it to one thread?
+
+| I admit my question is not specific to Rcpp or RcppArmadillo, but I thought
+| someone on this list could advise.?
+
+What is the reference point?  "Slow" is relative to what here? Did you try to
+vary the matrix dimension too and see if the change in time is aligned with
+your expectations?
+
+In any event, Rcpp "is a messenger here" as is RcppArmadillo as is Armadillo
+as the actual operations are plain BLAS operations and this list may no be
+the most focussed forum to discuss the topic.
+
+Dirk
+ 
+| My code follows:
+| ```
+| library(Rcpp)
+| library(RcppArmadillo)
+| 
+| src <-
+| ? r"(#include <RcppArmadillo.h>
+| #include "/usr/local/lib/R/site-library/RcppClock/include/RcppClock.h"
+| using namespace arma;
+| 
+| // [[Rcpp:depends(RcppClock)]]
+| // [[Rcpp::depends(RcppArmadillo)]]
+| // [[Rcpp::export]]
+| void chol_and_inv(const arma::mat &V) {
+| ? Rcpp::Clock clock;
+| ? mat R, Rinv, Vinv;
+| ? for (int i = 0; i < 20; i++) {
+| ? ? clock.tick("chol");
+| ? ? R = chol(V);
+| ? ? clock.tock("chol");
+| ? ? clock.tick("inv-chol");
+| ? ? Rinv = inv(trimatu(R));
+| ? ? clock.tock("inv-chol");
+| ? ? clock.tick("inv-direct");
+| ? ? Vinv = inv(V);
+| ? ? clock.tock("inv-direct");
+| ? }
+| ? clock.stop("timer");
+| ? return;
+| })"
+| 
+| # Create large PD matrix
+| size <- 2000
+| set.seed(123)
+| m <- matrix(rnorm(size^2), size, size)
+| m <- tcrossprod(m)
+| diag(m) <- rowSums(abs(m)) + 2
+| 
+| sourceCpp(code = src)
+| result <- chol_and_inv(m)
+| library(RcppClock)
+| timer
+| ```
+| Best wishes,
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From inaki.ucar at uc3m.es  Sun Oct 20 17:34:24 2024
+From: inaki.ucar at uc3m.es (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Sun, 20 Oct 2024 17:34:24 +0200
+Subject: [Rcpp-devel] Inverting a triangular matrix appears slow using
+ Armadillo and openblas
+In-Reply-To: <CADjxTxiq2mL=zKG6QC-ahk4TM=FK6kvFtBfLj6uZ3mM2H_pBBQ@mail.gmail.com>
+References: <CADjxTxiq2mL=zKG6QC-ahk4TM=FK6kvFtBfLj6uZ3mM2H_pBBQ@mail.gmail.com>
+Message-ID: <CALEXWq1jQyLNW+t9F5D3st6B4BQdVVFpRXj_FaqNTXf9hhsdDg@mail.gmail.com>
+
+On Fri, 18 Oct 2024 at 18:39, Robin Liu <robin28liu at gmail.com> wrote:
+
+> Dear all,
+>
+> Computing the Cholesky factor of a matrix is on the order of n^3 while
+> inverting a triangular system is n^2. However, it appears that these two
+> operations take roughly the same time using armadillo.
+>
+> Unit: milliseconds
+>      ticker   mean     sd    min    max neval
+>        chol  80.81  3.001  75.84  88.11    20
+>    inv-chol  84.89  4.449  80.78  97.30    20
+>  inv-direct 274.39 10.787 260.85 303.20    20
+>
+> Inverting the triangular Cholesky factor is fast relative to direct
+> inversion, but is of the same order as computing the factor itself. Is this
+> to be expected?
+>
+
+Maybe inverting a triangular matrix is not as optimized as the Cholesky
+decomposition in OpenBLAS? We can only guess here. This question should be
+addressed upstream to the OpenBLAS maintainers.
+
+Best,
+I?aki
+
+
+> I am running with
+> BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
+> LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.20.so;
+>  LAPACK version 3.10.0
+> along with OPENBLAS_NUM_THREADS=1.
+>
+> I admit my question is not specific to Rcpp or RcppArmadillo, but I
+> thought someone on this list could advise.
+>
+> My code follows:
+> ```
+> library(Rcpp)
+> library(RcppArmadillo)
+>
+> src <-
+>   r"(#include <RcppArmadillo.h>
+> #include "/usr/local/lib/R/site-library/RcppClock/include/RcppClock.h"
+> using namespace arma;
+>
+> // [[Rcpp:depends(RcppClock)]]
+> // [[Rcpp::depends(RcppArmadillo)]]
+> // [[Rcpp::export]]
+> void chol_and_inv(const arma::mat &V) {
+>   Rcpp::Clock clock;
+>   mat R, Rinv, Vinv;
+>   for (int i = 0; i < 20; i++) {
+>     clock.tick("chol");
+>     R = chol(V);
+>     clock.tock("chol");
+>     clock.tick("inv-chol");
+>     Rinv = inv(trimatu(R));
+>     clock.tock("inv-chol");
+>     clock.tick("inv-direct");
+>     Vinv = inv(V);
+>     clock.tock("inv-direct");
+>   }
+>   clock.stop("timer");
+>   return;
+> })"
+>
+> # Create large PD matrix
+> size <- 2000
+> set.seed(123)
+> m <- matrix(rnorm(size^2), size, size)
+> m <- tcrossprod(m)
+> diag(m) <- rowSums(abs(m)) + 2
+>
+> sourceCpp(code = src)
+> result <- chol_and_inv(m)
+> library(RcppClock)
+> timer
+> ```
+> Best wishes,
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+-- 
+*I?aki ?car*
+Assistant Professor of Statistics
+Director of the Master in Computational Social Science
+<https://www.uc3m.es/master/computational-social-science>
+
+Department of Statistics | Big Data Institute
+Universidad Carlos III de Madrid
+Av. de la Universidad 30, 28911 Legan?s, Spain
+Office: 7.3.J25, Tel: +34 916248804
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241020/8eb9f444/attachment.htm>
+
+From cheval at zaclys.net  Fri Oct 25 21:42:40 2024
+From: cheval at zaclys.net (Denis Haine)
+Date: Fri, 25 Oct 2024 15:42:40 -0400
+Subject: [Rcpp-devel] for loop and random draws
+In-Reply-To: <26364.12058.420286.951546@rob.eddelbuettel.com>
+References: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+ <26364.3674.189407.454295@rob.eddelbuettel.com>
+ <26364.4572.685247.487221@rob.eddelbuettel.com>
+ <27954dbe4cb24a85520388bd8c805fb2@zaclys.net>
+ <26364.12058.420286.951546@rob.eddelbuettel.com>
+Message-ID: <0322ac9610bbfc17b6b9a5bd342721ef@zaclys.net>
+
+
+
+Hi,
+
+Sorry to get back to this, but I can't figure out how to solve it. Do 
+not hesitate to direct me to another forum if this one is not 
+appropriate. I don't think there's anything wrong with Rcpp, but I might 
+not proceed with the loop in Rcpp the right way.
+
+So I tried various regressions in the Rcpp for loop (fastglm, 
+Rfast::glm_poisson, even fastlm; see code at end of email) and they all 
+output the same saved matrix, but a different one than without including 
+a regression step. Compared to a pure R code, the R code with or without 
+a regression output the same matrix as the Rcpp loop without a 
+regression (and therefore different from the ones with a regression), 
+i.e:
+
+- R loop without regression, R loop with regression (glm or fastglm), 
+Rcpp loop without regression = all.equal TRUE.
+
+- Rcpp loop with regression (fastglm, Rfast, or fastlm) =  all.equal 
+TRUE but different from above.
+
+I'm totally puzzled on why I've got these results. How can I get the 
+same output with Rcpp + regression as with the R loop +/- regression?
+
+Denis
+
+NumericMatrix define_e(int iter, NumericMatrix obs_mat, NumericVector 
+draws) {
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericMatrix e(d.length(), iter);
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e(_, i) = cpprbinom(d.length(), 1, pr);
+   }
+   return e;
+}
+
+NumericMatrix define_ereg1(int iter, NumericMatrix obs_mat, 
+NumericVector draws) {
+   Environment pkg = Environment::namespace_env("fastglm");
+   Function f = pkg["fastglm"];
+
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericMatrix e(d.length(), iter);
+   Rcpp::NumericMatrix ematrix(d.length(), 2);
+   Rcpp::NumericVector v(d.length(), 1);
+   ematrix(_, 0) = v;
+   Rcpp::List mod_pois;
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e(_, i) = cpprbinom(d.length(), 1, pr);
+
+     ematrix(_, 1) = e;
+     mod_pois = f(Named("x", ematrix), Named("y", d), Named("family", 
+"poisson"));
+   }
+   return e;
+}
+
+NumericMatrix define_ereg2(int iter, NumericMatrix obs_mat, 
+NumericVector draws) {
+   Environment pkg = Environment::namespace_env("Rfast");
+   Function f = pkg["glm_poisson"];
+
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericMatrix e(d.length(), iter);
+   Rcpp::NumericMatrix ematrix(d.length(), 2);
+   Rcpp::NumericVector v(d.length(), 1);
+   ematrix(_, 0) = v;
+   Rcpp::List mod_pois;
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e(_, i) = cpprbinom(d.length(), 1, pr);
+
+     ematrix(_, 1) = e;
+     mod_pois = f(Named("x", ematrix(_, 1)), Named("y", d));
+   }
+   return e;
+}
+
+NumericMatrix define_ereg3(int iter, NumericMatrix obs_mat, 
+NumericVector draws) {
+   Environment pkg = Environment::namespace_env("RcppArmadillo");
+   Function f = pkg["fastLm"];
+
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector pr = no_init(d.length());
+   Rcpp::NumericMatrix e(d.length(), iter);
+   Rcpp::NumericMatrix ematrix(d.length(), 2);
+   Rcpp::NumericVector v(d.length(), 1);
+   ematrix(_, 0) = v;
+   Rcpp::List mod_pois;
+   for (int i = 0; i < iter; i++) {
+     pr = obs_mat(_, 0) * draws(i);
+     e(_, i) = cpprbinom(d.length(), 1, pr);
+
+     ematrix(_, 1) = e;
+     mod_pois = f(Named("X", ematrix), Named("y", d));
+   }
+   return e;
+}
+
+draws <- rbeta(200, 100, 60)
+obs_mat <- cbind(c(rep(1, 40), rep(0, 60)), c(rep(1, 20), rep(0, 80)))
+iter <- length(draws)
+set.seed(1234)
+t0 <- define_e(iter, obs_mat, draws)
+
+e <- matrix(NA, nrow = nrow(obs_mat), ncol = iter)
+e_obs <- obs_mat[, 1]
+p <- rep(NA, nrow(obs_mat))
+set.seed(1234)
+for (i in 1:iter) {
+       p <- e_obs * draws[i]
+       e[, i] <- rbinom(nrow(obs_mat), 1, p)
+}
+all.equal(t0, e)  # TRUE
+
+e1 <- matrix(NA, nrow = nrow(obs_mat), ncol = iter)
+e_obs <- obs_mat[, 1]
+p <- rep(NA, nrow(obs_mat))
+set.seed(1234)
+for (i in 1:iter) {
+      p <- e_obs * draws[i]
+      e1[, i] <- rbinom(nrow(obs_mat), 1, p)
+      X <- cbind(rep(1, nrow(obs_mat)), e1[, i])
+      d <- obs_mat[, 2]
+      mod_pois <- glm(d ~ X, family = poisson(link = "log"))
+}
+all.equal(e, e1)  # TRUE
+all.equal(e1, t0)  # TRUE
+
+e2 <- matrix(NA, nrow = nrow(obs_mat), ncol = iter)
+e_obs <- obs_mat[, 1]
+p <- rep(NA, nrow(obs_mat))
+set.seed(1234)
+for (i in 1:iter) {
+      p <- e_obs * draws[i]
+      e2[, i] <- rbinom(nrow(obs_mat), 1, p)
+      X <- cbind(rep(1, nrow(obs_mat)), e2[, i])
+      d <- obs_mat[, 2]
+      mod_pois <- fastglm::fastglm(X, d, family = poisson(link = "log"))
+}
+all.equal(e, e2)  # TRUE
+all.equal(e2, t0)  # TRUE
+
+set.seed(1234)
+t1 <- define_ereg1(iter, obs_mat, draws)
+all.equal(t1, e)  # [1] "Mean relative difference: 1.788299"
+
+set.seed(1234)
+t2 <- define_ereg2(iter, obs_mat, draws)
+all.equal(t2, e)  # [1] "Mean relative difference: 1.788299"
+all.equal(t2, t1)  # TRUE
+
+set.seed(1234)
+t3 <- define_ereg3(iter, obs_mat, draws)
+all.equal(t3, e)  # "Mean relative difference: 1.788299"
+all.equal(t3, t1)  # TRUE
+all.equal(t3, t2)  # TRUE
+
+Le 2024-10-01 13:19, Dirk Eddelbuettel a ?crit :
+
+> On 1 October 2024 at 11:57, Denis Haine wrote:
+> | But adding the regression to define_e1() (as define_e2() in previous 
+> email)
+> | does not give the same. The first iteration in the loop is identical 
+> in both,
+> | but not the subsequent ones. That's why I was thinking it could be 
+> linked to
+> | the seed, but (sorry for my limited knowledge of C++) it would be 
+> strange to
+> | manually "re-seed" at each iteration. Moreover, I believe the seed 
+> set in R is
+> | transferred to Rcpp and so does not need to be taken specifically 
+> care of.
+> 
+> Nice. So it seems to me that you identified fastglm as the source of 
+> your
+> problem. When we call it, your results differ and there is a 
+> side-effect.
+> 
+> But when we don't it is still true. I added
+> 
+> Environment pkg2 = Environment::namespace_env("base");
+> Function f2 = pkg2["dim"];
+> 
+> // ...
+> 
+> RObject ro = f2(ematrix);
+> 
+> while keeping the lines relevant to fastglm calls and result storage
+> commented out.  Now we get TRUE from all.equal(t0,t1).
+> 
+> That seems to rule out Rcpp::Function, and may indicate you need to 
+> look into
+> what fastglm may be doing.
+> 
+> Cheers, Dirk
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241025/c8e2119b/attachment.htm>
+
+From edd at debian.org  Fri Oct 25 22:27:09 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 25 Oct 2024 15:27:09 -0500
+Subject: [Rcpp-devel] for loop and random draws
+In-Reply-To: <0322ac9610bbfc17b6b9a5bd342721ef@zaclys.net>
+References: <68e99ce8397477d3b0ebfff321292abd@zaclys.net>
+ <26364.3674.189407.454295@rob.eddelbuettel.com>
+ <26364.4572.685247.487221@rob.eddelbuettel.com>
+ <27954dbe4cb24a85520388bd8c805fb2@zaclys.net>
+ <26364.12058.420286.951546@rob.eddelbuettel.com>
+ <0322ac9610bbfc17b6b9a5bd342721ef@zaclys.net>
+Message-ID: <26395.65309.486026.147355@rob.eddelbuettel.com>
+
+
+On 25 October 2024 at 15:42, Denis Haine wrote:
+| I'm totally puzzled on why I've got these results. How can I get the same
+| output with Rcpp + regression as with the R loop +/- regression?
+
+I think you continue to gloss over the fact there "is a contract": we call
+C++ code from R, Rcpp helps, Rcpp aligns the RNG state and restores it, this
+all works well.
+
+You violate (somehow, not entirely sure how/why) this contract via your
+pattern of calling _back into R_ from your C++ code. And I think that part is
+the source of your problem.
+
+I think I suggested last time that you work it out with smaller and smaller
+test cases. That still seems like a good idea to me.
+
+Good luck,  Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

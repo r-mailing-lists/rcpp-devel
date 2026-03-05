@@ -1,0 +1,1810 @@
+From khoshnevis.naeem at gmail.com  Tue Aug 10 00:04:57 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Mon, 9 Aug 2021 17:04:57 -0500
+Subject: [Rcpp-devel] Package using Rcpp+openmp - fatal error: 'omp.h' file
+	not found
+Message-ID: <CAKOOZvNdq7noFYO3Uw7TZSdoG=5FyXtGmH7_AM8EaoWWY5nDFA@mail.gmail.com>
+
+Dear All,
+
+I hope this email finds you well and this is a right place to ask this
+question.
+
+I recently submitted a package to CRAN (thanks for all supports); however,
+it has been archived. According to the email, the installation was not
+successful on some configurations. One of them is macOS (the other one is
+Solaris).
+I am using Rcpp and OpenMP; here are the initial lines of the code:
+--------------
+#include <Rcpp.h>
+#include <omp.h>
+using namespace Rcpp;
+
+// [[Rcpp::plugins(openmp)]]
+
+// [[Rcpp::export]]
+IntegerVector compute_closest_wgps_helper(NumericVector a,
+                                          NumericVector b,
+                                          NumericVector cd,
+                                          double sc) {
+
+------------------
+Please see the following link for the entire code:
+https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+
+The error that I receive on R-hub is:
+
+-------------------
+compute_closest_wgps_helper.cpp:2:10: fatal error: 'omp.h' file not found
+#include <omp.h>
+         ^~~~~~~
+1 error generated.
+make: *** [compute_closest_wgps_helper.o] Error 1
+ERROR: compilation failed for package ‘CausalGPS’
+-------------------
+
+Do you know a workaround for this issue?
+I understand some R developers do not use macOS; however, I have to address
+this comment.
+
+Best regards,
+Naeem Khoshnevis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210809/e0336a34/attachment.html>
+
+From simon.urbanek at R-project.org  Tue Aug 10 03:16:25 2021
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Tue, 10 Aug 2021 13:16:25 +1200
+Subject: [Rcpp-devel] Package using Rcpp+openmp - fatal error: 'omp.h'
+ file not found
+In-Reply-To: <CAKOOZvNdq7noFYO3Uw7TZSdoG=5FyXtGmH7_AM8EaoWWY5nDFA@mail.gmail.com>
+References: <CAKOOZvNdq7noFYO3Uw7TZSdoG=5FyXtGmH7_AM8EaoWWY5nDFA@mail.gmail.com>
+Message-ID: <7B9A1FE7-C8E3-4FB0-B35A-E5C9DC7C1EE6@R-project.org>
+
+Naeem,
+
+you cannot assume that OpenMP is available as that is an optional capability, so make sure you make the inclusion of omp.h optional. Please read section 1.2.1.1 OpenMP support of the Writing R Extensions manual:
+https://cran.r-project.org/doc/manuals/r-release/R-exts.html#OpenMP-support
+
+Cheers,
+Simon
+
+
+> On 10/08/2021, at 10:04 AM, Naeem Khoshnevis <khoshnevis.naeem at gmail.com> wrote:
+> 
+> Dear All, 
+> 
+> I hope this email finds you well and this is a right place to ask this question.
+> 
+> I recently submitted a package to CRAN (thanks for all supports); however, it has been archived. According to the email, the installation was not successful on some configurations. One of them is macOS (the other one is Solaris). 
+> I am using Rcpp and OpenMP; here are the initial lines of the code:
+> --------------
+> #include <Rcpp.h>
+> #include <omp.h>
+> using namespace Rcpp;
+> 
+> // [[Rcpp::plugins(openmp)]]
+> 
+> // [[Rcpp::export]]
+> IntegerVector compute_closest_wgps_helper(NumericVector a,
+>                                           NumericVector b,
+>                                           NumericVector cd,
+>                                           double sc) { 
+> 
+> ------------------
+> Please see the following link for the entire code:
+> https://github.com/fasrc/CausalGPS/blob/master/src/compute_closest_wgps_helper.cpp
+> 
+> The error that I receive on R-hub is:
+> 
+> -------------------
+> compute_closest_wgps_helper.cpp:2:10: fatal error: 'omp.h' file not found
+> #include <omp.h>
+>          ^~~~~~~
+> 1 error generated.
+> make: *** [compute_closest_wgps_helper.o] Error 1
+> ERROR: compilation failed for package ‘CausalGPS’
+> -------------------
+> 
+> Do you know a workaround for this issue? 
+> I understand some R developers do not use macOS; however, I have to address this comment.
+> 
+> Best regards, 
+> Naeem Khoshnevis
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From edd at debian.org  Tue Aug 10 03:32:22 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 9 Aug 2021 20:32:22 -0500
+Subject: [Rcpp-devel] Package using Rcpp+openmp - fatal error: 'omp.h'
+	file not found
+In-Reply-To: <CAKOOZvNdq7noFYO3Uw7TZSdoG=5FyXtGmH7_AM8EaoWWY5nDFA@mail.gmail.com>
+References: <CAKOOZvNdq7noFYO3Uw7TZSdoG=5FyXtGmH7_AM8EaoWWY5nDFA@mail.gmail.com>
+Message-ID: <24849.55078.270576.785642@rob.eddelbuettel.com>
+
+
+(I replied earlier but that seems to have gotten lost. Apologies to anybody
+who may receive two copies, and thanks to Simon for his answer.  -- Dirk)
+
+
+On 9 August 2021 at 17:04, Naeem Khoshnevis wrote:
+| Do you know a workaround for this issue?
+
+Wrap the #include by #ifdef _OPENMP and #endif
+
+Test for presence of OpenMP (for example via a configure script). 
+
+Use the standard R compilation flags. RcppArmadillo uses
+
+  PKG_CXXFLAGS = -I../inst/include @OPENMP_FLAG@
+  PKG_LIBS= @OPENMP_FLAG@ $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+
+where @OPENMP_FLAG@ gets set if OpenMP is found.  Other packages just use
+
+  PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS) 
+  PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+
+relying on R which sets SHLIB_OPENMP_CXXFLAGS.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From khoshnevis.naeem at gmail.com  Tue Aug 10 04:25:46 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Mon, 9 Aug 2021 21:25:46 -0500
+Subject: [Rcpp-devel] Package using Rcpp+openmp - fatal error: 'omp.h'
+ file not found
+In-Reply-To: <24849.55078.270576.785642@rob.eddelbuettel.com>
+References: <CAKOOZvNdq7noFYO3Uw7TZSdoG=5FyXtGmH7_AM8EaoWWY5nDFA@mail.gmail.com>
+ <24849.55078.270576.785642@rob.eddelbuettel.com>
+Message-ID: <CAKOOZvPXQ02a6cmMwZ=75yAu9OUiQAbmjZQUF+XDw5dBkH=p+w@mail.gmail.com>
+
+Dear Simon and Dirk,
+
+Thank you so much for the answers. I really appreciate your help.
+
+Best regards,
+Naeem
+
+On Mon, Aug 9, 2021 at 8:32 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> (I replied earlier but that seems to have gotten lost. Apologies to anybody
+> who may receive two copies, and thanks to Simon for his answer.  -- Dirk)
+>
+>
+> On 9 August 2021 at 17:04, Naeem Khoshnevis wrote:
+> | Do you know a workaround for this issue?
+>
+> Wrap the #include by #ifdef _OPENMP and #endif
+>
+> Test for presence of OpenMP (for example via a configure script).
+>
+> Use the standard R compilation flags. RcppArmadillo uses
+>
+>   PKG_CXXFLAGS = -I../inst/include @OPENMP_FLAG@
+>   PKG_LIBS= @OPENMP_FLAG@ $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+>
+> where @OPENMP_FLAG@ gets set if OpenMP is found.  Other packages just use
+>
+>   PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+>   PKG_LIBS = $(SHLIB_OPENMP_CXXFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+>
+> relying on R which sets SHLIB_OPENMP_CXXFLAGS.
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210809/ef0683e8/attachment.html>
+
+From Dillon.Hammill at anu.edu.au  Tue Aug 17 10:58:48 2021
+From: Dillon.Hammill at anu.edu.au (Dillon Hammill)
+Date: Tue, 17 Aug 2021 08:58:48 +0000
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+Message-ID: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+
+Hi everyone,
+
+Apologies if this is the wrong place to ask for help with Rcpp/RcppParallel.
+
+I have recently began using Rcpp and RcppParallel to speed up an algorithm that I have written in R ( I still have a lot to learn!). I have had no issues converting my R code into Rcpp code, but I am struggling to get things working in parallel using RcppParallel. I was hoping that someone may be able help improve my understanding of how to translate Rcpp code into code that works with RcppParallel.
+
+To make things easier to understand, I have created a simplified example that will hopefully illustrate what I hope to achieve.
+
+Firstly, we compute a distance matrix based on xy co-ordinates using the dist() function in R:
+x <- matrix(1:100 + 0.1, ncol = 2, dimnames = list(NULL, c("x","y")))
+x_dist <- dist(x, method = "euclidean")
+
+Secondly, we apply a custom algorithm that uses the raw data and distance matrix to compute labels for each point:
+algo <- function(x,
+                             dist = NULL) {
+
+  # algorithm code to compute a label for each row in x
+  # code is complex and requires both x and distance matrix
+  # but simply assigns an integer to each row
+
+  labels <- 1:nrow(x)
+  return(labels)
+
+}
+x_labels <- algo(x, dist = x_dist)
+
+Now let's say we wanted run the algorithm for all distance methods and store the labels (single thread R code) in a matrix. This is the code I would like to run in parallel as it can take some time to compute the labels using the alogrithm.
+dist_methods <- c("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")
+x_labels <- lapply(dist_methods, function(dist_method) {
+  x_dist <- dist(x, method = dist_method)
+  return(algo(x, x_dist))
+})
+x_labels <- do.call("cbind", x_labels)
+
+To speed up the algorithm we can convert these R functions into Rcpp equivalents. I have removed code to make it clearer and simply returned an example matrix/vector. I have also converted the dist_methods to an integer for simplicity (i.e. 1 - euclidean, 2 - maximum etc.).
+#include <Rcpp.h>
+using namespace Rcpp;
+
+//[[Rcpp::export]]
+NumericMatrix rcpp_dist(NumericMatrix x, int dist_method = 1) {
+
+  // code to compute distance matrix depends on dist_method
+  NumericMatrix x_dist(x.nrow(), x.nrow());
+  return x_dist;
+
+}
+
+//[[Rcpp::export]]
+IntegerVector rcpp_algo(NumericMatrix x, NumericMatrix dist) {
+
+   // code to compute a label for each row in x using distance matrix
+   IntegerVector labels(x.nrow());
+   return labels;
+
+}
+
+Finally, we attempt to run the code on multiple threads for each distance method.
+#include <RcppParallel.h>
+using namespace RcppParallel;
+
+struct RcppParAlgo : public Worker {
+
+  // source thread safe
+  RMatrix<double> x;
+  RVector<int> dist_method;
+
+  // output thread safe
+  RMatrix <int> labels;
+
+  // initialise
+  RcppParAlgo(NumericMatrix x, int dist_method)
+    : x(x), dist_method(dist_method), labels(labels) {}
+
+  // compute distance matrix based on method and run algo to get labels
+  void operator() (std::size_t begin, std::size_t end) {
+
+    // call rcpp_dist on x with dist_method
+    // I know this code is wrong but hopefully shows what I am trying to do (this is where I need some help)
+    for(std::size_t i = begin; i < end; i++) {
+      RVector<int> dist_type = dist_method[i];
+      RMatrix<double> x_dist = rcpp_dist(x, dist_type);
+      RVector<int> x_labels = rcpp_algo(x, x_dist);
+      // push lables into output matrix
+      for(int j = 0; j <= x_labels.size(); j++) {
+        labels(j, i) = x_labels[j];
+      }
+    }
+
+  }
+
+};
+
+//[[Rcpp::export]]
+IntegerMatrix rcppParAlgo(NumericMatrix x) {
+
+  // distance methods
+  IntegerVector dist_methods = {1,2,3,4,5};
+
+  // allocate output matrix to store labels
+  IntegerMatrix labels(x.nrow(), dist_methods.size());
+
+  // functor
+  RcppParAlgo RcppParAlgo(x, dist_methods);
+
+  // run in parallel
+  parallelFor(0, dist_methods.length(), RcppParAlgo);
+
+  return labels;
+
+}
+
+The main questions I would like to address are:
+
+  1.  As the code is currently written, rcpp_dist and rcpp_algo do not accept RMatrix/RVector classes which causes problems when I try call these functions in parallel. Is there a way to write generic functions that will work in both cases? I still want to export the definitions of rcpp_dist() and rcpp_algo() so they can be called from R.
+  2.  Is it safe to create new objects on each thread? For example, in my case I need to create the temporary distance matrix which is passed to rcpp_algo() along with x to compute the labels. I haven't seen any examples of this, are there constructors for RMatrix/RVector similar to NumericMatrix/NumericVector?
+
+Any help or suggestions would be greatly appreciated. I have placed the Rcpp/RcppParallel code in package hosted on GitHub if you would like to fiddle with the code:
+https://github.com/DillonHammill/RcppHelp
+[https://opengraph.githubassets.com/c783348bc98fe97d064ef1da1b860542a1422388bfb389ba366bc8827df916cf/DillonHammill/RcppHelp]<https://github.com/DillonHammill/RcppHelp>
+GitHub - DillonHammill/RcppHelp: Example RcppParallel Code<https://github.com/DillonHammill/RcppHelp>
+Example RcppParallel Code. Contribute to DillonHammill/RcppHelp development by creating an account on GitHub.
+github.com
+
+Cheers,
+Dillon
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210817/918f893b/attachment-0001.html>
+
+From edd at debian.org  Tue Aug 17 14:46:46 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 17 Aug 2021 07:46:46 -0500
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+In-Reply-To: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+References: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+Message-ID: <24859.44982.982721.559885@rob.eddelbuettel.com>
+
+
+Dillon,
+
+The point of RMatrix and RVector in RcppParallel is to shield objects inside
+the RcppParallel blocks using Intel TBB from any interaction with the outer R
+process which may, or may not, run a gc() to rearrange its memory.
+
+Where they work, you should not use Rcpp's own NumericMatrix and alike. As for
+
+   Is there a way to write generic functions that will work in both cases?
+
+Yes, with care. Standard C++ should work. You have to 'arrange' functionality
+in such a way that you have "clean" internal functions (using STL objects
+and/or RMatrix and RVector) plus a wrapper making them callable from R).
+
+    Is it safe to create new objects on each thread
+
+Yes, but they have to standard C++ objects. At the once, your sums or
+reductions or ... have completed, converted to something you can return to R.
+
+The golden rule simply is 'no R objects in the inner core'.
+
+Hope this helps and was clear enough, I am still on my first coffee.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Dillon.Hammill at anu.edu.au  Tue Aug 17 21:19:22 2021
+From: Dillon.Hammill at anu.edu.au (Dillon Hammill)
+Date: Tue, 17 Aug 2021 19:19:22 +0000
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+In-Reply-To: <24859.44982.982721.559885@rob.eddelbuettel.com>
+References: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24859.44982.982721.559885@rob.eddelbuettel.com>
+Message-ID: <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+
+Thanks Dirk.
+
+Please correct me if I am wrong, but does this mean that my Rcpp functions should be written using standard STL objects too - and I just include wrappers to handle conversion of the input and output to R objects?
+
+What is the easiest way to perform this conversion (say for vector to RVector or vector of vectors to matrix)?
+
+Thanks for your help.
+
+Dillon
+
+
+Get Outlook for Android<https://aka.ms/AAb9ysg>
+________________________________
+From: Dirk Eddelbuettel <edd at debian.org>
+Sent: Tuesday, August 17, 2021 10:46:46 PM
+To: Dillon Hammill <Dillon.Hammill at anu.edu.au>
+Cc: rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+
+
+Dillon,
+
+The point of RMatrix and RVector in RcppParallel is to shield objects inside
+the RcppParallel blocks using Intel TBB from any interaction with the outer R
+process which may, or may not, run a gc() to rearrange its memory.
+
+Where they work, you should not use Rcpp's own NumericMatrix and alike. As for
+
+   Is there a way to write generic functions that will work in both cases?
+
+Yes, with care. Standard C++ should work. You have to 'arrange' functionality
+in such a way that you have "clean" internal functions (using STL objects
+and/or RMatrix and RVector) plus a wrapper making them callable from R).
+
+    Is it safe to create new objects on each thread
+
+Yes, but they have to standard C++ objects. At the once, your sums or
+reductions or ... have completed, converted to something you can return to R.
+
+The golden rule simply is 'no R objects in the inner core'.
+
+Hope this helps and was clear enough, I am still on my first coffee.
+
+Dirk
+
+--
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210817/9bc2ae0d/attachment.html>
+
+From Dillon.Hammill at anu.edu.au  Tue Aug 17 21:21:48 2021
+From: Dillon.Hammill at anu.edu.au (Dillon Hammill)
+Date: Tue, 17 Aug 2021 19:21:48 +0000
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+In-Reply-To: <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+References: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24859.44982.982721.559885@rob.eddelbuettel.com>
+ <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+Message-ID: <SYYP282MB108598FEAB079E83EA536B4DA2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+
+Apologies, I meant vector of vectors to RMatrix in my previous comment.
+
+Dillon
+
+Get Outlook for Android<https://aka.ms/AAb9ysg>
+________________________________
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Dillon Hammill <Dillon.Hammill at anu.edu.au>
+Sent: Wednesday, August 18, 2021 5:19:22 AM
+To: Dirk Eddelbuettel <edd at debian.org>
+Cc: rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+
+Thanks Dirk.
+
+Please correct me if I am wrong, but does this mean that my Rcpp functions should be written using standard STL objects too - and I just include wrappers to handle conversion of the input and output to R objects?
+
+What is the easiest way to perform this conversion (say for vector to RVector or vector of vectors to matrix)?
+
+Thanks for your help.
+
+Dillon
+
+
+Get Outlook for Android<https://aka.ms/AAb9ysg>
+________________________________
+From: Dirk Eddelbuettel <edd at debian.org>
+Sent: Tuesday, August 17, 2021 10:46:46 PM
+To: Dillon Hammill <Dillon.Hammill at anu.edu.au>
+Cc: rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+
+
+Dillon,
+
+The point of RMatrix and RVector in RcppParallel is to shield objects inside
+the RcppParallel blocks using Intel TBB from any interaction with the outer R
+process which may, or may not, run a gc() to rearrange its memory.
+
+Where they work, you should not use Rcpp's own NumericMatrix and alike. As for
+
+   Is there a way to write generic functions that will work in both cases?
+
+Yes, with care. Standard C++ should work. You have to 'arrange' functionality
+in such a way that you have "clean" internal functions (using STL objects
+and/or RMatrix and RVector) plus a wrapper making them callable from R).
+
+    Is it safe to create new objects on each thread
+
+Yes, but they have to standard C++ objects. At the once, your sums or
+reductions or ... have completed, converted to something you can return to R.
+
+The golden rule simply is 'no R objects in the inner core'.
+
+Hope this helps and was clear enough, I am still on my first coffee.
+
+Dirk
+
+--
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210817/27ff5a9c/attachment-0001.html>
+
+From edd at debian.org  Tue Aug 17 21:37:41 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 17 Aug 2021 14:37:41 -0500
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+In-Reply-To: <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+References: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24859.44982.982721.559885@rob.eddelbuettel.com>
+ <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+Message-ID: <24860.4101.440664.976230@rob.eddelbuettel.com>
+
+
+On 17 August 2021 at 19:19, Dillon Hammill wrote:
+| What is the easiest way to perform this conversion (say for vector to RVector or vector of vectors to matrix)?
+
+I always find that the existing RcppParallel that JJ and Kevin set up years
+ago excels there.  Study them, they do it right, they work, and they should
+give you leads.
+
+For concrete follow-up questions we will be all ears, but I have the feeling
+that what you are after now is in fact covered over there.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Dillon.Hammill at anu.edu.au  Wed Aug 18 03:26:24 2021
+From: Dillon.Hammill at anu.edu.au (Dillon Hammill)
+Date: Wed, 18 Aug 2021 01:26:24 +0000
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+In-Reply-To: <24860.4101.440664.976230@rob.eddelbuettel.com>
+References: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24859.44982.982721.559885@rob.eddelbuettel.com>
+ <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24860.4101.440664.976230@rob.eddelbuettel.com>
+Message-ID: <SYYP282MB10856BDEE026360AE10A5119A2FF9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+
+Thanks for your help Dirk, I think I have everything I need to get things working now. I just needed a push in the right direction to discover wrap and as from Rcpp - they are awesome!
+
+I am just beginning to explore the power Rcpp and PcppParallel.
+
+Keep up the great work!
+
+Cheers,
+Dillon
+________________________________
+From: Dirk Eddelbuettel <edd at debian.org>
+Sent: Wednesday, 18 August 2021 5:37 AM
+To: Dillon Hammill <Dillon.Hammill at anu.edu.au>
+Cc: Dirk Eddelbuettel <edd at debian.org>; rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+
+
+On 17 August 2021 at 19:19, Dillon Hammill wrote:
+| What is the easiest way to perform this conversion (say for vector to RVector or vector of vectors to matrix)?
+
+I always find that the existing RcppParallel that JJ and Kevin set up years
+ago excels there.  Study them, they do it right, they work, and they should
+give you leads.
+
+For concrete follow-up questions we will be all ears, but I have the feeling
+that what you are after now is in fact covered over there.
+
+Dirk
+
+--
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210818/e28f308d/attachment.html>
+
+From edd at debian.org  Wed Aug 18 03:40:27 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 17 Aug 2021 20:40:27 -0500
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+In-Reply-To: <SYYP282MB10856BDEE026360AE10A5119A2FF9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+References: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24859.44982.982721.559885@rob.eddelbuettel.com>
+ <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24860.4101.440664.976230@rob.eddelbuettel.com>
+ <SYYP282MB10856BDEE026360AE10A5119A2FF9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+Message-ID: <24860.25867.858917.687178@rob.eddelbuettel.com>
+
+
+On 18 August 2021 at 01:26, Dillon Hammill wrote:
+| Thanks for your help Dirk, I think I have everything I need to get things working now. I just needed a push in the right direction to discover wrap and as from Rcpp - they are awesome!
+
+They are indeed.  (And, if I may, feature prominently in the 'Introduction to
+Rcpp' and other documents we offer. But I acknowledge that there are lots of
+those.)
+ 
+| I am just beginning to explore the power Rcpp and PcppParallel.
+| 
+| Keep up the great work!
+
+Thanks, we try :)
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.zehnder at googlemail.com  Wed Aug 18 16:36:36 2021
+From: simon.zehnder at googlemail.com (Simon Zehnder)
+Date: Wed, 18 Aug 2021 16:36:36 +0200
+Subject: [Rcpp-devel] Using Rcpp with <nloptrApi.h> results in "shared
+ object 'nloptC.so' not found"
+Message-ID: <CAGQVrP8Yfs9buaGzd9ZJaPZ0pd=xt2ijOCaZ46v8XsqvhBgUVw@mail.gmail.com>
+
+Hi folks,
+
+apologies, if I am double posting - I had problems with my mail.
+
+I need some help here from experienced Rcpp developers.
+
+I am coding since some time on an R-package using Rcpp and nlopt. Lately I
+found out that I could probably use 'nloptr' to include nlopt in my C++
+code, which would give a great advantage to users of my package (instead of
+installing nlopt on their systems by hand).
+I followed the example on
+https://github.com/jchiquet/RcppArmadilloNLoptExample (the nloptC one) and
+modified my code accordingly. When I compile my package I get the error
+
+" Error: package or namespace load failed for ‘finmix’ in
+library.dynam(lib, package, package.lib):
+ shared object ‘nloptC.so’ not found"
+
+In my DESCRIPTION I use in the 'Imports' and the 'LinkingTo' field
+'nloptr'. In my NAMESPACE I load 'nloptC' via 'useDynLib(nloptC)'.
+What I saw in the example's 'RcppExports.cpp' file is
+
+RcppExport void R_init_nloptC(DllInfo *dll) {
+    R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+    R_useDynamicSymbols(dll, FALSE);
+}
+
+This part is missing in my 'RcppExports.cpp' (I recompiled the file via
+'Rcpp::compileAttributes' also tried to compile twice). I cannot explain
+what is missing on my side.
+
+If someone of you has an idea what might be the error on my side, please
+let me know. I am thankful for any advice. If you want to compile my
+package you can find it on my GitHub at
+https://github.com/simonsays1980/finmix/tree/nloptapi.
+
+I am using R 4.0.5 on a Fedora 34 System, Rcpp 1.0.6 and nloptr 1.2.2.2.
+
+Thanks for any time and efforts you spent on my problem.
+Simon
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210818/814ade08/attachment.html>
+
+From edd at debian.org  Wed Aug 18 17:18:52 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 18 Aug 2021 10:18:52 -0500
+Subject: [Rcpp-devel] Using Rcpp with <nloptrApi.h> results in "shared
+ object 'nloptC.so' not found"
+In-Reply-To: <CAGQVrP8Yfs9buaGzd9ZJaPZ0pd=xt2ijOCaZ46v8XsqvhBgUVw@mail.gmail.com>
+References: <CAGQVrP8Yfs9buaGzd9ZJaPZ0pd=xt2ijOCaZ46v8XsqvhBgUVw@mail.gmail.com>
+Message-ID: <24861.9436.316360.922995@rob.eddelbuettel.com>
+
+
+On 18 August 2021 at 16:36, Simon Zehnder wrote:
+| I am using R 4.0.5 on a Fedora 34 System, Rcpp 1.0.6 and nloptr 1.2.2.2.
+
+Works here (Ubuntu 21.04, Rcpp 1.0.7) (see [1] below)
+
+Works at CRAN (see [2] below)
+
+Works at universe (see [3] below)
+
+I would suspect the error is at your end.
+
+Dirk
+
+[1] Running via rcc.r from littler wrapping rcmdcheck
+
+edd at rob:~/git/rcppnloptexample(master)$ rcc.r RcppNLoptExample_0.1.0.tar.gz 
+── R CMD check ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+─  using log directory ‘/tmp/file2b4b7523aee48f/RcppNLoptExample.Rcheck’
+─  using R version 4.1.1 (2021-08-10)                                                                    
+─  using platform: x86_64-pc-linux-gnu (64-bit)
+─  using session charset: UTF-8   
+✔  checking for file ‘RcppNLoptExample/DESCRIPTION’ ...
+─  checking extension type ... Package
+─  this is package ‘RcppNLoptExample’ version ‘0.1.0’
+─  package encoding: UTF-8
+✔  checking package namespace information ...
+✔  checking package dependencies (803ms)
+✔  checking package namespace information ...
+✔  checking package dependencies (803ms)
+✔  checking if this is a source package
+✔  checking if there is a namespace
+✔  checking for executable files ...
+✔  checking for hidden files and directories
+✔  checking for portable file names
+✔  checking for sufficient/correct file permissions
+✔  checking whether package ‘RcppNLoptExample’ can be installed (6.3s)
+✔  checking installed package size ...
+✔  checking package directory
+✔  checking DESCRIPTION meta-information ...
+✔  checking top-level files
+✔  checking for left-over files
+✔  checking index information
+✔  checking package subdirectories ...
+✔  checking R files for non-ASCII characters ...
+✔  checking R files for syntax errors ...
+✔  checking whether the package can be loaded ...
+✔  checking whether the package can be loaded with stated dependencies ...
+✔  checking whether the package can be unloaded cleanly ...
+✔  checking whether the namespace can be loaded with stated dependencies ...
+✔  checking whether the namespace can be unloaded cleanly ...
+✔  checking loading without being on the library search path ...
+✔  checking dependencies in R code ...
+✔  checking S3 generic/method consistency (430ms)
+✔  checking replacement functions ...
+✔  checking foreign function calls ...
+✔  checking R code for possible problems (931ms)
+✔  checking Rd files ...
+✔  checking Rd metadata ...
+✔  checking Rd cross-references ...
+✔  checking for missing documentation entries ...
+✔  checking for code/documentation mismatches (679ms)
+✔  checking Rd \usage sections (549ms)
+✔  checking Rd contents ...
+✔  checking for unstated dependencies in examples ...
+✔  checking line endings in C/C++/Fortran sources/headers
+✔  checking line endings in Makefiles
+✔  checking compilation flags in Makevars ...
+✔  checking for GNU extensions in Makefiles
+✔  checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS)
+✔  checking use of PKG_*FLAGS in Makefiles
+✔  checking compilation flags used
+✔  checking compiled code ...
+✔  checking examples (424ms)
+✔  checking PDF version of manual (2.5s)
+   
+   
+edd at rob:~/git/rcppnloptexample(master)$ 
+
+[2] https://cloud.r-project.org/web/checks/check_results_RcppNLoptExample.html
+
+[3] https://eddelbuettel.r-universe.dev/ui#builds and also 
+    https://github.com/r-universe/eddelbuettel/actions/runs/1047649769
+
+
+| 
+| Thanks for any time and efforts you spent on my problem.
+| Simon
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Wed Aug 18 17:28:38 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Wed, 18 Aug 2021 17:28:38 +0200
+Subject: [Rcpp-devel] Using Rcpp with <nloptrApi.h> results in "shared
+ object 'nloptC.so' not found"
+In-Reply-To: <CAGQVrP8Yfs9buaGzd9ZJaPZ0pd=xt2ijOCaZ46v8XsqvhBgUVw@mail.gmail.com>
+References: <CAGQVrP8Yfs9buaGzd9ZJaPZ0pd=xt2ijOCaZ46v8XsqvhBgUVw@mail.gmail.com>
+Message-ID: <CALEXWq3LzukJOsTi8VNVywahfmsnAuWXLYJsXexwCEsWuYdk8Q@mail.gmail.com>
+
+On Wed, 18 Aug 2021 at 16:37, Simon Zehnder
+<simon.zehnder at googlemail.com> wrote:
+>
+> Hi folks,
+>
+> apologies, if I am double posting - I had problems with my mail.
+>
+> I need some help here from experienced Rcpp developers.
+>
+> I am coding since some time on an R-package using Rcpp and nlopt. Lately I found out that I could probably use 'nloptr' to include nlopt in my C++ code, which would give a great advantage to users of my package (instead of installing nlopt on their systems by hand).
+> I followed the example on https://github.com/jchiquet/RcppArmadilloNLoptExample (the nloptC one) and modified my code accordingly. When I compile my package I get the error
+>
+> " Error: package or namespace load failed for ‘finmix’ in library.dynam(lib, package, package.lib):
+>  shared object ‘nloptC.so’ not found"
+>
+> In my DESCRIPTION I use in the 'Imports' and the 'LinkingTo' field 'nloptr'. In my NAMESPACE I load 'nloptC' via 'useDynLib(nloptC)'.
+
+Remove this. The example has useDynLib(nloptC) because the package is
+called nloptC. Your package is called finmix, so you just need
+useDynLib(finmix) in the NAMESPACE.
+
+> What I saw in the example's 'RcppExports.cpp' file is
+>
+> RcppExport void R_init_nloptC(DllInfo *dll) {
+>     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+>     R_useDynamicSymbols(dll, FALSE);
+> }
+
+You have R_init_finmix instead, same reason as above.
+
+-- 
+Iñaki Úcar
+
+From simon.zehnder at googlemail.com  Wed Aug 18 19:23:37 2021
+From: simon.zehnder at googlemail.com (Simon Zehnder)
+Date: Wed, 18 Aug 2021 19:23:37 +0200
+Subject: [Rcpp-devel] Using Rcpp with <nloptrApi.h> results in "shared
+ object 'nloptC.so' not found"
+In-Reply-To: <CALEXWq3LzukJOsTi8VNVywahfmsnAuWXLYJsXexwCEsWuYdk8Q@mail.gmail.com>
+References: <CAGQVrP8Yfs9buaGzd9ZJaPZ0pd=xt2ijOCaZ46v8XsqvhBgUVw@mail.gmail.com>
+ <CALEXWq3LzukJOsTi8VNVywahfmsnAuWXLYJsXexwCEsWuYdk8Q@mail.gmail.com>
+Message-ID: <CAGQVrP9f-g4a-xR-DW_s+b5kA1EFm_=mhcpKxGpX+OmwpTvQkA@mail.gmail.com>
+
+Thank you Iñaki,
+
+that was the missing part. The package compiles now.
+
+I removed the RcppExports.cpp and called Rcpp::compileAttributes().
+Together with the removal of useDynLib(nloptC) from NAMESPACE compilation
+succeeded.
+
+Again many thanks.
+
+Simon
+
+Am Mi., 18. Aug. 2021 um 17:28 Uhr schrieb Iñaki Ucar <
+iucar at fedoraproject.org>:
+
+> On Wed, 18 Aug 2021 at 16:37, Simon Zehnder
+> <simon.zehnder at googlemail.com> wrote:
+> >
+> > Hi folks,
+> >
+> > apologies, if I am double posting - I had problems with my mail.
+> >
+> > I need some help here from experienced Rcpp developers.
+> >
+> > I am coding since some time on an R-package using Rcpp and nlopt. Lately
+> I found out that I could probably use 'nloptr' to include nlopt in my C++
+> code, which would give a great advantage to users of my package (instead of
+> installing nlopt on their systems by hand).
+> > I followed the example on
+> https://github.com/jchiquet/RcppArmadilloNLoptExample (the nloptC one)
+> and modified my code accordingly. When I compile my package I get the error
+> >
+> > " Error: package or namespace load failed for ‘finmix’ in
+> library.dynam(lib, package, package.lib):
+> >  shared object ‘nloptC.so’ not found"
+> >
+> > In my DESCRIPTION I use in the 'Imports' and the 'LinkingTo' field
+> 'nloptr'. In my NAMESPACE I load 'nloptC' via 'useDynLib(nloptC)'.
+>
+> Remove this. The example has useDynLib(nloptC) because the package is
+> called nloptC. Your package is called finmix, so you just need
+> useDynLib(finmix) in the NAMESPACE.
+>
+> > What I saw in the example's 'RcppExports.cpp' file is
+> >
+> > RcppExport void R_init_nloptC(DllInfo *dll) {
+> >     R_registerRoutines(dll, NULL, CallEntries, NULL, NULL);
+> >     R_useDynamicSymbols(dll, FALSE);
+> > }
+>
+> You have R_init_finmix instead, same reason as above.
+>
+> --
+> Iñaki Úcar
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210818/74392053/attachment-0001.html>
+
+From simon.zehnder at googlemail.com  Wed Aug 18 19:27:56 2021
+From: simon.zehnder at googlemail.com (Simon Zehnder)
+Date: Wed, 18 Aug 2021 19:27:56 +0200
+Subject: [Rcpp-devel] Using Rcpp with <nloptrApi.h> results in "shared
+ object 'nloptC.so' not found"
+In-Reply-To: <24861.9436.316360.922995@rob.eddelbuettel.com>
+References: <CAGQVrP8Yfs9buaGzd9ZJaPZ0pd=xt2ijOCaZ46v8XsqvhBgUVw@mail.gmail.com>
+ <24861.9436.316360.922995@rob.eddelbuettel.com>
+Message-ID: <CAGQVrP_ci3ym57xOQAdzuyofqhRPdS5RF4DQbqxY8PnfFcJYbg@mail.gmail.com>
+
+Hi Dirk,
+
+thanks for the quick reply. Running the RcppNLoptExample ran also on my
+side, however running my code from the repo resulted in an error. I was so
+used to having a complicated setup when using nlopt in my C++ code from
+before that In over-complicated things.
+
+Thanks for pushing me towards the solution.
+
+Best
+Simon
+
+Am Mi., 18. Aug. 2021 um 17:18 Uhr schrieb Dirk Eddelbuettel <edd at debian.org
+>:
+
+>
+> On 18 August 2021 at 16:36, Simon Zehnder wrote:
+> | I am using R 4.0.5 on a Fedora 34 System, Rcpp 1.0.6 and nloptr 1.2.2.2.
+>
+> Works here (Ubuntu 21.04, Rcpp 1.0.7) (see [1] below)
+>
+> Works at CRAN (see [2] below)
+>
+> Works at universe (see [3] below)
+>
+> I would suspect the error is at your end.
+>
+> Dirk
+>
+> [1] Running via rcc.r from littler wrapping rcmdcheck
+>
+> edd at rob:~/git/rcppnloptexample(master)$ rcc.r
+> RcppNLoptExample_0.1.0.tar.gz
+> ── R CMD check
+> ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+> ─  using log directory ‘/tmp/file2b4b7523aee48f/RcppNLoptExample.Rcheck’
+> ─  using R version 4.1.1 (2021-08-10)
+>
+> ─  using platform: x86_64-pc-linux-gnu (64-bit)
+> ─  using session charset: UTF-8
+> ✔  checking for file ‘RcppNLoptExample/DESCRIPTION’ ...
+> ─  checking extension type ... Package
+> ─  this is package ‘RcppNLoptExample’ version ‘0.1.0’
+> ─  package encoding: UTF-8
+> ✔  checking package namespace information ...
+> ✔  checking package dependencies (803ms)
+> ✔  checking package namespace information ...
+> ✔  checking package dependencies (803ms)
+> ✔  checking if this is a source package
+> ✔  checking if there is a namespace
+> ✔  checking for executable files ...
+> ✔  checking for hidden files and directories
+> ✔  checking for portable file names
+> ✔  checking for sufficient/correct file permissions
+> ✔  checking whether package ‘RcppNLoptExample’ can be installed (6.3s)
+> ✔  checking installed package size ...
+> ✔  checking package directory
+> ✔  checking DESCRIPTION meta-information ...
+> ✔  checking top-level files
+> ✔  checking for left-over files
+> ✔  checking index information
+> ✔  checking package subdirectories ...
+> ✔  checking R files for non-ASCII characters ...
+> ✔  checking R files for syntax errors ...
+> ✔  checking whether the package can be loaded ...
+> ✔  checking whether the package can be loaded with stated dependencies ...
+> ✔  checking whether the package can be unloaded cleanly ...
+> ✔  checking whether the namespace can be loaded with stated dependencies
+> ...
+> ✔  checking whether the namespace can be unloaded cleanly ...
+> ✔  checking loading without being on the library search path ...
+> ✔  checking dependencies in R code ...
+> ✔  checking S3 generic/method consistency (430ms)
+> ✔  checking replacement functions ...
+> ✔  checking foreign function calls ...
+> ✔  checking R code for possible problems (931ms)
+> ✔  checking Rd files ...
+> ✔  checking Rd metadata ...
+> ✔  checking Rd cross-references ...
+> ✔  checking for missing documentation entries ...
+> ✔  checking for code/documentation mismatches (679ms)
+> ✔  checking Rd \usage sections (549ms)
+> ✔  checking Rd contents ...
+> ✔  checking for unstated dependencies in examples ...
+> ✔  checking line endings in C/C++/Fortran sources/headers
+> ✔  checking line endings in Makefiles
+> ✔  checking compilation flags in Makevars ...
+> ✔  checking for GNU extensions in Makefiles
+> ✔  checking for portable use of $(BLAS_LIBS) and $(LAPACK_LIBS)
+> ✔  checking use of PKG_*FLAGS in Makefiles
+> ✔  checking compilation flags used
+> ✔  checking compiled code ...
+> ✔  checking examples (424ms)
+> ✔  checking PDF version of manual (2.5s)
+>
+>
+> edd at rob:~/git/rcppnloptexample(master)$
+>
+> [2]
+> https://cloud.r-project.org/web/checks/check_results_RcppNLoptExample.html
+>
+> [3] https://eddelbuettel.r-universe.dev/ui#builds and also
+>     https://github.com/r-universe/eddelbuettel/actions/runs/1047649769
+>
+>
+> |
+> | Thanks for any time and efforts you spent on my problem.
+> | Simon
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210818/98bc8925/attachment.html>
+
+From khoshnevis.naeem at gmail.com  Thu Aug 19 04:17:54 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Wed, 18 Aug 2021 21:17:54 -0500
+Subject: [Rcpp-devel] Rcpp function results are different on different
+	systems
+Message-ID: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+
+Dear all,
+
+
+I wrote a function using Rcpp; it is a simple function; however, it
+significantly improves the performance. I realized that on some systems,
+the result of the function is different from others.
+
+
+For example, on the following systems (on rhub), the results are identical
+and are correct:
+
+   - Fedora Linux, R-devel, clang, gfortran (fedora-clang-devel)
+   - macOS 10.13.6 High Sierra, R-release, brew (macos-highsierra-release)
+   - Windows Server 2008 R2 SP1, R-devel, 32/64 bit (windows-x86_64-devel)
+
+However, on the following systems (on rhub), the results are different:
+
+   -  Ubuntu Linux 20.04.1 LTS, R-devel, GCC (ubuntu-gcc-devel)
+
+
+Here is the error:
+
+
+Running the tests in ‘tests/testthat.R’ failed.
+
+   Last 13 lines of output:
+
+     val[1] not equal to 4.
+
+     1/1 mismatches
+
+     [1] 2 - 4 == -2
+
+     ── Failure (test-compute_closest_wgps_helper.R:12:3):
+compute_closest_wgps_helper works as expected. ──
+
+     val[3] not equal to 3.
+
+     1/1 mismatches
+
+     [1] 1 - 3 == -2
+
+     ── Failure (test-compute_closest_wgps_helper.R:13:3):
+compute_closest_wgps_helper works as expected. ──
+
+     val[4] not equal to 1.
+
+     1/1 mismatches
+
+     [1] 2 - 1 == 1
+
+
+
+     [ FAIL 3 | WARN 0 | SKIP 0 | PASS 69 ]
+
+
+As much as I can check the code, it looks correct. But I am not sure what
+else I can check. Some package users claimed that different R versions
+provide different results; however, I checked it on r-base=3.6, 4.0, 4.1
+and received the same correct results (macOS 11.2).
+
+I would be grateful if you could let me know your thoughts about this issue.
+
+
+Here is the source code:
+
+https://github.com/fasrc/CausalGPS/blob/97342ecc90fd20f2c7c4458a70aefe471b09510c/src/compute_closest_wgps_helper.cpp
+
+
+Here is the related test:
+
+https://github.com/fasrc/CausalGPS/blob/97342ecc90fd20f2c7c4458a70aefe471b09510c/tests/testthat/test-compute_closest_wgps_helper.R
+
+
+
+Best regards,
+
+Naeem Khoshnevis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210818/bc56002e/attachment-0001.html>
+
+From edd at debian.org  Thu Aug 19 04:36:59 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 18 Aug 2021 21:36:59 -0500
+Subject: [Rcpp-devel] Rcpp function results are different on
+	different	systems
+In-Reply-To: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+Message-ID: <24861.50123.975205.219957@rob.eddelbuettel.com>
+
+
+Naeem,
+
+I would simplify, simplify, simplify -- as 'Rcpp FAQ 7.31' reminds us all,
+testing _equality_ of doubles is challenging anyway.
+
+Besides, it may make sense to would ascertain first you get what you want in
+_purely serial modes_ and then move to OpenMP.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From serguei.sokol at gmail.com  Thu Aug 19 09:59:21 2021
+From: serguei.sokol at gmail.com (Sokol Serguei)
+Date: Thu, 19 Aug 2021 09:59:21 +0200
+Subject: [Rcpp-devel] Rcpp function results are different on different
+ systems
+In-Reply-To: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+Message-ID: <0cca8fa4-9a4c-4d67-2037-ca1bfc4d6d83@gmail.com>
+
+HI,
+
+I cannot help with your bug. However...
+
+Le 19/08/2021 à 04:17, Naeem Khoshnevis a écrit :
+>
+> Dear all,
+>
+>
+> I wrote a function using Rcpp; it is a simple function; however, it 
+> significantly improves the performance.
+>
+Compared to what? The same algorithm with plenty for-loop re-written in 
+R? Then sure, it will improve the performance.
+
+But what your algorithm does can be expressed as one-liner in R:
+
+       out=apply(abs(outer(a,b,"-"))*sc+cd, 2, which.min)
+
+It should be also much more performant then R code with for-loop 
+everywhere (though not so performant as C++ code).
+
+Oh, and it will not require a whole package to do the job.
+
+Best,
+Serguei.
+
+> I realized that on some systems, the result of the function is 
+> different from others.
+>
+>
+> For example, on the following systems (on rhub), the results are 
+> identical and are correct:
+>
+>   * Fedora Linux, R-devel, clang, gfortran (fedora-clang-devel)
+>   * macOS 10.13.6 High Sierra, R-release, brew (macos-highsierra-release)
+>   * Windows Server 2008 R2 SP1, R-devel, 32/64 bit (windows-x86_64-devel)
+>
+> However, on the following systems (on rhub), the results are different:
+>
+>   *  Ubuntu Linux 20.04.1 LTS, R-devel, GCC (ubuntu-gcc-devel)
+>
+>
+> Here is the error:
+>
+>
+> Running the tests in ‘tests/testthat.R’ failed.
+>
+>    Last 13 lines of output:
+>
+>  val[1] not equal to 4.
+>
+>      1/1 mismatches
+>
+>      [1] 2 - 4 == -2
+>
+>      ── Failure (test-compute_closest_wgps_helper.R:12:3): 
+> compute_closest_wgps_helper works as expected. ──
+>
+>  val[3] not equal to 3.
+>
+>      1/1 mismatches
+>
+>      [1] 1 - 3 == -2
+>
+>      ── Failure (test-compute_closest_wgps_helper.R:13:3): 
+> compute_closest_wgps_helper works as expected. ──
+>
+>  val[4] not equal to 1.
+>
+>      1/1 mismatches
+>
+>      [1] 2 - 1 == 1
+>
+>      [ FAIL 3 | WARN 0 | SKIP 0 | PASS 69 ]
+>
+>
+> As much as I can check the code, it looks correct. But I am not sure 
+> what else I can check. Some package users claimed that different R 
+> versions provide different results; however, I checked it on 
+> r-base=3.6, 4.0, 4.1 and received the same correct results (macOS 11.2).
+>
+> I would be grateful if you could let me know your thoughts about this 
+> issue.
+>
+>
+> Here is the source code:
+>
+> https://github.com/fasrc/CausalGPS/blob/97342ecc90fd20f2c7c4458a70aefe471b09510c/src/compute_closest_wgps_helper.cpp 
+> <https://github.com/fasrc/CausalGPS/blob/97342ecc90fd20f2c7c4458a70aefe471b09510c/src/compute_closest_wgps_helper.cpp>
+>
+>
+> Here is the related test:
+>
+> https://github.com/fasrc/CausalGPS/blob/97342ecc90fd20f2c7c4458a70aefe471b09510c/tests/testthat/test-compute_closest_wgps_helper.R 
+> <https://github.com/fasrc/CausalGPS/blob/97342ecc90fd20f2c7c4458a70aefe471b09510c/tests/testthat/test-compute_closest_wgps_helper.R>
+>
+>
+>
+> Best regards,
+>
+> Naeem Khoshnevis
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210819/645c0343/attachment.html>
+
+From iucar at fedoraproject.org  Thu Aug 19 11:56:42 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Thu, 19 Aug 2021 11:56:42 +0200
+Subject: [Rcpp-devel] Rcpp function results are different on different
+	systems
+In-Reply-To: <24861.50123.975205.219957@rob.eddelbuettel.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+ <24861.50123.975205.219957@rob.eddelbuettel.com>
+Message-ID: <CALEXWq3vshrW+ax3inT2ZXg=8ZQOVLMndaz3iiaYXwPtLLiEMg@mail.gmail.com>
+
+On Thu, 19 Aug 2021 at 04:53, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> Naeem,
+>
+> I would simplify, simplify, simplify -- as 'Rcpp FAQ 7.31' reminds us all,
+> testing _equality_ of doubles is challenging anyway.
+>
+> Besides, it may make sense to would ascertain first you get what you want in
+> _purely serial modes_ and then move to OpenMP.
+
+Exactly. Serial execution should be fine. I.e., if you set the number
+of threads to 1, then all platforms will return the same result.
+However, you have defined a number of variables outside the parallel
+region, and then you modify them inside the parallel region. OpenMP
+takes those variables as shared by default, which leads to the
+unexpected results you are getting. You need to tell OpenMP that those
+variables are threadprivate. Or you could just define them inside the
+parallel region, so that OpenMP knows that they are private without
+additional hints.
+
+-- 
+Iñaki Úcar
+
+From khoshnevis.naeem at gmail.com  Thu Aug 19 17:04:04 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Thu, 19 Aug 2021 10:04:04 -0500
+Subject: [Rcpp-devel] Rcpp function results are different on different
+	systems
+In-Reply-To: <CALEXWq3vshrW+ax3inT2ZXg=8ZQOVLMndaz3iiaYXwPtLLiEMg@mail.gmail.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+ <24861.50123.975205.219957@rob.eddelbuettel.com>
+ <CALEXWq3vshrW+ax3inT2ZXg=8ZQOVLMndaz3iiaYXwPtLLiEMg@mail.gmail.com>
+Message-ID: <CAKOOZvMJjtXRUcn4WMKRajOo4a=4jE16NePrKmOT+G4g8St7Rg@mail.gmail.com>
+
+Thank you so much, everyone, for responding to this email.
+
+
+Dirk,
+
+   - I didn't think about testing _equality_ of doubles because the numbers
+   are significantly different (e.g., instead of 0.5, chooses 1.5). However,
+   that is a valid point, and I should be aware of that.
+   - You are right about the serial runs. Whenever I deactivate OpenMP, the
+   results are correct.
+
+
+Serguei,
+
+   - Thanks for the comments. Yes, I agree. It seems outer is a better
+   option. We have started with outer. However, outer builds the entire matrix
+   of differences first, then finds the minimum index. In our application, it
+   requires 200 GB of memory to build that matrix. Rcpp does the job with
+   around 10 MB. That is why I switched to Rcpp. Please let me know your
+   thoughts.
+
+
+Iñaki,
+
+   - Thanks for your suggestion. Yes, the problem is shared values, and it
+   resolved the issue. I really appreciate it.
+
+
+Best regards,
+Naeem
+
+On Thu, Aug 19, 2021 at 4:56 AM Iñaki Ucar <iucar at fedoraproject.org> wrote:
+
+> On Thu, 19 Aug 2021 at 04:53, Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> >
+> > Naeem,
+> >
+> > I would simplify, simplify, simplify -- as 'Rcpp FAQ 7.31' reminds us
+> all,
+> > testing _equality_ of doubles is challenging anyway.
+> >
+> > Besides, it may make sense to would ascertain first you get what you
+> want in
+> > _purely serial modes_ and then move to OpenMP.
+>
+> Exactly. Serial execution should be fine. I.e., if you set the number
+> of threads to 1, then all platforms will return the same result.
+> However, you have defined a number of variables outside the parallel
+> region, and then you modify them inside the parallel region. OpenMP
+> takes those variables as shared by default, which leads to the
+> unexpected results you are getting. You need to tell OpenMP that those
+> variables are threadprivate. Or you could just define them inside the
+> parallel region, so that OpenMP knows that they are private without
+> additional hints.
+>
+> --
+> Iñaki Úcar
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210819/dcf1b05c/attachment.html>
+
+From edd at debian.org  Thu Aug 19 17:11:48 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 19 Aug 2021 10:11:48 -0500
+Subject: [Rcpp-devel] Rcpp function results are different on different
+	systems
+In-Reply-To: <CAKOOZvMJjtXRUcn4WMKRajOo4a=4jE16NePrKmOT+G4g8St7Rg@mail.gmail.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+ <24861.50123.975205.219957@rob.eddelbuettel.com>
+ <CALEXWq3vshrW+ax3inT2ZXg=8ZQOVLMndaz3iiaYXwPtLLiEMg@mail.gmail.com>
+ <CAKOOZvMJjtXRUcn4WMKRajOo4a=4jE16NePrKmOT+G4g8St7Rg@mail.gmail.com>
+Message-ID: <24862.29876.648341.78424@rob.eddelbuettel.com>
+
+
+On 19 August 2021 at 10:04, Naeem Khoshnevis wrote:
+| Thank you so much, everyone, for responding to this email.
+
+Thanks for circling back!  This was a pretty impressive thread as you got
+three distinct answers that all added some value :)
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From serguei.sokol at gmail.com  Thu Aug 19 17:41:45 2021
+From: serguei.sokol at gmail.com (Sokol Serguei)
+Date: Thu, 19 Aug 2021 17:41:45 +0200
+Subject: [Rcpp-devel] Rcpp function results are different on different
+ systems
+In-Reply-To: <CAKOOZvMJjtXRUcn4WMKRajOo4a=4jE16NePrKmOT+G4g8St7Rg@mail.gmail.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+ <24861.50123.975205.219957@rob.eddelbuettel.com>
+ <CALEXWq3vshrW+ax3inT2ZXg=8ZQOVLMndaz3iiaYXwPtLLiEMg@mail.gmail.com>
+ <CAKOOZvMJjtXRUcn4WMKRajOo4a=4jE16NePrKmOT+G4g8St7Rg@mail.gmail.com>
+Message-ID: <fdc9f673-abd3-774e-9259-877707129e56@gmail.com>
+
+Le 19/08/2021 à 17:04, Naeem Khoshnevis a écrit :
+>
+> Thank you so much, everyone, for responding to this email.
+>
+>
+> Dirk,
+>
+>   * I didn't think about testing _equality_ of doubles because the
+>     numbers are significantly different (e.g., instead of 0.5, chooses
+>     1.5). However, that is a valid point, and I should be aware of that.
+>   * You are right about the serial runs. Whenever I deactivate OpenMP,
+>     the results are correct.
+>
+>
+> Serguei,
+>
+>   * Thanks for the comments. Yes, I agree. It seems outer is a better
+>     option. We have started with outer. However, outer builds the
+>     entire matrix of differences first, then finds the minimum index.
+>     In our application, it requires 200 GB of memory to build that matrix.
+>
+This problem was hardly foreseeable from examples in hand. But I still 
+think that a pure R solution can be a runner:
+
+    ac=a*sc
+    bc=b*sc
+    out=vapply(seq_along(bc), function(i) 
+which.min(abs(ac-bc[i])+cd[i]), integer(1))
+
+Best,
+Serguei.
+
+>   * Rcpp does the job with around 10 MB. That is why I switched to
+>     Rcpp. Please let me know your thoughts.
+>
+>
+>       Iñaki,
+>
+>   * Thanks for your suggestion. Yes, the problem is shared values, and
+>     it resolved the issue. I really appreciate it.
+>
+>
+> Best regards,
+> Naeem
+>
+> On Thu, Aug 19, 2021 at 4:56 AM Iñaki Ucar <iucar at fedoraproject.org 
+> <mailto:iucar at fedoraproject.org>> wrote:
+>
+>     On Thu, 19 Aug 2021 at 04:53, Dirk Eddelbuettel <edd at debian.org
+>     <mailto:edd at debian.org>> wrote:
+>     >
+>     >
+>     > Naeem,
+>     >
+>     > I would simplify, simplify, simplify -- as 'Rcpp FAQ 7.31'
+>     reminds us all,
+>     > testing _equality_ of doubles is challenging anyway.
+>     >
+>     > Besides, it may make sense to would ascertain first you get what
+>     you want in
+>     > _purely serial modes_ and then move to OpenMP.
+>
+>     Exactly. Serial execution should be fine. I.e., if you set the number
+>     of threads to 1, then all platforms will return the same result.
+>     However, you have defined a number of variables outside the parallel
+>     region, and then you modify them inside the parallel region. OpenMP
+>     takes those variables as shared by default, which leads to the
+>     unexpected results you are getting. You need to tell OpenMP that those
+>     variables are threadprivate. Or you could just define them inside the
+>     parallel region, so that OpenMP knows that they are private without
+>     additional hints.
+>
+>     -- 
+>     Iñaki Úcar
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210819/b0ab0fdb/attachment.html>
+
+From serguei.sokol at gmail.com  Thu Aug 19 19:01:04 2021
+From: serguei.sokol at gmail.com (Sokol Serguei)
+Date: Thu, 19 Aug 2021 19:01:04 +0200
+Subject: [Rcpp-devel] Rcpp function results are different on different
+ systems
+In-Reply-To: <fdc9f673-abd3-774e-9259-877707129e56@gmail.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+ <24861.50123.975205.219957@rob.eddelbuettel.com>
+ <CALEXWq3vshrW+ax3inT2ZXg=8ZQOVLMndaz3iiaYXwPtLLiEMg@mail.gmail.com>
+ <CAKOOZvMJjtXRUcn4WMKRajOo4a=4jE16NePrKmOT+G4g8St7Rg@mail.gmail.com>
+ <fdc9f673-abd3-774e-9259-877707129e56@gmail.com>
+Message-ID: <d20a591c-8a8e-860d-1563-7cb369c818c5@gmail.com>
+
+Le 19/08/2021 à 17:41, Sokol Serguei a écrit :
+> Le 19/08/2021 à 17:04, Naeem Khoshnevis a écrit :
+>>
+>> Thank you so much, everyone, for responding to this email.
+>>
+>>
+>> Dirk,
+>>
+>>   * I didn't think about testing _equality_ of doubles because the
+>>     numbers are significantly different (e.g., instead of 0.5,
+>>     chooses 1.5). However, that is a valid point, and I should be
+>>     aware of that.
+>>   * You are right about the serial runs. Whenever I deactivate
+>>     OpenMP, the results are correct.
+>>
+>>
+>> Serguei,
+>>
+>>   * Thanks for the comments. Yes, I agree. It seems outer is a better
+>>     option. We have started with outer. However, outer builds the
+>>     entire matrix of differences first, then finds the minimum index.
+>>     In our application, it requires 200 GB of memory to build that
+>>     matrix.
+>>
+> This problem was hardly foreseeable from examples in hand. But I still 
+> think that a pure R solution can be a runner:
+>
+>    ac=a*sc
+>    bc=b*sc
+>    out=vapply(seq_along(bc), function(i) 
+> which.min(abs(ac-bc[i])+cd[i]), integer(1))
+>
+Further optimizing: "+cd[i]" does not change the result of which.min() 
+so it can be dropped. The same reasoning can be applied to "*sc".
+As the problem is reduced to searching the index of the closest value in 
+'a' to 'b[i]', it can be solved in O(log(n)) time (instead of O(n)) by 
+binary search if 'a' can be sorted before operations. If 'b' can also be 
+sorted, then the whole timing can be further reduced. E.g. we can use 
+findInterval() implementing such optimal searching. However, its result 
+should be post-processed to find value indexes instead of interval ones 
+and get back to original indexes instead of sorted ones. Something like:
+
+    oa=order(a)
+    ob=order(b)
+    ao=a[oa]
+    bo=b[ob]
+    i=findInterval(bo, ao) # main work is done here
+    ii=i+ifelse(i < n & ao[i+1]-bo < bo-ao[i], 1, 0)
+    out=oa[ii]
+    out[ob]=out
+
+Serguei.
+
+> Best,
+> Serguei.
+>
+>>   * Rcpp does the job with around 10 MB. That is why I switched to
+>>     Rcpp. Please let me know your thoughts.
+>>
+>>
+>>       Iñaki,
+>>
+>>   * Thanks for your suggestion. Yes, the problem is shared values,
+>>     and it resolved the issue. I really appreciate it.
+>>
+>>
+>> Best regards,
+>> Naeem
+>>
+>> On Thu, Aug 19, 2021 at 4:56 AM Iñaki Ucar <iucar at fedoraproject.org 
+>> <mailto:iucar at fedoraproject.org>> wrote:
+>>
+>>     On Thu, 19 Aug 2021 at 04:53, Dirk Eddelbuettel <edd at debian.org
+>>     <mailto:edd at debian.org>> wrote:
+>>     >
+>>     >
+>>     > Naeem,
+>>     >
+>>     > I would simplify, simplify, simplify -- as 'Rcpp FAQ 7.31'
+>>     reminds us all,
+>>     > testing _equality_ of doubles is challenging anyway.
+>>     >
+>>     > Besides, it may make sense to would ascertain first you get
+>>     what you want in
+>>     > _purely serial modes_ and then move to OpenMP.
+>>
+>>     Exactly. Serial execution should be fine. I.e., if you set the number
+>>     of threads to 1, then all platforms will return the same result.
+>>     However, you have defined a number of variables outside the parallel
+>>     region, and then you modify them inside the parallel region. OpenMP
+>>     takes those variables as shared by default, which leads to the
+>>     unexpected results you are getting. You need to tell OpenMP that
+>>     those
+>>     variables are threadprivate. Or you could just define them inside the
+>>     parallel region, so that OpenMP knows that they are private without
+>>     additional hints.
+>>
+>>     -- 
+>>     Iñaki Úcar
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210819/b2f9b433/attachment-0001.html>
+
+From serguei.sokol at gmail.com  Fri Aug 20 09:47:26 2021
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Fri, 20 Aug 2021 09:47:26 +0200
+Subject: [Rcpp-devel] Rcpp function results are different on different
+ systems
+In-Reply-To: <d20a591c-8a8e-860d-1563-7cb369c818c5@gmail.com>
+References: <CAKOOZvMwbLkVbF7YKNmiSu9rXW28my-yXVRF_JHfaru4i3FLXA@mail.gmail.com>
+ <24861.50123.975205.219957@rob.eddelbuettel.com>
+ <CALEXWq3vshrW+ax3inT2ZXg=8ZQOVLMndaz3iiaYXwPtLLiEMg@mail.gmail.com>
+ <CAKOOZvMJjtXRUcn4WMKRajOo4a=4jE16NePrKmOT+G4g8St7Rg@mail.gmail.com>
+ <fdc9f673-abd3-774e-9259-877707129e56@gmail.com>
+ <d20a591c-8a8e-860d-1563-7cb369c818c5@gmail.com>
+Message-ID: <d074f6ad-3e11-3f1e-207c-c2f4163ec5c7@gmail.com>
+
+Le 19/08/2021 à 19:01, Sokol Serguei a écrit :
+> Le 19/08/2021 à 17:41, Sokol Serguei a écrit :
+>> Le 19/08/2021 à 17:04, Naeem Khoshnevis a écrit :
+>>>
+>>> Thank you so much, everyone, for responding to this email.
+>>>
+>>>
+>>> Dirk,
+>>>
+>>>   * I didn't think about testing _equality_ of doubles because the
+>>>     numbers are significantly different (e.g., instead of 0.5,
+>>>     chooses 1.5). However, that is a valid point, and I should be
+>>>     aware of that.
+>>>   * You are right about the serial runs. Whenever I deactivate
+>>>     OpenMP, the results are correct.
+>>>
+>>>
+>>> Serguei,
+>>>
+>>>   * Thanks for the comments. Yes, I agree. It seems outer is a better
+>>>     option. We have started with outer. However, outer builds the
+>>>     entire matrix of differences first, then finds the minimum index.
+>>>     In our application, it requires 200 GB of memory to build that
+>>>     matrix.
+>>>
+>> This problem was hardly foreseeable from examples in hand. But I still 
+>> think that a pure R solution can be a runner:
+>>
+>>    ac=a*sc
+>>    bc=b*sc
+>>    out=vapply(seq_along(bc), function(i) 
+>> which.min(abs(ac-bc[i])+cd[i]), integer(1))
+>>
+> Further optimizing: "+cd[i]" does not change the result of which.min() 
+> so it can be dropped. The same reasoning can be applied to "*sc".
+> As the problem is reduced to searching the index of the closest value in 
+> 'a' to 'b[i]', it can be solved in O(log(n)) time (instead of O(n)) by 
+> binary search if 'a' can be sorted before operations. If 'b' can also be 
+> sorted, then the whole timing can be further reduced. E.g. we can use 
+> findInterval() implementing such optimal searching. However, its result 
+> should be post-processed to find value indexes instead of interval ones 
+> and get back to original indexes instead of sorted ones. Something like:
+> 
+>     oa=order(a)
+>     ob=order(b)
+>     ao=a[oa]
+>     bo=b[ob]
+>     i=findInterval(bo, ao) # main work is done here
+>     ii=i+ifelse(i < n & ao[i+1]-bo < bo-ao[i], 1, 0)
+oops... Here 'n' is length(b). It was defined in my environment, so the 
+snipet worked as expected when I copy/pasted it. But it may be not your 
+case. Sorry.
+
+Best,
+Serguei.
+
+>     out=oa[ii]
+>     out[ob]=out
+> 
+> Serguei.
+> 
+>> Best,
+>> Serguei.
+>>
+>>>   * Rcpp does the job with around 10 MB. That is why I switched to
+>>>     Rcpp. Please let me know your thoughts.
+>>>
+>>>
+>>>       Iñaki,
+>>>
+>>>   * Thanks for your suggestion. Yes, the problem is shared values,
+>>>     and it resolved the issue. I really appreciate it.
+>>>
+>>>
+>>> Best regards,
+>>> Naeem
+>>>
+>>> On Thu, Aug 19, 2021 at 4:56 AM Iñaki Ucar <iucar at fedoraproject.org 
+>>> <mailto:iucar at fedoraproject.org>> wrote:
+>>>
+>>>     On Thu, 19 Aug 2021 at 04:53, Dirk Eddelbuettel <edd at debian.org
+>>>     <mailto:edd at debian.org>> wrote:
+>>>     >
+>>>     >
+>>>     > Naeem,
+>>>     >
+>>>     > I would simplify, simplify, simplify -- as 'Rcpp FAQ 7.31'
+>>>     reminds us all,
+>>>     > testing _equality_ of doubles is challenging anyway.
+>>>     >
+>>>     > Besides, it may make sense to would ascertain first you get
+>>>     what you want in
+>>>     > _purely serial modes_ and then move to OpenMP.
+>>>
+>>>     Exactly. Serial execution should be fine. I.e., if you set the number
+>>>     of threads to 1, then all platforms will return the same result.
+>>>     However, you have defined a number of variables outside the parallel
+>>>     region, and then you modify them inside the parallel region. OpenMP
+>>>     takes those variables as shared by default, which leads to the
+>>>     unexpected results you are getting. You need to tell OpenMP that
+>>>     those
+>>>     variables are threadprivate. Or you could just define them inside the
+>>>     parallel region, so that OpenMP knows that they are private without
+>>>     additional hints.
+>>>
+>>>     -- 
+>>>     Iñaki Úcar
+>>>
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+> 
+
+
+From Dillon.Hammill at anu.edu.au  Sat Aug 21 09:09:10 2021
+From: Dillon.Hammill at anu.edu.au (Dillon Hammill)
+Date: Sat, 21 Aug 2021 07:09:10 +0000
+Subject: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+In-Reply-To: <24860.25867.858917.687178@rob.eddelbuettel.com>
+References: <SYYP282MB1085D1F158F605409CF31FF6A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24859.44982.982721.559885@rob.eddelbuettel.com>
+ <SYYP282MB10850A8FBE191EA7521481A1A2FE9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24860.4101.440664.976230@rob.eddelbuettel.com>
+ <SYYP282MB10856BDEE026360AE10A5119A2FF9@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+ <24860.25867.858917.687178@rob.eddelbuettel.com>
+Message-ID: <SYYP282MB10855F5CCFB52E4BF3C70757A2C29@SYYP282MB1085.AUSP282.PROD.OUTLOOK.COM>
+
+Thanks again for your help Dirk.
+
+Hope you don't mind if I ask a couple of follow up questions about as and wrap.
+
+I have made the switch to using thread safe STL objects for use with RcppParallel and writing wrappers for R objects.
+
+I am using std vector of vectors to represent matrices and I would like to be able to convert to and from these objects to R objects.
+
+For example, it seems that there is no inbuilt conversion method from std::vector<std::vector<int>> to IntegerMatrix or vice versa (both as and wrap).
+
+Is there a reason why this conversion has not been implemented? How would I go about implementing such a conversion? Or should I be using a different STL format (e.g. a single vector) and wrap that into an R matrix?
+I have had a look at "Rcpp Extending" vignette but I have no idea where to start (this is beyond my current capabilities - I haven't worked with templates before).
+
+In the meantime, I have been allocating the desired object and filling it with data from the original object, but my understanding is that this is creating a copy in memory (I would like to avoid this)?
+[[Rcpp::export]]
+NumericMatrix RcppIntMatConvert (IntegerMatrix x) {
+
+  // convert x to std
+  std::vector<std::vector<int>> x_std(x.ncol(), std::vector<int>(x.nrow()));
+
+  // push x into x_std
+  for(int i = 0; i < x.ncol(); i++) {
+    for(int j = 0; j < x.nrow(); j++) {
+      x_std[i][j] = x(j, i);
+    }
+  }
+
+   return x_std
+}
+
+Appreciate your help!
+
+Dillon
+________________________________
+From: Dirk Eddelbuettel <edd at debian.org>
+Sent: Wednesday, 18 August 2021 11:40 AM
+To: Dillon Hammill <Dillon.Hammill at anu.edu.au>
+Cc: Dirk Eddelbuettel <edd at debian.org>; rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] Apply Defined Rcpp Functions In Parallel
+
+
+On 18 August 2021 at 01:26, Dillon Hammill wrote:
+| Thanks for your help Dirk, I think I have everything I need to get things working now. I just needed a push in the right direction to discover wrap and as from Rcpp - they are awesome!
+
+They are indeed.  (And, if I may, feature prominently in the 'Introduction to
+Rcpp' and other documents we offer. But I acknowledge that there are lots of
+those.)
+
+| I am just beginning to explore the power Rcpp and PcppParallel.
+|
+| Keep up the great work!
+
+Thanks, we try :)
+
+Dirk
+
+--
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210821/71f7bd09/attachment.html>
+

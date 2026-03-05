@@ -1,0 +1,168 @@
+From JosephPark at IEEE.org  Sat Jun 12 10:44:50 2021
+From: JosephPark at IEEE.org (Joseph Park)
+Date: Sat, 12 Jun 2021 10:44:50 +0200
+Subject: [Rcpp-devel] template argument deduction/substitution failed
+Message-ID: <9cd55ceb-f50c-806b-ce30-0abceb90612c@IEEE.org>
+
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210612/54b83e53/attachment.html>
+
+From JosephPark at IEEE.org  Sat Jun 12 11:01:43 2021
+From: JosephPark at IEEE.org (Joseph Park)
+Date: Sat, 12 Jun 2021 11:01:43 +0200
+Subject: [Rcpp-devel] template argument deduction/substitution failed
+In-Reply-To: <9cd55ceb-f50c-806b-ce30-0abceb90612c@IEEE.org>
+References: <9cd55ceb-f50c-806b-ce30-0abceb90612c@IEEE.org>
+Message-ID: <5514e24f-fdbd-d882-df2d-529a16c6d895@IEEE.org>
+
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210612/941f281c/attachment-0001.html>
+
+From kevinushey at gmail.com  Sun Jun 13 01:02:08 2021
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sat, 12 Jun 2021 16:02:08 -0700
+Subject: [Rcpp-devel] template argument deduction/substitution failed
+In-Reply-To: <5514e24f-fdbd-d882-df2d-529a16c6d895@IEEE.org>
+References: <9cd55ceb-f50c-806b-ce30-0abceb90612c@IEEE.org>
+ <5514e24f-fdbd-d882-df2d-529a16c6d895@IEEE.org>
+Message-ID: <CAJXgQP3RxhovLB1i_4if9G7+W4VxkpP+PxUCv=D1UkGRngxrpw@mail.gmail.com>
+
+I think you're bumping into the 20 argument limit for our (now rather old)
+Vector::create() implementation. I thought we also had a variadic C++11
+version for this, but apparently I am mistaken...
+
+A workaround is to use something like the ListBuilder class I put together
+a while back here:
+
+https://stackoverflow.com/questions/27371543/how-many-vectors-can-be-added-in-dataframecreate-vec1-vec2/27371771#27371771
+
+but on our side, it would be nice to have a variadic create for when C++11
+and above is supported / enabled by the compiler.
+
+Best,
+Kevin
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210612/e1aeb385/attachment.html>
+
+From edd at debian.org  Sun Jun 13 01:15:01 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 12 Jun 2021 18:15:01 -0500
+Subject: [Rcpp-devel] template argument deduction/substitution failed
+In-Reply-To: <CAJXgQP3RxhovLB1i_4if9G7+W4VxkpP+PxUCv=D1UkGRngxrpw@mail.gmail.com>
+References: <9cd55ceb-f50c-806b-ce30-0abceb90612c@IEEE.org>
+ <5514e24f-fdbd-d882-df2d-529a16c6d895@IEEE.org>
+ <CAJXgQP3RxhovLB1i_4if9G7+W4VxkpP+PxUCv=D1UkGRngxrpw@mail.gmail.com>
+Message-ID: <24773.16373.898695.420065@rob.eddelbuettel.com>
+
+
+On 12 June 2021 at 16:02, Kevin Ushey wrote:
+| I think you're bumping into the 20 argument limit for our (now rather old)
+| Vector::create() implementation. I thought we also had a variadic C++11
+| version for this, but apparently I am mistaken...
+
+Hm. We have a few header files that are similarly macro-generated (and
+sometimes the macro code is behind ...) but I also thought we had this
+generalized with variadic arguments. Maybe not.
+ 
+| A workaround is to use something like the ListBuilder class I put together
+| a while back here:
+| 
+| https://stackoverflow.com/questions/27371543/how-many-vectors-can-be-added-in-dataframecreate-vec1-vec2/27371771#27371771
+
+Maybe we can carry that over now that C++11 is the minimum standard for R ?
+
+| but on our side, it would be nice to have a variadic create for when C++11
+| and above is supported / enabled by the compiler.
+
+I have been mulling an idea regarding a top-level header file choice also
+signaling minimal language standards opening the door a little to C++14,
+C++17, C++20, ... . I should open an issue ticket one of these days.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From JosephPark at IEEE.org  Sun Jun 13 11:40:50 2021
+From: JosephPark at IEEE.org (Joseph Park)
+Date: Sun, 13 Jun 2021 11:40:50 +0200
+Subject: [Rcpp-devel] template argument deduction/substitution failed
+In-Reply-To: <24773.16373.898695.420065@rob.eddelbuettel.com>
+References: <9cd55ceb-f50c-806b-ce30-0abceb90612c@IEEE.org>
+ <5514e24f-fdbd-d882-df2d-529a16c6d895@IEEE.org>
+ <CAJXgQP3RxhovLB1i_4if9G7+W4VxkpP+PxUCv=D1UkGRngxrpw@mail.gmail.com>
+ <24773.16373.898695.420065@rob.eddelbuettel.com>
+Message-ID: <a04b3b56-a7ee-640e-96e1-8e789ab2a779@IEEE.org>
+
+Thank you.
+
+Changing the function argument limit to 20 variables resolves the error.
+
+If this limit can be relaxed, that would be helpful for future development.
+
+Thank you for Rcpp, and your patience with my ill-formed posts.
+
+JP
+
+On 6/13/21 1:15 AM, Dirk Eddelbuettel wrote:
+> 
+> On 12 June 2021 at 16:02, Kevin Ushey wrote:
+> | I think you're bumping into the 20 argument limit for our (now rather old)
+> | Vector::create() implementation. I thought we also had a variadic C++11
+> | version for this, but apparently I am mistaken...
+> 
+> Hm. We have a few header files that are similarly macro-generated (and
+> sometimes the macro code is behind ...) but I also thought we had this
+> generalized with variadic arguments. Maybe not.
+>   
+> | A workaround is to use something like the ListBuilder class I put together
+> | a while back here:
+> |
+> | https://stackoverflow.com/questions/27371543/how-many-vectors-can-be-added-in-dataframecreate-vec1-vec2/27371771#27371771
+> 
+> Maybe we can carry that over now that C++11 is the minimum standard for R ?
+> 
+> | but on our side, it would be nice to have a variadic create for when C++11
+> | and above is supported / enabled by the compiler.
+> 
+> I have been mulling an idea regarding a top-level header file choice also
+> signaling minimal language standards opening the door a little to C++14,
+> C++17, C++20, ... . I should open an issue ticket one of these days.
+> 
+> Dirk
+> 
+
+From edd at debian.org  Sun Jun 13 14:17:26 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 13 Jun 2021 07:17:26 -0500
+Subject: [Rcpp-devel] template argument deduction/substitution failed
+In-Reply-To: <a04b3b56-a7ee-640e-96e1-8e789ab2a779@IEEE.org>
+References: <9cd55ceb-f50c-806b-ce30-0abceb90612c@IEEE.org>
+ <5514e24f-fdbd-d882-df2d-529a16c6d895@IEEE.org>
+ <CAJXgQP3RxhovLB1i_4if9G7+W4VxkpP+PxUCv=D1UkGRngxrpw@mail.gmail.com>
+ <24773.16373.898695.420065@rob.eddelbuettel.com>
+ <a04b3b56-a7ee-640e-96e1-8e789ab2a779@IEEE.org>
+Message-ID: <24773.63318.995661.467879@rob.eddelbuettel.com>
+
+
+On 13 June 2021 at 11:40, Joseph Park wrote:
+| Thank you.
+| 
+| Changing the function argument limit to 20 variables resolves the error.
+
+Excellent.
+ 
+| If this limit can be relaxed, that would be helpful for future development.
+
+For that to happen someone will have to sit down and do it.
+ 
+| Thank you for Rcpp, and your patience with my ill-formed posts.
+
+Our pleasure, and glad you found the plain text switch :)
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

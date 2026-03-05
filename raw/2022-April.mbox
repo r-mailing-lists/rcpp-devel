@@ -1,0 +1,225 @@
+From roberto at spadim.com.br  Thu Apr 28 01:58:38 2022
+From: roberto at spadim.com.br (Roberto Spadim)
+Date: Wed, 27 Apr 2022 20:58:38 -0300
+Subject: [Rcpp-devel] help with data.frame and numericvector
+Message-ID: <CAH3kUhFbmsw+5O-91FqvD=MM5ostaua_GPeVoankN=5VCCharg@mail.gmail.com>
+
+Hello folks,
+I'm converting some R functions to RCpp at
+https://github.com/OVVO-Financial/NNS/
+
+My problem is with a R "cast" function
+
+https://github.com/OVVO-Financial/NNS/blob/d3f37c6f217a41ce15b31f7a840b6b1ad63e5f36/R/Partial_Moments.R#L20
+
+basically this line:
+
+---
+LPM <- function(degree, target, variable){
+if(any(class(variable)%in%c("tbl","data.table"))) variable <-
+as.vector(unlist(variable))
+...
+}
+---
+
+My Rcpp version don't accept data.table type, it return an error of
+type not allow:
+
+Error in LPM(2, 0, tail(appended_returns, 1)) :
+  Not compatible with requested type: [type=list; target=double].
+
+Is there some way to accept a "anytype" at Rcpp, and convert it to
+numericvector when need?
+My Rcpp version is:
+
+https://github.com/OVVO-Financial/NNS/blob/NNS-Beta-Version/src/partial_moments_rcpp.cpp#L68
+
+and fucntion signature is:
+NumericVector LPM_CPv(const double degree, const NumericVector target,
+const NumericVector variable) {
+
+i think i should use SEXP as "anytype" and at function body check if I
+should "cast" to NumericVector
+
+From edd at debian.org  Thu Apr 28 02:42:30 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 27 Apr 2022 19:42:30 -0500
+Subject: [Rcpp-devel] help with data.frame and numericvector
+In-Reply-To: <CAH3kUhFbmsw+5O-91FqvD=MM5ostaua_GPeVoankN=5VCCharg@mail.gmail.com>
+References: <CAH3kUhFbmsw+5O-91FqvD=MM5ostaua_GPeVoankN=5VCCharg@mail.gmail.com>
+Message-ID: <25193.58102.250987.66844@rob.eddelbuettel.com>
+
+
+On 27 April 2022 at 20:58, Roberto Spadim wrote:
+| Hello folks,
+| I'm converting some R functions to RCpp at
+| https://github.com/OVVO-Financial/NNS/
+| 
+| My problem is with a R "cast" function
+| 
+| https://github.com/OVVO-Financial/NNS/blob/d3f37c6f217a41ce15b31f7a840b6b1ad63e5f36/R/Partial_Moments.R#L20
+| 
+| basically this line:
+| 
+| ---
+| LPM <- function(degree, target, variable){
+| if(any(class(variable)%in%c("tbl","data.table"))) variable <-
+| as.vector(unlist(variable))
+| ...
+| }
+| ---
+| 
+| My Rcpp version don't accept data.table type, it return an error of
+| type not allow:
+| 
+| Error in LPM(2, 0, tail(appended_returns, 1)) :
+|   Not compatible with requested type: [type=list; target=double].
+| 
+| Is there some way to accept a "anytype" at Rcpp, and convert it to
+| numericvector when need?
+
+In a way. We have a more-or-less FAQ about how to accomodate 'different
+run-time types' (think: int vector vs double vector) at compile time. The
+easiest is to use a SEXP which *is* already your "anytype" as it (most
+literally) covers "any" type in R.  See for example
+
+   https://gallery.rcpp.org/articles/rcpp-wrap-and-recurse/
+
+which shows the basic pattern of switching on TYPEOF().
+
+Otherwise, a tip: decompose compound expressions
+
+ if(any(class(variable)%in%c("tbl","data.table"))) variable <- as.vector(unlist(variable))
+
+into more basic assignments (on the C++ side).  We are getting some wonderful
+help from the compiler but the template meta-programming driving this is
+finicky. Do NOT assume you can stack expressions as you might in R. No shame
+in doing multiple basic expressions -- the compiler (once it knows what to
+do) may well optimise temporaries away.
+
+Dirk
+
+| My Rcpp version is:
+| 
+| https://github.com/OVVO-Financial/NNS/blob/NNS-Beta-Version/src/partial_moments_rcpp.cpp#L68
+| 
+| and fucntion signature is:
+| NumericVector LPM_CPv(const double degree, const NumericVector target,
+| const NumericVector variable) {
+| 
+| i think i should use SEXP as "anytype" and at function body check if I
+| should "cast" to NumericVector
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From roberto at spadim.com.br  Sat Apr 30 19:16:04 2022
+From: roberto at spadim.com.br (Roberto Spadim)
+Date: Sat, 30 Apr 2022 14:16:04 -0300
+Subject: [Rcpp-devel] Doubt about best pratices
+Message-ID: <CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>
+
+Hi folks!
+
+What's the best pratices to accept a dataframe and numericmatrix in a function?
+
+Should I have two different methods to deal with NumericMatrix and DataFrame?
+Could I convert DataFrame to matrix? What's the impact of doing this,
+i.e. does the as.matrix copy dataframe data?
+
+Thanks in advance!
+
+---
+Today I'm doing something like this:
+
+void RCPP_function(const RObject &vec, const RObject &mat) {
+  if(mat.isNULL())
+    Rcpp::stop("mat can't be null");
+  NumericMatrix variable_matrix;
+  if (is<NumericMatrix>(mat))
+    variable_matrix = as<NumericMatrix>(mat);
+  else
+    variable_matrix = Rcpp::internal::convert_using_rfunction(mat, "as.matrix");
+
+  NumericVector variable_vector;
+  if((is<NumericVector>(target) || is<DataFrame>(target)) && !target.isNULL()){
+      variable_vector=as<NumericVector>(target);
+  }else{
+      variable_vector=colMeans(variable_matrix);
+  }
+
+  ...
+  do something with data
+  but here it's sure to be:
+   NumericVector (variable_vector)
+   NumericMatrix (variable_matrix)
+  ...
+}
+
+
+-- 
+Roberto Spadim
+
+From jdnewmil at dcn.davis.ca.us  Sat Apr 30 19:26:17 2022
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Sat, 30 Apr 2022 10:26:17 -0700
+Subject: [Rcpp-devel] Doubt about best pratices
+In-Reply-To: <CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>
+References: <CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>
+Message-ID: <CA19E100-F308-40C3-8A16-415D85250E3C@dcn.davis.ca.us>
+
+A data frame is designed to represent different types in different columns. A matrix is designed so that all elements are the same.
+
+It sounds like you need matrices for your algorithm. I would simply require that... or attempt to convert it immediately and stop if the result is not numeric. 
+
+On April 30, 2022 10:16:04 AM PDT, Roberto Spadim <roberto at spadim.com.br> wrote:
+>Hi folks!
+>
+>What's the best pratices to accept a dataframe and numericmatrix in a function?
+>
+>Should I have two different methods to deal with NumericMatrix and DataFrame?
+>Could I convert DataFrame to matrix? What's the impact of doing this,
+>i.e. does the as.matrix copy dataframe data?
+>
+>Thanks in advance!
+>
+>---
+>Today I'm doing something like this:
+>
+>void RCPP_function(const RObject &vec, const RObject &mat) {
+>  if(mat.isNULL())
+>    Rcpp::stop("mat can't be null");
+>  NumericMatrix variable_matrix;
+>  if (is<NumericMatrix>(mat))
+>    variable_matrix = as<NumericMatrix>(mat);
+>  else
+>    variable_matrix = Rcpp::internal::convert_using_rfunction(mat, "as.matrix");
+>
+>  NumericVector variable_vector;
+>  if((is<NumericVector>(target) || is<DataFrame>(target)) && !target.isNULL()){
+>      variable_vector=as<NumericVector>(target);
+>  }else{
+>      variable_vector=colMeans(variable_matrix);
+>  }
+>
+>  ...
+>  do something with data
+>  but here it's sure to be:
+>   NumericVector (variable_vector)
+>   NumericMatrix (variable_matrix)
+>  ...
+>}
+>
+>
+>-- 
+>Roberto Spadim
+>_______________________________________________
+>Rcpp-devel mailing list
+>Rcpp-devel at lists.r-forge.r-project.org
+>https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+Sent from my phone. Please excuse my brevity.
+

@@ -1,0 +1,3389 @@
+From sporck at windstream.net  Thu Nov  1 02:42:09 2018
+From: sporck at windstream.net (Benjamin S. Levy)
+Date: Wed, 31 Oct 2018 21:42:09 -0400
+Subject: [Rcpp-devel] Fwd: Installing Rcpp and working a compilation with C++
+References: <8188EFAA-8B2E-4E80-ACEE-9D35695FAF0B@icloud.com>
+Message-ID: <60BB1562-CD11-46B9-9E4F-FAAA801D4479@windstream.net>
+
+In regard to my prior enquiry, I restored the ?trusty? to ?bionic? items in the sources.list; thank you for that tip.  Also, the [B artifact in my prior post was just from a carriage return between systems.  I have the location of the Rccp/include and .//libs per Listing 2.1, and am evidently still missing connection.  I spent some time with a Linux expert today, and he could not find the issue.  If there is a more recent link (I think it was cited), for help, I should be obliged.
+
+With all due respect and much thanks, I am?
+Benjamin Levy, Ph.D.
+
+> Begin forwarded message:
+> 
+> From: Benjamin Levy <blevy787 at icloud.com>
+> Subject: Installing Rcpp and working a compilation with C++
+> Date: October 30, 2018 at 2:45:17 PM EDT
+> To: rcpp-devel at lists.r-forge.r-project.org
+> 
+> Hello.  Thanks for granting me privileges to ask a new-person question.  With all respect and hopes for some help.  BSL
+> 
+> I?m working with Dirk Eddelbuettel?s book and trying to conduct the first manual compilation with Rcpp (Listing 2.1).  I?m hitting a snag.  Here are the circumstances.  Perhaps the problem is my location of R in /usr/bin/ and the Rccp packages (and friends) in usr/local/lib/R/site-library/Rcpp?  I put the error message at the bottom, after the system-level detail.
+> Operating system: 
+> VMWare Ubuntu 18.04
+> Software
+> R (command line) 3.5.1 (it is functional); R is installed at /usr/bin/
+> packages installed from CRAN: Rcpp, Rcpp11, RcppArmadillo, SPREDA, RUnit, inline, rbenchmark, RInside
+> Installation location: /home/myDir/R/x86_64-pc-linux-gnu-library/3.5/
+> Visual Studio 1.28.2 with c++ and gcc (it is functional)
+> Installed texlive-latex-extra at command line
+> Edited all instances in source.list from ?bionics? to ?trusty? per recommendation from https://askubuntu.com/questions/496549/error-you-must-put-some-source-uris-in-your-sources-list <https://askubuntu.com/questions/496549/error-you-must-put-some-source-uris-in-your-sources-list> 
+> Located in /etc/apt/
+> Lines added/changed are:
+> deb-src http://archive.ubuntu.com/ubuntu <http://archive.ubuntu.com/ubuntu> trusty main restricted #Added by software-properties
+> deb-src http://gb.archive.ubuntu.com/ubuntu/ <http://gb.archive.ubuntu.com/ubuntu/> trusty restricted main universe multiverse #Added by software-properties
+> deb-src http://gb.archive.ubuntu.com/ubuntu/ <http://gb.archive.ubuntu.com/ubuntu/> trusty-updates restricted main universe multiverse #Added by software-properties
+> deb-src http://gb.archive.ubuntu.com/ubuntu/ <http://gb.archive.ubuntu.com/ubuntu/> trusty-backports main restricted universe multiverse #Added by software-properties
+> deb-src http://security.ubuntu.com/ubuntu <http://security.ubuntu.com/ubuntu> trusty-security restricted main universe multiverse #Added by software-properties
+> Fibonacci code
+> Located in /home/myDir/Documents/seamlessR/R examples/fibonacci.cpp
+> Code snippet 
+> int fibonacci( const int x){
+> if(x == 0) return(0);
+> if(x == 1) return(1);
+> return(fibonacci(x-1) + fibonacci(x-2));
+> }
+> extern ?C? SEXP fibWrapper(SEXP xs){
+> int x = Rcpp::as<int>(as);
+> int fib = fibonacci(x);
+> return( Rcpp:wrap(fib));
+> }
+> Issued first command at Ubuntu terminal prompt from Listing 2.1
+> sh> PKG_CXXFLAGS="-I/usr/local/lib/R/site-library/Rcpp/include" \ PKG_LIBS="-L/home/myDir/R/x86_64-pc-linux-gnu-library/3.5/Rcpp/libs -lRcpp" \ R CMD SHLIB fibonacci.cpp
+> Reply: bash: PKG_CXXFLAGS=-I/usr/local/lib/R/site-library[B/Rcpp/include: No such file or directory 
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181031/af476a67/attachment.html>
+
+From edd at debian.org  Thu Nov  1 03:18:03 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 31 Oct 2018 21:18:03 -0500
+Subject: [Rcpp-devel] Fwd: Installing Rcpp and working a compilation
+	with C++
+In-Reply-To: <60BB1562-CD11-46B9-9E4F-FAAA801D4479@windstream.net>
+References: <8188EFAA-8B2E-4E80-ACEE-9D35695FAF0B@icloud.com>
+ <60BB1562-CD11-46B9-9E4F-FAAA801D4479@windstream.net>
+Message-ID: <23514.25179.676738.57173@rob.eddelbuettel.com>
+
+
+On 31 October 2018 at 21:42, Benjamin S. Levy wrote:
+| In regard to my prior enquiry, I restored the ?trusty? to ?bionic? items in the sources.list; thank you for that tip.  Also, the [B artifact in my prior post was just from a carriage return between systems.  I have the location of the Rccp/include and .//libs per Listing 2.1, and am evidently still missing connection.  I spent some time with a Linux expert today, and he could not find the issue.  If there is a more recent link (I think it was cited), for help, I should be obliged.
+
+As I mentioned to you yesterday:
+
+ - read the Rcpp Introduction vignette
+ - if you can, also read the Rcpp Attributes vignette
+
+As a litmus test, do one call to Rcpp::evalCpp() such as this:
+
+  R> Rcpp::evalCpp("2 + 2")
+  [1] 4
+  R>
+  
+After a second or two, 4 should appear as the answer. It will have come from
+a new subroutine R and Rcpp just compiled for you.
+
+So if it does, your toolchain works. Linux is in my opinion also the easiest
+system to get this working as you generally have a working compiler
+already. Both windows and macOS need extra work to make R use a matching
+compiler.
+
+But if it doesn't, consult the Rcpp FAQ vignette and other R documentation
+resources.  How to make compilation work with R is needed for Rcpp, but _not_
+specific to Rcpp -- it is the same for _any_ R package involving compilation.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From ralf.stubner at daqana.com  Thu Nov  1 11:10:15 2018
+From: ralf.stubner at daqana.com (Ralf Stubner)
+Date: Thu, 1 Nov 2018 11:10:15 +0100
+Subject: [Rcpp-devel] Fwd: Installing Rcpp and working a compilation
+ with C++
+In-Reply-To: <60BB1562-CD11-46B9-9E4F-FAAA801D4479@windstream.net>
+References: <8188EFAA-8B2E-4E80-ACEE-9D35695FAF0B@icloud.com>
+ <60BB1562-CD11-46B9-9E4F-FAAA801D4479@windstream.net>
+Message-ID: <93306a65-c599-b0c0-f3cb-1837e29da010@daqana.com>
+
+On 11/1/18 2:42 AM, Benjamin S. Levy wrote:
+>>         PKG_CXXFLAGS="-I/usr/local/lib/R/site-library/Rcpp/include" \
+>>         PKG_LIBS="-L/home/myDir/R/x86_64-pc-linux-gnu-library/3.5/Rcpp/libs
+This looks fishy. For PKG_CXXFLAGS you say that Rcpp is installed in
+/usr/local/lib/R/site-library/Rcpp/. For PKG_LIBS you use
+/home/myDir/R/x86_64-pc-linux-gnu-library/3.5/Rcpp/. Where is it
+actually installed?
+
+Greetings
+Ralf
+
+-- 
+Ralf Stubner
+Senior Software Engineer / Trainer
+
+daqana GmbH
+Dortustra?e 48
+14467 Potsdam
+
+T: +49 331 23 61 93 11
+F: +49 331 23 61 93 90
+M: +49 162 20 91 196
+Mail: ralf.stubner at daqana.com
+
+Sitz: Potsdam
+Register: AG Potsdam HRB 27966
+Ust.-IdNr.: DE300072622
+Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: signature.asc
+Type: application/pgp-signature
+Size: 833 bytes
+Desc: OpenPGP digital signature
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181101/476dfaf8/attachment-0001.sig>
+
+From sporck at windstream.net  Thu Nov  1 12:31:49 2018
+From: sporck at windstream.net (Benjamin S. Levy)
+Date: Thu, 1 Nov 2018 07:31:49 -0400
+Subject: [Rcpp-devel] Fwd: Installing Rcpp and working a compilation with C++
+References: <93306a65-c599-b0c0-f3cb-1837e29da010@daqana.com>
+Message-ID: <41064817-1921-4CF9-A21E-959AF115EB1B@windstream.net>
+
+In order of the advice from others who replied to my first question:
+
+1.	Inaki Ucar.  Thank you.  Being new to Ubuntu and Linux, I was unaware of the dire implications of changes in the sources.list file.  All instances of ?trusty? have been changed back to ?bionics?.  It was included as a possible reason for my inability to compile and link R and C++; so, from a new-person perspective, it was useful.
+
+2.	Dirk Eddelbuettel.  The ?litmus? test that you suggested worked.  Thank you.  Glad to know that it will be supported on Windows10 (and MacOS, too, I assume).  Now, also, I know about the r-sig-debian list, which is where I will now be able to direct relevant questions.
+
+3.	Ralf Stubner.  Your suggestion gets to the reason why I asked.  I will explore the suggestion with care.
+
+Again, with all due respect and thanks.
+
+BSL
+
+
+> Begin forwarded message:
+> 
+> From: Ralf Stubner <ralf.stubner at daqana.com>
+> Subject: Re: [Rcpp-devel] Fwd: Installing Rcpp and working a compilation with C++
+> Date: November 1, 2018 at 6:10:15 AM EDT
+> To: rcpp-devel at lists.r-forge.r-project.org
+> 
+> On 11/1/18 2:42 AM, Benjamin S. Levy wrote:
+>>>        PKG_CXXFLAGS="-I/usr/local/lib/R/site-library/Rcpp/include" \
+>>>        PKG_LIBS="-L/home/myDir/R/x86_64-pc-linux-gnu-library/3.5/Rcpp/libs
+> This looks fishy. For PKG_CXXFLAGS you say that Rcpp is installed in
+> /usr/local/lib/R/site-library/Rcpp/. For PKG_LIBS you use
+> /home/myDir/R/x86_64-pc-linux-gnu-library/3.5/Rcpp/. Where is it
+> actually installed?
+> 
+> Greetings
+> Ralf
+> 
+> -- 
+> Ralf Stubner
+> Senior Software Engineer / Trainer
+> 
+> daqana GmbH
+> Dortustra?e 48
+> 14467 Potsdam
+> 
+> T: +49 331 23 61 93 11
+> F: +49 331 23 61 93 90
+> M: +49 162 20 91 196
+> Mail: ralf.stubner at daqana.com
+> 
+> Sitz: Potsdam
+> Register: AG Potsdam HRB 27966
+> Ust.-IdNr.: DE300072622
+> Gesch?ftsf?hrer: Dr.-Ing. Stefan Knirsch, Prof. Dr. Dr. Karl-Kuno Kunze
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181101/65da3d20/attachment.html>
+
+From rittlern at uchicago.edu  Tue Nov  6 06:15:35 2018
+From: rittlern at uchicago.edu (Nicholas Rittler)
+Date: Mon, 5 Nov 2018 23:15:35 -0600
+Subject: [Rcpp-devel] Package Submission Barred by Pedantic
+In-Reply-To: <23513.32686.520428.622099@rob.eddelbuettel.com>
+References: <CAA9ha3+iCKhavJtQoD2r=M7qfurRxvRv0NaYaqSDE36ccq=yLQ@mail.gmail.com>
+ <23513.32686.520428.622099@rob.eddelbuettel.com>
+Message-ID: <CAA9ha3KEwCOBFc6UwSexMz74i46adoE3o5YKq64qzFVirhRk7Q@mail.gmail.com>
+
+When you say "unset it", do you mean physically delete the flag from the
+file?
+
+I don't see the pedantic flag set in my {R_HOME}/etc/Makeconf or any
+Makevars file locally, so I tried passing "-Wno-pedantic", but this renders
+warnings later on about non-portable code.
+
+
+
+On Wed, Oct 31, 2018 at 5:11 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 30 October 2018 at 23:52, Nicholas Rittler wrote:
+> | In attempting to submit a package to CRAN, I'm receiving the following
+> | warning:
+>
+> "I'm receiving" as in "I see this when I compile at home" or as in "I see
+> this in win-builder" ?
+>
+> |
+> d:/RCompile/CRANpkg/lib/3.6/BH/include/boost/interprocess/detail/win32_api.hpp:145:9:
+> | warning: ISO C++ prohibits anonymous structs [-Wpedantic]
+> |
+> | I obviously would like to get rid of this warning and get the package on
+> | CRAN. I now know that CRAN doesn't set pendantic, however, the following
+> is
+> | the makevars.win the package is currently using, in it's entirety:
+> |
+> | PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+> | PKG_CPPFLAGS = -I.
+> |
+> | I don't see where this is setting pendantic either. Is it possible it's a
+> | default local setting on my end? If so, is there some flag that can be
+>
+> Yes, likely.
+>
+> | passed in the makevars file that will not generate warnings about
+> | non-portable code and will make sure pedantic is not set?
+>
+> It might be how R was built, ie the flag got "baked in" when R configured
+> and
+> compiled. These flags then sit in ${R_HOME}/etc/Makeconf.  If so you'd have
+> to edit the file -- we can't alter these options on the fly.
+>
+> Or it could be in a file of yours, for me it is ~/.R/Makevars where I in
+> fact
+> often set -pedantic (and alsod unset it).
+>
+> The bigger news is that you should not have to worry about it. It is just a
+> warning, and it comes from code you did not write but just use -- Boost
+> headers via the BH package.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181105/5c84a0e7/attachment.html>
+
+From qkou at qkou.info  Tue Nov  6 06:34:44 2018
+From: qkou at qkou.info (Qiang Kou)
+Date: Mon, 5 Nov 2018 21:34:44 -0800
+Subject: [Rcpp-devel] Package Submission Barred by Pedantic
+In-Reply-To: <CAA9ha3KEwCOBFc6UwSexMz74i46adoE3o5YKq64qzFVirhRk7Q@mail.gmail.com>
+References: <CAA9ha3+iCKhavJtQoD2r=M7qfurRxvRv0NaYaqSDE36ccq=yLQ@mail.gmail.com>
+ <23513.32686.520428.622099@rob.eddelbuettel.com>
+ <CAA9ha3KEwCOBFc6UwSexMz74i46adoE3o5YKq64qzFVirhRk7Q@mail.gmail.com>
+Message-ID: <CALaeKeE0UNr6S7mEkGqonZhT4gv=sXqO6e4ey=T03FbHa=iOJQ@mail.gmail.com>
+
+Hi, Nicholas,
+
+First, what you reported is a known issue from boost [1], not Rcpp.
+
+Second, this issue has been fixed in boost 1.69 [2] and the bh package
+still uses 1.66.
+
+Third, this warning won't block your submission to CRAN [3] [4].
+
+I hope I answered your question.
+
+Best wishes,
+
+KK
+
+[1] https://github.com/boostorg/interprocess/issues/59
+
+[2]
+https://github.com/boostorg/interprocess/blob/develop/doc/interprocess.qbk#L6767
+
+[3]
+https://github.com/boostorg/interprocess/issues/59#issuecomment-426156101
+
+[4]
+https://www.r-project.org/nosvn/R.check/r-devel-windows-ix86+x86_64/bigmemory-00check.html
+
+On Mon, Nov 5, 2018 at 9:16 PM Nicholas Rittler <rittlern at uchicago.edu>
+wrote:
+
+> When you say "unset it", do you mean physically delete the flag from the
+> file?
+>
+> I don't see the pedantic flag set in my {R_HOME}/etc/Makeconf or any
+> Makevars file locally, so I tried passing "-Wno-pedantic", but this renders
+> warnings later on about non-portable code.
+>
+>
+>
+> On Wed, Oct 31, 2018 at 5:11 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 30 October 2018 at 23:52, Nicholas Rittler wrote:
+>> | In attempting to submit a package to CRAN, I'm receiving the following
+>> | warning:
+>>
+>> "I'm receiving" as in "I see this when I compile at home" or as in "I see
+>> this in win-builder" ?
+>>
+>> |
+>> d:/RCompile/CRANpkg/lib/3.6/BH/include/boost/interprocess/detail/win32_api.hpp:145:9:
+>> | warning: ISO C++ prohibits anonymous structs [-Wpedantic]
+>> |
+>> | I obviously would like to get rid of this warning and get the package on
+>> | CRAN. I now know that CRAN doesn't set pendantic, however, the
+>> following is
+>> | the makevars.win the package is currently using, in it's entirety:
+>> |
+>> | PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+>> | PKG_CPPFLAGS = -I.
+>> |
+>> | I don't see where this is setting pendantic either. Is it possible it's
+>> a
+>> | default local setting on my end? If so, is there some flag that can be
+>>
+>> Yes, likely.
+>>
+>> | passed in the makevars file that will not generate warnings about
+>> | non-portable code and will make sure pedantic is not set?
+>>
+>> It might be how R was built, ie the flag got "baked in" when R configured
+>> and
+>> compiled. These flags then sit in ${R_HOME}/etc/Makeconf.  If so you'd
+>> have
+>> to edit the file -- we can't alter these options on the fly.
+>>
+>> Or it could be in a file of yours, for me it is ~/.R/Makevars where I in
+>> fact
+>> often set -pedantic (and alsod unset it).
+>>
+>> The bigger news is that you should not have to worry about it. It is just
+>> a
+>> warning, and it comes from code you did not write but just use -- Boost
+>> headers via the BH package.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181105/910b39c7/attachment.html>
+
+From will at landale.net  Wed Nov  7 07:45:53 2018
+From: will at landale.net (William Nolan)
+Date: Wed, 7 Nov 2018 15:45:53 +0900
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other issues)?
+Message-ID: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+
+Hi all,
+
+Longtime user and lurker here.
+
+I got "index error" thrown by Rcpp when trying to subset a matrix with
+width * height == 644764 * 3776 greater than MAXINT:
+
+Allocating 647764 x 3776 matrix...
+Catchpoint 1 (exception thrown), 0x00007ffff4baa920 in __cxa_throw () from
+/usr/lib64/libstdc++.so.6
+#1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545
+"index error")
+    at
+/home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+52          throw Rcpp::exception( tfm::format(fmt,
+std::forward<Args>(args)... ).c_str() );
+(gdb) down
+#0  0x00007ffff4baa920 in __cxa_throw () from /usr/lib64/libstdc++.so.6
+(gdb) up
+#1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545
+"index error")
+    at
+/home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+52          throw Rcpp::exception( tfm::format(fmt,
+std::forward<Args>(args)... ).c_str() );
+(gdb) up
+#2  0x00007fffe7bb75a6 in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13,
+true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::check_indices
+(this=0x7fffffffc450, x=0x13f9920,
+    n=3751, size=-1849010432) at
+/home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/:138
+138                     stop("index error");
+(gdb) up
+#3  0x00007fffe7bb6a3c in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13,
+true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::get_indices
+(this=0x7fffffffc450, t=...)
+    at
+/home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/Subsetter.h:149
+149             check_indices(ptr, rhs_n, lhs_n);
+(gdb) l
+144         #endif
+145
+146         void get_indices( traits::identity< traits::int2type<INTSXP> >
+t ) {
+147             indices.reserve(rhs_n);
+148             int* ptr = INTEGER(rhs);
+149             check_indices(ptr, rhs_n, lhs_n);
+150             for (int i=0; i < rhs_n; ++i) {
+151                 indices.push_back( rhs[i] );
+152             }
+153             indices_n = rhs_n;
+
+As we can see from the stack trace and below, lhs.size() is negative when
+cast to int:
+
+(gdb) p (int)(lhs.size())
+$12 = -1849010432
+
+This is all coming from the assignment (via operator []) of the subsetting
+of one matrix to another matrix's subset:
+
+(static_cast<NumericVector&>(mat))[lhsI] =
+(static_cast<NumericVector&>(signals))[rhsI];
+
+(lhsI and rhsI are IntegerVector's)
+
+Now, setting aside whether I *should* be doing that -- what I *do* see in
+Subsetter.h (including what I understand to be the most recent version,
+1.0.0 from github) is the use of int for indices all over the place in this
+file, including in the member variable:
+
+std::vector<int> indices;
+
+Is there any reason why the indices that Subsetter uses internally
+shouldn't be size_t or an equivalently capable type like R_xlen_t?
+For example, Subsetter's check_indices function takes int's as arguments,
+while Vector's size method returns R_xlen_t.
+
+I'll change my code to manually copy elements via operator() using the
+row/column arguments for now.  Seems like Subsetter is maybe not quite
+ready for prime time.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181107/f86a037f/attachment.html>
+
+From qkou at qkou.info  Wed Nov  7 08:23:02 2018
+From: qkou at qkou.info (Qiang Kou)
+Date: Tue, 6 Nov 2018 23:23:02 -0800
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+Message-ID: <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+
+Hi, William,
+
+Can you give us a small piece of code to reproduce the error? That will
+ease our discussion.
+
+Best,
+
+KK
+
+On Tue, Nov 6, 2018 at 10:46 PM William Nolan <will at landale.net> wrote:
+
+> Hi all,
+>
+> Longtime user and lurker here.
+>
+> I got "index error" thrown by Rcpp when trying to subset a matrix with
+> width * height == 644764 * 3776 greater than MAXINT:
+>
+> Allocating 647764 x 3776 matrix...
+> Catchpoint 1 (exception thrown), 0x00007ffff4baa920 in __cxa_throw () from
+> /usr/lib64/libstdc++.so.6
+> #1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545
+> "index error")
+>     at
+> /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+> 52          throw Rcpp::exception( tfm::format(fmt,
+> std::forward<Args>(args)... ).c_str() );
+> (gdb) down
+> #0  0x00007ffff4baa920 in __cxa_throw () from /usr/lib64/libstdc++.so.6
+> (gdb) up
+> #1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545
+> "index error")
+>     at
+> /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+> 52          throw Rcpp::exception( tfm::format(fmt,
+> std::forward<Args>(args)... ).c_str() );
+> (gdb) up
+> #2  0x00007fffe7bb75a6 in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13,
+> true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::check_indices
+> (this=0x7fffffffc450, x=0x13f9920,
+>     n=3751, size=-1849010432) at
+> /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/:138
+> 138                     stop("index error");
+> (gdb) up
+> #3  0x00007fffe7bb6a3c in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13,
+> true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::get_indices
+> (this=0x7fffffffc450, t=...)
+>     at
+> /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/Subsetter.h:149
+> 149             check_indices(ptr, rhs_n, lhs_n);
+> (gdb) l
+> 144         #endif
+> 145
+> 146         void get_indices( traits::identity< traits::int2type<INTSXP> >
+> t ) {
+> 147             indices.reserve(rhs_n);
+> 148             int* ptr = INTEGER(rhs);
+> 149             check_indices(ptr, rhs_n, lhs_n);
+> 150             for (int i=0; i < rhs_n; ++i) {
+> 151                 indices.push_back( rhs[i] );
+> 152             }
+> 153             indices_n = rhs_n;
+>
+> As we can see from the stack trace and below, lhs.size() is negative when
+> cast to int:
+>
+> (gdb) p (int)(lhs.size())
+> $12 = -1849010432
+>
+> This is all coming from the assignment (via operator []) of the subsetting
+> of one matrix to another matrix's subset:
+>
+> (static_cast<NumericVector&>(mat))[lhsI] =
+> (static_cast<NumericVector&>(signals))[rhsI];
+>
+> (lhsI and rhsI are IntegerVector's)
+>
+> Now, setting aside whether I *should* be doing that -- what I *do* see in
+> Subsetter.h (including what I understand to be the most recent version,
+> 1.0.0 from github) is the use of int for indices all over the place in this
+> file, including in the member variable:
+>
+> std::vector<int> indices;
+>
+> Is there any reason why the indices that Subsetter uses internally
+> shouldn't be size_t or an equivalently capable type like R_xlen_t?
+> For example, Subsetter's check_indices function takes int's as arguments,
+> while Vector's size method returns R_xlen_t.
+>
+> I'll change my code to manually copy elements via operator() using the
+> row/column arguments for now.  Seems like Subsetter is maybe not quite
+> ready for prime time.
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181106/e5697465/attachment.html>
+
+From kevinushey at gmail.com  Wed Nov  7 17:29:05 2018
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Wed, 7 Nov 2018 08:29:05 -0800
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+Message-ID: <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+
+I agree we should be using R_xlen_t here. As always, PRs are welcome.
+
+You might want to file this at https://github.com/RcppCore/Rcpp/issues
+just so it doesn't get lost.
+
+Thanks,
+Kevin
+
+On Tue, Nov 6, 2018 at 11:23 PM Qiang Kou <qkou at qkou.info> wrote:
+>
+> Hi, William,
+>
+> Can you give us a small piece of code to reproduce the error? That will ease our discussion.
+>
+> Best,
+>
+> KK
+>
+> On Tue, Nov 6, 2018 at 10:46 PM William Nolan <will at landale.net> wrote:
+>>
+>> Hi all,
+>>
+>> Longtime user and lurker here.
+>>
+>> I got "index error" thrown by Rcpp when trying to subset a matrix with width * height == 644764 * 3776 greater than MAXINT:
+>>
+>> Allocating 647764 x 3776 matrix...
+>> Catchpoint 1 (exception thrown), 0x00007ffff4baa920 in __cxa_throw () from /usr/lib64/libstdc++.so.6
+>> #1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545 "index error")
+>>     at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+>> 52          throw Rcpp::exception( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+>> (gdb) down
+>> #0  0x00007ffff4baa920 in __cxa_throw () from /usr/lib64/libstdc++.so.6
+>> (gdb) up
+>> #1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545 "index error")
+>>     at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+>> 52          throw Rcpp::exception( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+>> (gdb) up
+>> #2  0x00007fffe7bb75a6 in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13, true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::check_indices (this=0x7fffffffc450, x=0x13f9920,
+>>     n=3751, size=-1849010432) at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/:138
+>> 138                     stop("index error");
+>> (gdb) up
+>> #3  0x00007fffe7bb6a3c in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13, true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::get_indices (this=0x7fffffffc450, t=...)
+>>     at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/Subsetter.h:149
+>> 149             check_indices(ptr, rhs_n, lhs_n);
+>> (gdb) l
+>> 144         #endif
+>> 145
+>> 146         void get_indices( traits::identity< traits::int2type<INTSXP> > t ) {
+>> 147             indices.reserve(rhs_n);
+>> 148             int* ptr = INTEGER(rhs);
+>> 149             check_indices(ptr, rhs_n, lhs_n);
+>> 150             for (int i=0; i < rhs_n; ++i) {
+>> 151                 indices.push_back( rhs[i] );
+>> 152             }
+>> 153             indices_n = rhs_n;
+>>
+>> As we can see from the stack trace and below, lhs.size() is negative when cast to int:
+>>
+>> (gdb) p (int)(lhs.size())
+>> $12 = -1849010432
+>>
+>> This is all coming from the assignment (via operator []) of the subsetting of one matrix to another matrix's subset:
+>>
+>> (static_cast<NumericVector&>(mat))[lhsI] = (static_cast<NumericVector&>(signals))[rhsI];
+>>
+>> (lhsI and rhsI are IntegerVector's)
+>>
+>> Now, setting aside whether I *should* be doing that -- what I *do* see in Subsetter.h (including what I understand to be the most recent version, 1.0.0 from github) is the use of int for indices all over the place in this file, including in the member variable:
+>>
+>> std::vector<int> indices;
+>>
+>> Is there any reason why the indices that Subsetter uses internally shouldn't be size_t or an equivalently capable type like R_xlen_t?
+>> For example, Subsetter's check_indices function takes int's as arguments, while Vector's size method returns R_xlen_t.
+>>
+>> I'll change my code to manually copy elements via operator() using the row/column arguments for now.  Seems like Subsetter is maybe not quite ready for prime time.
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From barthriley at comcast.net  Wed Nov  7 21:49:14 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Wed, 7 Nov 2018 14:49:14 -0600
+Subject: [Rcpp-devel] NULL value passed as symbol address with all C++
+	functions
+Message-ID: <mailman.5.1541623764.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+I apologize if this question has been asked before but after doing several searches I could not find an answer that is directly applicable to my problem. I am working on a package containing a number of Rcpp functions. The package builds and loads without a problem. However, when I call any of the Rcpp functions from within R, I get the following type of error message:
+
+Error in .Call(<pointer: (nil)>, x, xMin, xMax, adjustment) : 
+  NULL value passed as symbol address
+	
+As an example, here is the function that returned the error in the C++ file:
+
+// [[Rcpp::export]]
+NumericVector logit(Rcpp::NumericVector x, 
+                    Rcpp::NumericVector xMin,
+                    Rcpp::NumericVector xMax, 
+                    double adjustment = 0.3) {
+
+  ...
+
+}
+
+The exported function in RcppExports.cpp:
+
+// logit
+NumericVector logit(Rcpp::NumericVector x, Rcpp::NumericVector xMin, Rcpp::NumericVector xMax, double adjustment);
+RcppExport SEXP _MFRM_logit(SEXP xSEXP, SEXP xMinSEXP, SEXP xMaxSEXP, SEXP adjustmentSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type xMin(xMinSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type xMax(xMaxSEXP);
+    Rcpp::traits::input_parameter< double >::type adjustment(adjustmentSEXP);
+    rcpp_result_gen = Rcpp::wrap(logit(x, xMin, xMax, adjustment));
+    return rcpp_result_gen;
+END_RCPP
+}
+
+And the corresponding R file:
+
+logit <- function(x, xMin, xMax, adjustment = 0.3) {
+    .Call(`_MFRM_logit`, x, xMin, xMax, adjustment)
+}
+
+First, how can there be two functions called "logit"--one in the main C++ file and one in RcppExports.cpp? And where does _MFRM_logit get defined? Might this be causing the problem?
+
+I should note that hte problem is not limited to this one function, but to all the exported C++ functions. 
+
+Second, is there some option in the project or in the C++ files that needs to be set? 
+
+I am running R 3.51, RStudio 1.14, and Rcpp (0.12.19).
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181107/72f88b99/attachment.html>
+
+From will at landale.net  Thu Nov  8 01:19:29 2018
+From: will at landale.net (William Nolan)
+Date: Thu, 8 Nov 2018 09:19:29 +0900
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+Message-ID: <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+
+Thanks. Will put together a small working example and file it. I might even attempt a fix in my copious free time ;-). 
+
+Cheers,
+Will
+
+> On Nov 8, 2018, at 1:29 AM, Kevin Ushey <kevinushey at gmail.com> wrote:
+> 
+> I agree we should be using R_xlen_t here. As always, PRs are welcome.
+> 
+> You might want to file this at https://github.com/RcppCore/Rcpp/issues
+> just so it doesn't get lost.
+> 
+> Thanks,
+> Kevin
+> 
+>> On Tue, Nov 6, 2018 at 11:23 PM Qiang Kou <qkou at qkou.info> wrote:
+>> 
+>> Hi, William,
+>> 
+>> Can you give us a small piece of code to reproduce the error? That will ease our discussion.
+>> 
+>> Best,
+>> 
+>> KK
+>> 
+>>> On Tue, Nov 6, 2018 at 10:46 PM William Nolan <will at landale.net> wrote:
+>>> 
+>>> Hi all,
+>>> 
+>>> Longtime user and lurker here.
+>>> 
+>>> I got "index error" thrown by Rcpp when trying to subset a matrix with width * height == 644764 * 3776 greater than MAXINT:
+>>> 
+>>> Allocating 647764 x 3776 matrix...
+>>> Catchpoint 1 (exception thrown), 0x00007ffff4baa920 in __cxa_throw () from /usr/lib64/libstdc++.so.6
+>>> #1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545 "index error")
+>>>    at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+>>> 52          throw Rcpp::exception( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+>>> (gdb) down
+>>> #0  0x00007ffff4baa920 in __cxa_throw () from /usr/lib64/libstdc++.so.6
+>>> (gdb) up
+>>> #1  0x0000000000473a05 in Rcpp::stop<>(char const*) (fmt=0x7fffe7bc3545 "index error")
+>>>    at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/exceptions/cpp11/exceptions.h:52
+>>> 52          throw Rcpp::exception( tfm::format(fmt, std::forward<Args>(args)... ).c_str() );
+>>> (gdb) up
+>>> #2  0x00007fffe7bb75a6 in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13, true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::check_indices (this=0x7fffffffc450, x=0x13f9920,
+>>>    n=3751, size=-1849010432) at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/:138
+>>> 138                     stop("index error");
+>>> (gdb) up
+>>> #3  0x00007fffe7bb6a3c in Rcpp::SubsetProxy<14, Rcpp::PreserveStorage, 13, true, Rcpp::Vector<13, Rcpp::PreserveStorage> >::get_indices (this=0x7fffffffc450, t=...)
+>>>    at /home/nolanw/R/x86_64-redhat-linux-gnu-library/3.5/Rcpp/include/Rcpp/vector/Subsetter.h:149
+>>> 149             check_indices(ptr, rhs_n, lhs_n);
+>>> (gdb) l
+>>> 144         #endif
+>>> 145
+>>> 146         void get_indices( traits::identity< traits::int2type<INTSXP> > t ) {
+>>> 147             indices.reserve(rhs_n);
+>>> 148             int* ptr = INTEGER(rhs);
+>>> 149             check_indices(ptr, rhs_n, lhs_n);
+>>> 150             for (int i=0; i < rhs_n; ++i) {
+>>> 151                 indices.push_back( rhs[i] );
+>>> 152             }
+>>> 153             indices_n = rhs_n;
+>>> 
+>>> As we can see from the stack trace and below, lhs.size() is negative when cast to int:
+>>> 
+>>> (gdb) p (int)(lhs.size())
+>>> $12 = -1849010432
+>>> 
+>>> This is all coming from the assignment (via operator []) of the subsetting of one matrix to another matrix's subset:
+>>> 
+>>> (static_cast<NumericVector&>(mat))[lhsI] = (static_cast<NumericVector&>(signals))[rhsI];
+>>> 
+>>> (lhsI and rhsI are IntegerVector's)
+>>> 
+>>> Now, setting aside whether I *should* be doing that -- what I *do* see in Subsetter.h (including what I understand to be the most recent version, 1.0.0 from github) is the use of int for indices all over the place in this file, including in the member variable:
+>>> 
+>>> std::vector<int> indices;
+>>> 
+>>> Is there any reason why the indices that Subsetter uses internally shouldn't be size_t or an equivalently capable type like R_xlen_t?
+>>> For example, Subsetter's check_indices function takes int's as arguments, while Vector's size method returns R_xlen_t.
+>>> 
+>>> I'll change my code to manually copy elements via operator() using the row/column arguments for now.  Seems like Subsetter is maybe not quite ready for prime time.
+>>> 
+>>> 
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> 
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Thu Nov  8 03:30:20 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 7 Nov 2018 20:30:20 -0600
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among
+	other	issues)?
+In-Reply-To: <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+ <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+Message-ID: <23523.40892.93645.56360@rob.eddelbuettel.com>
+
+
+On 8 November 2018 at 09:19, William Nolan wrote:
+| Thanks. Will put together a small working example and file it. I might even attempt a fix in my copious free time ;-). 
+
+Awesome :)
+
+We'll help.  Small steps and iterations work well. 
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Nov  8 03:35:18 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 7 Nov 2018 20:35:18 -0600
+Subject: [Rcpp-devel] NULL value passed as symbol address with all
+	C++	functions
+In-Reply-To: <20181107204924.6E87E189614@r-forge.r-project.org>
+References: <20181107204924.6E87E189614@r-forge.r-project.org>
+Message-ID: <23523.41190.456790.2860@rob.eddelbuettel.com>
+
+
+On 7 November 2018 at 14:49, Barth Riley wrote:
+| I apologize if this question has been asked before but after doing several searches I could not find an answer that is directly applicable to my problem. I am working on a package containing a number of Rcpp functions. The package builds and loads without a problem. However, when I call any of the Rcpp functions from within R, I get the following type of error message:
+| 
+| Error in .Call(<pointer: (nil)>, x, xMin, xMax, adjustment) : 
+|   NULL value passed as symbol address
+
+Something went wrong here.
+
+And we can't tell from the incomplete example you posted.
+
+I suggest you start fresh with a new baby package (maybe via
+Rcpp.package.skeleton, maybe via the RStudio helper), see that that works (it
+should, does for everybody else and testing) and then add to it, slowly and
+carefully.  With some care the difference should eventually reveal itself.
+
+| As an example, here is the function that returned the error in the C++ file:
+| 
+| // [[Rcpp::export]]
+| NumericVector logit(Rcpp::NumericVector x, 
+|                     Rcpp::NumericVector xMin,
+|                     Rcpp::NumericVector xMax, 
+|                     double adjustment = 0.3) {
+| 
+|   ...
+| 
+| }
+| 
+| The exported function in RcppExports.cpp:
+| 
+| // logit
+| NumericVector logit(Rcpp::NumericVector x, Rcpp::NumericVector xMin, Rcpp::NumericVector xMax, double adjustment);
+| RcppExport SEXP _MFRM_logit(SEXP xSEXP, SEXP xMinSEXP, SEXP xMaxSEXP, SEXP adjustmentSEXP) {
+| BEGIN_RCPP
+|     Rcpp::RObject rcpp_result_gen;
+|     Rcpp::RNGScope rcpp_rngScope_gen;
+|     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
+|     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type xMin(xMinSEXP);
+|     Rcpp::traits::input_parameter< Rcpp::NumericVector >::type xMax(xMaxSEXP);
+|     Rcpp::traits::input_parameter< double >::type adjustment(adjustmentSEXP);
+|     rcpp_result_gen = Rcpp::wrap(logit(x, xMin, xMax, adjustment));
+|     return rcpp_result_gen;
+| END_RCPP
+| }
+| 
+| And the corresponding R file:
+| 
+| logit <- function(x, xMin, xMax, adjustment = 0.3) {
+|     .Call(`_MFRM_logit`, x, xMin, xMax, adjustment)
+| }
+| 
+| First, how can there be two functions called "logit"--one in the main C++ file and one in RcppExports.cpp? And where does _MFRM_logit get defined? Might this be causing the problem?
+
+Not a problem per se.  The one here is a just a declaration -- standard C and
+C++ practice.
+| 
+| I should note that hte problem is not limited to this one function, but to all the exported C++ functions. 
+| 
+| Second, is there some option in the project or in the C++ files that needs to be set? 
+
+I don't understand your question -- but we try to document all necessary
+steps.
+
+Dirk
+
+| I am running R 3.51, RStudio 1.14, and Rcpp (0.12.19).
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Nov  8 03:43:34 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 7 Nov 2018 20:43:34 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp 1.0.0  (Yay !!)
+Message-ID: <23523.41686.970878.237230@rob.eddelbuettel.com>
+
+
+Those of you who follow Twitter, or RSS feeds from RBloggers or RWeekly, may
+have seen that I posted about
+  - the ten year anniversary of Rcpp (!!)
+  - the fact that I used the 1 and 0 to declare release 1.0.0 (!!!)
+  - and the just announced 1.0.0 release on CRAN.
+
+If you missed it, my two blog posts are at
+  - http://dirk.eddelbuettel.com/blog/2018/11/05#rcpp_at_ten_welcome_one_oh
+  - http://dirk.eddelbuettel.com/blog/2018/11/07#rcpp_1.0.0
+  - or my Twitter account at https://twitter.com/eddelbuettel
+
+As I tried to say there: It is a really nice story of what we all managed to
+accomplish together, so a big fat thank you to everybody who helped along the
+way: of course everybody in Rcpp Core (and Dominick and Romain before that),
+but also every code contributor, bug reporter, mailing list participant here
+and, of course, all users!  We have come a long way and now have a pretty
+nice tool, but we aren't done.  There is always something else to do and try
+(ALTREP, anyone?  Maybe as GSoC 2019?) but we will continue to do it in a way
+that keeps existing code valid and working.
+
+Again, big thanks everyone. It's been a terrific journey so far.
+
+Cheers,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From barthriley at comcast.net  Thu Nov  8 05:53:09 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Wed, 7 Nov 2018 22:53:09 -0600
+Subject: [Rcpp-devel] NULL value passed as symbol address with all
+ C++functions
+In-Reply-To: <23523.41190.456790.2860@rob.eddelbuettel.com>
+References: <20181107204924.6E87E189614@r-forge.r-project.org>
+ <23523.41190.456790.2860@rob.eddelbuettel.com>
+Message-ID: <mailman.6.1541652829.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+@Dirk: I didn?t want to overwhelm those on the list with tons of code. Below is the full source for the function. What else would you need to see? 
+
+After clearing my environment variables, I am now getting the following error:
+
+Error in logit(30, 0, 100) : 
+  function 'enterRNGScope' not provided by package 'Rcpp'
+
+I do have some roxygen documentation errors in my package? Might this have an effect in producing the error?
+
+Here is the function:
+
+// [[Rcpp::export]]
+Rcpp::NumericVector logit(Rcpp::NumericVector x, 
+                         Rcpp::NumericVector xMin,
+                         Rcpp::NumericVector xMax, 
+                         double adjustment = 0.3) {
+
+  int N = x.length();
+  int nMin = xMin.length();
+  int nMax = xMax.length();
+  
+  Rcpp::NumericVector logOgive(N,0.0);
+
+
+  if(!(nMin == 1 || nMin == N)) 
+    return logOgive;
+  if(!(nMax == 1 || nMax == N)) 
+    return logOgive;
+  if(xMin.length() != xMax.length()) 
+    return logOgive;
+  
+  int justOne;
+  if(xMin.length() == 1) 
+    justOne = 1; 
+  else 
+    justOne = 0;
+  
+  NumericVector upperBound = xMax - adjustment;
+  NumericVector lowerBound = xMin + adjustment;
+
+  for(int i = 0; i < N; i++) {
+    if(x[i] < 0) continue;
+    if(justOne == 1) {
+      if(x[i] <= xMin[0]) x[i] = lowerBound[i];
+      if(x[i] >= xMax[0]) x[i] = upperBound[i];
+      logOgive[i] = log((x[i] - xMin[0])/(xMax[0] - x[i]));
+    } else {
+      if(x[i] <= xMin[i]) x[i] = lowerBound[i];
+      if(x[i] >= xMax[i]) x[i] = upperBound[i];
+      logOgive[i] =  log((x[i] - xMin[i])/(xMax[i] - x[i]));
+    }
+  }
+  
+  return logOgive;
+}
+
+Barth
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181107/ca9a21d5/attachment.html>
+
+From will at landale.net  Thu Nov  8 06:45:46 2018
+From: will at landale.net (William Nolan)
+Date: Thu, 8 Nov 2018 14:45:46 +0900
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <23523.40892.93645.56360@rob.eddelbuettel.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+ <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+ <23523.40892.93645.56360@rob.eddelbuettel.com>
+Message-ID: <CAHpbHvRDhq8=Fi5ASkZSaUECg=TOn9FshTSpzndd9HJw8CQfxQ@mail.gmail.com>
+
+Thanks, guys.
+
+I submitted issue #919 <https://github.com/RcppCore/Rcpp/issues/919> with a
+small-ish test case showing the issue.
+
+Will take a look at what's necessary to address.  I see subsetting is in
+the unit tests, but this is a funny one in that verifying the fix works
+there would require a big chunk of memory (16GB, i.e. 2^31 * 8 bytes for a
+Numeric) to be present on the tester's machine -- seems excessive.
+
+Maybe it's enough for the fix to pass the existing unit tests, and pass the
+testbed I put in the github issue.  Anyway, TBD
+
+On Thu, Nov 8, 2018 at 11:30 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 8 November 2018 at 09:19, William Nolan wrote:
+> | Thanks. Will put together a small working example and file it. I might
+> even attempt a fix in my copious free time ;-).
+>
+> Awesome :)
+>
+> We'll help.  Small steps and iterations work well.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181108/5151a2b8/attachment-0001.html>
+
+From will at landale.net  Thu Nov  8 07:52:00 2018
+From: will at landale.net (William Nolan)
+Date: Thu, 8 Nov 2018 15:52:00 +0900
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <CAHpbHvRDhq8=Fi5ASkZSaUECg=TOn9FshTSpzndd9HJw8CQfxQ@mail.gmail.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+ <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+ <23523.40892.93645.56360@rob.eddelbuettel.com>
+ <CAHpbHvRDhq8=Fi5ASkZSaUECg=TOn9FshTSpzndd9HJw8CQfxQ@mail.gmail.com>
+Message-ID: <CAHpbHvQCGpFJhKO30TYoty=+iN-GPK5rAyPOHxoyQcz08VaDeg@mail.gmail.com>
+
+Okay.  Changes are done and appear to work for *just* my test case.  Of
+course I'd like to ensure I didn't break anything along the way.
+
+I'd like to run the unit test suite on them before creating a PR, but am
+unsure on what steps to take.
+
+Given my local cloned git repo, with my edits to Subsetter.h, what's the
+right way to recompile against it and run the unit tests there?
+
+Many thanks,
+Will
+
+On Thu, Nov 8, 2018 at 2:45 PM, William Nolan <will at landale.net> wrote:
+
+> Thanks, guys.
+>
+> I submitted issue #919 <https://github.com/RcppCore/Rcpp/issues/919> with
+> a small-ish test case showing the issue.
+>
+> Will take a look at what's necessary to address.  I see subsetting is in
+> the unit tests, but this is a funny one in that verifying the fix works
+> there would require a big chunk of memory (16GB, i.e. 2^31 * 8 bytes for a
+> Numeric) to be present on the tester's machine -- seems excessive.
+>
+> Maybe it's enough for the fix to pass the existing unit tests, and pass
+> the testbed I put in the github issue.  Anyway, TBD
+>
+> On Thu, Nov 8, 2018 at 11:30 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 8 November 2018 at 09:19, William Nolan wrote:
+>> | Thanks. Will put together a small working example and file it. I might
+>> even attempt a fix in my copious free time ;-).
+>>
+>> Awesome :)
+>>
+>> We'll help.  Small steps and iterations work well.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181108/0229f135/attachment.html>
+
+From iucar at fedoraproject.org  Thu Nov  8 07:55:44 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Thu, 8 Nov 2018 07:55:44 +0100
+Subject: [Rcpp-devel] [ANN] Rcpp 1.0.0 (Yay !!)
+In-Reply-To: <23523.41686.970878.237230@rob.eddelbuettel.com>
+References: <23523.41686.970878.237230@rob.eddelbuettel.com>
+Message-ID: <CALEXWq1BdgBxn4f2DMJqFG50X5YskfC0v+747zgXp6+ZM4iShg@mail.gmail.com>
+
+Probably the most successful and impactful project after R itself! Congrats!
+
+I?aki
+
+On Thu, 8 Nov 2018 at 03:43, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> Those of you who follow Twitter, or RSS feeds from RBloggers or RWeekly, may
+> have seen that I posted about
+>   - the ten year anniversary of Rcpp (!!)
+>   - the fact that I used the 1 and 0 to declare release 1.0.0 (!!!)
+>   - and the just announced 1.0.0 release on CRAN.
+>
+> If you missed it, my two blog posts are at
+>   - http://dirk.eddelbuettel.com/blog/2018/11/05#rcpp_at_ten_welcome_one_oh
+>   - http://dirk.eddelbuettel.com/blog/2018/11/07#rcpp_1.0.0
+>   - or my Twitter account at https://twitter.com/eddelbuettel
+>
+> As I tried to say there: It is a really nice story of what we all managed to
+> accomplish together, so a big fat thank you to everybody who helped along the
+> way: of course everybody in Rcpp Core (and Dominick and Romain before that),
+> but also every code contributor, bug reporter, mailing list participant here
+> and, of course, all users!  We have come a long way and now have a pretty
+> nice tool, but we aren't done.  There is always something else to do and try
+> (ALTREP, anyone?  Maybe as GSoC 2019?) but we will continue to do it in a way
+> that keeps existing code valid and working.
+>
+> Again, big thanks everyone. It's been a terrific journey so far.
+>
+> Cheers,  Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+-- 
+I?aki ?car
+
+From qkou at qkou.info  Thu Nov  8 08:28:03 2018
+From: qkou at qkou.info (Qiang Kou)
+Date: Wed, 7 Nov 2018 23:28:03 -0800
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <CAHpbHvQCGpFJhKO30TYoty=+iN-GPK5rAyPOHxoyQcz08VaDeg@mail.gmail.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+ <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+ <23523.40892.93645.56360@rob.eddelbuettel.com>
+ <CAHpbHvRDhq8=Fi5ASkZSaUECg=TOn9FshTSpzndd9HJw8CQfxQ@mail.gmail.com>
+ <CAHpbHvQCGpFJhKO30TYoty=+iN-GPK5rAyPOHxoyQcz08VaDeg@mail.gmail.com>
+Message-ID: <CALaeKeGKX7L+TLpWsN9ocO5HnwHXiCQC55iry9=N+DZ6wdhevg@mail.gmail.com>
+
+Hi, William,
+
+I think you can send the PR first. It will trigger the unit tests on github.
+
+Best,
+
+KK
+
+On Wed, Nov 7, 2018 at 10:52 PM William Nolan <will at landale.net> wrote:
+
+> Okay.  Changes are done and appear to work for *just* my test case.  Of
+> course I'd like to ensure I didn't break anything along the way.
+>
+> I'd like to run the unit test suite on them before creating a PR, but am
+> unsure on what steps to take.
+>
+> Given my local cloned git repo, with my edits to Subsetter.h, what's the
+> right way to recompile against it and run the unit tests there?
+>
+> Many thanks,
+> Will
+>
+> On Thu, Nov 8, 2018 at 2:45 PM, William Nolan <will at landale.net> wrote:
+>
+>> Thanks, guys.
+>>
+>> I submitted issue #919 <https://github.com/RcppCore/Rcpp/issues/919>
+>> with a small-ish test case showing the issue.
+>>
+>> Will take a look at what's necessary to address.  I see subsetting is in
+>> the unit tests, but this is a funny one in that verifying the fix works
+>> there would require a big chunk of memory (16GB, i.e. 2^31 * 8 bytes for a
+>> Numeric) to be present on the tester's machine -- seems excessive.
+>>
+>> Maybe it's enough for the fix to pass the existing unit tests, and pass
+>> the testbed I put in the github issue.  Anyway, TBD
+>>
+>> On Thu, Nov 8, 2018 at 11:30 AM, Dirk Eddelbuettel <edd at debian.org>
+>> wrote:
+>>
+>>>
+>>> On 8 November 2018 at 09:19, William Nolan wrote:
+>>> | Thanks. Will put together a small working example and file it. I might
+>>> even attempt a fix in my copious free time ;-).
+>>>
+>>> Awesome :)
+>>>
+>>> We'll help.  Small steps and iterations work well.
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>
+>>
+>>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181107/e4cadfea/attachment.html>
+
+From edd at debian.org  Thu Nov  8 13:32:42 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 8 Nov 2018 06:32:42 -0600
+Subject: [Rcpp-devel] NULL value passed as symbol address with all
+ C++functions
+In-Reply-To: <20181108045334.2AEC218B6FD@r-forge.r-project.org>
+References: <20181107204924.6E87E189614@r-forge.r-project.org>
+ <23523.41190.456790.2860@rob.eddelbuettel.com>
+ <20181108045334.2AEC218B6FD@r-forge.r-project.org>
+Message-ID: <23524.11498.722079.909215@rob.eddelbuettel.com>
+
+
+On 7 November 2018 at 22:53, Barth Riley wrote:
+| @Dirk: I didn?t want to overwhelm those on the list with tons of code. Below is the full source for the function. What else would you need to see? 
+| 
+| After clearing my environment variables, I am now getting the following error:
+| 
+| Error in logit(30, 0, 100) : 
+|   function 'enterRNGScope' not provided by package 'Rcpp'
+
+Someting more fundamental may be out of line as that is _of course_ part of
+Rcpp and provided. Maybe you don't importFrom(Rcpp, evalCpp) in NAMESPACE or
+declare the dyn.lib wrong.
+ 
+| I do have some roxygen documentation errors in my package? Might this have an effect in producing the error?
+
+No, just check CRAN -- hundreds of Rcpp packages use roxygen.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Nov  8 13:35:30 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 8 Nov 2018 06:35:30 -0600
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <CALaeKeGKX7L+TLpWsN9ocO5HnwHXiCQC55iry9=N+DZ6wdhevg@mail.gmail.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+ <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+ <23523.40892.93645.56360@rob.eddelbuettel.com>
+ <CAHpbHvRDhq8=Fi5ASkZSaUECg=TOn9FshTSpzndd9HJw8CQfxQ@mail.gmail.com>
+ <CAHpbHvQCGpFJhKO30TYoty=+iN-GPK5rAyPOHxoyQcz08VaDeg@mail.gmail.com>
+ <CALaeKeGKX7L+TLpWsN9ocO5HnwHXiCQC55iry9=N+DZ6wdhevg@mail.gmail.com>
+Message-ID: <23524.11666.350348.905581@rob.eddelbuettel.com>
+
+
+On 7 November 2018 at 23:28, Qiang Kou wrote:
+| Hi, William,
+| 
+| I think you can send the PR first. It will trigger the unit tests on github.
+
+And running 'R CMD build ...' followed by 'R CMD check ...' on your modified
+sources tests them locally.  There are equivalent GUI buttons in RStudio you
+can use and devtools has support too (that I am not familiar with).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From barthriley at comcast.net  Thu Nov  8 16:10:08 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Thu, 8 Nov 2018 09:10:08 -0600
+Subject: [Rcpp-devel] NULL value passed as symbol address with
+ allC++functions
+In-Reply-To: <23524.11498.722079.909215@rob.eddelbuettel.com>
+References: <20181107204924.6E87E189614@r-forge.r-project.org>
+ <23523.41190.456790.2860@rob.eddelbuettel.com>
+ <20181108045334.2AEC218B6FD@r-forge.r-project.org>
+ <23524.11498.722079.909215@rob.eddelbuettel.com>
+Message-ID: <mailman.7.1541689818.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+In my ?stupid? (minimal) project, my namespace looks as follows:
+
+useDynLib(StupidRCPP, .registration=TRUE)
+exportPattern("^[[:alpha:]]+")
+importFrom(Rcpp, evalCpp)
+
+In my main project I include Rcpp in an import() statement in NAMESPACE.
+
+One thing I?m noticing with the minimal project is that I can build it without errors and access functions from the package but  devtools::check() reports syntax errors?though these errors appear to be from an old version of the code (it has been quite a headache manually deleting all of the files in .Rcheck, RprojUser, and the Rtmp? folders.
+
+Barth
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181108/94127004/attachment.html>
+
+From jdnewmil at dcn.davis.ca.us  Thu Nov  8 16:25:21 2018
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Thu, 08 Nov 2018 07:25:21 -0800
+Subject: [Rcpp-devel] NULL value passed as symbol address with
+	allC++functions
+In-Reply-To: <20181108151018.4C97518A4D0@r-forge.r-project.org>
+References: <20181107204924.6E87E189614@r-forge.r-project.org>
+ <23523.41190.456790.2860@rob.eddelbuettel.com>
+ <20181108045334.2AEC218B6FD@r-forge.r-project.org>
+ <23524.11498.722079.909215@rob.eddelbuettel.com>
+ <20181108151018.4C97518A4D0@r-forge.r-project.org>
+Message-ID: <1E3B154F-3AE6-4854-965A-7AB201575E85@dcn.davis.ca.us>
+
+Did you remove the .Rbuildignore file? Your problems should not be problems if that file is configured.
+
+On November 8, 2018 7:10:08 AM PST, Barth Riley <barthriley at comcast.net> wrote:
+>In my ?stupid? (minimal) project, my namespace looks as follows:
+>
+>useDynLib(StupidRCPP, .registration=TRUE)
+>exportPattern("^[[:alpha:]]+")
+>importFrom(Rcpp, evalCpp)
+>
+>In my main project I include Rcpp in an import() statement in
+>NAMESPACE.
+>
+>One thing I?m noticing with the minimal project is that I can build it
+>without errors and access functions from the package but 
+>devtools::check() reports syntax errors?though these errors appear to
+>be from an old version of the code (it has been quite a headache
+>manually deleting all of the files in .Rcheck, RprojUser, and the Rtmp?
+>folders.
+>
+>Barth
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From will at landale.net  Fri Nov  9 06:14:50 2018
+From: will at landale.net (William Nolan)
+Date: Fri, 9 Nov 2018 14:14:50 +0900
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <23524.11666.350348.905581@rob.eddelbuettel.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+ <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+ <23523.40892.93645.56360@rob.eddelbuettel.com>
+ <CAHpbHvRDhq8=Fi5ASkZSaUECg=TOn9FshTSpzndd9HJw8CQfxQ@mail.gmail.com>
+ <CAHpbHvQCGpFJhKO30TYoty=+iN-GPK5rAyPOHxoyQcz08VaDeg@mail.gmail.com>
+ <CALaeKeGKX7L+TLpWsN9ocO5HnwHXiCQC55iry9=N+DZ6wdhevg@mail.gmail.com>
+ <23524.11666.350348.905581@rob.eddelbuettel.com>
+Message-ID: <CAHpbHvQUkmncBAMUajQDKjVxr+eScF=BkKKkkCmN169-Nn+ZZA@mail.gmail.com>
+
+Thanks.  That did the trick.  After testing w/my own test harness, I made
+sure the unit tests work with a baseline cloned fork.
+Then integrated my changes into the fork, re-built/checked with bumped-up
+version # and tests all passed again.  Pushed fork to github.
+
+I have just created PR #920 <https://github.com/RcppCore/Rcpp/pull/920>.
+Thanks for all the help, and hopefully I didn't mess it up too badly on the
+first try :-).
+
+Regards,
+Will
+
+On Thu, Nov 8, 2018 at 9:35 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 7 November 2018 at 23:28, Qiang Kou wrote:
+> | Hi, William,
+> |
+> | I think you can send the PR first. It will trigger the unit tests on
+> github.
+>
+> And running 'R CMD build ...' followed by 'R CMD check ...' on your
+> modified
+> sources tests them locally.  There are equivalent GUI buttons in RStudio
+> you
+> can use and devtools has support too (that I am not familiar with).
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181109/d02b99d4/attachment.html>
+
+From edd at debian.org  Fri Nov  9 13:36:24 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 9 Nov 2018 06:36:24 -0600
+Subject: [Rcpp-devel] Subsetter uses int for indexing (among other
+	issues)?
+In-Reply-To: <CAHpbHvQUkmncBAMUajQDKjVxr+eScF=BkKKkkCmN169-Nn+ZZA@mail.gmail.com>
+References: <CAHpbHvSHmj-cGGHjUciTJ3ZWZh8emDMEzX64K6e0mw-jZjahtA@mail.gmail.com>
+ <CALaeKeFG+Ju_dTb=rxKA7ebuxr-YwF8WGgDq+mOJ9uH+XTO2zQ@mail.gmail.com>
+ <CAJXgQP0tcokX5RpMcjYwx3+ahOYjOp_izfqicPFKR4UjnSKUbQ@mail.gmail.com>
+ <502F91A1-3AFD-4A3F-8E90-D498B6BF3622@landale.net>
+ <23523.40892.93645.56360@rob.eddelbuettel.com>
+ <CAHpbHvRDhq8=Fi5ASkZSaUECg=TOn9FshTSpzndd9HJw8CQfxQ@mail.gmail.com>
+ <CAHpbHvQCGpFJhKO30TYoty=+iN-GPK5rAyPOHxoyQcz08VaDeg@mail.gmail.com>
+ <CALaeKeGKX7L+TLpWsN9ocO5HnwHXiCQC55iry9=N+DZ6wdhevg@mail.gmail.com>
+ <23524.11666.350348.905581@rob.eddelbuettel.com>
+ <CAHpbHvQUkmncBAMUajQDKjVxr+eScF=BkKKkkCmN169-Nn+ZZA@mail.gmail.com>
+Message-ID: <23525.32584.95257.538414@rob.eddelbuettel.com>
+
+
+On 9 November 2018 at 14:14, William Nolan wrote:
+| Thanks.  That did the trick.  After testing w/my own test harness, I made
+| sure the unit tests work with a baseline cloned fork.
+| Then integrated my changes into the fork, re-built/checked with bumped-up
+| version # and tests all passed again.  Pushed fork to github.
+
+We mostly get emails from people who are stuck and do not work this out, so
+it is refreshing to have a positive result :)
+
+And yes, that's the way to do it. Even better than normal by first confirming
+the baseline. Well done.
+ 
+| I have just created PR #920 <https://github.com/RcppCore/Rcpp/pull/920>.
+| Thanks for all the help, and hopefully I didn't mess it up too badly on the
+| first try :-).
+
+Looks good so far as I mentioned there, will get more scrutiny. So thanks
+(and congrats :) already.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From gabriel.hoffman at mssm.edu  Mon Nov 26 18:23:24 2018
+From: gabriel.hoffman at mssm.edu (Hoffman, Gabriel)
+Date: Mon, 26 Nov 2018 17:23:24 +0000
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on sparse
+	matrix
+Message-ID: <D8219639.31517%gabriel.hoffman@mssm.edu>
+
+I am developing a statistical model and I have a prototype working in R
+code.  I make extensive use of sparse matrices, so the R code is pretty
+fast, but hoped that using RCppEigen to evaluate the log-likelihood
+function could avoid a lot of memory copying and be substantially
+faster.  However, in a simple  example I am seeing that RCppEigen is
+3-5x slower than standard R code for cholesky decomposition of a sparse
+matrix.  This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on both
+OS X and CentOS 6.9.
+
+Since this simple operation is so much slower it doesn't seem like
+using RCppEigen is worth it in this case.  Is this an issue with BLAS,
+some libraries or compiler options, or is R code really the fastest
+option?
+
+
+library(Matrix)
+library(inline)
+
+# construct sparse matrix
+#########################
+
+# construct a matrix C that is N x N with S total entries
+# set C = crossprod(X)
+N = 100000
+S = 1000000
+i = sample(1:1000, S, replace=TRUE)
+j = sample(1:1000, S, replace=TRUE)
+values = runif(S, 0, .3)
+X = sparseMatrix(i=i, j=j, x = values, symmetric=FALSE )
+
+C = as(crossprod(X), "dgCMatrix")
+
+# check sparsity fraction
+S / N^2
+
+# define RCppEigen code
+CholeskyCppSparse<-'
+using Rcpp::as;
+using Eigen::Map;
+using Eigen::SparseMatrix;
+using Eigen::MappedSparseMatrix;
+using Eigen::SimplicialLLT;
+
+// get data into RcppEigen
+const MappedSparseMatrix<double> Sigma(as<MappedSparseMatrix<double> >(Sigma_in));
+
+// compute Cholesky
+typedef SimplicialLLT<SparseMatrix<double> > SpChol;
+const SpChol Ch(Sigma);
+'
+
+CholSparse <- cxxfunction(signature(Sigma_in = "dgCMatrix"), CholeskyCppSparse, plugin = "RcppEigen")
+
+# compare times
+system.time(replicate(10, chol( C )))
+# output:
+#   user  system elapsed
+#  0.341   0.014   0.355
+
+system.time(replicate(10, CholSparse( C )))
+# output:
+#   user  system elapsed
+# 1.639   0.046   1.687
+
+sessionInfo()
+R version 3.5.1 (2018-07-02)
+Platform: x86_64-apple-darwin15.6.0 (64-bit)
+Running under: macOS  10.14
+
+Matrix products: default
+BLAS:
+/Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
+LAPACK:
+/Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices datasets  utils     methods   base
+
+other attached packages:
+[1] inline_0.3.15 Matrix_1.2-15
+
+loaded via a namespace (and not attached):
+[1] compiler_3.5.1      RcppEigen_0.3.3.4.0 Rcpp_1.0.0
+[4] grid_3.5.1          lattice_0.20-38
+
+Changing the size of the matrix and the number of entries does not
+change the relative times much
+
+Thanks,
+- Gabriel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181126/56bb2a05/attachment.html>
+
+From edd at debian.org  Mon Nov 26 18:47:05 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 26 Nov 2018 11:47:05 -0600
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+	sparse	matrix
+In-Reply-To: <D8219639.31517%gabriel.hoffman@mssm.edu>
+References: <D8219639.31517%gabriel.hoffman@mssm.edu>
+Message-ID: <23548.12697.822817.807852@rob.eddelbuettel.com>
+
+
+Gabriel,
+
+On 26 November 2018 at 17:23, Hoffman, Gabriel wrote:
+| I am developing a statistical model and I have a prototype working in R
+| code.  I make extensive use of sparse matrices, so the R code is pretty
+| fast, but hoped that using RCppEigen to evaluate the log-likelihood
+
+(lowercase c generally: Rcpp, RcppEigen, ...)
+
+| function could avoid a lot of memory copying and be substantially
+| faster.  However, in a simple  example I am seeing that RCppEigen is
+| 3-5x slower than standard R code for cholesky decomposition of a sparse
+| matrix.  This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on both
+| OS X and CentOS 6.9.
+| 
+| Since this simple operation is so much slower it doesn't seem like
+| using RCppEigen is worth it in this case.  Is this an issue with BLAS,
+| some libraries or compiler options, or is R code really the fastest
+| option?
+
+Well Eigen (famously) does not use BLAS (for dense matrices) so that
+comparison is off.  But then again sparse matrices never use BLAS anyway.
+
+Eigen had sparse matrix code earlier which is why Doug originally connected
+it to R via Rcpp and RcppEigen. We now also have sparse matrix code in
+RcppArmadillo (thanks chiefly to Binxiang during his Google Summer of Code)
+so you could compare those two.  And then there is of course the Matrix
+package which had all of this first first so you could consider that (from C
+/ C++ as well). That may be fastest, but the most work to get "wired up". Or
+maybe not.
+
+But in essence: "what you see is what you get". There should be no layer in
+either of these packages slowing access down, and ultimately the sparse
+matrix libraries are often called. I think there may be some run-time
+checks.  RcppArmadillo has a vignette on this too...
+
+I actually don't use sparse matrices all that much so maybe others will pipe
+in.
+
+Dirk
+
+| library(Matrix)
+| library(inline)
+| 
+| # construct sparse matrix
+| #########################
+| 
+| # construct a matrix C that is N x N with S total entries
+| # set C = crossprod(X)
+| N = 100000
+| S = 1000000
+| i = sample(1:1000, S, replace=TRUE)
+| j = sample(1:1000, S, replace=TRUE)
+| values = runif(S, 0, .3)
+| X = sparseMatrix(i=i, j=j, x = values, symmetric=FALSE )
+| 
+| C = as(crossprod(X), "dgCMatrix")
+| 
+| # check sparsity fraction
+| S / N^2
+| 
+| # define RCppEigen code
+| CholeskyCppSparse<-'
+| using Rcpp::as;
+| using Eigen::Map;
+| using Eigen::SparseMatrix;
+| using Eigen::MappedSparseMatrix;
+| using Eigen::SimplicialLLT;
+| 
+| // get data into RcppEigen
+| const MappedSparseMatrix<double> Sigma(as<MappedSparseMatrix<double> >(Sigma_in));
+| 
+| // compute Cholesky
+| typedef SimplicialLLT<SparseMatrix<double> > SpChol;
+| const SpChol Ch(Sigma);
+| '
+| 
+| CholSparse <- cxxfunction(signature(Sigma_in = "dgCMatrix"), CholeskyCppSparse, plugin = "RcppEigen")
+| 
+| # compare times
+| system.time(replicate(10, chol( C )))
+| # output:
+| #   user  system elapsed
+| #  0.341   0.014   0.355
+| 
+| system.time(replicate(10, CholSparse( C )))
+| # output:
+| #   user  system elapsed
+| # 1.639   0.046   1.687
+| 
+| sessionInfo()
+| R version 3.5.1 (2018-07-02)
+| Platform: x86_64-apple-darwin15.6.0 (64-bit)
+| Running under: macOS  10.14
+| 
+| Matrix products: default
+| BLAS:
+| /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
+| LAPACK:
+| /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+| 
+| locale:
+| [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+| 
+| attached base packages:
+| [1] stats     graphics  grDevices datasets  utils     methods   base
+| 
+| other attached packages:
+| [1] inline_0.3.15 Matrix_1.2-15
+| 
+| loaded via a namespace (and not attached):
+| [1] compiler_3.5.1      RcppEigen_0.3.3.4.0 Rcpp_1.0.0
+| [4] grid_3.5.1          lattice_0.20-38
+| 
+| Changing the size of the matrix and the number of entries does not
+| change the relative times much
+| 
+| Thanks,
+| - Gabriel
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From avraham.adler at gmail.com  Mon Nov 26 18:59:36 2018
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Mon, 26 Nov 2018 12:59:36 -0500
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+	sparse matrix
+In-Reply-To: <D8219639.31517%gabriel.hoffman@mssm.edu>
+References: <D8219639.31517%gabriel.hoffman@mssm.edu>
+Message-ID: <CAL6gwnJ=5+HAdm1C-SZoa3XCqG4DeKaWdiubLQb-7hgvR_TD5g@mail.gmail.com>
+
+If I recall correctly, Eigen does not use the BLAS, but has reprogrammed
+the operations in C++. If you want to take advantage of a fast system BLAS,
+try Armadillo, or in this case RcppArmadillo.
+
+Thanks,
+
+Avi
+
+On Mon, Nov 26, 2018 at 12:23 PM Hoffman, Gabriel <gabriel.hoffman at mssm.edu>
+wrote:
+
+> I am developing a statistical model and I have a prototype working in R
+> code.  I make extensive use of sparse matrices, so the R code is pretty
+> fast, but hoped that using RCppEigen to evaluate the log-likelihood
+> function could avoid a lot of memory copying and be substantially
+> faster.  However, in a simple  example I am seeing that RCppEigen is
+> 3-5x slower than standard R code for cholesky decomposition of a sparse
+> matrix.  This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on both
+> OS X and CentOS 6.9.
+>
+> Since this simple operation is so much slower it doesn't seem like
+> using RCppEigen is worth it in this case.  Is this an issue with BLAS,
+> some libraries or compiler options, or is R code really the fastest
+> option?
+>
+>
+> library(Matrix)
+> library(inline)
+>
+> # construct sparse matrix
+> #########################
+>
+> # construct a matrix C that is N x N with S total entries
+> # set C = crossprod(X)
+> N = 100000
+> S = 1000000
+> i = sample(1:1000, S, replace=TRUE)
+> j = sample(1:1000, S, replace=TRUE)
+> values = runif(S, 0, .3)
+> X = sparseMatrix(i=i, j=j, x = values, symmetric=FALSE )
+>
+> C = as(crossprod(X), "dgCMatrix")
+>
+> # check sparsity fraction
+> S / N^2
+>
+> # define RCppEigen code
+> CholeskyCppSparse<-'
+> using Rcpp::as;
+> using Eigen::Map;
+> using Eigen::SparseMatrix;
+> using Eigen::MappedSparseMatrix;
+> using Eigen::SimplicialLLT;
+>
+> // get data into RcppEigen
+> const MappedSparseMatrix<double> Sigma(as<MappedSparseMatrix<double>
+> >(Sigma_in));
+>
+> // compute Cholesky
+> typedef SimplicialLLT<SparseMatrix<double> > SpChol;
+> const SpChol Ch(Sigma);
+> '
+>
+> CholSparse <- cxxfunction(signature(Sigma_in = "dgCMatrix"),
+> CholeskyCppSparse, plugin = "RcppEigen")
+>
+> # compare times
+> system.time(replicate(10, chol( C )))
+> # output:
+> #   user  system elapsed
+> #  0.341   0.014   0.355
+>
+> system.time(replicate(10, CholSparse( C )))
+> # output:
+> #   user  system elapsed
+> # 1.639   0.046   1.687
+>
+> sessionInfo()
+>
+> R version 3.5.1 (2018-07-02)
+> Platform: x86_64-apple-darwin15.6.0 (64-bit)
+> Running under: macOS  10.14
+>
+> Matrix products: default
+> BLAS:
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
+> LAPACK:
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+>
+> locale:
+> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+>
+> attached base packages:
+> [1] stats     graphics  grDevices datasets  utils     methods   base
+>
+> other attached packages:
+> [1] inline_0.3.15 Matrix_1.2-15
+>
+> loaded via a namespace (and not attached):
+> [1] compiler_3.5.1      RcppEigen_0.3.3.4.0 Rcpp_1.0.0
+> [4] grid_3.5.1          lattice_0.20-38
+>
+> Changing the size of the matrix and the number of entries does not
+> change the relative times much
+>
+> Thanks,
+> - Gabriel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+Sent from Gmail Mobile
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181126/53e5eaf0/attachment-0001.html>
+
+From yixuanq at gmail.com  Mon Nov 26 19:22:50 2018
+From: yixuanq at gmail.com (Yixuan Qiu)
+Date: Mon, 26 Nov 2018 13:22:50 -0500
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+	sparse matrix
+In-Reply-To: <D8219639.31517%gabriel.hoffman@mssm.edu>
+References: <D8219639.31517%gabriel.hoffman@mssm.edu>
+Message-ID: <CAFr_7yFfcY0v04MbAMUSEhOGfdzGCy=5RZKkYnrHbsn9PZLYKA@mail.gmail.com>
+
+I guess BLAS plays a minor role here. The operation here is a sparse
+Cholesky decomposition, and if I'm correct the Matrix package in R uses
+SuiteSparse/CHOLMOD to do the factorization, while Eigen uses its own
+implementation. The underlying numerical algorithms may be different.
+
+
+Best,
+Yixuan
+
+On Mon, Nov 26, 2018 at 12:23 PM Hoffman, Gabriel <gabriel.hoffman at mssm.edu>
+wrote:
+
+> I am developing a statistical model and I have a prototype working in R
+> code.  I make extensive use of sparse matrices, so the R code is pretty
+> fast, but hoped that using RCppEigen to evaluate the log-likelihood
+> function could avoid a lot of memory copying and be substantially
+> faster.  However, in a simple  example I am seeing that RCppEigen is
+> 3-5x slower than standard R code for cholesky decomposition of a sparse
+> matrix.  This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on both
+> OS X and CentOS 6.9.
+>
+> Since this simple operation is so much slower it doesn't seem like
+> using RCppEigen is worth it in this case.  Is this an issue with BLAS,
+> some libraries or compiler options, or is R code really the fastest
+> option?
+>
+>
+> library(Matrix)
+> library(inline)
+>
+> # construct sparse matrix
+> #########################
+>
+> # construct a matrix C that is N x N with S total entries
+> # set C = crossprod(X)
+> N = 100000
+> S = 1000000
+> i = sample(1:1000, S, replace=TRUE)
+> j = sample(1:1000, S, replace=TRUE)
+> values = runif(S, 0, .3)
+> X = sparseMatrix(i=i, j=j, x = values, symmetric=FALSE )
+>
+> C = as(crossprod(X), "dgCMatrix")
+>
+> # check sparsity fraction
+> S / N^2
+>
+> # define RCppEigen code
+> CholeskyCppSparse<-'
+> using Rcpp::as;
+> using Eigen::Map;
+> using Eigen::SparseMatrix;
+> using Eigen::MappedSparseMatrix;
+> using Eigen::SimplicialLLT;
+>
+> // get data into RcppEigen
+> const MappedSparseMatrix<double> Sigma(as<MappedSparseMatrix<double>
+> >(Sigma_in));
+>
+> // compute Cholesky
+> typedef SimplicialLLT<SparseMatrix<double> > SpChol;
+> const SpChol Ch(Sigma);
+> '
+>
+> CholSparse <- cxxfunction(signature(Sigma_in = "dgCMatrix"),
+> CholeskyCppSparse, plugin = "RcppEigen")
+>
+> # compare times
+> system.time(replicate(10, chol( C )))
+> # output:
+> #   user  system elapsed
+> #  0.341   0.014   0.355
+>
+> system.time(replicate(10, CholSparse( C )))
+> # output:
+> #   user  system elapsed
+> # 1.639   0.046   1.687
+>
+> sessionInfo()
+>
+> R version 3.5.1 (2018-07-02)
+> Platform: x86_64-apple-darwin15.6.0 (64-bit)
+> Running under: macOS  10.14
+>
+> Matrix products: default
+> BLAS:
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
+> LAPACK:
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+>
+> locale:
+> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+>
+> attached base packages:
+> [1] stats     graphics  grDevices datasets  utils     methods   base
+>
+> other attached packages:
+> [1] inline_0.3.15 Matrix_1.2-15
+>
+> loaded via a namespace (and not attached):
+> [1] compiler_3.5.1      RcppEigen_0.3.3.4.0 Rcpp_1.0.0
+> [4] grid_3.5.1          lattice_0.20-38
+>
+> Changing the size of the matrix and the number of entries does not
+> change the relative times much
+>
+> Thanks,
+> - Gabriel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181126/462e293e/attachment.html>
+
+From serguei.sokol at gmail.com  Tue Nov 27 15:33:55 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Tue, 27 Nov 2018 15:33:55 +0100
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+ sparse matrix
+In-Reply-To: <D8219639.31517%gabriel.hoffman@mssm.edu>
+References: <D8219639.31517%gabriel.hoffman@mssm.edu>
+Message-ID: <91e163f1-c169-217f-739b-2a379c63c35c@gmail.com>
+
+Le 26/11/2018 ? 18:23, Hoffman, Gabriel a ?crit?:
+> I am developing a statistical model and I have a prototype working in R
+> code.??I make extensive use of sparse matrices, so the R code is pretty
+> fast, but hoped that using RCppEigen to evaluate the log-likelihood
+> function could avoid a lot of memory copying and be substantially
+> faster.??However, in a simple??example I am seeing that RCppEigen is
+> 3-5x slower than standard R code for cholesky decomposition of a sparse
+> matrix.??This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on both
+> OS X and CentOS 6.9.
+> 
+> Since this simple operation is so much slower it doesn't seem like
+> using RCppEigen is worth it in this case.??Is this an issue with BLAS,
+> some libraries or compiler options, or is R code really the fastest
+> option?
+After few checks, it seems to be a test issue. Matrix package stores the 
+decomposition somewhere in attributes of the submitted matrix. So the 
+the repetitive calls requiring chol() decomposition are not really doing 
+the job. Instead, previously stored result is reused.
+
+You can easily convince yourself by "modifying" the matrix C (and thus 
+invalidating previous decomposition) by doing something like "C + 0." :
+
+system.time(replicate(10, chol( C )))
+#utilisateur     syst?me      ?coul?
+#      0.459       0.011       0.471
+system.time(replicate(10, chol( C+0. )))
+#utilisateur     syst?me      ?coul?
+#      5.365       0.060       5.425
+system.time(replicate(10, CholSparse( C+0. )))
+#utilisateur     syst?me      ?coul?
+#      3.627       0.035       3.665
+
+On my machine, I have almost identical timing for CholSparse() with or 
+without C modification:
+
+system.time(replicate(10, CholSparse( C )))
+#utilisateur     syst?me      ?coul?
+#      3.283       0.004       3.289
+which proves that Eigen doesn't store the decomposition for future reuse 
+and redo the decomposition at each call on the same matrix.
+
+Best,
+Serguei.
+
+> 
+> 
+> library(Matrix)
+> library(inline)
+> 
+> # construct sparse matrix
+> #########################
+> 
+> # construct a matrix C that is N x N with S total entries
+> # set C = crossprod(X)
+> N = 100000
+> S = 1000000
+> i = sample(1:1000, S, replace=TRUE)
+> j = sample(1:1000, S, replace=TRUE)
+> values = runif(S, 0, .3)
+> X = sparseMatrix(i=i, j=j, x = values, symmetric=FALSE )
+> 
+> C = as(crossprod(X), "dgCMatrix")
+> 
+> # check sparsity fraction
+> S / N^2
+> 
+> # define RCppEigen code
+> CholeskyCppSparse<-'
+> using Rcpp::as;
+> using Eigen::Map;
+> using Eigen::SparseMatrix;
+> using Eigen::MappedSparseMatrix;
+> using Eigen::SimplicialLLT;
+> 
+> // get data into RcppEigen
+> const MappedSparseMatrix<double> Sigma(as<MappedSparseMatrix<double> 
+>  >(Sigma_in));
+> 
+> // compute Cholesky
+> typedef SimplicialLLT<SparseMatrix<double> > SpChol;
+> const SpChol Ch(Sigma);
+> '
+> 
+> CholSparse <- cxxfunction(signature(Sigma_in = "dgCMatrix"), 
+> CholeskyCppSparse, plugin = "RcppEigen")
+> 
+> # compare times
+> system.time(replicate(10, chol( C )))
+> # output:
+> #?? user??system elapsed
+> #??0.341?? 0.014?? 0.355
+> 
+> system.time(replicate(10, CholSparse( C )))
+> # output:
+> #?? user??system elapsed
+> # 1.639?? 0.046?? 1.687
+> 
+>     sessionInfo()
+> 
+> R version 3.5.1 (2018-07-02)
+> Platform: x86_64-apple-darwin15.6.0 (64-bit)
+> Running under: macOS??10.14
+> 
+> Matrix products: default
+> BLAS:
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
+> LAPACK:
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+> 
+> locale:
+> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> 
+> attached base packages:
+> [1] stats???? graphics??grDevices datasets??utils???? methods?? base
+> 
+> other attached packages:
+> [1] inline_0.3.15 Matrix_1.2-15
+> 
+> loaded via a namespace (and not attached):
+> [1] compiler_3.5.1??????RcppEigen_0.3.3.4.0 Rcpp_1.0.0
+> [4] grid_3.5.1??????????lattice_0.20-38
+> 
+> Changing the size of the matrix and the number of entries does not
+> change the relative times much
+> 
+> Thanks,
+> - Gabriel
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From barthriley at comcast.net  Tue Nov 27 16:35:10 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Tue, 27 Nov 2018 09:35:10 -0600
+Subject: [Rcpp-devel] Problems with Rcout
+Message-ID: <mailman.8.1543332924.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+Dear Rcppers
+
+I am encountering a problem with Rcout. Even with basic string output, when I run the function containing the call to Rcout, no output is generated. Here is a simple example of what I?m trying to do:
+
+// [[Rcpp::export]]
+void testFunc() {
+	Rcpp::Rcout << "testFunc begins" << std:endl;
+	. . . 
+}
+
+My code is part of a package I?m developing, using R 3.51 and Rcpp 0.12.19. The Rcpp code compiles without a problem.
+
+Thanks 
+
+Barth
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/0d0c183c/attachment.html>
+
+From iucar at fedoraproject.org  Tue Nov 27 16:50:13 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Tue, 27 Nov 2018 16:50:13 +0100
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <20181127153524.737E118510A@r-forge.r-project.org>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+Message-ID: <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg@mail.gmail.com>
+
+On Tue, 27 Nov 2018 at 16:35, Barth Riley <barthriley at comcast.net> wrote:
+>
+> Dear Rcppers
+>
+> I am encountering a problem with Rcout. Even with basic string output, when I run the function containing the call to Rcout, no output is generated. Here is a simple example of what I?m trying to do:
+>
+> // [[Rcpp::export]]
+> void testFunc() {
+>            Rcpp::Rcout << "testFunc begins" << std:endl;
+>            . . .
+> }
+
+Note that it should be "std::endl", with double colon. Assuming this
+is a transcription error, you'll have to provide more context (and,
+ideally, some kind of reproducible example), because this works just
+fine.
+
+I?aki
+
+From serguei.sokol at gmail.com  Tue Nov 27 16:51:28 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Tue, 27 Nov 2018 16:51:28 +0100
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <20181127153524.975B218B55B@r-forge.r-project.org>
+References: <20181127153524.975B218B55B@r-forge.r-project.org>
+Message-ID: <ccc55a85-79cb-c3c6-14e8-222223abe2c5@gmail.com>
+
+Le 27/11/2018 ? 16:35, Barth Riley a ?crit?:
+> Dear Rcppers
+> 
+> I am encountering a problem with Rcout. Even with basic string output, 
+> when I run the function containing the call to Rcout, no output is 
+> generated. Here is a simple example of what I?m trying to do:
+> 
+> // [[Rcpp::export]]
+> 
+> void testFunc() {
+> 
+>  ?????????? Rcpp::Rcout << "testFunc begins" << std:endl;
+> 
+>  ?????????? . . .
+> 
+> }
+> 
+This example works for me:
+
+library(Rcpp)
+sourceCpp(code="#include <Rcpp.h>\n// [[Rcpp::export]]\nvoid testFunc() 
+{\nRcpp::Rcout << \"testFunc begins\" << std::endl;\n}")
+testFunc()
+#testFunc begins
+
+May be in your session you have redirected stdout elsewhere?
+
+Serguei.
+
+> My code is part of a package I?m developing, using R 3.51 and Rcpp 
+> 0.12.19. The Rcpp code compiles without a problem.
+> 
+> Thanks
+> 
+> Barth
+> 
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From barthriley at comcast.net  Tue Nov 27 17:06:47 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Tue, 27 Nov 2018 10:06:47 -0600
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg@mail.gmail.com>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+ <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg@mail.gmail.com>
+Message-ID: <mailman.9.1543334819.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+Here is a more complete example. Note that I want to output text strings for debugging purposes as the code for treatAsVector = true is never executed.
+
+Barth
+
+NumericVector getValidCount(Rcpp::NumericMatrix m, 
+                            bool treatAsVector) {
+  
+  Rcpp::Rcout << "getValidCount BEGINS" << std::endl;
+  
+  int N = m.cols();
+  NumericVector u, vec;
+  NumericVector count (N);  
+
+  if(!treatAsVector) {
+    Rcpp::Rcout << "Treating as matrix" << std::endl;
+    for(int i = 0; i < N; i++) {
+      vec = m(_,i);
+      vec = vec[!Rcpp::is_na(vec)];
+      u = Rcpp::unique(vec);
+      count[i] = u.length();
+    }    
+  } else {
+    Rcpp::Rcout << "treating as vector" << std::endl;
+    vec = as<NumericVector>(m);
+    vec = vec[!Rcpp::is_na(vec)];
+    u = Rcpp::unique(vec);
+
+    count.fill(u.length());
+  }
+
+  return count;
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/ddb3d2d4/attachment.html>
+
+From iucar at fedoraproject.org  Tue Nov 27 17:16:07 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Tue, 27 Nov 2018 17:16:07 +0100
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <20181127160653.4B63D607EE73@bastion02.phx2.fedoraproject.org>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+ <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg@mail.gmail.com>
+ <20181127160653.4B63D607EE73@bastion02.phx2.fedoraproject.org>
+Message-ID: <CALEXWq2wMZNXiLfOfr9ujB8LepRGSpGtnmmr-G9=KEp6YreKgw@mail.gmail.com>
+
+On Tue, 27 Nov 2018 at 17:06, Barth Riley <barthriley at comcast.net> wrote:
+>
+> Here is a more complete example. Note that I want to output text strings for debugging purposes as the code for treatAsVector = true is never executed.
+
+The contents of the function are irrelevant. If I compile and execute
+this in a clean session, it works fine. I.e.:
+
+Rcpp::cppFunction('
+NumericVector getValidCount(Rcpp::NumericMatrix m,
+                            bool treatAsVector) {
+
+  Rcpp::Rcout << "getValidCount BEGINS" << std::endl;
+
+  int N = m.cols();
+  NumericVector u, vec;
+  NumericVector count (N);
+
+  if(!treatAsVector) {
+    Rcpp::Rcout << "Treating as matrix" << std::endl;
+    for(int i = 0; i < N; i++) {
+      vec = m(_,i);
+      vec = vec[!Rcpp::is_na(vec)];
+      u = Rcpp::unique(vec);
+      count[i] = u.length();
+    }
+  } else {
+    Rcpp::Rcout << "treating as vector" << std::endl;
+    vec = as<NumericVector>(m);
+    vec = vec[!Rcpp::is_na(vec)];
+    u = Rcpp::unique(vec);
+
+    count.fill(u.length());
+  }
+
+  return count;
+}
+')
+
+getValidCount(matrix(), FALSE)
+#> getValidCount BEGINS
+#> Treating as matrix
+#> [1] 0
+
+So where are you calling this? Are you redirecting the stdout? Are you
+parallelising, are you calling this inside a subprocess?
+
+I?aki
+
+From barthriley at comcast.net  Tue Nov 27 17:21:57 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Tue, 27 Nov 2018 10:21:57 -0600
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <CALEXWq2wMZNXiLfOfr9ujB8LepRGSpGtnmmr-G9=KEp6YreKgw@mail.gmail.com>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+ <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg@mail.gmail.com>
+ <20181127160653.4B63D607EE73@bastion02.phx2.fedoraproject.org>
+ <CALEXWq2wMZNXiLfOfr9ujB8LepRGSpGtnmmr-G9=KEp6YreKgw@mail.gmail.com>
+Message-ID: <mailman.10.1543335727.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+Thanks for your reply. No, I?m not calling this using parallelization, and to my knowledge at least I have not redirected stdout (how would I check this?). The function is meant to be called by another function, but I am testing it directly from the R console.
+
+Barth
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/e37f8662/attachment.html>
+
+From yixuanq at gmail.com  Tue Nov 27 17:27:47 2018
+From: yixuanq at gmail.com (Yixuan Qiu)
+Date: Tue, 27 Nov 2018 11:27:47 -0500
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+	sparse matrix
+In-Reply-To: <91e163f1-c169-217f-739b-2a379c63c35c@gmail.com>
+References: <D8219639.31517%gabriel.hoffman@mssm.edu>
+ <91e163f1-c169-217f-739b-2a379c63c35c@gmail.com>
+Message-ID: <CAFr_7yEx3_V2dgPbh6V-rJAZ7ToT8yfawC_yRfpSDsHzsgZcLg@mail.gmail.com>
+
+This is really a brilliant observation!
+
+
+Best,
+Yixuan
+
+
+On Tue, Nov 27, 2018 at 9:34 AM Serguei Sokol <serguei.sokol at gmail.com> wrote:
+>
+> Le 26/11/2018 ? 18:23, Hoffman, Gabriel a ?crit :
+> > I am developing a statistical model and I have a prototype working in R
+> > code.  I make extensive use of sparse matrices, so the R code is pretty
+> > fast, but hoped that using RCppEigen to evaluate the log-likelihood
+> > function could avoid a lot of memory copying and be substantially
+> > faster.  However, in a simple  example I am seeing that RCppEigen is
+> > 3-5x slower than standard R code for cholesky decomposition of a sparse
+> > matrix.  This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on both
+> > OS X and CentOS 6.9.
+> >
+> > Since this simple operation is so much slower it doesn't seem like
+> > using RCppEigen is worth it in this case.  Is this an issue with BLAS,
+> > some libraries or compiler options, or is R code really the fastest
+> > option?
+> After few checks, it seems to be a test issue. Matrix package stores the
+> decomposition somewhere in attributes of the submitted matrix. So the
+> the repetitive calls requiring chol() decomposition are not really doing
+> the job. Instead, previously stored result is reused.
+>
+> You can easily convince yourself by "modifying" the matrix C (and thus
+> invalidating previous decomposition) by doing something like "C + 0." :
+>
+> system.time(replicate(10, chol( C )))
+> #utilisateur     syst?me      ?coul?
+> #      0.459       0.011       0.471
+> system.time(replicate(10, chol( C+0. )))
+> #utilisateur     syst?me      ?coul?
+> #      5.365       0.060       5.425
+> system.time(replicate(10, CholSparse( C+0. )))
+> #utilisateur     syst?me      ?coul?
+> #      3.627       0.035       3.665
+>
+> On my machine, I have almost identical timing for CholSparse() with or
+> without C modification:
+>
+> system.time(replicate(10, CholSparse( C )))
+> #utilisateur     syst?me      ?coul?
+> #      3.283       0.004       3.289
+> which proves that Eigen doesn't store the decomposition for future reuse
+> and redo the decomposition at each call on the same matrix.
+>
+> Best,
+> Serguei.
+>
+
+From iucar at fedoraproject.org  Tue Nov 27 17:31:31 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Tue, 27 Nov 2018 17:31:31 +0100
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <20181127162204.67CE7607EE71@bastion02.phx2.fedoraproject.org>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+ <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg@mail.gmail.com>
+ <20181127160653.4B63D607EE73@bastion02.phx2.fedoraproject.org>
+ <CALEXWq2wMZNXiLfOfr9ujB8LepRGSpGtnmmr-G9=KEp6YreKgw@mail.gmail.com>
+ <20181127162204.67CE7607EE71@bastion02.phx2.fedoraproject.org>
+Message-ID: <CALEXWq23sDD1H9GyMSqq9KGkeSoptxCSSSwwF72Vb_Nx4Jh6gQ@mail.gmail.com>
+
+On Tue, 27 Nov 2018 at 17:22, Barth Riley <barthriley at comcast.net> wrote:
+>
+> Thanks for your reply. No, I?m not calling this using parallelization, and to my knowledge at least I have not redirected stdout (how would I check this?). The function is meant to be called by another function, but I am testing it directly from the R console.
+
+Is this publicly available somewhere? If not, you could write a
+script, or a dummy package if that's not possible, so that we can
+execute it and reproduce the issue. Otherwise, we cannot help you,
+because the function and your Rcout usage is fine.
+
+I?aki
+
+From jdnewmil at dcn.davis.ca.us  Tue Nov 27 17:38:46 2018
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Tue, 27 Nov 2018 08:38:46 -0800
+Subject: [Rcpp-devel] Problems with Rcout
+In-Reply-To: <20181127162207.4CDB718B49D@r-forge.r-project.org>
+References: <20181127153524.737E118510A@r-forge.r-project.org>
+ <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg@mail.gmail.com>
+ <20181127160653.4B63D607EE73@bastion02.phx2.fedoraproject.org>
+ <CALEXWq2wMZNXiLfOfr9ujB8LepRGSpGtnmmr-G9=KEp6YreKgw@mail.gmail.com>
+ <20181127162207.4CDB718B49D@r-forge.r-project.org>
+Message-ID: <2AECE3B8-CDB9-4933-9241-120692D35341@dcn.davis.ca.us>
+
+Time for you to document your working environment, Barth. Things that occur to me are the outputs of sessionInfo() and and system2( "gcc", "--version").
+
+On November 27, 2018 8:21:57 AM PST, Barth Riley <barthriley at comcast.net> wrote:
+>Thanks for your reply. No, I?m not calling this using parallelization,
+>and to my knowledge at least I have not redirected stdout (how would I
+>check this?). The function is meant to be called by another function,
+>but I am testing it directly from the R console.
+>
+>Barth
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From barthriley at comcast.net  Tue Nov 27 17:51:49 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Tue, 27 Nov 2018 10:51:49 -0600
+Subject: [Rcpp-devel] SOLVED: Problems with Rcout
+Message-ID: <mailman.11.1543337520.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+The answer to my problem was to reinstall Rcpp. Thanks for everyone?s help!
+
+Barth
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/234f4480/attachment.html>
+
+From selivanov.dmitriy at gmail.com  Tue Nov 27 17:57:07 2018
+From: selivanov.dmitriy at gmail.com (Dmitriy Selivanov)
+Date: Tue, 27 Nov 2018 20:57:07 +0400
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+ sparse matrix (Serguei Sokol)
+Message-ID: <CAJdZCv3YaX-XFKnPPebuHqUk-AfwbO8sqkzoXAsZFY4oHBNpaA@mail.gmail.com>
+
+But adding 0 to a sparse matrix is expensive operation. It doesn't look
+fair to include it to benchmark.
+
+??, 27 ????. 2018 ?., 20:07 rcpp-devel-request at lists.r-forge.r-project.org:
+
+> Send Rcpp-devel mailing list submissions to
+>         rcpp-devel at lists.r-forge.r-project.org
+>
+> To subscribe or unsubscribe via the World Wide Web, visit
+>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> or, via email, send a message with subject or body 'help' to
+>         rcpp-devel-request at lists.r-forge.r-project.org
+>
+> You can reach the person managing the list at
+>         rcpp-devel-owner at lists.r-forge.r-project.org
+>
+> When replying, please edit your Subject line so it is more specific
+> than "Re: Contents of Rcpp-devel digest..."
+>
+>
+> Today's Topics:
+>
+>    1. Re: Speed of RCppEigen Cholesky decomposition on sparse
+>       matrix (Serguei Sokol)
+>    2. Problems with Rcout (Barth Riley)
+>    3. Re: Problems with Rcout (I?aki Ucar)
+>    4. Re: Problems with Rcout (Serguei Sokol)
+>    5. Re: Problems with Rcout (Barth Riley)
+>
+>
+> ----------------------------------------------------------------------
+>
+> Message: 1
+> Date: Tue, 27 Nov 2018 15:33:55 +0100
+> From: Serguei Sokol <serguei.sokol at gmail.com>
+> To: "Hoffman, Gabriel" <gabriel.hoffman at mssm.edu>,
+>         "rcpp-devel at lists.r-forge.r-project.org"
+>         <rcpp-devel at lists.r-forge.r-project.org>
+> Subject: Re: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+>         sparse matrix
+> Message-ID: <91e163f1-c169-217f-739b-2a379c63c35c at gmail.com>
+> Content-Type: text/plain; charset=utf-8; format=flowed
+>
+> Le 26/11/2018 ? 18:23, Hoffman, Gabriel a ?crit?:
+> > I am developing a statistical model and I have a prototype working in R
+> > code.??I make extensive use of sparse matrices, so the R code is pretty
+> > fast, but hoped that using RCppEigen to evaluate the log-likelihood
+> > function could avoid a lot of memory copying and be substantially
+> > faster.??However, in a simple??example I am seeing that RCppEigen is
+> > 3-5x slower than standard R code for cholesky decomposition of a sparse
+> > matrix.??This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on both
+> > OS X and CentOS 6.9.
+> >
+> > Since this simple operation is so much slower it doesn't seem like
+> > using RCppEigen is worth it in this case.??Is this an issue with BLAS,
+> > some libraries or compiler options, or is R code really the fastest
+> > option?
+> After few checks, it seems to be a test issue. Matrix package stores the
+> decomposition somewhere in attributes of the submitted matrix. So the
+> the repetitive calls requiring chol() decomposition are not really doing
+> the job. Instead, previously stored result is reused.
+>
+> You can easily convince yourself by "modifying" the matrix C (and thus
+> invalidating previous decomposition) by doing something like "C + 0." :
+>
+> system.time(replicate(10, chol( C )))
+> #utilisateur     syst?me      ?coul?
+> #      0.459       0.011       0.471
+> system.time(replicate(10, chol( C+0. )))
+> #utilisateur     syst?me      ?coul?
+> #      5.365       0.060       5.425
+> system.time(replicate(10, CholSparse( C+0. )))
+> #utilisateur     syst?me      ?coul?
+> #      3.627       0.035       3.665
+>
+> On my machine, I have almost identical timing for CholSparse() with or
+> without C modification:
+>
+> system.time(replicate(10, CholSparse( C )))
+> #utilisateur     syst?me      ?coul?
+> #      3.283       0.004       3.289
+> which proves that Eigen doesn't store the decomposition for future reuse
+> and redo the decomposition at each call on the same matrix.
+>
+> Best,
+> Serguei.
+>
+> >
+> >
+> > library(Matrix)
+> > library(inline)
+> >
+> > # construct sparse matrix
+> > #########################
+> >
+> > # construct a matrix C that is N x N with S total entries
+> > # set C = crossprod(X)
+> > N = 100000
+> > S = 1000000
+> > i = sample(1:1000, S, replace=TRUE)
+> > j = sample(1:1000, S, replace=TRUE)
+> > values = runif(S, 0, .3)
+> > X = sparseMatrix(i=i, j=j, x = values, symmetric=FALSE )
+> >
+> > C = as(crossprod(X), "dgCMatrix")
+> >
+> > # check sparsity fraction
+> > S / N^2
+> >
+> > # define RCppEigen code
+> > CholeskyCppSparse<-'
+> > using Rcpp::as;
+> > using Eigen::Map;
+> > using Eigen::SparseMatrix;
+> > using Eigen::MappedSparseMatrix;
+> > using Eigen::SimplicialLLT;
+> >
+> > // get data into RcppEigen
+> > const MappedSparseMatrix<double> Sigma(as<MappedSparseMatrix<double>
+> >  >(Sigma_in));
+> >
+> > // compute Cholesky
+> > typedef SimplicialLLT<SparseMatrix<double> > SpChol;
+> > const SpChol Ch(Sigma);
+> > '
+> >
+> > CholSparse <- cxxfunction(signature(Sigma_in = "dgCMatrix"),
+> > CholeskyCppSparse, plugin = "RcppEigen")
+> >
+> > # compare times
+> > system.time(replicate(10, chol( C )))
+> > # output:
+> > #?? user??system elapsed
+> > #??0.341?? 0.014?? 0.355
+> >
+> > system.time(replicate(10, CholSparse( C )))
+> > # output:
+> > #?? user??system elapsed
+> > # 1.639?? 0.046?? 1.687
+> >
+> >     sessionInfo()
+> >
+> > R version 3.5.1 (2018-07-02)
+> > Platform: x86_64-apple-darwin15.6.0 (64-bit)
+> > Running under: macOS??10.14
+> >
+> > Matrix products: default
+> > BLAS:
+> >
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
+> > LAPACK:
+> >
+> /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+> >
+> > locale:
+> > [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> >
+> > attached base packages:
+> > [1] stats???? graphics??grDevices datasets??utils???? methods?? base
+> >
+> > other attached packages:
+> > [1] inline_0.3.15 Matrix_1.2-15
+> >
+> > loaded via a namespace (and not attached):
+> > [1] compiler_3.5.1??????RcppEigen_0.3.3.4.0 Rcpp_1.0.0
+> > [4] grid_3.5.1??????????lattice_0.20-38
+> >
+> > Changing the size of the matrix and the number of entries does not
+> > change the relative times much
+> >
+> > Thanks,
+> > - Gabriel
+> >
+> >
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+>
+>
+>
+> ------------------------------
+>
+> Message: 2
+> Date: Tue, 27 Nov 2018 09:35:10 -0600
+> From: Barth Riley <barthriley at comcast.net>
+> To: " rcpp-devel at lists.r-forge.r-project.org"
+>         <rcpp-devel at lists.r-forge.r-project.org>
+> Subject: [Rcpp-devel] Problems with Rcout
+> Message-ID:
+>         <
+> mailman.18867.1543334818.2604.rcpp-devel at lists.r-forge.r-project.org>
+> Content-Type: text/plain; charset="utf-8"
+>
+> Dear Rcppers
+>
+> I am encountering a problem with Rcout. Even with basic string output,
+> when I run the function containing the call to Rcout, no output is
+> generated. Here is a simple example of what I?m trying to do:
+>
+> // [[Rcpp::export]]
+> void testFunc() {
+>         Rcpp::Rcout << "testFunc begins" << std:endl;
+>         . . .
+> }
+>
+> My code is part of a package I?m developing, using R 3.51 and Rcpp
+> 0.12.19. The Rcpp code compiles without a problem.
+>
+> Thanks
+>
+> Barth
+>
+>
+> -------------- next part --------------
+> An HTML attachment was scrubbed...
+> URL: <
+> http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/6adbedfe/attachment.html
+> >
+>
+> ------------------------------
+>
+> Message: 3
+> Date: Tue, 27 Nov 2018 16:50:13 +0100
+> From: I?aki Ucar <iucar at fedoraproject.org>
+> To: barthriley at comcast.net
+> Cc: "<rcpp-devel at lists.r-forge.r-project.org>"
+>         <rcpp-devel at lists.r-forge.r-project.org>
+> Subject: Re: [Rcpp-devel] Problems with Rcout
+> Message-ID:
+>         <
+> CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg at mail.gmail.com>
+> Content-Type: text/plain; charset="UTF-8"
+>
+> On Tue, 27 Nov 2018 at 16:35, Barth Riley <barthriley at comcast.net> wrote:
+> >
+> > Dear Rcppers
+> >
+> > I am encountering a problem with Rcout. Even with basic string output,
+> when I run the function containing the call to Rcout, no output is
+> generated. Here is a simple example of what I?m trying to do:
+> >
+> > // [[Rcpp::export]]
+> > void testFunc() {
+> >            Rcpp::Rcout << "testFunc begins" << std:endl;
+> >            . . .
+> > }
+>
+> Note that it should be "std::endl", with double colon. Assuming this
+> is a transcription error, you'll have to provide more context (and,
+> ideally, some kind of reproducible example), because this works just
+> fine.
+>
+> I?aki
+>
+>
+> ------------------------------
+>
+> Message: 4
+> Date: Tue, 27 Nov 2018 16:51:28 +0100
+> From: Serguei Sokol <serguei.sokol at gmail.com>
+> To: rcpp-devel at lists.r-forge.r-project.org
+> Subject: Re: [Rcpp-devel] Problems with Rcout
+> Message-ID: <ccc55a85-79cb-c3c6-14e8-222223abe2c5 at gmail.com>
+> Content-Type: text/plain; charset=utf-8; format=flowed
+>
+> Le 27/11/2018 ? 16:35, Barth Riley a ?crit?:
+> > Dear Rcppers
+> >
+> > I am encountering a problem with Rcout. Even with basic string output,
+> > when I run the function containing the call to Rcout, no output is
+> > generated. Here is a simple example of what I?m trying to do:
+> >
+> > // [[Rcpp::export]]
+> >
+> > void testFunc() {
+> >
+> >  ?????????? Rcpp::Rcout << "testFunc begins" << std:endl;
+> >
+> >  ?????????? . . .
+> >
+> > }
+> >
+> This example works for me:
+>
+> library(Rcpp)
+> sourceCpp(code="#include <Rcpp.h>\n// [[Rcpp::export]]\nvoid testFunc()
+> {\nRcpp::Rcout << \"testFunc begins\" << std::endl;\n}")
+> testFunc()
+> #testFunc begins
+>
+> May be in your session you have redirected stdout elsewhere?
+>
+> Serguei.
+>
+> > My code is part of a package I?m developing, using R 3.51 and Rcpp
+> > 0.12.19. The Rcpp code compiles without a problem.
+> >
+> > Thanks
+> >
+> > Barth
+> >
+> >
+> >
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+>
+>
+>
+> ------------------------------
+>
+> Message: 5
+> Date: Tue, 27 Nov 2018 10:06:47 -0600
+> From: Barth Riley <barthriley at comcast.net>
+> To: I?aki Ucar <iucar at fedoraproject.org>, "
+>         rcpp-devel at lists.r-forge.r-project.org"
+>         <rcpp-devel at lists.r-forge.r-project.org>
+> Subject: Re: [Rcpp-devel] Problems with Rcout
+> Message-ID:
+>         <
+> mailman.18868.1543334818.2604.rcpp-devel at lists.r-forge.r-project.org>
+> Content-Type: text/plain; charset="utf-8"
+>
+> Here is a more complete example. Note that I want to output text strings
+> for debugging purposes as the code for treatAsVector = true is never
+> executed.
+>
+> Barth
+>
+> NumericVector getValidCount(Rcpp::NumericMatrix m,
+>                             bool treatAsVector) {
+>
+>   Rcpp::Rcout << "getValidCount BEGINS" << std::endl;
+>
+>   int N = m.cols();
+>   NumericVector u, vec;
+>   NumericVector count (N);
+>
+>   if(!treatAsVector) {
+>     Rcpp::Rcout << "Treating as matrix" << std::endl;
+>     for(int i = 0; i < N; i++) {
+>       vec = m(_,i);
+>       vec = vec[!Rcpp::is_na(vec)];
+>       u = Rcpp::unique(vec);
+>       count[i] = u.length();
+>     }
+>   } else {
+>     Rcpp::Rcout << "treating as vector" << std::endl;
+>     vec = as<NumericVector>(m);
+>     vec = vec[!Rcpp::is_na(vec)];
+>     u = Rcpp::unique(vec);
+>
+>     count.fill(u.length());
+>   }
+>
+>   return count;
+> }
+> -------------- next part --------------
+> An HTML attachment was scrubbed...
+> URL: <
+> http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/607ae61f/attachment.html
+> >
+>
+> ------------------------------
+>
+> Subject: Digest Footer
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> ------------------------------
+>
+> End of Rcpp-devel Digest, Vol 109, Issue 11
+> *******************************************
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/20f79db6/attachment-0001.html>
+
+From serguei.sokol at gmail.com  Wed Nov 28 11:05:10 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Wed, 28 Nov 2018 11:05:10 +0100
+Subject: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+ sparse matrix (Serguei Sokol)
+In-Reply-To: <CAJdZCv3YaX-XFKnPPebuHqUk-AfwbO8sqkzoXAsZFY4oHBNpaA@mail.gmail.com>
+References: <CAJdZCv3YaX-XFKnPPebuHqUk-AfwbO8sqkzoXAsZFY4oHBNpaA@mail.gmail.com>
+Message-ID: <281f2b47-b47c-04db-3fc1-ff3723b70b5f@gmail.com>
+
+Le 27/11/2018 ? 17:57, Dmitriy Selivanov a ?crit?:
+> But adding 0 to a sparse matrix is expensive operation. It doesn't look 
+> fair to include it to benchmark.
+It is true that adding 0 comes at some cost. But qualifying it expensive 
+or not is kind of subjective opinion. Let see how much does it cost:
+
+system.time(replicate(10, C+0.))
+#utilisateur     syst?me      ?coul?
+#      0.017       0.030       0.047
+
+So, in my opinion 0.017 s is negligible time laps compared to 5 or even 
+3 s needed for 10 matrix decompositions. And someone else could say 
+"it's important".
+
+Anyhow, the goal was to show that Matrix::chol does only 1 decomposition 
+not 10) while Eigen did all 10 decompositions, and not to thoroughly 
+compare performances of two methods. The bias detected in the original 
+test was much higher than the bias induced by adding 0.
+
+Moreover, if adding 0 would be really a problem, one could easily 
+exclude it from time accounting:
+sum(sapply(1:10, function(i) {C=C+0.; system.time(chol(C))[1]}))
+#[1] 4.488
+sum(sapply(1:10, function(i) {C=C+0.; system.time(CholSparse(C))[1]}))
+#[1] 3.341
+
+and once more (to have an idea about time variability)
+
+sum(sapply(1:10, function(i) {C=C+0.; system.time(CholSparse(C))[1]}))
+#[1] 3.481
+
+The conclusion remains the same. We see also that time variability is 
+almost 10 fold higher than time needed to add 0. So I conclude that 
+adding 0 did not perturbed so much the fairness of the test.
+
+Best,
+Serguei.
+
+> 
+> ??, 27 ????. 2018 ?., 20:07 
+> rcpp-devel-request at lists.r-forge.r-project.org 
+> <mailto:rcpp-devel-request at lists.r-forge.r-project.org>:
+> 
+>     Send Rcpp-devel mailing list submissions to
+>     rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>
+> 
+>     To subscribe or unsubscribe via the World Wide Web, visit
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+>     or, via email, send a message with subject or body 'help' to
+>     rcpp-devel-request at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel-request at lists.r-forge.r-project.org>
+> 
+>     You can reach the person managing the list at
+>     rcpp-devel-owner at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel-owner at lists.r-forge.r-project.org>
+> 
+>     When replying, please edit your Subject line so it is more specific
+>     than "Re: Contents of Rcpp-devel digest..."
+> 
+> 
+>     Today's Topics:
+> 
+>      ? ?1. Re: Speed of RCppEigen Cholesky decomposition on sparse
+>      ? ? ? matrix (Serguei Sokol)
+>      ? ?2. Problems with Rcout (Barth Riley)
+>      ? ?3. Re: Problems with Rcout (I?aki Ucar)
+>      ? ?4. Re: Problems with Rcout (Serguei Sokol)
+>      ? ?5. Re: Problems with Rcout (Barth Riley)
+> 
+> 
+>     ----------------------------------------------------------------------
+> 
+>     Message: 1
+>     Date: Tue, 27 Nov 2018 15:33:55 +0100
+>     From: Serguei Sokol <serguei.sokol at gmail.com
+>     <mailto:serguei.sokol at gmail.com>>
+>     To: "Hoffman, Gabriel" <gabriel.hoffman at mssm.edu
+>     <mailto:gabriel.hoffman at mssm.edu>>,
+>      ? ? ? ? "rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>"
+>      ? ? ? ? <rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>>
+>     Subject: Re: [Rcpp-devel] Speed of RCppEigen Cholesky decomposition on
+>      ? ? ? ? sparse matrix
+>     Message-ID: <91e163f1-c169-217f-739b-2a379c63c35c at gmail.com
+>     <mailto:91e163f1-c169-217f-739b-2a379c63c35c at gmail.com>>
+>     Content-Type: text/plain; charset=utf-8; format=flowed
+> 
+>     Le 26/11/2018 ? 18:23, Hoffman, Gabriel a ?crit?:
+>      > I am developing a statistical model and I have a prototype
+>     working in R
+>      > code.??I make extensive use of sparse matrices, so the R code is
+>     pretty
+>      > fast, but hoped that using RCppEigen to evaluate the log-likelihood
+>      > function could avoid a lot of memory copying and be substantially
+>      > faster.??However, in a simple??example I am seeing that RCppEigen is
+>      > 3-5x slower than standard R code for cholesky decomposition of a
+>     sparse
+>      > matrix.??This is the case on R 3.5.1 using RcppEigen_0.3.3.4.0 on
+>     both
+>      > OS X and CentOS 6.9.
+>      >
+>      > Since this simple operation is so much slower it doesn't seem like
+>      > using RCppEigen is worth it in this case.??Is this an issue with
+>     BLAS,
+>      > some libraries or compiler options, or is R code really the fastest
+>      > option?
+>     After few checks, it seems to be a test issue. Matrix package stores
+>     the
+>     decomposition somewhere in attributes of the submitted matrix. So the
+>     the repetitive calls requiring chol() decomposition are not really
+>     doing
+>     the job. Instead, previously stored result is reused.
+> 
+>     You can easily convince yourself by "modifying" the matrix C (and thus
+>     invalidating previous decomposition) by doing something like "C + 0." :
+> 
+>     system.time(replicate(10, chol( C )))
+>     #utilisateur? ? ?syst?me? ? ? ?coul?
+>     #? ? ? 0.459? ? ? ?0.011? ? ? ?0.471
+>     system.time(replicate(10, chol( C+0. )))
+>     #utilisateur? ? ?syst?me? ? ? ?coul?
+>     #? ? ? 5.365? ? ? ?0.060? ? ? ?5.425
+>     system.time(replicate(10, CholSparse( C+0. )))
+>     #utilisateur? ? ?syst?me? ? ? ?coul?
+>     #? ? ? 3.627? ? ? ?0.035? ? ? ?3.665
+> 
+>     On my machine, I have almost identical timing for CholSparse() with or
+>     without C modification:
+> 
+>     system.time(replicate(10, CholSparse( C )))
+>     #utilisateur? ? ?syst?me? ? ? ?coul?
+>     #? ? ? 3.283? ? ? ?0.004? ? ? ?3.289
+>     which proves that Eigen doesn't store the decomposition for future
+>     reuse
+>     and redo the decomposition at each call on the same matrix.
+> 
+>     Best,
+>     Serguei.
+> 
+>      >
+>      >
+>      > library(Matrix)
+>      > library(inline)
+>      >
+>      > # construct sparse matrix
+>      > #########################
+>      >
+>      > # construct a matrix C that is N x N with S total entries
+>      > # set C = crossprod(X)
+>      > N = 100000
+>      > S = 1000000
+>      > i = sample(1:1000, S, replace=TRUE)
+>      > j = sample(1:1000, S, replace=TRUE)
+>      > values = runif(S, 0, .3)
+>      > X = sparseMatrix(i=i, j=j, x = values, symmetric=FALSE )
+>      >
+>      > C = as(crossprod(X), "dgCMatrix")
+>      >
+>      > # check sparsity fraction
+>      > S / N^2
+>      >
+>      > # define RCppEigen code
+>      > CholeskyCppSparse<-'
+>      > using Rcpp::as;
+>      > using Eigen::Map;
+>      > using Eigen::SparseMatrix;
+>      > using Eigen::MappedSparseMatrix;
+>      > using Eigen::SimplicialLLT;
+>      >
+>      > // get data into RcppEigen
+>      > const MappedSparseMatrix<double> Sigma(as<MappedSparseMatrix<double>
+>      >? >(Sigma_in));
+>      >
+>      > // compute Cholesky
+>      > typedef SimplicialLLT<SparseMatrix<double> > SpChol;
+>      > const SpChol Ch(Sigma);
+>      > '
+>      >
+>      > CholSparse <- cxxfunction(signature(Sigma_in = "dgCMatrix"),
+>      > CholeskyCppSparse, plugin = "RcppEigen")
+>      >
+>      > # compare times
+>      > system.time(replicate(10, chol( C )))
+>      > # output:
+>      > #?? user??system elapsed
+>      > #??0.341?? 0.014?? 0.355
+>      >
+>      > system.time(replicate(10, CholSparse( C )))
+>      > # output:
+>      > #?? user??system elapsed
+>      > # 1.639?? 0.046?? 1.687
+>      >
+>      >? ? ?sessionInfo()
+>      >
+>      > R version 3.5.1 (2018-07-02)
+>      > Platform: x86_64-apple-darwin15.6.0 (64-bit)
+>      > Running under: macOS??10.14
+>      >
+>      > Matrix products: default
+>      > BLAS:
+>      >
+>     /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
+>      > LAPACK:
+>      >
+>     /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRlapack.dylib
+>      >
+>      > locale:
+>      > [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+>      >
+>      > attached base packages:
+>      > [1] stats???? graphics??grDevices datasets??utils???? methods?? base
+>      >
+>      > other attached packages:
+>      > [1] inline_0.3.15 Matrix_1.2-15
+>      >
+>      > loaded via a namespace (and not attached):
+>      > [1] compiler_3.5.1??????RcppEigen_0.3.3.4.0 Rcpp_1.0.0
+>      > [4] grid_3.5.1??????????lattice_0.20-38
+>      >
+>      > Changing the size of the matrix and the number of entries does not
+>      > change the relative times much
+>      >
+>      > Thanks,
+>      > - Gabriel
+>      >
+>      >
+>      > _______________________________________________
+>      > Rcpp-devel mailing list
+>      > Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>      >
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>      >
+> 
+> 
+> 
+>     ------------------------------
+> 
+>     Message: 2
+>     Date: Tue, 27 Nov 2018 09:35:10 -0600
+>     From: Barth Riley <barthriley at comcast.net
+>     <mailto:barthriley at comcast.net>>
+>     To: " rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>"
+>      ? ? ? ? <rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>>
+>     Subject: [Rcpp-devel] Problems with Rcout
+>     Message-ID:
+>             
+>     <mailman.18867.1543334818.2604.rcpp-devel at lists.r-forge.r-project.org <mailto:mailman.18867.1543334818.2604.rcpp-devel at lists.r-forge.r-project.org>>
+>     Content-Type: text/plain; charset="utf-8"
+> 
+>     Dear Rcppers
+> 
+>     I am encountering a problem with Rcout. Even with basic string
+>     output, when I run the function containing the call to Rcout, no
+>     output is generated. Here is a simple example of what I?m trying to do:
+> 
+>     // [[Rcpp::export]]
+>     void testFunc() {
+>      ? ? ? ? Rcpp::Rcout << "testFunc begins" << std:endl;
+>      ? ? ? ? . . .
+>     }
+> 
+>     My code is part of a package I?m developing, using R 3.51 and Rcpp
+>     0.12.19. The Rcpp code compiles without a problem.
+> 
+>     Thanks
+> 
+>     Barth
+> 
+> 
+>     -------------- next part --------------
+>     An HTML attachment was scrubbed...
+>     URL:
+>     <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/6adbedfe/attachment.html>
+> 
+>     ------------------------------
+> 
+>     Message: 3
+>     Date: Tue, 27 Nov 2018 16:50:13 +0100
+>     From: I?aki Ucar <iucar at fedoraproject.org
+>     <mailto:iucar at fedoraproject.org>>
+>     To: barthriley at comcast.net <mailto:barthriley at comcast.net>
+>     Cc: "<rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>>"
+>      ? ? ? ? <rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>>
+>     Subject: Re: [Rcpp-devel] Problems with Rcout
+>     Message-ID:
+>             
+>     <CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q+CGeMYaNs8VLg at mail.gmail.com
+>     <mailto:CALEXWq3tTXhGPidXiswCLfvhB4-f2RDAmn12q%2BCGeMYaNs8VLg at mail.gmail.com>>
+>     Content-Type: text/plain; charset="UTF-8"
+> 
+>     On Tue, 27 Nov 2018 at 16:35, Barth Riley <barthriley at comcast.net
+>     <mailto:barthriley at comcast.net>> wrote:
+>      >
+>      > Dear Rcppers
+>      >
+>      > I am encountering a problem with Rcout. Even with basic string
+>     output, when I run the function containing the call to Rcout, no
+>     output is generated. Here is a simple example of what I?m trying to do:
+>      >
+>      > // [[Rcpp::export]]
+>      > void testFunc() {
+>      >? ? ? ? ? ? Rcpp::Rcout << "testFunc begins" << std:endl;
+>      >? ? ? ? ? ? . . .
+>      > }
+> 
+>     Note that it should be "std::endl", with double colon. Assuming this
+>     is a transcription error, you'll have to provide more context (and,
+>     ideally, some kind of reproducible example), because this works just
+>     fine.
+> 
+>     I?aki
+> 
+> 
+>     ------------------------------
+> 
+>     Message: 4
+>     Date: Tue, 27 Nov 2018 16:51:28 +0100
+>     From: Serguei Sokol <serguei.sokol at gmail.com
+>     <mailto:serguei.sokol at gmail.com>>
+>     To: rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>
+>     Subject: Re: [Rcpp-devel] Problems with Rcout
+>     Message-ID: <ccc55a85-79cb-c3c6-14e8-222223abe2c5 at gmail.com
+>     <mailto:ccc55a85-79cb-c3c6-14e8-222223abe2c5 at gmail.com>>
+>     Content-Type: text/plain; charset=utf-8; format=flowed
+> 
+>     Le 27/11/2018 ? 16:35, Barth Riley a ?crit?:
+>      > Dear Rcppers
+>      >
+>      > I am encountering a problem with Rcout. Even with basic string
+>     output,
+>      > when I run the function containing the call to Rcout, no output is
+>      > generated. Here is a simple example of what I?m trying to do:
+>      >
+>      > // [[Rcpp::export]]
+>      >
+>      > void testFunc() {
+>      >
+>      >? ?????????? Rcpp::Rcout << "testFunc begins" << std:endl;
+>      >
+>      >? ?????????? . . .
+>      >
+>      > }
+>      >
+>     This example works for me:
+> 
+>     library(Rcpp)
+>     sourceCpp(code="#include <Rcpp.h>\n// [[Rcpp::export]]\nvoid testFunc()
+>     {\nRcpp::Rcout << \"testFunc begins\" << std::endl;\n}")
+>     testFunc()
+>     #testFunc begins
+> 
+>     May be in your session you have redirected stdout elsewhere?
+> 
+>     Serguei.
+> 
+>      > My code is part of a package I?m developing, using R 3.51 and Rcpp
+>      > 0.12.19. The Rcpp code compiles without a problem.
+>      >
+>      > Thanks
+>      >
+>      > Barth
+>      >
+>      >
+>      >
+>      > _______________________________________________
+>      > Rcpp-devel mailing list
+>      > Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>      >
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>      >
+> 
+> 
+> 
+>     ------------------------------
+> 
+>     Message: 5
+>     Date: Tue, 27 Nov 2018 10:06:47 -0600
+>     From: Barth Riley <barthriley at comcast.net
+>     <mailto:barthriley at comcast.net>>
+>     To: I?aki Ucar <iucar at fedoraproject.org
+>     <mailto:iucar at fedoraproject.org>>, "
+>     rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>"
+>      ? ? ? ? <rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:rcpp-devel at lists.r-forge.r-project.org>>
+>     Subject: Re: [Rcpp-devel] Problems with Rcout
+>     Message-ID:
+>             
+>     <mailman.18868.1543334818.2604.rcpp-devel at lists.r-forge.r-project.org <mailto:mailman.18868.1543334818.2604.rcpp-devel at lists.r-forge.r-project.org>>
+>     Content-Type: text/plain; charset="utf-8"
+> 
+>     Here is a more complete example. Note that I want to output text
+>     strings for debugging purposes as the code for treatAsVector = true
+>     is never executed.
+> 
+>     Barth
+> 
+>     NumericVector getValidCount(Rcpp::NumericMatrix m,
+>      ? ? ? ? ? ? ? ? ? ? ? ? ? ? bool treatAsVector) {
+> 
+>      ? Rcpp::Rcout << "getValidCount BEGINS" << std::endl;
+> 
+>      ? int N = m.cols();
+>      ? NumericVector u, vec;
+>      ? NumericVector count (N);
+> 
+>      ? if(!treatAsVector) {
+>      ? ? Rcpp::Rcout << "Treating as matrix" << std::endl;
+>      ? ? for(int i = 0; i < N; i++) {
+>      ? ? ? vec = m(_,i);
+>      ? ? ? vec = vec[!Rcpp::is_na(vec)];
+>      ? ? ? u = Rcpp::unique(vec);
+>      ? ? ? count[i] = u.length();
+>      ? ? }
+>      ? } else {
+>      ? ? Rcpp::Rcout << "treating as vector" << std::endl;
+>      ? ? vec = as<NumericVector>(m);
+>      ? ? vec = vec[!Rcpp::is_na(vec)];
+>      ? ? u = Rcpp::unique(vec);
+> 
+>      ? ? count.fill(u.length());
+>      ? }
+> 
+>      ? return count;
+>     }
+>     -------------- next part --------------
+>     An HTML attachment was scrubbed...
+>     URL:
+>     <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181127/607ae61f/attachment.html>
+> 
+>     ------------------------------
+> 
+>     Subject: Digest Footer
+> 
+>     _______________________________________________
+>     Rcpp-devel mailing list
+>     Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+>     ------------------------------
+> 
+>     End of Rcpp-devel Digest, Vol 109, Issue 11
+>     *******************************************
+> 
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+

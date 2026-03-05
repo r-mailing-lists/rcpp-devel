@@ -1,0 +1,2400 @@
+From aminashahzadi at gmail.com  Mon Sep 12 05:29:57 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Mon, 12 Sep 2016 15:29:57 +1200
+Subject: [Rcpp-devel] Error for exp() using RcppArmadillo
+Message-ID: <CAMbX5wmqXyqgMw5nb9JmJMAP2g8mvkyQQAJn4QHqu04-uuMymQ@mail.gmail.com>
+
+Hello Dear
+
+I am new user of RcppArmadillo and Rcpp.
+I am using a sample function pasted here.  I am haivng error given below:
+Any can help in this regard.
+
+In function ?arma::vec sample(arma::vec, arma::vec)?:
+sample.cpp:23:35: error: could not convert
+?exp((alpha1.arma::Col<double>::<anonymous>.arma::Mat<eT>::operator()<double>(0u)
++
+beta1.arma::Col<double>::<anonymous>.arma::Mat<eT>::operator()<double>(1u)))?
+from ?double? to ?arma::vec {aka arma::Col<double>}?
+      return exp(alpha1(0)+beta1(1));
+                                   ^
+sample.cpp:34:1: warning: control reaches end of non-void function
+[-Wreturn-type]
+ }
+
+My function sample.cpp is below.
+
+
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+arma::vec sample(arma::vec alpha, arma::vec beta)
+{
+        int m = alpha.size();
+        arma::uvec index(m);
+        for(int i=0; i<m; i++)
+        {
+                index(i) = i;
+        }
+        for(int i=0; i<m; i++)
+        {
+                for(int j=0; j<m; j++)
+                {
+                        if(i==j)
+                                {
+                                        arma::vec alpha1 =
+alpha.elem(find(index !=j));
+                                        arma::vec beta1 =
+beta.elem(find(index!=j));
+                                        return exp(alpha1(0)+beta1(1));
+                                }
+                                else
+                                {
+                                        arma::vec  alpha2 =
+alpha.elem(find(index !=i && index !=j));
+                                        arma::vec beta2 =
+beta.elem(find(index !=i && index !=j));
+                                        return exp(alpha2+beta2);
+                                }
+                }
+        }
+
+}
+
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160912/18536092/attachment.html>
+
+From balamut2 at illinois.edu  Mon Sep 12 06:04:41 2016
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Mon, 12 Sep 2016 04:04:41 +0000
+Subject: [Rcpp-devel] Error for exp() using RcppArmadillo
+In-Reply-To: <CAMbX5wmqXyqgMw5nb9JmJMAP2g8mvkyQQAJn4QHqu04-uuMymQ@mail.gmail.com>
+References: <CAMbX5wmqXyqgMw5nb9JmJMAP2g8mvkyQQAJn4QHqu04-uuMymQ@mail.gmail.com>
+Message-ID: <5C591F8C0073E544A1330AA751BA3E695D3E680F@chimbx4.ad.uillinois.edu>
+
+Greetings and Salutations,
+
+The operation that you are using here:
+
+exp(alpha1(0)+beta1(1));
+
+Returns a double instead of an arma::vec. Hence,
+
+from ?double? to ?arma::vec {aka arma::Col<double>}?
+
+To fix this, use:
+
+        arma::vec temp(1);
+        temp << exp(alpha1(0)+beta1(1)); // assumes 1 element in alpha1 and 2 elements in beta1
+        return temp;
+
+In addition, you should supply a return at the end of the function?
+
+  return arma::zeros<arma::vec>(0);
+
+Returns a vector of length 0.
+
+Sincerely,
+
+JJB
+
+From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of Amina Shahzadi
+Sent: Sunday, September 11, 2016 10:30 PM
+To: rcpp-devel at lists.r-forge.r-project.org
+Subject: [Rcpp-devel] Error for exp() using RcppArmadillo
+
+Hello Dear
+I am new user of RcppArmadillo and Rcpp.
+I am using a sample function pasted here.  I am haivng error given below: Any can help in this regard.
+
+In function ?arma::vec sample(arma::vec, arma::vec)?:
+sample.cpp:23:35: error: could not convert ?exp((alpha1.arma::Col<double>::<anonymous>.arma::Mat<eT>::operator()<double>(0u) + beta1.arma::Col<double>::<anonymous>.arma::Mat<eT>::operator()<double>(1u)))? from ?double? to ?arma::vec {aka arma::Col<double>}?
+      return exp(alpha1(0)+beta1(1));
+                                   ^
+sample.cpp:34:1: warning: control reaches end of non-void function [-Wreturn-type]
+ }
+
+My function sample.cpp is below.
+
+
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+arma::vec sample(arma::vec alpha, arma::vec beta)
+{
+        int m = alpha.size();
+        arma::uvec index(m);
+        for(int i=0; i<m; i++)
+        {
+                index(i) = i;
+        }
+        for(int i=0; i<m; i++)
+        {
+                for(int j=0; j<m; j++)
+                {
+                        if(i==j)
+                                {
+                                        arma::vec alpha1 = alpha.elem(find(index !=j));
+                                        arma::vec beta1 = beta.elem(find(index!=j));
+                                        return exp(alpha1(0)+beta1(1));
+                                }
+                                else
+                                {
+                                        arma::vec  alpha2 = alpha.elem(find(index !=i && index !=j));
+                                        arma::vec beta2 = beta.elem(find(index !=i && index !=j));
+                                        return exp(alpha2+beta2);
+                                }
+                }
+        }
+
+}
+
+
+
+
+--
+Amina Shahzadi
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160912/64d364e2/attachment-0001.html>
+
+From aminashahzadi at gmail.com  Tue Sep 13 00:45:01 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Tue, 13 Sep 2016 10:45:01 +1200
+Subject: [Rcpp-devel] Error still there
+Message-ID: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+
+Thank you for welcoming me.
+Your help will be appreciatable.
+
+My problem is still there and getting the following error.
+sample.cpp: In function ?double sample(arma::vec, arma::vec)?:
+sample.cpp:29:29: error: cannot convert ?arma::enable_if2<true, const
+arma::eOp<                             arma::eGlue<arma::Col<double>,
+arma::Col<double>, arma::eglue_plus>,
+arma::eop_e                             xp> >::result {aka const
+arma::eOp<arma::eGlue<arma::Col<double>,
+arma::Col<doub                             le>, arma::eglue_plus>,
+arma::eop_exp>}? to ?double? in return
+      return exp(alpha2+beta2);
+                             ^
+sample.cpp:34:1: warning: control reaches end of non-void function
+[-Wreturn-typ                             e]
+ }
+
+
+My sample code is
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+double sample(arma::vec alpha, arma::vec beta)
+{
+        int m = alpha.size();
+        arma::uvec index(m);
+        for(int i=0; i<m; i++)
+        {
+                index(i) = i;
+        }
+        for(int i=0; i<m; i++)
+        {
+                for(int j=0; j<m; j++)
+                {
+                        if(i==j)
+                                {
+                                        arma::vec alpha1 =
+alpha.elem(find(index !=j));
+                                        arma::vec beta1 =
+beta.elem(find(index!=j));
+                                        return exp(alpha1(0)+beta1(1));
+                                }
+                                else
+                                {
+                                        arma::vec  alpha2 =
+alpha.elem(find(index !=i && index !=j));
+                                        arma::vec beta2 =
+beta.elem(find(index !=i && index !=j));
+                                        return exp(alpha2+beta2);
+                                }
+                }
+        }
+
+}
+
+
+Thank you
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160913/39853533/attachment.html>
+
+From avraham.adler at gmail.com  Tue Sep 13 01:05:35 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Mon, 12 Sep 2016 19:05:35 -0400
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+Message-ID: <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+
+Hello, Amina.
+
+I am having trouble understanding your code, however,one thing that
+stands out is that your return statement is inside your for loop which
+looks strange. Secondly in your first branch, you seem to want to
+return a scalar and in your second branch, you seem to want to return
+a vector of length greater than 1. If that is the case, you need to
+return a vector of length 1 in the first branch.
+
+What exactly is it that you are trying to do?
+
+Avi
+
+On Mon, Sep 12, 2016 at 6:45 PM, Amina Shahzadi <aminashahzadi at gmail.com> wrote:
+> Thank you for welcoming me.
+> Your help will be appreciatable.
+>
+> My problem is still there and getting the following error.
+> sample.cpp: In function ?double sample(arma::vec, arma::vec)?:
+> sample.cpp:29:29: error: cannot convert ?arma::enable_if2<true, const
+> arma::eOp<                             arma::eGlue<arma::Col<double>,
+> arma::Col<double>, arma::eglue_plus>, arma::eop_e
+> xp> >::result {aka const arma::eOp<arma::eGlue<arma::Col<double>,
+> arma::Col<doub                             le>, arma::eglue_plus>,
+> arma::eop_exp>}? to ?double? in return
+>       return exp(alpha2+beta2);
+>                              ^
+> sample.cpp:34:1: warning: control reaches end of non-void function
+> [-Wreturn-typ                             e]
+>  }
+>
+>
+> My sample code is
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> //[[Rcpp::depends(RcppArmadillo)]]
+> //[[Rcpp::export]]
+>
+> double sample(arma::vec alpha, arma::vec beta)
+> {
+>         int m = alpha.size();
+>         arma::uvec index(m);
+>         for(int i=0; i<m; i++)
+>         {
+>                 index(i) = i;
+>         }
+>         for(int i=0; i<m; i++)
+>         {
+>                 for(int j=0; j<m; j++)
+>                 {
+>                         if(i==j)
+>                                 {
+>                                         arma::vec alpha1 =
+> alpha.elem(find(index !=j));
+>                                         arma::vec beta1 =
+> beta.elem(find(index!=j));
+>                                         return exp(alpha1(0)+beta1(1));
+>                                 }
+>                                 else
+>                                 {
+>                                         arma::vec  alpha2 =
+> alpha.elem(find(index !=i && index !=j));
+>                                         arma::vec beta2 =
+> beta.elem(find(index !=i && index !=j));
+>                                         return exp(alpha2+beta2);
+>                                 }
+>                 }
+>         }
+>
+> }
+>
+>
+> Thank you
+>
+>
+> --
+> Amina Shahzadi
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Tue Sep 13 02:21:31 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 12 Sep 2016 19:21:31 -0500
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+ <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+Message-ID: <22487.18059.364262.22265@max.nulle.part>
+
+
+On 12 September 2016 at 19:05, Avraham Adler wrote:
+| What exactly is it that you are trying to do?
+
+Also review some resources on 'minimally reproducible example' as eg
+
+http://stackoverflow.com/questions/5963269/how-to-make-a-great-r-reproducible-example
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aminashahzadi at gmail.com  Tue Sep 13 02:37:51 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Tue, 13 Sep 2016 12:37:51 +1200
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <22487.18059.364262.22265@max.nulle.part>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+ <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+ <22487.18059.364262.22265@max.nulle.part>
+Message-ID: <CAMbX5wmmc4CQb_9GF10K1karK7aBBo3O1LmFK9-B-CJSbU5apg@mail.gmail.com>
+
+My main objective is to index some elements of a given vector and then
+taking exponent.
+
+Great Prof. Dirk. I have just minimized example and got the solution. I
+would like to share my minimized code.
+
+Thank You all.
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+arma::vec sample(arma::vec alpha)
+{
+        int m = alpha.size();
+        arma::uvec index(m);
+        arma::vec a(m);
+        for(int i=0; i<m; i++)
+        {
+                index(i) = i;
+        }
+        for(int i=0; i<m; i++)
+        {
+                arma::vec alpha1 = alpha.elem(find(index !=i));
+                a(i) = exp(alpha1(0));
+        }
+
+        return a;
+}
+
+
+On Tue, Sep 13, 2016 at 12:21 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 12 September 2016 at 19:05, Avraham Adler wrote:
+> | What exactly is it that you are trying to do?
+>
+> Also review some resources on 'minimally reproducible example' as eg
+>
+> http://stackoverflow.com/questions/5963269/how-to-make-
+> a-great-r-reproducible-example
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160913/9a021767/attachment.html>
+
+From avraham.adler at gmail.com  Tue Sep 13 03:19:44 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Mon, 12 Sep 2016 21:19:44 -0400
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <22487.18059.364262.22265@max.nulle.part>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+ <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+ <22487.18059.364262.22265@max.nulle.part>
+Message-ID: <CAL6gwnKRAURwkvJrN-T5e4C_ODr_ehE3oSkUnaoKeCHuH8c3Rw@mail.gmail.com>
+
+Hello, Amina.
+
+My apologies but it is still unclear as to what you want to do.
+
+Your inputs are two vectors of length m.
+
+What do you expect as output?
+
+Looking at the for loop in your code, you are running m? calculations
+as you have nested loops. Is that what you truly want? Let's start
+with something simpler. Pass in the two vectors of length m and
+receive back ONE number. This one number is the exponentiation of the
+sum of two random selections from the two provided vectors, as long as
+they are not in the same "position". The other option I had to
+understand your code was that you wanted 1 sample per entry in your
+vectors.
+
+Look at the code below. The first function returns one element, the
+second returns n elements, n being an input in case you want more or
+fewer than the size of alpha and beta. Hope that helps.
+
+Avi
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+//[[Rcpp::depends(RcppArmadillo)]]
+
+//[[Rcpp::export]]
+double Sample_Exp_Single(vec alpha, vec beta) {
+  int m = alpha.size();
+  ivec S(2);
+  do {
+    S = randi<ivec>(2, distr_param(0, m - 1));
+  } while (S[0] == S[1]);
+  return exp(alpha(S[0]) + beta(S[1]));
+}
+
+//[[Rcpp::export]]
+vec Sample_Exp_Multi(int n, vec alpha, vec beta) {
+  int m = alpha.size();
+  vec answers(n);
+  ivec S(2);
+  for (std::size_t i = 0; i < n; ++i){
+    do {
+      S = randi<ivec>(2, distr_param(0, m - 1));
+    } while (S[0] == S[1]);
+    answers(i) = exp(alpha(S[0]) + beta(S[1]));
+  }
+  return(answers);
+}
+
+
+
+On Mon, Sep 12, 2016 at 8:21 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> On 12 September 2016 at 19:05, Avraham Adler wrote:
+> | What exactly is it that you are trying to do?
+>
+> Also review some resources on 'minimally reproducible example' as eg
+>
+> http://stackoverflow.com/questions/5963269/how-to-make-a-great-r-reproducible-example
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From avraham.adler at gmail.com  Wed Sep 14 16:52:38 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Wed, 14 Sep 2016 10:52:38 -0400
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <CAL6gwnKRAURwkvJrN-T5e4C_ODr_ehE3oSkUnaoKeCHuH8c3Rw@mail.gmail.com>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+ <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+ <22487.18059.364262.22265@max.nulle.part>
+ <CAL6gwnKRAURwkvJrN-T5e4C_ODr_ehE3oSkUnaoKeCHuH8c3Rw@mail.gmail.com>
+Message-ID: <CAL6gwnLEe2GwwNt5Nz1BMsNvqgNXixpXd2vDcLuAC1SmudKHAg@mail.gmail.com>
+
+Amina and I continued the conversation off list, but for closure purposes,
+the "multiple" version was tweaked a bit as there was comparison between
+signed and unsigned ints which did not throw an error for me, but did for
+Amina. Final multiple version posted below.
+
+Thanks,
+
+Avi
+
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+//[[Rcpp::depends(RcppArmadillo)]]
+
+//[[Rcpp::export]]
+vec Sample_Exp_Multi(size_t n, vec alpha, vec beta) {
+  size_t m = alpha.size();
+  vec answers(n);
+  uvec2 S;
+  for (size_t i = 0; i < n; ++i){
+    do {
+      S = randi<uvec>(2, distr_param(0, m - 1));
+    } while (S(0) == S(1));
+    answers(i) = exp(alpha(S(0)) + beta(S(1)));
+  }
+  return(answers);
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160914/4d30e381/attachment.html>
+
+From edd at debian.org  Wed Sep 14 17:12:27 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 14 Sep 2016 10:12:27 -0500
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <CAL6gwnLEe2GwwNt5Nz1BMsNvqgNXixpXd2vDcLuAC1SmudKHAg@mail.gmail.com>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+ <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+ <22487.18059.364262.22265@max.nulle.part>
+ <CAL6gwnKRAURwkvJrN-T5e4C_ODr_ehE3oSkUnaoKeCHuH8c3Rw@mail.gmail.com>
+ <CAL6gwnLEe2GwwNt5Nz1BMsNvqgNXixpXd2vDcLuAC1SmudKHAg@mail.gmail.com>
+Message-ID: <22489.26843.751532.594753@max.nulle.part>
+
+
+On 14 September 2016 at 10:52, Avraham Adler wrote:
+| "multiple" version was tweaked a bit as there was comparison between signed and
+| unsigned ints which did not throw an error for me, but did for Amina. Final
+
+<pedantic mode>
+  Then your compiler switches are too strong and take warnings
+  as errors. Most people either ignore this (not ideal bad) or
+  flag a warning.
+</pedantic mode>
+
+Thanks for bringing the discussion to closure, though, and for continued help
+here.  Much appreciate both.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aminashahzadi at gmail.com  Fri Sep 16 06:59:24 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Fri, 16 Sep 2016 16:59:24 +1200
+Subject: [Rcpp-devel] how to use R distributions while using RcppArmadillo
+Message-ID: <CAMbX5wkDAp=UjxVaNARUxykOaEUJhsinWurLys5E+ozX0VL-wg@mail.gmail.com>
+
+Hello Friends
+
+I tried to find that how we can use pnorm(), dpois() etc. using arma
+library. It is easy to use using Rcpp. Would anybody help ?
+
+Thank you
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160916/16494447/attachment.html>
+
+From edd at debian.org  Fri Sep 16 14:29:39 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 16 Sep 2016 07:29:39 -0500
+Subject: [Rcpp-devel] how to use R distributions while using
+	RcppArmadillo
+In-Reply-To: <CAMbX5wkDAp=UjxVaNARUxykOaEUJhsinWurLys5E+ozX0VL-wg@mail.gmail.com>
+References: <CAMbX5wkDAp=UjxVaNARUxykOaEUJhsinWurLys5E+ozX0VL-wg@mail.gmail.com>
+Message-ID: <22491.58803.130361.950547@max.nulle.part>
+
+
+On 16 September 2016 at 16:59, Amina Shahzadi wrote:
+| Hello Friends
+| 
+| I tried to find that how we can use pnorm(), dpois() etc. using arma library.
+| It is easy to use using Rcpp. Would anybody help ?
+
+Here you go:
+
+R> library(Rcpp)
+R> cppFunction("arma::vec foo() { return as<arma::vec>( rnorm(5) ); }", depends="RcppArmadillo")
+R> set.seed(42); foo()
+          [,1]
+[1,]  1.370958
+[2,] -0.564698
+[3,]  0.363128
+[4,]  0.632863
+[5,]  0.404268
+R> 
+R> set.seed(42); rnorm(5)
+[1]  1.370958 -0.564698  0.363128  0.632863  0.404268
+R>
+
+There are literally hundreds of more complex examples out there.  Just search.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jouni.helske at jyu.fi  Thu Sep 22 21:39:45 2016
+From: jouni.helske at jyu.fi (Helske, Jouni)
+Date: Thu, 22 Sep 2016 19:39:45 +0000
+Subject: [Rcpp-devel] Initializing Armadillo vec/cube from NumericVector
+ using as conversion
+Message-ID: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC0826@mbs2.ad.jyu.fi>
+
+Hi,
+
+I was recently hunting down a bug in my code, and stumbled upon a slightly incoherent behaviour in Rcpp/RcppArmadillo. In my real application I have a class which data members are initialized in initialization list from the Rcpp List using as<arma::cube>. For example, I have a member y which I initialize by y(as<arma::cube>(xlist["y"])). This caused some headaches if I later modified data member y, as the y in the list on R side was modified as well. I then realized that I need to use Rcpp::clone in order to make a deep copy of xlist object. But, this does not need to be done when initializing arma::vec or arma::mat. Is this purposeful or am I missing something?
+
+Simple example:
+
+void test1(const NumericVector& x) {
+  arma::cube ycube(as<arma::cube>(x));
+  ycube(0) = 0.5;
+}
+
+> y <- array(1:4, c(2,2,1)) #y is integer type, using automatic copy
+> test1(y)
+> y
+, , 1
+
+     [,1] [,2]
+[1,]    1    3
+[2,]    2    4
+
+> y <- array(as.numeric(1:4), c(2,2,1)) #y is numeric, no copy
+> test1(y)
+> y
+, , 1
+
+     [,1] [,2]
+[1,]  0.5    3
+[2,]  2.0    4
+
+
+But in case of arma::vec (or arma::mat), copying is always done:
+
+void test2(const NumericVector& x) {
+  arma::vec yvec(as<arma::vec>(x));
+  yvec(0) = 0.5;
+}
+
+> y <- as.numeric(1:8)
+> test2(y)
+> y
+[1] 1 2 3 4 5 6 7 8
+
+Best regards,
+
+Jouni Helske
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160922/53a99668/attachment.html>
+
+From edd at debian.org  Thu Sep 22 22:00:29 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 22 Sep 2016 15:00:29 -0500
+Subject: [Rcpp-devel] Initializing Armadillo vec/cube from NumericVector
+ using as conversion
+In-Reply-To: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC0826@mbs2.ad.jyu.fi>
+References: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC0826@mbs2.ad.jyu.fi>
+Message-ID: <22500.14429.903335.893429@max.nulle.part>
+
+
+Hi Jouni,
+
+On 22 September 2016 at 19:39, Helske, Jouni wrote:
+| Hi,
+| 
+| I was recently hunting down a bug in my code, and stumbled upon a slightly
+| incoherent behaviour in Rcpp/RcppArmadillo. In my real application I have a
+| class which data members are initialized in initialization list from the Rcpp
+| List using as<arma::cube>. For example, I have a member y which I initialize by
+| y(as<arma::cube>(xlist["y"])). This caused some headaches if I later modified
+| data member y, as the y in the list on R side was modified as well. I then
+| realized that I need to use Rcpp::clone in order to make a deep copy of xlist
+| object. But, this does not need to be done when initializing arma::vec or
+| arma::mat. Is this purposeful or am I missing something?
+
+arma::vec and arma::mat went through a few iterations and now use the
+'advanced constructors' (see arma docs) in what we think is the correct way.
+
+| Simple example:
+| 
+| void test1(const NumericVector& x) {
+|   arma::cube ycube(as<arma::cube>(x));
+|   ycube(0) = 0.5;
+| }
+| 
+| > y <- array(1:4, c(2,2,1)) #y is integer type, using automatic copy
+| > test1(y)
+| > y
+| , , 1
+| 
+|      [,1] [,2]
+| [1,]    1    3
+| [2,]    2    4
+| 
+| > y <- array(as.numeric(1:4), c(2,2,1)) #y is numeric, no copy
+| > test1(y)
+| > y
+| , , 1
+| 
+|      [,1] [,2]
+| [1,]  0.5    3
+| [2,]  2.0    4
+
+The copy due to the casting is unavoidable.  The non-copy on numeric is on purpose.
+ 
+| But in case of arma::vec (or arma::mat), copying is always done:
+| 
+| void test2(const NumericVector& x) {
+|   arma::vec yvec(as<arma::vec>(x));
+|   yvec(0) = 0.5;
+| }
+
+But here you force the copy by using NumericVector and using as<>. That was
+an older access pattern.
+
+Try
+
+ void test2(const arma::vec & x) {
+   x(0) = 0.5;
+ }
+
+This is now a proxy object so the 'outside value' should be changed too:
+
+R> cppFunction("void test2(arma::vec & x) { x(0) = 0.5; }",
+R> depends="RcppArmadillo")
+R> v <- sqrt(9:16)
+R> v
+[1] 3.00000 3.16228 3.31662 3.46410 3.60555 3.74166 3.87298 4.00000
+R> test2(v)
+R> v
+[1] 0.50000 3.16228 3.31662 3.46410 3.60555 3.74166 3.87298 4.00000
+R> 
+ 
+| > y <- as.numeric(1:8)
+| > test2(y)
+| > y
+| [1] 1 2 3 4 5 6 7 8
+
+You are such a long-time user that you may have stuck with as<>() for too
+long here :)   We can now do better.
+
+Hope this helps,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Sep 22 22:09:55 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 22 Sep 2016 15:09:55 -0500
+Subject: [Rcpp-devel] Initializing Armadillo vec/cube from NumericVector
+ using as conversion
+In-Reply-To: <22500.14429.903335.893429@max.nulle.part>
+References: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC0826@mbs2.ad.jyu.fi>
+ <22500.14429.903335.893429@max.nulle.part>
+Message-ID: <22500.14995.702502.650427@max.nulle.part>
+
+
+Oh, and it should work the same for cube types:
+
+R> cppFunction("void test2(arma::cube & x) { x(0,0,0) = 0.5; }",
+R> depends="RcppArmadillo")
+R> v <- array(sqrt(1:8), c(2, 2, 2))
+R> v
+, , 1
+
+        [,1]    [,2]
+        [1,] 1.00000 1.73205
+        [2,] 1.41421 2.00000
+
+, , 2
+
+        [,1]    [,2]
+        [1,] 2.23607 2.64575
+        [2,] 2.44949 2.82843
+
+R> test2(v)
+R> v
+, , 1
+
+        [,1]    [,2]
+        [1,] 0.50000 1.73205
+        [2,] 1.41421 2.00000
+
+, , 2
+
+        [,1]    [,2]
+        [1,] 2.23607 2.64575
+        [2,] 2.44949 2.82843
+
+R>
+
+Proxy object that still connected to the outside object, unless a cast is
+needed (int <-> double), or a copy is enforced (clone(), possibly via as<>()).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jouni.helske at jyu.fi  Thu Sep 22 22:38:13 2016
+From: jouni.helske at jyu.fi (Helske, Jouni)
+Date: Thu, 22 Sep 2016 20:38:13 +0000
+Subject: [Rcpp-devel] Initializing Armadillo vec/cube from NumericVector
+ using as conversion
+In-Reply-To: <22500.14995.702502.650427@max.nulle.part>
+References: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC0826@mbs2.ad.jyu.fi>
+ <22500.14429.903335.893429@max.nulle.part>,
+ <22500.14995.702502.650427@max.nulle.part>
+Message-ID: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC185C@mbs2.ad.jyu.fi>
+
+Hi Dirk,
+
+yes I am familiar with new style (thank you for that, it makes things much prettier), but I still have to (or do I?...) use the as<>() when I am picking the pieces out of Rcpp::List (https://github.com/helske/bssm/blob/master/src/gssm.cpp):
+
+....
+gssm::gssm(const List model, unsigned int seed) :
+  y(as<arma::vec>(model["y"])), Z(as<arma::mat>(model["Z"])),
+ H(as<arma::vec>(model["H"])), T(as<arma::cube>(model["T"])), ...
+
+I don't want to modify objects on the R side, so I had to use clone for the List model. I was just wondering why the behaviour is different for cube (tries to avoid a copy) than for vec/mat when using as<>() (always? forces a copy).
+
+Jouni
+
+________________________________________
+L?hett?j?: Dirk Eddelbuettel [edd at debian.org]
+L?hetetty: 22. syyskuuta 2016 23:09
+Vastaanottaja: Dirk Eddelbuettel
+Kopio: Helske, Jouni; rcpp-devel at lists.r-forge.r-project.org
+Aihe: Re: [Rcpp-devel] Initializing Armadillo vec/cube from NumericVector using as conversion
+
+Oh, and it should work the same for cube types:
+
+R> cppFunction("void test2(arma::cube & x) { x(0,0,0) = 0.5; }",
+R> depends="RcppArmadillo")
+R> v <- array(sqrt(1:8), c(2, 2, 2))
+R> v
+, , 1
+
+        [,1]    [,2]
+        [1,] 1.00000 1.73205
+        [2,] 1.41421 2.00000
+
+, , 2
+
+        [,1]    [,2]
+        [1,] 2.23607 2.64575
+        [2,] 2.44949 2.82843
+
+R> test2(v)
+R> v
+, , 1
+
+        [,1]    [,2]
+        [1,] 0.50000 1.73205
+        [2,] 1.41421 2.00000
+
+, , 2
+
+        [,1]    [,2]
+        [1,] 2.23607 2.64575
+        [2,] 2.44949 2.82843
+
+R>
+
+Proxy object that still connected to the outside object, unless a cast is
+needed (int <-> double), or a copy is enforced (clone(), possibly via as<>()).
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Sep 22 22:56:54 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 22 Sep 2016 15:56:54 -0500
+Subject: [Rcpp-devel] Initializing Armadillo vec/cube from NumericVector
+ using as conversion
+In-Reply-To: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC185C@mbs2.ad.jyu.fi>
+References: <7FC11B33B8C53E4EB9510C0BAA73EAE353FC0826@mbs2.ad.jyu.fi>
+ <22500.14429.903335.893429@max.nulle.part>
+ <22500.14995.702502.650427@max.nulle.part>
+ <7FC11B33B8C53E4EB9510C0BAA73EAE353FC185C@mbs2.ad.jyu.fi>
+Message-ID: <22500.17814.774570.414587@max.nulle.part>
+
+
+Hi Jouni,
+
+On 22 September 2016 at 20:38, Helske, Jouni wrote:
+| yes I am familiar with new style (thank you for that, it makes things much prettier), but I still have to (or do I?...) use the as<>() when I am picking the pieces out of Rcpp::List (https://github.com/helske/bssm/blob/master/src/gssm.cpp):
+| 
+| ....
+| gssm::gssm(const List model, unsigned int seed) :
+|   y(as<arma::vec>(model["y"])), Z(as<arma::mat>(model["Z"])),
+|  H(as<arma::vec>(model["H"])), T(as<arma::cube>(model["T"])), ...
+| 
+| I don't want to modify objects on the R side, so I had to use clone for the List model. I was just wondering why the behaviour is different for cube (tries to avoid a copy) than for vec/mat when using as<>() (always? forces a copy).
+
+I see. That is a potentially more hairy question because now we at the
+'conversion from SEXP' (as a member of Rcpp::List) level.
+
+The nice thing is that we have an existence proof in what Rcpp Attributes
+does, so you could always re-run snippets like the one I have below with
+verbose=TRUE (and maybe rebuild=TRUE).  In this case we see
+
+  Rcpp::traits::input_parameter< arma::cube& >::type x(xSEXP);
+  test2(x);
+
+The differences between vec and mat on the one hand and cube on the other are
+probably accidental. If you have time to chase this and clean it up a PR
+would be great.
+
+Dirk
+
+
+| Jouni
+| 
+| ________________________________________
+| L?hett?j?: Dirk Eddelbuettel [edd at debian.org]
+| L?hetetty: 22. syyskuuta 2016 23:09
+| Vastaanottaja: Dirk Eddelbuettel
+| Kopio: Helske, Jouni; rcpp-devel at lists.r-forge.r-project.org
+| Aihe: Re: [Rcpp-devel] Initializing Armadillo vec/cube from NumericVector using as conversion
+| 
+| Oh, and it should work the same for cube types:
+| 
+| R> cppFunction("void test2(arma::cube & x) { x(0,0,0) = 0.5; }",
+| R> depends="RcppArmadillo")
+| R> v <- array(sqrt(1:8), c(2, 2, 2))
+| R> v
+| , , 1
+| 
+|         [,1]    [,2]
+|         [1,] 1.00000 1.73205
+|         [2,] 1.41421 2.00000
+| 
+| , , 2
+| 
+|         [,1]    [,2]
+|         [1,] 2.23607 2.64575
+|         [2,] 2.44949 2.82843
+| 
+| R> test2(v)
+| R> v
+| , , 1
+| 
+|         [,1]    [,2]
+|         [1,] 0.50000 1.73205
+|         [2,] 1.41421 2.00000
+| 
+| , , 2
+| 
+|         [,1]    [,2]
+|         [1,] 2.23607 2.64575
+|         [2,] 2.44949 2.82843
+| 
+| R>
+| 
+| Proxy object that still connected to the outside object, unless a cast is
+| needed (int <-> double), or a copy is enforced (clone(), possibly via as<>()).
+| 
+| Dirk
+| 
+| --
+| http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aminashahzadi at gmail.com  Fri Sep 23 08:17:16 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Fri, 23 Sep 2016 18:17:16 +1200
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <CAL6gwnLEe2GwwNt5Nz1BMsNvqgNXixpXd2vDcLuAC1SmudKHAg@mail.gmail.com>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+ <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+ <22487.18059.364262.22265@max.nulle.part>
+ <CAL6gwnKRAURwkvJrN-T5e4C_ODr_ehE3oSkUnaoKeCHuH8c3Rw@mail.gmail.com>
+ <CAL6gwnLEe2GwwNt5Nz1BMsNvqgNXixpXd2vDcLuAC1SmudKHAg@mail.gmail.com>
+Message-ID: <CAMbX5wmX2LFgGwWu8o43grwJ7FA9WwetfAnxZRRqMKeUhHZeFg@mail.gmail.com>
+
+Hello Dirk, Adler and Rcpp Colleagues
+
+Would you please guide me why the following code is giving the error of "
+
+cannot convert 'arma::subview_elem1<double, arma::mtOp<unsigned int,
+arma::mtGlue<unsigned int, arma::mtOp<unsigned int, arma::Col<unsigned
+int>, arma::op_rel_noteq>, arma::mtOp<unsigned int, arma::Col<unsigned
+int>, arma::op_rel_noteq>, arma::glue_rel_and>, arma::op_find_simple>
+>' to 'double' in initialization"
+
+
+The problem is in double alpha1 and double beta1.
+
+
+
+The code is:
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+
+// A example of indexing some elements of a vector
+
+arma::vec Vec_Index(arma::vec alpha, arma::vec beta)
+{
+  int m = alpha.size();
+  arma::uvec index(m);
+  arma::vec a(m);
+  for(int i=0; i<m; i++)
+  {
+    index(i) = i;
+  }
+  for(int i=0; i<m; i++){
+    for(int j=0; j<m; j++){
+      double alpha1 = alpha.elem(find(index !=i && index !=j));
+      double beta1 = beta.elem(find(index !=j && index !=j));
+    a(i) = exp(alpha1+beta1);
+  }
+  }
+  return a;
+}
+
+
+
+
+
+
+
+
+
+On Thu, Sep 15, 2016 at 2:52 AM, Avraham Adler <avraham.adler at gmail.com>
+wrote:
+
+> Amina and I continued the conversation off list, but for closure purposes,
+> the "multiple" version was tweaked a bit as there was comparison between
+> signed and unsigned ints which did not throw an error for me, but did for
+> Amina. Final multiple version posted below.
+>
+> Thanks,
+>
+> Avi
+>
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> using namespace arma;
+> //[[Rcpp::depends(RcppArmadillo)]]
+>
+> //[[Rcpp::export]]
+> vec Sample_Exp_Multi(size_t n, vec alpha, vec beta) {
+>   size_t m = alpha.size();
+>   vec answers(n);
+>   uvec2 S;
+>   for (size_t i = 0; i < n; ++i){
+>     do {
+>       S = randi<uvec>(2, distr_param(0, m - 1));
+>     } while (S(0) == S(1));
+>     answers(i) = exp(alpha(S(0)) + beta(S(1)));
+>   }
+>   return(answers);
+> }
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160923/07201c4e/attachment-0001.html>
+
+From edd at debian.org  Fri Sep 23 13:32:54 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 23 Sep 2016 06:32:54 -0500
+Subject: [Rcpp-devel] Error still there
+In-Reply-To: <CAMbX5wmX2LFgGwWu8o43grwJ7FA9WwetfAnxZRRqMKeUhHZeFg@mail.gmail.com>
+References: <CAMbX5wk7Ek5ErF0BKj1NJA=GDBCxzimPoskDJ-NNB9QLfa+vpA@mail.gmail.com>
+ <CAL6gwnKDAGRz=Xs5xU_tVNFG0V5FkwsgAUEyJ1t=pnFbZDGmCw@mail.gmail.com>
+ <22487.18059.364262.22265@max.nulle.part>
+ <CAL6gwnKRAURwkvJrN-T5e4C_ODr_ehE3oSkUnaoKeCHuH8c3Rw@mail.gmail.com>
+ <CAL6gwnLEe2GwwNt5Nz1BMsNvqgNXixpXd2vDcLuAC1SmudKHAg@mail.gmail.com>
+ <CAMbX5wmX2LFgGwWu8o43grwJ7FA9WwetfAnxZRRqMKeUhHZeFg@mail.gmail.com>
+Message-ID: <22501.4838.346504.130404@max.nulle.part>
+
+
+On 23 September 2016 at 18:17, Amina Shahzadi wrote:
+| Hello Dirk, Adler and Rcpp Colleagues
+| 
+| Would you please guide me why the following code is giving the error of "
+| 
+| cannot convert 'arma::subview_elem1<double, arma::mtOp<unsigned int, arma::mtGlue<unsigned int, arma::mtOp<unsigned int, arma::Col<unsigned int>, arma::op_rel_noteq>, arma::mtOp<unsigned int, arma::Col<unsigned int>, arma::op_rel_noteq>, arma::glue_rel_and>, arma::op_find_simple> >' to 'double' in initialization"
+| 
+| 
+| The problem is in double alpha1 and double beta1.
+
+The _core_ of the error message is reasonably clear: you cannot assign a arma
+type (of some sort ... here stemming of the subsetting) to a double.
+
+Solution: use as_scalar() -- see the Armadillo documentation for more -- ie
+use these three lines at the core of your loops:
+
+      double alpha1 = as_scalar(alpha.elem(find(index !=i && index !=j)));
+      double beta1 = as_scalar(beta.elem(find(index !=j && index !=j)));
+      a(i) = exp(alpha1+beta1);
+                  
+Dirk
+
+| 
+| 
+| 
+| The code is:
+| 
+| #include <RcppArmadillo.h>
+| using namespace Rcpp;
+| using namespace RcppArmadillo;
+| //[[Rcpp::depends(RcppArmadillo)]]
+| //[[Rcpp::export]]
+| 
+| // A example of indexing some elements of a vector
+| 
+| arma::vec Vec_Index(arma::vec alpha, arma::vec beta)
+| {
+| ? int m = alpha.size();
+| ? arma::uvec index(m);
+| ? arma::vec a(m);
+| ? for(int i=0; i<m; i++)
+| ? {
+| ??? index(i) = i;
+| ? }
+| ? for(int i=0; i<m; i++){
+| ??? for(int j=0; j<m; j++){
+| ????? double alpha1 = alpha.elem(find(index !=i && index !=j));
+| ????? double beta1 = beta.elem(find(index !=j && index !=j));
+| ??? a(i) = exp(alpha1+beta1);
+| ? }
+| ? }
+| ? return a;
+| }
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| 
+| On Thu, Sep 15, 2016 at 2:52 AM, Avraham Adler <avraham.adler at gmail.com> wrote:
+| 
+|     Amina and I continued the conversation off list, but for closure purposes,
+|     the "multiple" version was tweaked a bit as there was comparison between
+|     signed and unsigned ints which did not throw an error for me, but did for
+|     Amina. Final multiple version posted below.
+| 
+|     Thanks,
+| 
+|     Avi
+| 
+| 
+|     #include <RcppArmadillo.h>
+|     using namespace Rcpp;
+|     using namespace RcppArmadillo;
+|     using namespace arma;
+|     //[[Rcpp::depends(RcppArmadillo)]]
+| 
+|     //[[Rcpp::export]]
+|     vec Sample_Exp_Multi(size_t n, vec alpha, vec beta) {
+|     ? size_t m = alpha.size();
+|     ? vec answers(n);
+|     ? uvec2 S;
+|     ? for (size_t i = 0; i < n; ++i){
+|     ? ? do {
+|     ? ? ? S = randi<uvec>(2, distr_param(0, m - 1));
+|     ? ? } while (S(0) == S(1));
+|     ? ? answers(i) = exp(alpha(S(0)) + beta(S(1)));
+|     ? }
+|     ? return(answers);
+|     }
+| 
+|     _______________________________________________
+|     Rcpp-devel mailing list
+|     Rcpp-devel at lists.r-forge.r-project.org
+|     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| 
+| 
+| 
+| 
+| --
+| Amina Shahzadi
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aminashahzadi at gmail.com  Mon Sep 26 23:59:09 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Tue, 27 Sep 2016 10:59:09 +1300
+Subject: [Rcpp-devel] Variable for loop
+Message-ID: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+
+Hi Dear
+
+I have a problem in using a variable for loop in using RcppArmadillo
+library.
+I have pasting here my code. It is executing but not giving the same
+results as its R code version gives. The results produced by it are really
+weird. I have checked it step by step. It is because of the for (int q=0;
+q<i; q++). I request tp please help how to handle it in cpp.
+
+The another question is I want to multiply the cube b(i, ,) by a scalar.
+How can we consider the entire columns and slices of a cube for each of the
+rows.  "b(span(i), span(), span())"  is not working for me.
+
+Thank you
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+arma::cube up(arma::mat a){
+  int m = a.n_cols;
+  int n = a.n_rows;
+  int p = a.n_rows;
+  arma::cube b(n, m, p);
+  for(int i=0; i<n; i++){
+      for(int j=0; j<m; j++){
+        for(int q=0; q<i; q++){
+         if(q==0){
+           b(i, j, q) = a(i, j);
+         }
+         else{
+           b(i, j, q) = 0.0;
+         }
+      }
+    }
+  }
+  return b;
+}
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160927/061fb7d6/attachment.html>
+
+From avraham.adler at gmail.com  Tue Sep 27 03:51:03 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Mon, 26 Sep 2016 21:51:03 -0400
+Subject: [Rcpp-devel] Variable for loop
+In-Reply-To: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+References: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+Message-ID: <CAL6gwnJozSgcmh2ASCqMcN5Nk47SsndL+eyR4PScwVZGzR=7dw@mail.gmail.com>
+
+Hello.
+
+Once again, it is very unclear what you want to do. Can you please
+explain, in English not code what your procedure intends to do, the
+input you expect, and the output you expect?
+
+What it LOOKS like you want to do is to create an N x M x N cube where
+the first slice is your matrix and the remaining slices are all 0. If
+that is the case, There are much, much simpler ways to do it than to
+traverse all N?M cells. The following should work.
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+
+//[[Rcpp::export]]
+arma::cube fillup(arma::mat a){
+  int m = a.n_cols;
+  int n = a.n_rows;
+  arma::cube C = arma::cube(n, m, n, arma::fill::zeros);
+
+  C.slice(0) = a;
+
+  return(C);
+}
+
+Avi
+
+On Mon, Sep 26, 2016 at 5:59 PM, Amina Shahzadi <aminashahzadi at gmail.com> wrote:
+> Hi Dear
+>
+> I have a problem in using a variable for loop in using RcppArmadillo
+> library.
+> I have pasting here my code. It is executing but not giving the same results
+> as its R code version gives. The results produced by it are really weird. I
+> have checked it step by step. It is because of the for (int q=0; q<i; q++).
+> I request tp please help how to handle it in cpp.
+>
+> The another question is I want to multiply the cube b(i, ,) by a scalar. How
+> can we consider the entire columns and slices of a cube for each of the
+> rows.  "b(span(i), span(), span())"  is not working for me.
+>
+> Thank you
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> //[[Rcpp::depends(RcppArmadillo)]]
+> //[[Rcpp::export]]
+> arma::cube up(arma::mat a){
+>   int m = a.n_cols;
+>   int n = a.n_rows;
+>   int p = a.n_rows;
+>   arma::cube b(n, m, p);
+>   for(int i=0; i<n; i++){
+>       for(int j=0; j<m; j++){
+>         for(int q=0; q<i; q++){
+>          if(q==0){
+>            b(i, j, q) = a(i, j);
+>          }
+>          else{
+>            b(i, j, q) = 0.0;
+>          }
+>       }
+>     }
+>   }
+>   return b;
+> }
+>
+> --
+> Amina Shahzadi
+
+From aminashahzadi at gmail.com  Tue Sep 27 04:07:02 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Tue, 27 Sep 2016 15:07:02 +1300
+Subject: [Rcpp-devel] Variable for loop
+In-Reply-To: <CAL6gwnJozSgcmh2ASCqMcN5Nk47SsndL+eyR4PScwVZGzR=7dw@mail.gmail.com>
+References: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+ <CAL6gwnJozSgcmh2ASCqMcN5Nk47SsndL+eyR4PScwVZGzR=7dw@mail.gmail.com>
+Message-ID: <CAMbX5w=zAxuB61HybzVg4aN-eej6r5+aW0zChQp2nterU30x9A@mail.gmail.com>
+
+Hi Dear
+
+My purpose is to make run of a variable for loop. Here I have assumed else
+statement to be zero. Otherwise it could be anything for example in the
+following code.
+In this code, my main aim to run the slices loop according to rows.
+does it now look ok?
+
+
+Thank you
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+//[[Rcpp::depends(RcppArmadillo)]]
+//[[Rcpp::export]]
+arma::cube up(arma::mat a){
+  int m = a.n_cols;
+  int n = a.n_rows;
+  int p = a.n_rows;
+  arma::cube b(n, m, p);
+  for(int i=0; i<n; i++){
+      for(int j=0; j<m; j++){
+        for(int q=0; q<i; q++){
+         if(q==0){
+           b(i, j, q) = a(i, j);
+         }
+         else{
+           b(i, j, q) = b(i-1, j, q-1) * a(i, j);
+         }
+      }
+    }
+  }
+  return b;
+}
+
+On Tue, Sep 27, 2016 at 2:51 PM, Avraham Adler <avraham.adler at gmail.com>
+wrote:
+
+> Hello.
+>
+> Once again, it is very unclear what you want to do. Can you please
+> explain, in English not code what your procedure intends to do, the
+> input you expect, and the output you expect?
+>
+> What it LOOKS like you want to do is to create an N x M x N cube where
+> the first slice is your matrix and the remaining slices are all 0. If
+> that is the case, There are much, much simpler ways to do it than to
+> traverse all N?M cells. The following should work.
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> //[[Rcpp::depends(RcppArmadillo)]]
+>
+> //[[Rcpp::export]]
+> arma::cube fillup(arma::mat a){
+>   int m = a.n_cols;
+>   int n = a.n_rows;
+>   arma::cube C = arma::cube(n, m, n, arma::fill::zeros);
+>
+>   C.slice(0) = a;
+>
+>   return(C);
+> }
+>
+> Avi
+>
+> On Mon, Sep 26, 2016 at 5:59 PM, Amina Shahzadi <aminashahzadi at gmail.com>
+> wrote:
+> > Hi Dear
+> >
+> > I have a problem in using a variable for loop in using RcppArmadillo
+> > library.
+> > I have pasting here my code. It is executing but not giving the same
+> results
+> > as its R code version gives. The results produced by it are really
+> weird. I
+> > have checked it step by step. It is because of the for (int q=0; q<i;
+> q++).
+> > I request tp please help how to handle it in cpp.
+> >
+> > The another question is I want to multiply the cube b(i, ,) by a scalar.
+> How
+> > can we consider the entire columns and slices of a cube for each of the
+> > rows.  "b(span(i), span(), span())"  is not working for me.
+> >
+> > Thank you
+> >
+> > #include <RcppArmadillo.h>
+> > using namespace Rcpp;
+> > using namespace RcppArmadillo;
+> > //[[Rcpp::depends(RcppArmadillo)]]
+> > //[[Rcpp::export]]
+> > arma::cube up(arma::mat a){
+> >   int m = a.n_cols;
+> >   int n = a.n_rows;
+> >   int p = a.n_rows;
+> >   arma::cube b(n, m, p);
+> >   for(int i=0; i<n; i++){
+> >       for(int j=0; j<m; j++){
+> >         for(int q=0; q<i; q++){
+> >          if(q==0){
+> >            b(i, j, q) = a(i, j);
+> >          }
+> >          else{
+> >            b(i, j, q) = 0.0;
+> >          }
+> >       }
+> >     }
+> >   }
+> >   return b;
+> > }
+> >
+> > --
+> > Amina Shahzadi
+>
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160927/0d5aacfd/attachment.html>
+
+From avraham.adler at gmail.com  Tue Sep 27 04:22:50 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Mon, 26 Sep 2016 22:22:50 -0400
+Subject: [Rcpp-devel] Variable for loop
+In-Reply-To: <CAMbX5w=zAxuB61HybzVg4aN-eej6r5+aW0zChQp2nterU30x9A@mail.gmail.com>
+References: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+ <CAL6gwnJozSgcmh2ASCqMcN5Nk47SsndL+eyR4PScwVZGzR=7dw@mail.gmail.com>
+ <CAMbX5w=zAxuB61HybzVg4aN-eej6r5+aW0zChQp2nterU30x9A@mail.gmail.com>
+Message-ID: <CAL6gwnJw0K7K72Nn+CpsfSMbZZpewG2__g4xSD0FybGXh41CRg@mail.gmail.com>
+
+Please give a simple example of an input and its expected output.
+Unfortunately "run of a variable for loop" is too general for me to
+understand.
+
+Avi
+
+On Mon, Sep 26, 2016 at 10:07 PM, Amina Shahzadi
+<aminashahzadi at gmail.com> wrote:
+> Hi Dear
+>
+> My purpose is to make run of a variable for loop. Here I have assumed else
+> statement to be zero. Otherwise it could be anything for example in the
+> following code.
+> In this code, my main aim to run the slices loop according to rows.
+> does it now look ok?
+>
+>
+> Thank you
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> //[[Rcpp::depends(RcppArmadillo)]]
+> //[[Rcpp::export]]
+> arma::cube up(arma::mat a){
+>   int m = a.n_cols;
+>   int n = a.n_rows;
+>   int p = a.n_rows;
+>   arma::cube b(n, m, p);
+>   for(int i=0; i<n; i++){
+>       for(int j=0; j<m; j++){
+>         for(int q=0; q<i; q++){
+>          if(q==0){
+>            b(i, j, q) = a(i, j);
+>          }
+>          else{
+>            b(i, j, q) = b(i-1, j, q-1) * a(i, j);
+>          }
+>       }
+>     }
+>   }
+>   return b;
+> }
+>
+> On Tue, Sep 27, 2016 at 2:51 PM, Avraham Adler <avraham.adler at gmail.com>
+> wrote:
+>>
+>> Hello.
+>>
+>> Once again, it is very unclear what you want to do. Can you please
+>> explain, in English not code what your procedure intends to do, the
+>> input you expect, and the output you expect?
+>>
+>> What it LOOKS like you want to do is to create an N x M x N cube where
+>> the first slice is your matrix and the remaining slices are all 0. If
+>> that is the case, There are much, much simpler ways to do it than to
+>> traverse all N?M cells. The following should work.
+>>
+>> #include <RcppArmadillo.h>
+>> using namespace Rcpp;
+>> using namespace RcppArmadillo;
+>> //[[Rcpp::depends(RcppArmadillo)]]
+>>
+>> //[[Rcpp::export]]
+>> arma::cube fillup(arma::mat a){
+>>   int m = a.n_cols;
+>>   int n = a.n_rows;
+>>   arma::cube C = arma::cube(n, m, n, arma::fill::zeros);
+>>
+>>   C.slice(0) = a;
+>>
+>>   return(C);
+>> }
+>>
+>> Avi
+>>
+>> On Mon, Sep 26, 2016 at 5:59 PM, Amina Shahzadi <aminashahzadi at gmail.com>
+>> wrote:
+>> > Hi Dear
+>> >
+>> > I have a problem in using a variable for loop in using RcppArmadillo
+>> > library.
+>> > I have pasting here my code. It is executing but not giving the same
+>> > results
+>> > as its R code version gives. The results produced by it are really
+>> > weird. I
+>> > have checked it step by step. It is because of the for (int q=0; q<i;
+>> > q++).
+>> > I request tp please help how to handle it in cpp.
+>> >
+>> > The another question is I want to multiply the cube b(i, ,) by a scalar.
+>> > How
+>> > can we consider the entire columns and slices of a cube for each of the
+>> > rows.  "b(span(i), span(), span())"  is not working for me.
+>> >
+>> > Thank you
+>> >
+>> > #include <RcppArmadillo.h>
+>> > using namespace Rcpp;
+>> > using namespace RcppArmadillo;
+>> > //[[Rcpp::depends(RcppArmadillo)]]
+>> > //[[Rcpp::export]]
+>> > arma::cube up(arma::mat a){
+>> >   int m = a.n_cols;
+>> >   int n = a.n_rows;
+>> >   int p = a.n_rows;
+>> >   arma::cube b(n, m, p);
+>> >   for(int i=0; i<n; i++){
+>> >       for(int j=0; j<m; j++){
+>> >         for(int q=0; q<i; q++){
+>> >          if(q==0){
+>> >            b(i, j, q) = a(i, j);
+>> >          }
+>> >          else{
+>> >            b(i, j, q) = 0.0;
+>> >          }
+>> >       }
+>> >     }
+>> >   }
+>> >   return b;
+>> > }
+>> >
+>> > --
+>> > Amina Shahzadi
+>
+>
+>
+>
+> --
+> Amina Shahzadi
+
+From aminashahzadi at gmail.com  Tue Sep 27 04:31:31 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Tue, 27 Sep 2016 15:31:31 +1300
+Subject: [Rcpp-devel] Variable for loop
+In-Reply-To: <CAL6gwnJw0K7K72Nn+CpsfSMbZZpewG2__g4xSD0FybGXh41CRg@mail.gmail.com>
+References: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+ <CAL6gwnJozSgcmh2ASCqMcN5Nk47SsndL+eyR4PScwVZGzR=7dw@mail.gmail.com>
+ <CAMbX5w=zAxuB61HybzVg4aN-eej6r5+aW0zChQp2nterU30x9A@mail.gmail.com>
+ <CAL6gwnJw0K7K72Nn+CpsfSMbZZpewG2__g4xSD0FybGXh41CRg@mail.gmail.com>
+Message-ID: <CAMbX5wmHS79Yt-xfmC6mNG-U_dwuho-JBx3jR7ti8B=YNkHJcA@mail.gmail.com>
+
+Hi Dear
+This is the corresponding R code which I want to have the same result from
+rcpp code.
+
+set.seed(11)
+a = matrix(runif(30), nrow=10, ncol=3)
+n=10
+m=3
+b = array(as.double(0), dim = c(n, m, n))
+for(i in 1:n){
+  for(j in 1:m){
+    for(q in 1:i){
+      if(q==1){
+        b[i, j, q] = a[i, j];
+      }
+      else{
+        b[i, j, q] = b[i-1, j, q-1] * a[i, j];
+      }
+    }
+  }
+}
+
+
+On Tue, Sep 27, 2016 at 3:22 PM, Avraham Adler <avraham.adler at gmail.com>
+wrote:
+
+> Please give a simple example of an input and its expected output.
+> Unfortunately "run of a variable for loop" is too general for me to
+> understand.
+>
+> Avi
+>
+> On Mon, Sep 26, 2016 at 10:07 PM, Amina Shahzadi
+> <aminashahzadi at gmail.com> wrote:
+> > Hi Dear
+> >
+> > My purpose is to make run of a variable for loop. Here I have assumed
+> else
+> > statement to be zero. Otherwise it could be anything for example in the
+> > following code.
+> > In this code, my main aim to run the slices loop according to rows.
+> > does it now look ok?
+> >
+> >
+> > Thank you
+> >
+> > #include <RcppArmadillo.h>
+> > using namespace Rcpp;
+> > using namespace RcppArmadillo;
+> > //[[Rcpp::depends(RcppArmadillo)]]
+> > //[[Rcpp::export]]
+> > arma::cube up(arma::mat a){
+> >   int m = a.n_cols;
+> >   int n = a.n_rows;
+> >   int p = a.n_rows;
+> >   arma::cube b(n, m, p);
+> >   for(int i=0; i<n; i++){
+> >       for(int j=0; j<m; j++){
+> >         for(int q=0; q<i; q++){
+> >          if(q==0){
+> >            b(i, j, q) = a(i, j);
+> >          }
+> >          else{
+> >            b(i, j, q) = b(i-1, j, q-1) * a(i, j);
+> >          }
+> >       }
+> >     }
+> >   }
+> >   return b;
+> > }
+> >
+> > On Tue, Sep 27, 2016 at 2:51 PM, Avraham Adler <avraham.adler at gmail.com>
+> > wrote:
+> >>
+> >> Hello.
+> >>
+> >> Once again, it is very unclear what you want to do. Can you please
+> >> explain, in English not code what your procedure intends to do, the
+> >> input you expect, and the output you expect?
+> >>
+> >> What it LOOKS like you want to do is to create an N x M x N cube where
+> >> the first slice is your matrix and the remaining slices are all 0. If
+> >> that is the case, There are much, much simpler ways to do it than to
+> >> traverse all N?M cells. The following should work.
+> >>
+> >> #include <RcppArmadillo.h>
+> >> using namespace Rcpp;
+> >> using namespace RcppArmadillo;
+> >> //[[Rcpp::depends(RcppArmadillo)]]
+> >>
+> >> //[[Rcpp::export]]
+> >> arma::cube fillup(arma::mat a){
+> >>   int m = a.n_cols;
+> >>   int n = a.n_rows;
+> >>   arma::cube C = arma::cube(n, m, n, arma::fill::zeros);
+> >>
+> >>   C.slice(0) = a;
+> >>
+> >>   return(C);
+> >> }
+> >>
+> >> Avi
+> >>
+> >> On Mon, Sep 26, 2016 at 5:59 PM, Amina Shahzadi <
+> aminashahzadi at gmail.com>
+> >> wrote:
+> >> > Hi Dear
+> >> >
+> >> > I have a problem in using a variable for loop in using RcppArmadillo
+> >> > library.
+> >> > I have pasting here my code. It is executing but not giving the same
+> >> > results
+> >> > as its R code version gives. The results produced by it are really
+> >> > weird. I
+> >> > have checked it step by step. It is because of the for (int q=0; q<i;
+> >> > q++).
+> >> > I request tp please help how to handle it in cpp.
+> >> >
+> >> > The another question is I want to multiply the cube b(i, ,) by a
+> scalar.
+> >> > How
+> >> > can we consider the entire columns and slices of a cube for each of
+> the
+> >> > rows.  "b(span(i), span(), span())"  is not working for me.
+> >> >
+> >> > Thank you
+> >> >
+> >> > #include <RcppArmadillo.h>
+> >> > using namespace Rcpp;
+> >> > using namespace RcppArmadillo;
+> >> > //[[Rcpp::depends(RcppArmadillo)]]
+> >> > //[[Rcpp::export]]
+> >> > arma::cube up(arma::mat a){
+> >> >   int m = a.n_cols;
+> >> >   int n = a.n_rows;
+> >> >   int p = a.n_rows;
+> >> >   arma::cube b(n, m, p);
+> >> >   for(int i=0; i<n; i++){
+> >> >       for(int j=0; j<m; j++){
+> >> >         for(int q=0; q<i; q++){
+> >> >          if(q==0){
+> >> >            b(i, j, q) = a(i, j);
+> >> >          }
+> >> >          else{
+> >> >            b(i, j, q) = 0.0;
+> >> >          }
+> >> >       }
+> >> >     }
+> >> >   }
+> >> >   return b;
+> >> > }
+> >> >
+> >> > --
+> >> > Amina Shahzadi
+> >
+> >
+> >
+> >
+> > --
+> > Amina Shahzadi
+>
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160927/f738f24b/attachment-0001.html>
+
+From avraham.adler at gmail.com  Tue Sep 27 05:52:43 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Mon, 26 Sep 2016 23:52:43 -0400
+Subject: [Rcpp-devel] Variable for loop
+In-Reply-To: <CAMbX5wmHS79Yt-xfmC6mNG-U_dwuho-JBx3jR7ti8B=YNkHJcA@mail.gmail.com>
+References: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+ <CAL6gwnJozSgcmh2ASCqMcN5Nk47SsndL+eyR4PScwVZGzR=7dw@mail.gmail.com>
+ <CAMbX5w=zAxuB61HybzVg4aN-eej6r5+aW0zChQp2nterU30x9A@mail.gmail.com>
+ <CAL6gwnJw0K7K72Nn+CpsfSMbZZpewG2__g4xSD0FybGXh41CRg@mail.gmail.com>
+ <CAMbX5wmHS79Yt-xfmC6mNG-U_dwuho-JBx3jR7ti8B=YNkHJcA@mail.gmail.com>
+Message-ID: <CAL6gwnJ1GNf74gGib__hNzhZVEBR2xDbkng0+oOfBqx47FknAQ@mail.gmail.com>
+
+Hello, Amina.
+
+It is much, much, much easier to deal with small, simplified,
+examples, as Dirk and others have explained before. Changing your code
+to make n = 4 and the values seq(1, 12), we can see the pattern. For
+each slice, you are taking the product down the rows of "slice" number
+of entries. So the first slice is the 1-element product of the
+entries, or just a copy of the original matrix. Now, putting the index
+names back in familiar context (M rows and N columns), for the second
+slice, C(2, 1, 2) = A(1, 1) * A(2, 1). C(3, 1, 2) = A(2, 1) * A(3, 1),
+etc. For the third slice, we have 3-element products So C(1, , 3) and
+C(2, , 3) are 0. C(3, 1, 3) = A(1, 1) * A(2, 1) * A(3, 1), etc. In the
+last slice there is only one entry in the last row and it is the
+product of each column in its entirety.
+
+That being said, the way I would approach it is to use Armadillo's
+subsetting to get the needed vector and use Armadillo's product
+function to get their product.
+
+First, we'll turn your fixed R code into a function which we can reuse
+by creating any a you want and passing it to up_R
+
+up_R <- function(a){
+  m = dim(a)[[1]]
+  n = dim(a)[[2]]
+  b = array(as.double(0), dim = c(m, n, m))
+  for(i in 1:m){
+    for(j in 1:n){
+      for(q in 1:i){
+        if(q==1){
+          b[i, j, q] = a[i, j];
+        }
+        else{
+          b[i, j, q] = b[i-1, j, q-1] * a[i, j];
+        }
+      }
+    }
+  }
+  return(b)
+}
+
+The way I would approach the problem from first principles, knowing
+what you actually intended, is as follows:
+
+#include <RcppArmadillo.h>
+using namespace Rcpp;
+using namespace RcppArmadillo;
+using namespace arma;
+//[[Rcpp::depends(RcppArmadillo)]]
+
+//[[Rcpp::export]]
+cube up_C(mat a){
+  int m = a.n_rows;
+  int n = a.n_cols;
+  cube C = cube(m, n, m, fill::zeros);
+  C.slice(0) = a;
+  for (int slices = 1; slices < m; ++slices){
+    for (int j = 0; j < n; ++j) {
+      for (int i = slices; i < m; ++i) {
+        vec S = C.subcube(i - slices, j, 0, i, j, 0);
+        C(i, j, slices) = prod(S);
+      }
+    }
+  }
+  return(C);
+}
+
+This pulls the "slices" length subset of the jth column starting at
+slices and ending at i from the 0th slice (which is the original
+matrix) and puts the product in to the C(i, j, slices) entry.
+
+You can test the two are identical through identical(up_C(a), up_R(a))
+for any a, and the C version is, of course, much faster especially for
+large matrices.
+
+It often pays to start with something simpler, and see if there is a
+pattern you can identify which would help you conceptually, even if
+not completely optimized.
+
+Avi
+
+
+
+
+On Mon, Sep 26, 2016 at 10:31 PM, Amina Shahzadi
+<aminashahzadi at gmail.com> wrote:
+> Hi Dear
+> This is the corresponding R code which I want to have the same result from
+> rcpp code.
+>
+> set.seed(11)
+> a = matrix(runif(30), nrow=10, ncol=3)
+> n=10
+> m=3
+> b = array(as.double(0), dim = c(n, m, n))
+> for(i in 1:n){
+>   for(j in 1:m){
+>     for(q in 1:i){
+>       if(q==1){
+>         b[i, j, q] = a[i, j];
+>       }
+>       else{
+>         b[i, j, q] = b[i-1, j, q-1] * a[i, j];
+>       }
+>     }
+>   }
+> }
+>
+>
+> On Tue, Sep 27, 2016 at 3:22 PM, Avraham Adler <avraham.adler at gmail.com>
+> wrote:
+>>
+>> Please give a simple example of an input and its expected output.
+>> Unfortunately "run of a variable for loop" is too general for me to
+>> understand.
+>>
+>> Avi
+>>
+>> On Mon, Sep 26, 2016 at 10:07 PM, Amina Shahzadi
+>> <aminashahzadi at gmail.com> wrote:
+>> > Hi Dear
+>> >
+>> > My purpose is to make run of a variable for loop. Here I have assumed
+>> > else
+>> > statement to be zero. Otherwise it could be anything for example in the
+>> > following code.
+>> > In this code, my main aim to run the slices loop according to rows.
+>> > does it now look ok?
+>> >
+>> >
+>> > Thank you
+>> >
+>> > #include <RcppArmadillo.h>
+>> > using namespace Rcpp;
+>> > using namespace RcppArmadillo;
+>> > //[[Rcpp::depends(RcppArmadillo)]]
+>> > //[[Rcpp::export]]
+>> > arma::cube up(arma::mat a){
+>> >   int m = a.n_cols;
+>> >   int n = a.n_rows;
+>> >   int p = a.n_rows;
+>> >   arma::cube b(n, m, p);
+>> >   for(int i=0; i<n; i++){
+>> >       for(int j=0; j<m; j++){
+>> >         for(int q=0; q<i; q++){
+>> >          if(q==0){
+>> >            b(i, j, q) = a(i, j);
+>> >          }
+>> >          else{
+>> >            b(i, j, q) = b(i-1, j, q-1) * a(i, j);
+>> >          }
+>> >       }
+>> >     }
+>> >   }
+>> >   return b;
+>> > }
+>> >
+>> > On Tue, Sep 27, 2016 at 2:51 PM, Avraham Adler <avraham.adler at gmail.com>
+>> > wrote:
+>> >>
+>> >> Hello.
+>> >>
+>> >> Once again, it is very unclear what you want to do. Can you please
+>> >> explain, in English not code what your procedure intends to do, the
+>> >> input you expect, and the output you expect?
+>> >>
+>> >> What it LOOKS like you want to do is to create an N x M x N cube where
+>> >> the first slice is your matrix and the remaining slices are all 0. If
+>> >> that is the case, There are much, much simpler ways to do it than to
+>> >> traverse all N?M cells. The following should work.
+>> >>
+>> >> #include <RcppArmadillo.h>
+>> >> using namespace Rcpp;
+>> >> using namespace RcppArmadillo;
+>> >> //[[Rcpp::depends(RcppArmadillo)]]
+>> >>
+>> >> //[[Rcpp::export]]
+>> >> arma::cube fillup(arma::mat a){
+>> >>   int m = a.n_cols;
+>> >>   int n = a.n_rows;
+>> >>   arma::cube C = arma::cube(n, m, n, arma::fill::zeros);
+>> >>
+>> >>   C.slice(0) = a;
+>> >>
+>> >>   return(C);
+>> >> }
+>> >>
+>> >> Avi
+>> >>
+>> >> On Mon, Sep 26, 2016 at 5:59 PM, Amina Shahzadi
+>> >> <aminashahzadi at gmail.com>
+>> >> wrote:
+>> >> > Hi Dear
+>> >> >
+>> >> > I have a problem in using a variable for loop in using RcppArmadillo
+>> >> > library.
+>> >> > I have pasting here my code. It is executing but not giving the same
+>> >> > results
+>> >> > as its R code version gives. The results produced by it are really
+>> >> > weird. I
+>> >> > have checked it step by step. It is because of the for (int q=0; q<i;
+>> >> > q++).
+>> >> > I request tp please help how to handle it in cpp.
+>> >> >
+>> >> > The another question is I want to multiply the cube b(i, ,) by a
+>> >> > scalar.
+>> >> > How
+>> >> > can we consider the entire columns and slices of a cube for each of
+>> >> > the
+>> >> > rows.  "b(span(i), span(), span())"  is not working for me.
+>> >> >
+>> >> > Thank you
+>> >> >
+>> >> > #include <RcppArmadillo.h>
+>> >> > using namespace Rcpp;
+>> >> > using namespace RcppArmadillo;
+>> >> > //[[Rcpp::depends(RcppArmadillo)]]
+>> >> > //[[Rcpp::export]]
+>> >> > arma::cube up(arma::mat a){
+>> >> >   int m = a.n_cols;
+>> >> >   int n = a.n_rows;
+>> >> >   int p = a.n_rows;
+>> >> >   arma::cube b(n, m, p);
+>> >> >   for(int i=0; i<n; i++){
+>> >> >       for(int j=0; j<m; j++){
+>> >> >         for(int q=0; q<i; q++){
+>> >> >          if(q==0){
+>> >> >            b(i, j, q) = a(i, j);
+>> >> >          }
+>> >> >          else{
+>> >> >            b(i, j, q) = 0.0;
+>> >> >          }
+>> >> >       }
+>> >> >     }
+>> >> >   }
+>> >> >   return b;
+>> >> > }
+>> >> >
+>> >> > --
+>> >> > Amina Shahzadi
+>> >
+>> >
+>> >
+>> >
+>> > --
+>> > Amina Shahzadi
+>
+>
+>
+>
+> --
+> Amina Shahzadi
+
+From aminashahzadi at gmail.com  Tue Sep 27 06:09:34 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Tue, 27 Sep 2016 17:09:34 +1300
+Subject: [Rcpp-devel] Variable for loop
+In-Reply-To: <CAL6gwnJ1GNf74gGib__hNzhZVEBR2xDbkng0+oOfBqx47FknAQ@mail.gmail.com>
+References: <CAMbX5wnc7dyUyRoKf4VjVWeYHQvdFT6E8U6XdEjBxpBzJCYckg@mail.gmail.com>
+ <CAL6gwnJozSgcmh2ASCqMcN5Nk47SsndL+eyR4PScwVZGzR=7dw@mail.gmail.com>
+ <CAMbX5w=zAxuB61HybzVg4aN-eej6r5+aW0zChQp2nterU30x9A@mail.gmail.com>
+ <CAL6gwnJw0K7K72Nn+CpsfSMbZZpewG2__g4xSD0FybGXh41CRg@mail.gmail.com>
+ <CAMbX5wmHS79Yt-xfmC6mNG-U_dwuho-JBx3jR7ti8B=YNkHJcA@mail.gmail.com>
+ <CAL6gwnJ1GNf74gGib__hNzhZVEBR2xDbkng0+oOfBqx47FknAQ@mail.gmail.com>
+Message-ID: <CAMbX5wkBbyw6SSohBHvLTQc6QT1-Rpiv3e7LVKv1HdpASxLQmQ@mail.gmail.com>
+
+Waoooo. Impressive----I have tried it. It is giving the same answer I want.
+Now I learn it step by step how you did that. It is very different concept
+from what I was using in rcpp.
+Thank you so very much Avraham.
+
+On Tue, Sep 27, 2016 at 4:52 PM, Avraham Adler <avraham.adler at gmail.com>
+wrote:
+
+> Hello, Amina.
+>
+> It is much, much, much easier to deal with small, simplified,
+> examples, as Dirk and others have explained before. Changing your code
+> to make n = 4 and the values seq(1, 12), we can see the pattern. For
+> each slice, you are taking the product down the rows of "slice" number
+> of entries. So the first slice is the 1-element product of the
+> entries, or just a copy of the original matrix. Now, putting the index
+> names back in familiar context (M rows and N columns), for the second
+> slice, C(2, 1, 2) = A(1, 1) * A(2, 1). C(3, 1, 2) = A(2, 1) * A(3, 1),
+> etc. For the third slice, we have 3-element products So C(1, , 3) and
+> C(2, , 3) are 0. C(3, 1, 3) = A(1, 1) * A(2, 1) * A(3, 1), etc. In the
+> last slice there is only one entry in the last row and it is the
+> product of each column in its entirety.
+>
+> That being said, the way I would approach it is to use Armadillo's
+> subsetting to get the needed vector and use Armadillo's product
+> function to get their product.
+>
+> First, we'll turn your fixed R code into a function which we can reuse
+> by creating any a you want and passing it to up_R
+>
+> up_R <- function(a){
+>   m = dim(a)[[1]]
+>   n = dim(a)[[2]]
+>   b = array(as.double(0), dim = c(m, n, m))
+>   for(i in 1:m){
+>     for(j in 1:n){
+>       for(q in 1:i){
+>         if(q==1){
+>           b[i, j, q] = a[i, j];
+>         }
+>         else{
+>           b[i, j, q] = b[i-1, j, q-1] * a[i, j];
+>         }
+>       }
+>     }
+>   }
+>   return(b)
+> }
+>
+> The way I would approach the problem from first principles, knowing
+> what you actually intended, is as follows:
+>
+> #include <RcppArmadillo.h>
+> using namespace Rcpp;
+> using namespace RcppArmadillo;
+> using namespace arma;
+> //[[Rcpp::depends(RcppArmadillo)]]
+>
+> //[[Rcpp::export]]
+> cube up_C(mat a){
+>   int m = a.n_rows;
+>   int n = a.n_cols;
+>   cube C = cube(m, n, m, fill::zeros);
+>   C.slice(0) = a;
+>   for (int slices = 1; slices < m; ++slices){
+>     for (int j = 0; j < n; ++j) {
+>       for (int i = slices; i < m; ++i) {
+>         vec S = C.subcube(i - slices, j, 0, i, j, 0);
+>         C(i, j, slices) = prod(S);
+>       }
+>     }
+>   }
+>   return(C);
+> }
+>
+> This pulls the "slices" length subset of the jth column starting at
+> slices and ending at i from the 0th slice (which is the original
+> matrix) and puts the product in to the C(i, j, slices) entry.
+>
+> You can test the two are identical through identical(up_C(a), up_R(a))
+> for any a, and the C version is, of course, much faster especially for
+> large matrices.
+>
+> It often pays to start with something simpler, and see if there is a
+> pattern you can identify which would help you conceptually, even if
+> not completely optimized.
+>
+> Avi
+>
+>
+>
+>
+> On Mon, Sep 26, 2016 at 10:31 PM, Amina Shahzadi
+> <aminashahzadi at gmail.com> wrote:
+> > Hi Dear
+> > This is the corresponding R code which I want to have the same result
+> from
+> > rcpp code.
+> >
+> > set.seed(11)
+> > a = matrix(runif(30), nrow=10, ncol=3)
+> > n=10
+> > m=3
+> > b = array(as.double(0), dim = c(n, m, n))
+> > for(i in 1:n){
+> >   for(j in 1:m){
+> >     for(q in 1:i){
+> >       if(q==1){
+> >         b[i, j, q] = a[i, j];
+> >       }
+> >       else{
+> >         b[i, j, q] = b[i-1, j, q-1] * a[i, j];
+> >       }
+> >     }
+> >   }
+> > }
+> >
+> >
+> > On Tue, Sep 27, 2016 at 3:22 PM, Avraham Adler <avraham.adler at gmail.com>
+> > wrote:
+> >>
+> >> Please give a simple example of an input and its expected output.
+> >> Unfortunately "run of a variable for loop" is too general for me to
+> >> understand.
+> >>
+> >> Avi
+> >>
+> >> On Mon, Sep 26, 2016 at 10:07 PM, Amina Shahzadi
+> >> <aminashahzadi at gmail.com> wrote:
+> >> > Hi Dear
+> >> >
+> >> > My purpose is to make run of a variable for loop. Here I have assumed
+> >> > else
+> >> > statement to be zero. Otherwise it could be anything for example in
+> the
+> >> > following code.
+> >> > In this code, my main aim to run the slices loop according to rows.
+> >> > does it now look ok?
+> >> >
+> >> >
+> >> > Thank you
+> >> >
+> >> > #include <RcppArmadillo.h>
+> >> > using namespace Rcpp;
+> >> > using namespace RcppArmadillo;
+> >> > //[[Rcpp::depends(RcppArmadillo)]]
+> >> > //[[Rcpp::export]]
+> >> > arma::cube up(arma::mat a){
+> >> >   int m = a.n_cols;
+> >> >   int n = a.n_rows;
+> >> >   int p = a.n_rows;
+> >> >   arma::cube b(n, m, p);
+> >> >   for(int i=0; i<n; i++){
+> >> >       for(int j=0; j<m; j++){
+> >> >         for(int q=0; q<i; q++){
+> >> >          if(q==0){
+> >> >            b(i, j, q) = a(i, j);
+> >> >          }
+> >> >          else{
+> >> >            b(i, j, q) = b(i-1, j, q-1) * a(i, j);
+> >> >          }
+> >> >       }
+> >> >     }
+> >> >   }
+> >> >   return b;
+> >> > }
+> >> >
+> >> > On Tue, Sep 27, 2016 at 2:51 PM, Avraham Adler <
+> avraham.adler at gmail.com>
+> >> > wrote:
+> >> >>
+> >> >> Hello.
+> >> >>
+> >> >> Once again, it is very unclear what you want to do. Can you please
+> >> >> explain, in English not code what your procedure intends to do, the
+> >> >> input you expect, and the output you expect?
+> >> >>
+> >> >> What it LOOKS like you want to do is to create an N x M x N cube
+> where
+> >> >> the first slice is your matrix and the remaining slices are all 0. If
+> >> >> that is the case, There are much, much simpler ways to do it than to
+> >> >> traverse all N?M cells. The following should work.
+> >> >>
+> >> >> #include <RcppArmadillo.h>
+> >> >> using namespace Rcpp;
+> >> >> using namespace RcppArmadillo;
+> >> >> //[[Rcpp::depends(RcppArmadillo)]]
+> >> >>
+> >> >> //[[Rcpp::export]]
+> >> >> arma::cube fillup(arma::mat a){
+> >> >>   int m = a.n_cols;
+> >> >>   int n = a.n_rows;
+> >> >>   arma::cube C = arma::cube(n, m, n, arma::fill::zeros);
+> >> >>
+> >> >>   C.slice(0) = a;
+> >> >>
+> >> >>   return(C);
+> >> >> }
+> >> >>
+> >> >> Avi
+> >> >>
+> >> >> On Mon, Sep 26, 2016 at 5:59 PM, Amina Shahzadi
+> >> >> <aminashahzadi at gmail.com>
+> >> >> wrote:
+> >> >> > Hi Dear
+> >> >> >
+> >> >> > I have a problem in using a variable for loop in using
+> RcppArmadillo
+> >> >> > library.
+> >> >> > I have pasting here my code. It is executing but not giving the
+> same
+> >> >> > results
+> >> >> > as its R code version gives. The results produced by it are really
+> >> >> > weird. I
+> >> >> > have checked it step by step. It is because of the for (int q=0;
+> q<i;
+> >> >> > q++).
+> >> >> > I request tp please help how to handle it in cpp.
+> >> >> >
+> >> >> > The another question is I want to multiply the cube b(i, ,) by a
+> >> >> > scalar.
+> >> >> > How
+> >> >> > can we consider the entire columns and slices of a cube for each of
+> >> >> > the
+> >> >> > rows.  "b(span(i), span(), span())"  is not working for me.
+> >> >> >
+> >> >> > Thank you
+> >> >> >
+> >> >> > #include <RcppArmadillo.h>
+> >> >> > using namespace Rcpp;
+> >> >> > using namespace RcppArmadillo;
+> >> >> > //[[Rcpp::depends(RcppArmadillo)]]
+> >> >> > //[[Rcpp::export]]
+> >> >> > arma::cube up(arma::mat a){
+> >> >> >   int m = a.n_cols;
+> >> >> >   int n = a.n_rows;
+> >> >> >   int p = a.n_rows;
+> >> >> >   arma::cube b(n, m, p);
+> >> >> >   for(int i=0; i<n; i++){
+> >> >> >       for(int j=0; j<m; j++){
+> >> >> >         for(int q=0; q<i; q++){
+> >> >> >          if(q==0){
+> >> >> >            b(i, j, q) = a(i, j);
+> >> >> >          }
+> >> >> >          else{
+> >> >> >            b(i, j, q) = 0.0;
+> >> >> >          }
+> >> >> >       }
+> >> >> >     }
+> >> >> >   }
+> >> >> >   return b;
+> >> >> > }
+> >> >> >
+> >> >> > --
+> >> >> > Amina Shahzadi
+> >> >
+> >> >
+> >> >
+> >> >
+> >> > --
+> >> > Amina Shahzadi
+> >
+> >
+> >
+> >
+> > --
+> > Amina Shahzadi
+>
+
+
+
+-- 
+*Amina Shahzadi*
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160927/3c724a51/attachment-0001.html>
+

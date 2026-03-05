@@ -1,0 +1,3749 @@
+From anton.bossenbroek at me.com  Thu Oct  6 16:52:00 2016
+From: anton.bossenbroek at me.com (Anton Bossenbroek)
+Date: Thu, 06 Oct 2016 10:52:00 -0400
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+Message-ID: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+
+Hi Everyone,
+
+I want to add a large number of objects in C++ that are managed by `shared_ptr` in a `vector`. However, when I push the limits of the amount that I want to allocate the data in R becomes inconsistent.
+
+I will first show the test script and then the c++ file that cause the error. The expected results are shown at the bottom.
+
+# test script
+The test script permits to add an arbitrary number of objects to a vector. 
+
+require(Rcpp)
+sourceCpp(file="~/tmp/example.cpp")
+
+add_children <- function(number_of_children = 2) {
+  p <- 0
+  st <- initialize_storage(p, p)
+  for (i in 1 : number_of_children) {
+    st <- add_node(st, i, i)
+  }
+  return(st)
+}
+
+# example.cpp
+The vector is stored in a object that is managed by R but the elements in the vector are managed by `shared_ptr` and created with `make_shared`. 
+
+// [[Rcpp::plugins(cpp11)]]
+#include <RcppCommon.h>
+
+#include <memory>
+#include <vector>
+
+using namespace std;
+
+struct Element : public std::enable_shared_from_this< Element > {
+  SEXP key_;
+
+  /* Simple constructor that assigns the key. */
+  Element(SEXP key) : key_(key) {}
+
+  /* Convert the object to a R object. */
+  operator SEXP() const;
+};
+
+typedef shared_ptr<Element> element_sp;
+typedef vector<element_sp> element_sp_vec;
+typedef shared_ptr<element_sp_vec> element_sp_vec_sp;
+
+struct Storage {
+  /* Internal storage of nodes. */
+  element_sp_vec nodes_;
+
+  /* Empty constructor. */
+  Storage() {}
+
+  /* Add a node to the storage with its key set to key. */
+  void add_element(SEXP key) {
+    /* Since Element objects are managed by shared_ptr we create a new class
+     * with make_shared. */
+    element_sp e = make_shared<Element>(key);
+    /* Add the node to the internal storage. */
+    nodes_.push_back(e);
+  }
+
+  element_sp_vec_sp get_nodes() {
+    /* Create a shared pointer that will hold all the results. Although we
+     * could do this simpler it mimics the logic I implemented in my real
+     * program. There I need to swap elements in the list after the copy of the
+     * vector. */
+    element_sp_vec_sp res(new element_sp_vec());
+    /* Copy the data in the nodes vector to the result vector. */
+    *res = nodes_;
+    return res;
+  }
+};
+
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+/* Convert the Element object to a list with key set its internal member */
+Element::operator SEXP() const
+{
+  List serial;
+
+  serial["key"] = key_;
+
+  return serial;
+}
+
+typedef XPtr<Storage> st_xptr;
+
+// [[Rcpp::export]]
+SEXP
+initialize_storage()
+{
+  /* Create a new storage managed by R. */
+  Storage* st = new Storage();
+  st_xptr p(st, true);
+
+  return p;
+}
+
+// [[Rcpp::export]]
+SEXP
+add_element(SEXP st_sexp, SEXP key)
+{
+  st_xptr st(st_sexp);
+  /* Add a new element to the internal storage. */
+  st->add_element(key);
+
+  return st;
+}
+
+// [[Rcpp::export]]
+List
+get_nodes(SEXP st_sexp)
+{
+  st_xptr st(st_sexp);
+  /* Retrieve the elements in the internal storage. */
+  element_sp_vec_sp c_res = st->get_nodes();
+
+  /* Allocate a List to store all our results. */
+  List result(c_res->size());
+  int i = 0;
+  /* Iterate through the results and store the result in our list. */
+  for (auto it : *c_res) {
+    result[i] = wrap(*it);
+    ++i;
+  }
+
+  return result;
+}
+
+Below follow a few test cases of the script with the behavior that I experience on Mac OS Sierra with clang.
+
+## n = 10
+
+Everything works fine
+
+n <- 10
+a <- add_children(number_of_children = n)
+res <- sapply(get_nodes(a), function(x) x[["key"]])
+all(res == 0 : n)
+# [1] TRUE
+
+## n = 100
+
+Everything works fine
+
+n <- 100
+a <- add_children(number_of_children = n)
+res <- sapply(get_nodes(a), function(x) x[["key"]])
+all(res == 0 : n)
+# [1] TRUE
+
+## n = 10000
+
+Something goes wrong.
+
+n <- 10000
+a <- add_children(number_of_children = n)
+
+res <- sapply(get_nodes(a), function(x) x[["key"]])
+all(res == 0 : n)
+# [1] FALSE
+# There were 50 or more warnings (use warnings() to see the first 50)
+
+Some further research shows that the warnings are:
+
+warnings()
+# Warning messages:
+# 1: NAs introduced by coercion
+# 2: NAs introduced by coercion
+# 3: NAs introduced by coercion
+# 4: NAs introduced by coercion
+### etc.
+
+a closer inspection into the content of `res` shows that it has a non numeric value,
+
+res[1000]
+# [[1]]
+# [1] "data"
+
+which is surprising to me since the script only added numeric `SEXP` values to the `vector`. My expected output for this value of `n` would be the same as the cases above.
+
+## gctorture
+I reran the `n=10000` example with `gctorture(TRUE)` but did not receive any warning but the data is corrupt. Two random elements in the `res` list:
+
+# [[998]]
+# <CHARSXP: "\"key\"">
+# 
+# [[999]]
+# [1] "srcref"
+
+= Replication
+I replicated these results on Mac OS X Sierra as well as Docker image based on rocker.
+
+sessionInfo()
+# R version 3.3.1 (2016-06-21)
+# Platform: x86_64-apple-darwin15.5.0 (64-bit)
+# Running under: OS X 10.12 (Sierra)
+# 
+# locale:
+# [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+# 
+# attached base packages:
+# [1] stats     graphics  grDevices utils     datasets  methods   base     
+# 
+# other attached packages:
+# [1] Rcpp_0.12.7    setwidth_1.0-4 colorout_1.1-2
+# 
+# loaded via a namespace (and not attached):
+# [1] tools_3.3.1
+
+### uname
+
+uname -prsv
+Darwin 16.0.0 Darwin Kernel Version 16.0.0: Mon Aug 29 17:56:20 PDT 2016; root:xnu-3789.1.32~3/RELEASE_X86_64 i386
+
+### clang
+
+clang -v
+Apple LLVM version 8.0.0 (clang-800.0.38)
+Target: x86_64-apple-darwin16.0.0
+Thread model: posix
+InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+
+Any advise on what may be the problem here?
+
+From anton.bossenbroek at me.com  Thu Oct  6 17:31:28 2016
+From: anton.bossenbroek at me.com (Anton Bossenbroek)
+Date: Thu, 06 Oct 2016 11:31:28 -0400
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+Message-ID: <BAB1C066-4B03-41E9-AC1C-66D4F1EE446D@me.com>
+
+Sorry, as a result of some iterations on my test and code an error slipped in. The R code should be,
+
+require(Rcpp)
+sourceCpp(file="~/tmp/example.cpp")
+
+add_children <- function(number_of_children = 2) {
+  p <- 0
+  st <- initialize_storage()
+  for (i in 1 : number_of_children) {
+    st <- add_element(st, i)
+  }
+  return(st)
+}
+n <- 10000
+a <- add_children(number_of_children = n)
+
+res <- sapply(get_nodes(a), function(x) x[["key"]])
+all(res == 0 : n)
+
+Since I am aware that the garbage may be trying to free up memory I added PROTECT(key_); in the body of the constructor of Element and UNPROTECT(result.size()); just before the return in get_nodes(). However, when I do that I get the following warning:
+
+Warning: stack imbalance in '.Call', 19 then -9981
+Warning: stack imbalance in '<-', 2 then -9998
+etc.
+
+
+
+> On 6 Oct 2016, at 10:52, Anton Bossenbroek <anton.bossenbroek at me.com> wrote:
+> 
+> Hi Everyone,
+> 
+> I want to add a large number of objects in C++ that are managed by `shared_ptr` in a `vector`. However, when I push the limits of the amount that I want to allocate the data in R becomes inconsistent.
+> 
+> I will first show the test script and then the c++ file that cause the error. The expected results are shown at the bottom.
+> 
+> # test script
+> The test script permits to add an arbitrary number of objects to a vector. 
+> 
+> require(Rcpp)
+> sourceCpp(file="~/tmp/example.cpp")
+> 
+> add_children <- function(number_of_children = 2) {
+>  p <- 0
+>  st <- initialize_storage(p, p)
+>  for (i in 1 : number_of_children) {
+>    st <- add_node(st, i, i)
+>  }
+>  return(st)
+> }
+> 
+> # example.cpp
+> The vector is stored in a object that is managed by R but the elements in the vector are managed by `shared_ptr` and created with `make_shared`. 
+> 
+> // [[Rcpp::plugins(cpp11)]]
+> #include <RcppCommon.h>
+> 
+> #include <memory>
+> #include <vector>
+> 
+> using namespace std;
+> 
+> struct Element : public std::enable_shared_from_this< Element > {
+>  SEXP key_;
+> 
+>  /* Simple constructor that assigns the key. */
+>  Element(SEXP key) : key_(key) {}
+> 
+>  /* Convert the object to a R object. */
+>  operator SEXP() const;
+> };
+> 
+> typedef shared_ptr<Element> element_sp;
+> typedef vector<element_sp> element_sp_vec;
+> typedef shared_ptr<element_sp_vec> element_sp_vec_sp;
+> 
+> struct Storage {
+>  /* Internal storage of nodes. */
+>  element_sp_vec nodes_;
+> 
+>  /* Empty constructor. */
+>  Storage() {}
+> 
+>  /* Add a node to the storage with its key set to key. */
+>  void add_element(SEXP key) {
+>    /* Since Element objects are managed by shared_ptr we create a new class
+>     * with make_shared. */
+>    element_sp e = make_shared<Element>(key);
+>    /* Add the node to the internal storage. */
+>    nodes_.push_back(e);
+>  }
+> 
+>  element_sp_vec_sp get_nodes() {
+>    /* Create a shared pointer that will hold all the results. Although we
+>     * could do this simpler it mimics the logic I implemented in my real
+>     * program. There I need to swap elements in the list after the copy of the
+>     * vector. */
+>    element_sp_vec_sp res(new element_sp_vec());
+>    /* Copy the data in the nodes vector to the result vector. */
+>    *res = nodes_;
+>    return res;
+>  }
+> };
+> 
+> #include <Rcpp.h>
+> 
+> using namespace Rcpp;
+> 
+> /* Convert the Element object to a list with key set its internal member */
+> Element::operator SEXP() const
+> {
+>  List serial;
+> 
+>  serial["key"] = key_;
+> 
+>  return serial;
+> }
+> 
+> typedef XPtr<Storage> st_xptr;
+> 
+> // [[Rcpp::export]]
+> SEXP
+> initialize_storage()
+> {
+>  /* Create a new storage managed by R. */
+>  Storage* st = new Storage();
+>  st_xptr p(st, true);
+> 
+>  return p;
+> }
+> 
+> // [[Rcpp::export]]
+> SEXP
+> add_element(SEXP st_sexp, SEXP key)
+> {
+>  st_xptr st(st_sexp);
+>  /* Add a new element to the internal storage. */
+>  st->add_element(key);
+> 
+>  return st;
+> }
+> 
+> // [[Rcpp::export]]
+> List
+> get_nodes(SEXP st_sexp)
+> {
+>  st_xptr st(st_sexp);
+>  /* Retrieve the elements in the internal storage. */
+>  element_sp_vec_sp c_res = st->get_nodes();
+> 
+>  /* Allocate a List to store all our results. */
+>  List result(c_res->size());
+>  int i = 0;
+>  /* Iterate through the results and store the result in our list. */
+>  for (auto it : *c_res) {
+>    result[i] = wrap(*it);
+>    ++i;
+>  }
+> 
+>  return result;
+> }
+> 
+> Below follow a few test cases of the script with the behavior that I experience on Mac OS Sierra with clang.
+> 
+> ## n = 10
+> 
+> Everything works fine
+> 
+> n <- 10
+> a <- add_children(number_of_children = n)
+> res <- sapply(get_nodes(a), function(x) x[["key"]])
+> all(res == 0 : n)
+> # [1] TRUE
+> 
+> ## n = 100
+> 
+> Everything works fine
+> 
+> n <- 100
+> a <- add_children(number_of_children = n)
+> res <- sapply(get_nodes(a), function(x) x[["key"]])
+> all(res == 0 : n)
+> # [1] TRUE
+> 
+> ## n = 10000
+> 
+> Something goes wrong.
+> 
+> n <- 10000
+> a <- add_children(number_of_children = n)
+> 
+> res <- sapply(get_nodes(a), function(x) x[["key"]])
+> all(res == 0 : n)
+> # [1] FALSE
+> # There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> Some further research shows that the warnings are:
+> 
+> warnings()
+> # Warning messages:
+> # 1: NAs introduced by coercion
+> # 2: NAs introduced by coercion
+> # 3: NAs introduced by coercion
+> # 4: NAs introduced by coercion
+> ### etc.
+> 
+> a closer inspection into the content of `res` shows that it has a non numeric value,
+> 
+> res[1000]
+> # [[1]]
+> # [1] "data"
+> 
+> which is surprising to me since the script only added numeric `SEXP` values to the `vector`. My expected output for this value of `n` would be the same as the cases above.
+> 
+> ## gctorture
+> I reran the `n=10000` example with `gctorture(TRUE)` but did not receive any warning but the data is corrupt. Two random elements in the `res` list:
+> 
+> # [[998]]
+> # <CHARSXP: "\"key\"">
+> # 
+> # [[999]]
+> # [1] "srcref"
+> 
+> = Replication
+> I replicated these results on Mac OS X Sierra as well as Docker image based on rocker.
+> 
+> sessionInfo()
+> # R version 3.3.1 (2016-06-21)
+> # Platform: x86_64-apple-darwin15.5.0 (64-bit)
+> # Running under: OS X 10.12 (Sierra)
+> # 
+> # locale:
+> # [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> # 
+> # attached base packages:
+> # [1] stats     graphics  grDevices utils     datasets  methods   base     
+> # 
+> # other attached packages:
+> # [1] Rcpp_0.12.7    setwidth_1.0-4 colorout_1.1-2
+> # 
+> # loaded via a namespace (and not attached):
+> # [1] tools_3.3.1
+> 
+> ### uname
+> 
+> uname -prsv
+> Darwin 16.0.0 Darwin Kernel Version 16.0.0: Mon Aug 29 17:56:20 PDT 2016; root:xnu-3789.1.32~3/RELEASE_X86_64 i386
+> 
+> ### clang
+> 
+> clang -v
+> Apple LLVM version 8.0.0 (clang-800.0.38)
+> Target: x86_64-apple-darwin16.0.0
+> Thread model: posix
+> InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+> 
+> Any advise on what may be the problem here?
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From anton.bossenbroek at me.com  Thu Oct  6 18:09:17 2016
+From: anton.bossenbroek at me.com (Anton Bossenbroek)
+Date: Thu, 06 Oct 2016 12:09:17 -0400
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <BAB1C066-4B03-41E9-AC1C-66D4F1EE446D@me.com>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+ <BAB1C066-4B03-41E9-AC1C-66D4F1EE446D@me.com>
+Message-ID: <C21C7BCC-7151-483A-88B6-C0E8B999ED3F@me.com>
+
+Last post, and my sincere apologies for posting follow ups.
+
+I reduced the C++ code to the following:
+
+// [[Rcpp::plugins(cpp11)]]
+#include <RcppCommon.h>
+
+#include <memory>
+#include <vector>
+
+using namespace std;
+
+struct Element : public std::enable_shared_from_this< Element > {
+  SEXP key_;
+
+  /* Simple constructor that assigns the key. */
+  Element(SEXP key) : key_(key) {
+    PROTECT(key_);
+  }
+
+  ~Element() {
+    UNPROTECT_PTR(key_);
+  }
+
+  /* Convert the object to a R object. */
+  operator SEXP() const;
+};
+
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+Element::operator SEXP() const
+{
+  List serial;
+
+  serial["key"] = key_;
+
+  return serial;
+}
+
+typedef vector<shared_ptr<Element> > e_vec;
+typedef XPtr<e_vec> ev_xptr;
+
+// [[Rcpp::export]]
+SEXP
+initialize_storage()
+{
+  /* Create a new storage managed by R. */
+  e_vec* ev = new e_vec();
+  ev_xptr p(ev, true);
+
+  return p;
+}
+
+// [[Rcpp::export]]
+SEXP
+add_element(SEXP ev_sexp, SEXP key)
+{
+  ev_xptr ev(ev_sexp);
+  /* Add a new element to the internal storage. */
+  ev->push_back(make_shared<Element>(key));
+
+  return ev;
+}
+
+// [[Rcpp::export]]
+List
+get_nodes(SEXP ev_sexp)
+{
+  ev_xptr ev(ev_sexp);
+
+  /* Allocate a List to store all our results. */
+  List result(ev->size());
+  int i = 0;
+  /* Iterate through the results and store the result in our list. */
+  for (auto it : *ev) {
+    result[i] = wrap(*it);
+    ++i;
+  }
+
+  return result;
+}
+
+Why do I get stack imbalance warnings or what would be a better way of protecting the SEXP members in Element and unprotecting them again when necessary?
+
+
+
+> On 6 Oct 2016, at 11:31, Anton Bossenbroek <anton.bossenbroek at me.com> wrote:
+> 
+> Sorry, as a result of some iterations on my test and code an error slipped in. The R code should be,
+> 
+> require(Rcpp)
+> sourceCpp(file="~/tmp/example.cpp")
+> 
+> add_children <- function(number_of_children = 2) {
+>  p <- 0
+>  st <- initialize_storage()
+>  for (i in 1 : number_of_children) {
+>    st <- add_element(st, i)
+>  }
+>  return(st)
+> }
+> n <- 10000
+> a <- add_children(number_of_children = n)
+> 
+> res <- sapply(get_nodes(a), function(x) x[["key"]])
+> all(res == 0 : n)
+> 
+> Since I am aware that the garbage may be trying to free up memory I added PROTECT(key_); in the body of the constructor of Element and UNPROTECT(result.size()); just before the return in get_nodes(). However, when I do that I get the following warning:
+> 
+> Warning: stack imbalance in '.Call', 19 then -9981
+> Warning: stack imbalance in '<-', 2 then -9998
+> etc.
+> 
+> 
+> 
+>> On 6 Oct 2016, at 10:52, Anton Bossenbroek <anton.bossenbroek at me.com> wrote:
+>> 
+>> Hi Everyone,
+>> 
+>> I want to add a large number of objects in C++ that are managed by `shared_ptr` in a `vector`. However, when I push the limits of the amount that I want to allocate the data in R becomes inconsistent.
+>> 
+>> I will first show the test script and then the c++ file that cause the error. The expected results are shown at the bottom.
+>> 
+>> # test script
+>> The test script permits to add an arbitrary number of objects to a vector. 
+>> 
+>> require(Rcpp)
+>> sourceCpp(file="~/tmp/example.cpp")
+>> 
+>> add_children <- function(number_of_children = 2) {
+>> p <- 0
+>> st <- initialize_storage(p, p)
+>> for (i in 1 : number_of_children) {
+>>   st <- add_node(st, i, i)
+>> }
+>> return(st)
+>> }
+>> 
+>> # example.cpp
+>> The vector is stored in a object that is managed by R but the elements in the vector are managed by `shared_ptr` and created with `make_shared`. 
+>> 
+>> // [[Rcpp::plugins(cpp11)]]
+>> #include <RcppCommon.h>
+>> 
+>> #include <memory>
+>> #include <vector>
+>> 
+>> using namespace std;
+>> 
+>> struct Element : public std::enable_shared_from_this< Element > {
+>> SEXP key_;
+>> 
+>> /* Simple constructor that assigns the key. */
+>> Element(SEXP key) : key_(key) {}
+>> 
+>> /* Convert the object to a R object. */
+>> operator SEXP() const;
+>> };
+>> 
+>> typedef shared_ptr<Element> element_sp;
+>> typedef vector<element_sp> element_sp_vec;
+>> typedef shared_ptr<element_sp_vec> element_sp_vec_sp;
+>> 
+>> struct Storage {
+>> /* Internal storage of nodes. */
+>> element_sp_vec nodes_;
+>> 
+>> /* Empty constructor. */
+>> Storage() {}
+>> 
+>> /* Add a node to the storage with its key set to key. */
+>> void add_element(SEXP key) {
+>>   /* Since Element objects are managed by shared_ptr we create a new class
+>>    * with make_shared. */
+>>   element_sp e = make_shared<Element>(key);
+>>   /* Add the node to the internal storage. */
+>>   nodes_.push_back(e);
+>> }
+>> 
+>> element_sp_vec_sp get_nodes() {
+>>   /* Create a shared pointer that will hold all the results. Although we
+>>    * could do this simpler it mimics the logic I implemented in my real
+>>    * program. There I need to swap elements in the list after the copy of the
+>>    * vector. */
+>>   element_sp_vec_sp res(new element_sp_vec());
+>>   /* Copy the data in the nodes vector to the result vector. */
+>>   *res = nodes_;
+>>   return res;
+>> }
+>> };
+>> 
+>> #include <Rcpp.h>
+>> 
+>> using namespace Rcpp;
+>> 
+>> /* Convert the Element object to a list with key set its internal member */
+>> Element::operator SEXP() const
+>> {
+>> List serial;
+>> 
+>> serial["key"] = key_;
+>> 
+>> return serial;
+>> }
+>> 
+>> typedef XPtr<Storage> st_xptr;
+>> 
+>> // [[Rcpp::export]]
+>> SEXP
+>> initialize_storage()
+>> {
+>> /* Create a new storage managed by R. */
+>> Storage* st = new Storage();
+>> st_xptr p(st, true);
+>> 
+>> return p;
+>> }
+>> 
+>> // [[Rcpp::export]]
+>> SEXP
+>> add_element(SEXP st_sexp, SEXP key)
+>> {
+>> st_xptr st(st_sexp);
+>> /* Add a new element to the internal storage. */
+>> st->add_element(key);
+>> 
+>> return st;
+>> }
+>> 
+>> // [[Rcpp::export]]
+>> List
+>> get_nodes(SEXP st_sexp)
+>> {
+>> st_xptr st(st_sexp);
+>> /* Retrieve the elements in the internal storage. */
+>> element_sp_vec_sp c_res = st->get_nodes();
+>> 
+>> /* Allocate a List to store all our results. */
+>> List result(c_res->size());
+>> int i = 0;
+>> /* Iterate through the results and store the result in our list. */
+>> for (auto it : *c_res) {
+>>   result[i] = wrap(*it);
+>>   ++i;
+>> }
+>> 
+>> return result;
+>> }
+>> 
+>> Below follow a few test cases of the script with the behavior that I experience on Mac OS Sierra with clang.
+>> 
+>> ## n = 10
+>> 
+>> Everything works fine
+>> 
+>> n <- 10
+>> a <- add_children(number_of_children = n)
+>> res <- sapply(get_nodes(a), function(x) x[["key"]])
+>> all(res == 0 : n)
+>> # [1] TRUE
+>> 
+>> ## n = 100
+>> 
+>> Everything works fine
+>> 
+>> n <- 100
+>> a <- add_children(number_of_children = n)
+>> res <- sapply(get_nodes(a), function(x) x[["key"]])
+>> all(res == 0 : n)
+>> # [1] TRUE
+>> 
+>> ## n = 10000
+>> 
+>> Something goes wrong.
+>> 
+>> n <- 10000
+>> a <- add_children(number_of_children = n)
+>> 
+>> res <- sapply(get_nodes(a), function(x) x[["key"]])
+>> all(res == 0 : n)
+>> # [1] FALSE
+>> # There were 50 or more warnings (use warnings() to see the first 50)
+>> 
+>> Some further research shows that the warnings are:
+>> 
+>> warnings()
+>> # Warning messages:
+>> # 1: NAs introduced by coercion
+>> # 2: NAs introduced by coercion
+>> # 3: NAs introduced by coercion
+>> # 4: NAs introduced by coercion
+>> ### etc.
+>> 
+>> a closer inspection into the content of `res` shows that it has a non numeric value,
+>> 
+>> res[1000]
+>> # [[1]]
+>> # [1] "data"
+>> 
+>> which is surprising to me since the script only added numeric `SEXP` values to the `vector`. My expected output for this value of `n` would be the same as the cases above.
+>> 
+>> ## gctorture
+>> I reran the `n=10000` example with `gctorture(TRUE)` but did not receive any warning but the data is corrupt. Two random elements in the `res` list:
+>> 
+>> # [[998]]
+>> # <CHARSXP: "\"key\"">
+>> # 
+>> # [[999]]
+>> # [1] "srcref"
+>> 
+>> = Replication
+>> I replicated these results on Mac OS X Sierra as well as Docker image based on rocker.
+>> 
+>> sessionInfo()
+>> # R version 3.3.1 (2016-06-21)
+>> # Platform: x86_64-apple-darwin15.5.0 (64-bit)
+>> # Running under: OS X 10.12 (Sierra)
+>> # 
+>> # locale:
+>> # [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+>> # 
+>> # attached base packages:
+>> # [1] stats     graphics  grDevices utils     datasets  methods   base     
+>> # 
+>> # other attached packages:
+>> # [1] Rcpp_0.12.7    setwidth_1.0-4 colorout_1.1-2
+>> # 
+>> # loaded via a namespace (and not attached):
+>> # [1] tools_3.3.1
+>> 
+>> ### uname
+>> 
+>> uname -prsv
+>> Darwin 16.0.0 Darwin Kernel Version 16.0.0: Mon Aug 29 17:56:20 PDT 2016; root:xnu-3789.1.32~3/RELEASE_X86_64 i386
+>> 
+>> ### clang
+>> 
+>> clang -v
+>> Apple LLVM version 8.0.0 (clang-800.0.38)
+>> Target: x86_64-apple-darwin16.0.0
+>> Thread model: posix
+>> InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin
+>> 
+>> Any advise on what may be the problem here?
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From avraham.adler at gmail.com  Thu Oct  6 18:19:00 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Thu, 6 Oct 2016 12:19:00 -0400
+Subject: [Rcpp-devel] Can an Rcpp package include Fortran code?
+Message-ID: <CAL6gwnJcMbEOkK0dzC+FbLsDj_3nX9mGNwT1_4mrH4mUw82MhA@mail.gmail.com>
+
+Has anyone successfully created a package that uses Rcpp for C++ code
+and which also has Fortran code? I'm experimenting with comparing
+Fortran and C++ and if I could use Rcpp to handle the C++ portion, it
+would reduce the steepness of the learning curve.
+
+However, I haven't had success. The following C++ and Fortran snippets
+compile properly separately?the C++ as part of Rcpp and the Fortran
+using R CMD SHLIB and dynload?and the R snippets call them properly,
+but when I put both the .cpp and .f95 files in /src, I get the huge
+error posted below the files.
+
+Am I missing something simple or will having C++ and Fortran code in
+the same package prevent the use of Rcpp and require the old methods
+of calling compiled code?
+
+Thank you,
+
+Avi
+
+**** VecSum_C.cpp ****
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+double VecSum_C(NumericVector x) {
+  int n = x.size();
+  double VecSum = 0.0;
+  for (int i = 0; i < n; ++i)
+    VecSum += x[i];
+  return VecSum;
+}
+
+**** VecSum_F.f95 ****
+subroutine VecSum_F(x, n, x_res)
+  implicit none
+  integer, parameter :: dp=kind(0.d0)
+  integer, intent(in) :: n
+  real(dp), dimension(n), intent(in) :: x
+  real(dp), intent(out) :: x_res
+
+  integer :: i
+
+  x_res = 0_dp
+  do i = 1, n
+    x_res = x_res + x(i)
+  end do
+
+end subroutine VecSum_F
+
+**** VecSum.R ****
+c_vecsum <- function(x) {
+  return(VecSum_C(x))
+}
+
+f_vecsum <- function(x) {
+  Z <- .Fortran('VecSum_F', x = as.double(x), n =
+as.integer(length(x)), x_res = double(1L))
+  return(Z$x_res)
+}
+
+**** ERROR MESSAGE ****
+* installing to library 'C:/R/RCurrent/R-3.3.1patched/library'
+* installing *source* package 'ForTest' ...
+** libs
+c:/Rtools/mingw_64/bin/g++  -I"C:/R/RCurrent/R-33~1.1PA/include"
+-DNDEBUG    -I"C:/R/RCurrent/R-3.3.1patched/library/Rcpp/include"
+-I"C:/R/RLocalSoft/include"     -O3 -Wall  -std=gnu++11 -march=native
+-pipe -c RcppExports.cpp -o RcppExports.o
+c:/Rtools/mingw_64/bin/g++  -I"C:/R/RCurrent/R-33~1.1PA/include"
+-DNDEBUG    -I"C:/R/RCurrent/R-3.3.1patched/library/Rcpp/include"
+-I"C:/R/RLocalSoft/include"     -O3 -Wall  -std=gnu++11 -march=native
+-pipe -c VecSum_C.cpp -o VecSum_C.o
+c:/Rtools/mingw_64/bin/gfortran     -O3  -march=native -pipe
+-std=f2003 -c  VecSum_F.f95 -o VecSum_F.o
+c:/Rtools/mingw_64/bin/gfortran -shared -s
+-Wl,--allow-multiple-definition -static-libgcc -o ForTest.dll tmp.def
+RcppExports.o VecSum_C.o VecSum_F.o -LC:/R/RLocalSoft/lib/x64
+-LC:/R/RLocalSoft/lib -LC:/R/RCurrent/R-33~1.1PA/bin/x64 -lR
+RcppExports.o:RcppExports.cpp:(.text+0x110): undefined reference to
+`__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text+0x16b): undefined reference to
+`__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text+0x1c4): undefined reference to
+`__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text+0x229): undefined reference to
+`__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text+0x294): undefined reference to
+`__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text+0x2f2): undefined reference to
+`__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text+0x322): undefined reference to
+`__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text+0x352): undefined reference to
+`__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text+0x382): undefined reference to
+`__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text+0x472): undefined reference to
+`__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text+0x4e7): undefined reference to
+`__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.text+0x537): undefined reference to
+`__cxa_begin_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x54f): undefined reference to
+`__cxa_end_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x5d4): undefined reference to
+`__cxa_end_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x5e4): undefined reference to
+`__cxa_begin_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x5fd): undefined reference to
+`std::basic_string<char, std::char_traits<char>, std::allocator<char>
+>::basic_string(char const*, std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text+0x623): undefined reference to
+`std::string::_Rep::_M_dispose(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text+0x628): undefined reference to
+`__cxa_end_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x635): undefined reference to
+`__cxa_begin_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x63a): undefined reference to
+`__cxa_end_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x65d): undefined reference to
+`std::string::_Rep::_M_dispose(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text+0x662): undefined reference to
+`__cxa_end_catch'
+RcppExports.o:RcppExports.cpp:(.text+0x6b6): undefined reference to
+`__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.text+0x6d3): undefined reference to
+`__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.text+0x6e7): undefined reference to
+`__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.text+0x6ec): undefined reference to
+`std::terminate()'
+RcppExports.o:RcppExports.cpp:(.text+0x701): undefined reference to
+`__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.text+0x18): undefined reference to
+`std::ios_base::Init::~Init()'
+RcppExports.o:RcppExports.cpp:(.text+0x7b): undefined reference to
+`std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.text+0xdb): undefined reference to
+`std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.xdata+0x30): undefined reference to
+`__gxx_personality_seh0'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10RstreambufILb0EED1Ev[_ZN4Rcpp10RstreambufILb0EED1Ev]+0x13):
+undefined reference to `std::locale::~locale()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10RstreambufILb0EED0Ev[_ZN4Rcpp10RstreambufILb0EED0Ev]+0x1b):
+undefined reference to `std::locale::~locale()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10RstreambufILb0EED0Ev[_ZN4Rcpp10RstreambufILb0EED0Ev]+0x28):
+undefined reference to `operator delete(void*)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10RstreambufILb1EED1Ev[_ZN4Rcpp10RstreambufILb1EED1Ev]+0x13):
+undefined reference to `std::locale::~locale()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10RstreambufILb1EED0Ev[_ZN4Rcpp10RstreambufILb1EED0Ev]+0x1b):
+undefined reference to `std::locale::~locale()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10RstreambufILb1EED0Ev[_ZN4Rcpp10RstreambufILb1EED0Ev]+0x28):
+undefined reference to `operator delete(void*)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8RostreamILb0EED1Ev[_ZN4Rcpp8RostreamILb0EED1Ev]+0x4d):
+undefined reference to `std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8RostreamILb1EED1Ev[_ZN4Rcpp8RostreamILb1EED1Ev]+0x4d):
+undefined reference to `std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8RostreamILb1EED0Ev[_ZN4Rcpp8RostreamILb1EED0Ev]+0x48):
+undefined reference to `std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8RostreamILb1EED0Ev[_ZN4Rcpp8RostreamILb1EED0Ev]+0x55):
+undefined reference to `operator delete(void*)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8RostreamILb0EED0Ev[_ZN4Rcpp8RostreamILb0EED0Ev]+0x48):
+undefined reference to `std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8RostreamILb0EED0Ev[_ZN4Rcpp8RostreamILb0EED0Ev]+0x55):
+undefined reference to `operator delete(void*)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10eval_errorD1Ev[_ZN4Rcpp10eval_errorD1Ev]+0x28):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10eval_errorD1Ev[_ZN4Rcpp10eval_errorD1Ev]+0x3d):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10eval_errorD1Ev[_ZN4Rcpp10eval_errorD1Ev]+0x45):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp9exceptionD1Ev[_ZN4Rcpp9exceptionD1Ev]+0x28):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp9exceptionD1Ev[_ZN4Rcpp9exceptionD1Ev]+0x3d):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp9exceptionD1Ev[_ZN4Rcpp9exceptionD1Ev]+0x45):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp14not_compatibleD1Ev[_ZN4Rcpp14not_compatibleD1Ev]+0x28):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp14not_compatibleD1Ev[_ZN4Rcpp14not_compatibleD1Ev]+0x3d):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp14not_compatibleD1Ev[_ZN4Rcpp14not_compatibleD1Ev]+0x45):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp9exceptionD0Ev[_ZN4Rcpp9exceptionD0Ev]+0x28):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp9exceptionD0Ev[_ZN4Rcpp9exceptionD0Ev]+0x30):
+undefined reference to `operator delete(void*)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp9exceptionD0Ev[_ZN4Rcpp9exceptionD0Ev]+0x4a):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10eval_errorD0Ev[_ZN4Rcpp10eval_errorD0Ev]+0x28):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10eval_errorD0Ev[_ZN4Rcpp10eval_errorD0Ev]+0x30):
+undefined reference to `operator delete(void*)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp10eval_errorD0Ev[_ZN4Rcpp10eval_errorD0Ev]+0x4a):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp14not_compatibleD0Ev[_ZN4Rcpp14not_compatibleD0Ev]+0x28):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp14not_compatibleD0Ev[_ZN4Rcpp14not_compatibleD0Ev]+0x30):
+undefined reference to `operator delete(void*)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp14not_compatibleD0Ev[_ZN4Rcpp14not_compatibleD0Ev]+0x4a):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal12exitRNGScopeEv[_ZN4Rcpp8internal12exitRNGScopeEv]+0x16):
+undefined reference to `__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal12exitRNGScopeEv[_ZN4Rcpp8internal12exitRNGScopeEv]+0x52):
+undefined reference to `__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal12exitRNGScopeEv[_ZN4Rcpp8internal12exitRNGScopeEv]+0x73):
+undefined reference to `__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.xdata$_ZN4Rcpp8internal12exitRNGScopeEv+0x8):
+undefined reference to `__gxx_personality_seh0'
+RcppExports.o:RcppExports.cpp:(.xdata$_Z19string_to_try_errorRKSs+0x10):
+undefined reference to `__gxx_personality_seh0'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp4stopERKSs[_ZN4Rcpp4stopERKSs]+0xf):
+undefined reference to `__cxa_allocate_exception'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp4stopERKSs[_ZN4Rcpp4stopERKSs]+0x2d):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char> >::basic_string(char
+const*, std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp4stopERKSs[_ZN4Rcpp4stopERKSs]+0x43):
+undefined reference to `__cxa_throw'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp4stopERKSs[_ZN4Rcpp4stopERKSs]+0x51):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp4stopERKSs[_ZN4Rcpp4stopERKSs]+0x59):
+undefined reference to `__cxa_free_exception'
+RcppExports.o:RcppExports.cpp:(.xdata$_ZN4Rcpp4stopERKSs+0xc):
+undefined reference to `__gxx_personality_seh0'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x3d):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char> >::basic_string(char
+const*, std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x52):
+undefined reference to `__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x96):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char> >::basic_string(char
+const*, std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0xab):
+undefined reference to `__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x499):
+undefined reference to `__cxa_guard_acquire'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x55d):
+undefined reference to `__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x588):
+undefined reference to `__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x5b3):
+undefined reference to `__cxa_guard_release'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x621):
+undefined reference to `__cxa_allocate_exception'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x64e):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char> >::basic_string(char
+const*, std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x664):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char>
+>::basic_string(std::string const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x691):
+undefined reference to `__cxa_throw'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x6b2):
+undefined reference to `__cxa_allocate_exception'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x6c4):
+undefined reference to `__cxa_throw'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x6da):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x6eb):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x6fc):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x7d7):
+undefined reference to
+`std::string::_Rep::_M_dispose(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x7e8):
+undefined reference to
+`std::string::_Rep::_M_dispose(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x7fe):
+undefined reference to
+`std::string::_Rep::_M_destroy(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x814):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x830):
+undefined reference to `__cxa_free_exception'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x83a):
+undefined reference to `__cxa_call_unexpected'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x961):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char> >::basic_string(char
+const*, std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x987):
+undefined reference to
+`std::string::_Rep::_M_dispose(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x9c8):
+undefined reference to `__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x9df):
+undefined reference to `__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0x9f2):
+undefined reference to
+`std::string::_Rep::_M_dispose(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_Z24exception_to_r_conditionRKSt9exception[_Z24exception_to_r_conditionRKSt9exception]+0xab6):
+undefined reference to `__cxa_guard_abort'
+RcppExports.o:RcppExports.cpp:(.xdata$_Z24exception_to_r_conditionRKSt9exception+0x18):
+undefined reference to `__gxx_personality_seh0'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0x66):
+undefined reference to `__cxa_allocate_exception'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0x7d):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char> >::basic_string(char
+const*, std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0x93):
+undefined reference to `std::basic_string<char,
+std::char_traits<char>, std::allocator<char>
+>::basic_string(std::string const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0xa6):
+undefined reference to
+`std::string::_Rep::_M_dispose(std::allocator<char> const&)'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0xbc):
+undefined reference to `__cxa_throw'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0xca):
+undefined reference to `__cxa_free_exception'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0xe3):
+undefined reference to `std::exception::~exception()'
+RcppExports.o:RcppExports.cpp:(.text$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_[_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_]+0xf1):
+undefined reference to `__cxa_call_unexpected'
+RcppExports.o:RcppExports.cpp:(.xdata$_ZN4Rcpp8internal10basic_castILi14EEEP7SEXPRECS3_+0xc):
+undefined reference to `__gxx_personality_seh0'
+RcppExports.o:RcppExports.cpp:(.text.startup+0xf): undefined reference
+to `std::ios_base::Init::Init()'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x33): undefined
+reference to `std::ios_base::ios_base()'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x94): undefined
+reference to `operator new(unsigned long long)'
+RcppExports.o:RcppExports.cpp:(.text.startup+0xde): undefined
+reference to `std::locale::locale()'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x113): undefined
+reference to `std::basic_ios<char, std::char_traits<char>
+>::init(std::basic_streambuf<char, std::char_traits<char> >*)'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x155): undefined
+reference to `std::ios_base::ios_base()'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x1af): undefined
+reference to `operator new(unsigned long long)'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x1f2): undefined
+reference to `std::locale::locale()'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x227): undefined
+reference to `std::basic_ios<char, std::char_traits<char>
+>::init(std::basic_streambuf<char, std::char_traits<char> >*)'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x281): undefined
+reference to `std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.text.startup+0x2a6): undefined
+reference to `std::ios_base::~ios_base()'
+RcppExports.o:RcppExports.cpp:(.xdata.startup+0xc): undefined
+reference to `__gxx_personality_seh0'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTISt9exception[_ZTISt9exception]+0x0):
+undefined reference to `vtable for __cxxabiv1::__class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp9exceptionE[_ZTIN4Rcpp9exceptionE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__si_class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp14not_compatibleE[_ZTIN4Rcpp14not_compatibleE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__si_class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp10eval_errorE[_ZTIN4Rcpp10eval_errorE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__si_class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp8internal20InterruptedExceptionE[_ZTIN4Rcpp8internal20InterruptedExceptionE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp10RstreambufILb1EEE[_ZTIN4Rcpp10RstreambufILb1EEE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__si_class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp10RstreambufILb1EEE[_ZTIN4Rcpp10RstreambufILb1EEE]+0x10):
+undefined reference to `typeinfo for std::basic_streambuf<char,
+std::char_traits<char> >'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp10RstreambufILb0EEE[_ZTIN4Rcpp10RstreambufILb0EEE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__si_class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp10RstreambufILb0EEE[_ZTIN4Rcpp10RstreambufILb0EEE]+0x10):
+undefined reference to `typeinfo for std::basic_streambuf<char,
+std::char_traits<char> >'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp8RostreamILb1EEE[_ZTIN4Rcpp8RostreamILb1EEE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__si_class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp8RostreamILb1EEE[_ZTIN4Rcpp8RostreamILb1EEE]+0x10):
+undefined reference to `typeinfo for std::ostream'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp8RostreamILb0EEE[_ZTIN4Rcpp8RostreamILb0EEE]+0x0):
+undefined reference to `vtable for __cxxabiv1::__si_class_type_info'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTIN4Rcpp8RostreamILb0EEE[_ZTIN4Rcpp8RostreamILb0EEE]+0x10):
+undefined reference to `typeinfo for std::ostream'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x20):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::imbue(std::locale const&)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x28):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::setbuf(char*, long long)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x30):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::seekoff(long long, std::_Ios_Seekdir,
+std::_Ios_Openmode)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x38):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::seekpos(std::fpos<int>, std::_Ios_Openmode)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x48):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::showmanyc()'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x50):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::xsgetn(char*, long long)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x58):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::underflow()'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x60):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::uflow()'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb1EEE[_ZTVN4Rcpp10RstreambufILb1EEE]+0x68):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::pbackfail(int)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x20):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::imbue(std::locale const&)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x28):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::setbuf(char*, long long)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x30):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::seekoff(long long, std::_Ios_Seekdir,
+std::_Ios_Openmode)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x38):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::seekpos(std::fpos<int>, std::_Ios_Openmode)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x48):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::showmanyc()'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x50):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::xsgetn(char*, long long)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x58):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::underflow()'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x60):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::uflow()'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTVN4Rcpp10RstreambufILb0EEE[_ZTVN4Rcpp10RstreambufILb0EEE]+0x68):
+undefined reference to `std::basic_streambuf<char,
+std::char_traits<char> >::pbackfail(int)'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTCN4Rcpp8RostreamILb1EEE0_So[_ZTCN4Rcpp8RostreamILb1EEE0_So]+0x10):
+undefined reference to `typeinfo for std::ostream'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTCN4Rcpp8RostreamILb1EEE0_So[_ZTCN4Rcpp8RostreamILb1EEE0_So]+0x38):
+undefined reference to `typeinfo for std::ostream'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTCN4Rcpp8RostreamILb0EEE0_So[_ZTCN4Rcpp8RostreamILb0EEE0_So]+0x10):
+undefined reference to `typeinfo for std::ostream'
+RcppExports.o:RcppExports.cpp:(.rdata$_ZTCN4Rcpp8RostreamILb0EEE0_So[_ZTCN4Rcpp8RostreamILb0EEE0_So]+0x38):
+undefined reference to `typeinfo for std::ostream'
+RcppExports.o:RcppExports.cpp:(.rdata$.refptr._ZTVSt9basic_iosIcSt11char_traitsIcEE[.refptr._ZTVSt9basic_iosIcSt11char_traitsIcEE]+0x0):
+undefined reference to `vtable for std::basic_ios<char,
+std::char_traits<char> >'
+RcppExports.o:RcppExports.cpp:(.rdata$.refptr._ZTVSt15basic_streambufIcSt11char_traitsIcEE[.refptr._ZTVSt15basic_streambufIcSt11char_traitsIcEE]+0x0):
+undefined reference to `vtable for std::basic_streambuf<char,
+std::char_traits<char> >'
+VecSum_C.o:VecSum_C.cpp:(.text+0x18): undefined reference to
+`std::ios_base::Init::~Init()'
+VecSum_C.o:VecSum_C.cpp:(.text+0x7b): undefined reference to
+`std::ios_base::~ios_base()'
+VecSum_C.o:VecSum_C.cpp:(.text+0xdb): undefined reference to
+`std::ios_base::~ios_base()'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0xf): undefined reference to
+`std::ios_base::Init::Init()'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x33): undefined reference to
+`std::ios_base::ios_base()'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x94): undefined reference to
+`operator new(unsigned long long)'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0xde): undefined reference to
+`std::locale::locale()'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x113): undefined reference to
+`std::basic_ios<char, std::char_traits<char>
+>::init(std::basic_streambuf<char, std::char_traits<char> >*)'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x155): undefined reference to
+`std::ios_base::ios_base()'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x1af): undefined reference to
+`operator new(unsigned long long)'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x1f2): undefined reference to
+`std::locale::locale()'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x227): undefined reference to
+`std::basic_ios<char, std::char_traits<char>
+>::init(std::basic_streambuf<char, std::char_traits<char> >*)'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x281): undefined reference to
+`std::ios_base::~ios_base()'
+VecSum_C.o:VecSum_C.cpp:(.text.startup+0x2a6): undefined reference to
+`std::ios_base::~ios_base()'
+VecSum_C.o:VecSum_C.cpp:(.xdata.startup+0xc): undefined reference to
+`__gxx_personality_seh0'
+collect2.exe: error: ld returned 1 exit status
+no DLL was created
+ERROR: compilation failed for package 'ForTest'
+* removing 'C:/R/RCurrent/R-3.3.1patched/library/ForTest'
+* restoring previous 'C:/R/RCurrent/R-3.3.1patched/library/ForTest'
+Warning in file.copy(lp, dirname(pkgdir), recursive = TRUE, copy.date = TRUE) :
+  problem copying
+C:\R\RCurrent\R-3.3.1patched\library\00LOCK-ForTest\ForTest\libs\x64\ForTest.dll
+to C:\R\RCurrent\R-3.3.1patched\library\ForTest\libs\x64\ForTest.dll:
+Permission denied
+
+Exited with status 1.
+
+From edd at debian.org  Thu Oct  6 18:31:46 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Oct 2016 11:31:46 -0500
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+Message-ID: <22518.31858.943575.20803@max.nulle.part>
+
+
+Hi Anton,
+
+Thanks for posting here.
+
+On 6 October 2016 at 10:52, Anton Bossenbroek wrote:
+| I want to add a large number of objects in C++ that are managed by `shared_ptr` in a `vector`. However, when I push the limits of the amount that I want to allocate the data in R becomes inconsistent.
+
+A bit of background.
+
+Rcpp exists because of the excellent idea (by Dominick, around 2004 to 2005)
+that using C++ templates for SEXP++ would make interfacing QuantLib easier in
+the RQuantLib package I had started a few years earlier.
+
+QuantLib is a marvel. It started in the early 2000s and was the first project
+I saw which has bet "big" on Boost testing, and, very importantly,
+shared_ptr.  QuantLib also makes extensive use of SWIG to govern interfaces
+to (a large number of) other languages.  And here is the key: None of those
+can use shared_ptr objects.  Neither does RQuantLib. Even though they are
+pervasive in QuantLib.
+
+Now, we are here to interface R.  All that Rcpp does, in essence, is making
+it trivially easy to get objects in and out of R as proxy objects:
+lightweight, no copy.  And the memory _is still managed by R_. So that you
+never need to use a SEXP directly in C++.  That is a feature.  [ Of course,
+sometimes you need the SEXP as a quasi-variant type, but that is not the
+common use. So let's just call it 'no SEXP in user code'. ]
+
+So I am not claiming that what you want to do here is impossible -- but I am
+not aware of another project having done this: hold R objects in a smart_ptr.
+
+Also, you haven't really explained what you want to do, what the life cyle of your
+objects is etc pp.
+
+At the simplest level, Rcpp use is synchronous:  you call from R, pass some
+content, do some calculations, report something back -- and everything
+intermediary is destroyed.  You can persist things, of course, when you
+manage the memory.  But you need to be very sure the things are then away
+from R -- copies are probably best. XPtr objects are used in that context.
+
+Anyway, end of short speech.  I would recommend you try to break you project
+into smaller, more fundamental tasks.  Maybe we can help with those, one by one.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Oct  6 18:37:11 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Oct 2016 11:37:11 -0500
+Subject: [Rcpp-devel] Can an Rcpp package include Fortran code?
+In-Reply-To: <CAL6gwnJcMbEOkK0dzC+FbLsDj_3nX9mGNwT1_4mrH4mUw82MhA@mail.gmail.com>
+References: <CAL6gwnJcMbEOkK0dzC+FbLsDj_3nX9mGNwT1_4mrH4mUw82MhA@mail.gmail.com>
+Message-ID: <22518.32183.963703.239068@max.nulle.part>
+
+
+On 6 October 2016 at 12:19, Avraham Adler wrote:
+| Has anyone successfully created a package that uses Rcpp for C++ code
+| and which also has Fortran code? I'm experimenting with comparing
+| Fortran and C++ and if I could use Rcpp to handle the C++ portion, it
+| would reduce the steepness of the learning curve.
+| 
+| However, I haven't had success. The following C++ and Fortran snippets
+| compile properly separately?the C++ as part of Rcpp and the Fortran
+| using R CMD SHLIB and dynload?and the R snippets call them properly,
+| but when I put both the .cpp and .f95 files in /src, I get the huge
+| error posted below the files.
+| 
+| Am I missing something simple or will having C++ and Fortran code in
+| the same package prevent the use of Rcpp and require the old methods
+| of calling compiled code?
+
+I was about to say 'sure, why not' when I remembered that Writiing R
+Extension has something to say about this in section 1.2.4:
+
+     There is no guarantee that C++11 can be used in a package in
+  combination with any other compiled language (even C), as the C++11
+  compiler may be incompatible with the native compilers for the platform.
+  (There are known problems mixing C++11 with Fortran.)
+
+but then this warning is just about C++11 and Fortran.
+
+That said, your description above suggests that you are "simply" too
+optimistic about 'Rcpp Attributes' -- those do not aim to support all
+languages. They provide a (very powerful) convenience tool for Rcpp. And
+hence C++.
+
+If it works in a package, stick with a package. That gets you different
+compilation units, and hopefully sane linking.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From wdunlap at tibco.com  Thu Oct  6 18:38:15 2016
+From: wdunlap at tibco.com (William Dunlap)
+Date: Thu, 6 Oct 2016 09:38:15 -0700
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <BAB1C066-4B03-41E9-AC1C-66D4F1EE446D@me.com>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+ <BAB1C066-4B03-41E9-AC1C-66D4F1EE446D@me.com>
+Message-ID: <CAF8bMcbv2=vPjUgUcSP38SK0Q0Z6xo=M9QFrs-rg8rx_3GyNtw@mail.gmail.com>
+
+Replacing the PROTECT and UNPROTECT_PTR with R_PreserveObject and
+R_ReleaseObject will probably take care of the unbalanced-protection-stack
+warnings, but I don't know if there would be any bad interactions with
+anything else in Rcpp.
+
+Bill Dunlap
+TIBCO Software
+wdunlap tibco.com
+
+On Thu, Oct 6, 2016 at 8:31 AM, Anton Bossenbroek <anton.bossenbroek at me.com>
+wrote:
+
+> Sorry, as a result of some iterations on my test and code an error slipped
+> in. The R code should be,
+>
+> require(Rcpp)
+> sourceCpp(file="~/tmp/example.cpp")
+>
+> add_children <- function(number_of_children = 2) {
+>   p <- 0
+>   st <- initialize_storage()
+>   for (i in 1 : number_of_children) {
+>     st <- add_element(st, i)
+>   }
+>   return(st)
+> }
+> n <- 10000
+> a <- add_children(number_of_children = n)
+>
+> res <- sapply(get_nodes(a), function(x) x[["key"]])
+> all(res == 0 : n)
+>
+> Since I am aware that the garbage may be trying to free up memory I added
+> PROTECT(key_); in the body of the constructor of Element and
+> UNPROTECT(result.size()); just before the return in get_nodes(). However,
+> when I do that I get the following warning:
+>
+> Warning: stack imbalance in '.Call', 19 then -9981
+> Warning: stack imbalance in '<-', 2 then -9998
+> etc.
+>
+>
+>
+> > On 6 Oct 2016, at 10:52, Anton Bossenbroek <anton.bossenbroek at me.com>
+> wrote:
+> >
+> > Hi Everyone,
+> >
+> > I want to add a large number of objects in C++ that are managed by
+> `shared_ptr` in a `vector`. However, when I push the limits of the amount
+> that I want to allocate the data in R becomes inconsistent.
+> >
+> > I will first show the test script and then the c++ file that cause the
+> error. The expected results are shown at the bottom.
+> >
+> > # test script
+> > The test script permits to add an arbitrary number of objects to a
+> vector.
+> >
+> > require(Rcpp)
+> > sourceCpp(file="~/tmp/example.cpp")
+> >
+> > add_children <- function(number_of_children = 2) {
+> >  p <- 0
+> >  st <- initialize_storage(p, p)
+> >  for (i in 1 : number_of_children) {
+> >    st <- add_node(st, i, i)
+> >  }
+> >  return(st)
+> > }
+> >
+> > # example.cpp
+> > The vector is stored in a object that is managed by R but the elements
+> in the vector are managed by `shared_ptr` and created with `make_shared`.
+> >
+> > // [[Rcpp::plugins(cpp11)]]
+> > #include <RcppCommon.h>
+> >
+> > #include <memory>
+> > #include <vector>
+> >
+> > using namespace std;
+> >
+> > struct Element : public std::enable_shared_from_this< Element > {
+> >  SEXP key_;
+> >
+> >  /* Simple constructor that assigns the key. */
+> >  Element(SEXP key) : key_(key) {}
+> >
+> >  /* Convert the object to a R object. */
+> >  operator SEXP() const;
+> > };
+> >
+> > typedef shared_ptr<Element> element_sp;
+> > typedef vector<element_sp> element_sp_vec;
+> > typedef shared_ptr<element_sp_vec> element_sp_vec_sp;
+> >
+> > struct Storage {
+> >  /* Internal storage of nodes. */
+> >  element_sp_vec nodes_;
+> >
+> >  /* Empty constructor. */
+> >  Storage() {}
+> >
+> >  /* Add a node to the storage with its key set to key. */
+> >  void add_element(SEXP key) {
+> >    /* Since Element objects are managed by shared_ptr we create a new
+> class
+> >     * with make_shared. */
+> >    element_sp e = make_shared<Element>(key);
+> >    /* Add the node to the internal storage. */
+> >    nodes_.push_back(e);
+> >  }
+> >
+> >  element_sp_vec_sp get_nodes() {
+> >    /* Create a shared pointer that will hold all the results. Although we
+> >     * could do this simpler it mimics the logic I implemented in my real
+> >     * program. There I need to swap elements in the list after the copy
+> of the
+> >     * vector. */
+> >    element_sp_vec_sp res(new element_sp_vec());
+> >    /* Copy the data in the nodes vector to the result vector. */
+> >    *res = nodes_;
+> >    return res;
+> >  }
+> > };
+> >
+> > #include <Rcpp.h>
+> >
+> > using namespace Rcpp;
+> >
+> > /* Convert the Element object to a list with key set its internal member
+> */
+> > Element::operator SEXP() const
+> > {
+> >  List serial;
+> >
+> >  serial["key"] = key_;
+> >
+> >  return serial;
+> > }
+> >
+> > typedef XPtr<Storage> st_xptr;
+> >
+> > // [[Rcpp::export]]
+> > SEXP
+> > initialize_storage()
+> > {
+> >  /* Create a new storage managed by R. */
+> >  Storage* st = new Storage();
+> >  st_xptr p(st, true);
+> >
+> >  return p;
+> > }
+> >
+> > // [[Rcpp::export]]
+> > SEXP
+> > add_element(SEXP st_sexp, SEXP key)
+> > {
+> >  st_xptr st(st_sexp);
+> >  /* Add a new element to the internal storage. */
+> >  st->add_element(key);
+> >
+> >  return st;
+> > }
+> >
+> > // [[Rcpp::export]]
+> > List
+> > get_nodes(SEXP st_sexp)
+> > {
+> >  st_xptr st(st_sexp);
+> >  /* Retrieve the elements in the internal storage. */
+> >  element_sp_vec_sp c_res = st->get_nodes();
+> >
+> >  /* Allocate a List to store all our results. */
+> >  List result(c_res->size());
+> >  int i = 0;
+> >  /* Iterate through the results and store the result in our list. */
+> >  for (auto it : *c_res) {
+> >    result[i] = wrap(*it);
+> >    ++i;
+> >  }
+> >
+> >  return result;
+> > }
+> >
+> > Below follow a few test cases of the script with the behavior that I
+> experience on Mac OS Sierra with clang.
+> >
+> > ## n = 10
+> >
+> > Everything works fine
+> >
+> > n <- 10
+> > a <- add_children(number_of_children = n)
+> > res <- sapply(get_nodes(a), function(x) x[["key"]])
+> > all(res == 0 : n)
+> > # [1] TRUE
+> >
+> > ## n = 100
+> >
+> > Everything works fine
+> >
+> > n <- 100
+> > a <- add_children(number_of_children = n)
+> > res <- sapply(get_nodes(a), function(x) x[["key"]])
+> > all(res == 0 : n)
+> > # [1] TRUE
+> >
+> > ## n = 10000
+> >
+> > Something goes wrong.
+> >
+> > n <- 10000
+> > a <- add_children(number_of_children = n)
+> >
+> > res <- sapply(get_nodes(a), function(x) x[["key"]])
+> > all(res == 0 : n)
+> > # [1] FALSE
+> > # There were 50 or more warnings (use warnings() to see the first 50)
+> >
+> > Some further research shows that the warnings are:
+> >
+> > warnings()
+> > # Warning messages:
+> > # 1: NAs introduced by coercion
+> > # 2: NAs introduced by coercion
+> > # 3: NAs introduced by coercion
+> > # 4: NAs introduced by coercion
+> > ### etc.
+> >
+> > a closer inspection into the content of `res` shows that it has a non
+> numeric value,
+> >
+> > res[1000]
+> > # [[1]]
+> > # [1] "data"
+> >
+> > which is surprising to me since the script only added numeric `SEXP`
+> values to the `vector`. My expected output for this value of `n` would be
+> the same as the cases above.
+> >
+> > ## gctorture
+> > I reran the `n=10000` example with `gctorture(TRUE)` but did not receive
+> any warning but the data is corrupt. Two random elements in the `res` list:
+> >
+> > # [[998]]
+> > # <CHARSXP: "\"key\"">
+> > #
+> > # [[999]]
+> > # [1] "srcref"
+> >
+> > = Replication
+> > I replicated these results on Mac OS X Sierra as well as Docker image
+> based on rocker.
+> >
+> > sessionInfo()
+> > # R version 3.3.1 (2016-06-21)
+> > # Platform: x86_64-apple-darwin15.5.0 (64-bit)
+> > # Running under: OS X 10.12 (Sierra)
+> > #
+> > # locale:
+> > # [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> > #
+> > # attached base packages:
+> > # [1] stats     graphics  grDevices utils     datasets  methods   base
+> > #
+> > # other attached packages:
+> > # [1] Rcpp_0.12.7    setwidth_1.0-4 colorout_1.1-2
+> > #
+> > # loaded via a namespace (and not attached):
+> > # [1] tools_3.3.1
+> >
+> > ### uname
+> >
+> > uname -prsv
+> > Darwin 16.0.0 Darwin Kernel Version 16.0.0: Mon Aug 29 17:56:20 PDT
+> 2016; root:xnu-3789.1.32~3/RELEASE_X86_64 i386
+> >
+> > ### clang
+> >
+> > clang -v
+> > Apple LLVM version 8.0.0 (clang-800.0.38)
+> > Target: x86_64-apple-darwin16.0.0
+> > Thread model: posix
+> > InstalledDir: /Applications/Xcode.app/Contents/Developer/Toolchains/
+> XcodeDefault.xctoolchain/usr/bin
+> >
+> > Any advise on what may be the problem here?
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161006/a21a1271/attachment-0001.html>
+
+From kevinushey at gmail.com  Thu Oct  6 18:46:49 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 6 Oct 2016 09:46:49 -0700
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <22518.31858.943575.20803@max.nulle.part>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+ <22518.31858.943575.20803@max.nulle.part>
+Message-ID: <CAJXgQP1YCmFVniEQH-RLSVmhiwprjM6RX5+VB=6i3hQFU4b-Rg@mail.gmail.com>
+
+I'm pretty sure I saw this post on StackOverflow before. Please don't cross
+post, or at least indicate that you are when you do so. It's also nice to
+give credit based on the advice you receive...
+
+The main issue in your code, I think, is here:
+
+struct Element : public std::enable_shared_from_this< Element > {
+  SEXP key_;
+
+  /* Simple constructor that assigns the key. */
+  Element(SEXP key) : key_(key) {
+    PROTECT(key_);
+  }
+
+  ~Element() {
+    UNPROTECT_PTR(key_);
+  }
+
+  /* Convert the object to a R object. */
+  operator SEXP() const;
+};
+
+Using PROTECT here is the wrong thing for SEXP class members -- PROTECT
+uses the R stack-based protection scheme, and that will not work well for
+objects whose lifetimes extend beyond the scope of when they're created.
+You likely need `R_PreserveObject` and `R_ReleaseObject`. Note that this is
+how Rcpp vectors ensure they are protected from the garbage collector.
+
+Kevin
+
+On Thu, Oct 6, 2016 at 9:31 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Anton,
+>
+> Thanks for posting here.
+>
+> On 6 October 2016 at 10:52, Anton Bossenbroek wrote:
+> | I want to add a large number of objects in C++ that are managed by
+> `shared_ptr` in a `vector`. However, when I push the limits of the amount
+> that I want to allocate the data in R becomes inconsistent.
+>
+> A bit of background.
+>
+> Rcpp exists because of the excellent idea (by Dominick, around 2004 to
+> 2005)
+> that using C++ templates for SEXP++ would make interfacing QuantLib easier
+> in
+> the RQuantLib package I had started a few years earlier.
+>
+> QuantLib is a marvel. It started in the early 2000s and was the first
+> project
+> I saw which has bet "big" on Boost testing, and, very importantly,
+> shared_ptr.  QuantLib also makes extensive use of SWIG to govern interfaces
+> to (a large number of) other languages.  And here is the key: None of those
+> can use shared_ptr objects.  Neither does RQuantLib. Even though they are
+> pervasive in QuantLib.
+>
+> Now, we are here to interface R.  All that Rcpp does, in essence, is making
+> it trivially easy to get objects in and out of R as proxy objects:
+> lightweight, no copy.  And the memory _is still managed by R_. So that you
+> never need to use a SEXP directly in C++.  That is a feature.  [ Of course,
+> sometimes you need the SEXP as a quasi-variant type, but that is not the
+> common use. So let's just call it 'no SEXP in user code'. ]
+>
+> So I am not claiming that what you want to do here is impossible -- but I
+> am
+> not aware of another project having done this: hold R objects in a
+> smart_ptr.
+>
+> Also, you haven't really explained what you want to do, what the life cyle
+> of your
+> objects is etc pp.
+>
+> At the simplest level, Rcpp use is synchronous:  you call from R, pass some
+> content, do some calculations, report something back -- and everything
+> intermediary is destroyed.  You can persist things, of course, when you
+> manage the memory.  But you need to be very sure the things are then away
+> from R -- copies are probably best. XPtr objects are used in that context.
+>
+> Anyway, end of short speech.  I would recommend you try to break you
+> project
+> into smaller, more fundamental tasks.  Maybe we can help with those, one
+> by one.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161006/1b119d20/attachment.html>
+
+From kevinushey at gmail.com  Thu Oct  6 18:52:10 2016
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 6 Oct 2016 09:52:10 -0700
+Subject: [Rcpp-devel] Can an Rcpp package include Fortran code?
+In-Reply-To: <22518.32183.963703.239068@max.nulle.part>
+References: <CAL6gwnJcMbEOkK0dzC+FbLsDj_3nX9mGNwT1_4mrH4mUw82MhA@mail.gmail.com>
+ <22518.32183.963703.239068@max.nulle.part>
+Message-ID: <CAJXgQP2KvO0P2BWvSA3b=SRmc5RHyby2QK=8tv3NE782gtpRcw@mail.gmail.com>
+
+My best guess is that the issue here is that 'gfortran' is being used for
+linking, e.g.
+
+c:/Rtools/mingw_64/bin/gfortran -shared -s
+-Wl,--allow-multiple-definition -static-libgcc -o ForTest.dll tmp.def
+RcppExports.o VecSum_C.o VecSum_F.o -LC:/R/RLocalSoft/lib/x64
+-LC:/R/RLocalSoft/lib -LC:/R/RCurrent/R-33~1.1PA/bin/x64 -lR
+
+You likely need to force the C++ compiler (g++) to be used for linking,
+although I'm not exactly ensure how to accomplish this. Hopefully, setting
+one of:
+
+   SHLIB_LD = $(CXX)
+   SHLIB_FCLD = $(CXX)
+   DYLIB_LD = $(CXX)
+
+in your src/Makevars[.win] will be sufficient, but no guarantees...
+
+Kevin
+
+On Thu, Oct 6, 2016 at 9:37 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 6 October 2016 at 12:19, Avraham Adler wrote:
+> | Has anyone successfully created a package that uses Rcpp for C++ code
+> | and which also has Fortran code? I'm experimenting with comparing
+> | Fortran and C++ and if I could use Rcpp to handle the C++ portion, it
+> | would reduce the steepness of the learning curve.
+> |
+> | However, I haven't had success. The following C++ and Fortran snippets
+> | compile properly separately?the C++ as part of Rcpp and the Fortran
+> | using R CMD SHLIB and dynload?and the R snippets call them properly,
+> | but when I put both the .cpp and .f95 files in /src, I get the huge
+> | error posted below the files.
+> |
+> | Am I missing something simple or will having C++ and Fortran code in
+> | the same package prevent the use of Rcpp and require the old methods
+> | of calling compiled code?
+>
+> I was about to say 'sure, why not' when I remembered that Writiing R
+> Extension has something to say about this in section 1.2.4:
+>
+>      There is no guarantee that C++11 can be used in a package in
+>   combination with any other compiled language (even C), as the C++11
+>   compiler may be incompatible with the native compilers for the platform.
+>   (There are known problems mixing C++11 with Fortran.)
+>
+> but then this warning is just about C++11 and Fortran.
+>
+> That said, your description above suggests that you are "simply" too
+> optimistic about 'Rcpp Attributes' -- those do not aim to support all
+> languages. They provide a (very powerful) convenience tool for Rcpp. And
+> hence C++.
+>
+> If it works in a package, stick with a package. That gets you different
+> compilation units, and hopefully sane linking.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161006/ef07e22f/attachment.html>
+
+From anton.bossenbroek at me.com  Thu Oct  6 19:12:43 2016
+From: anton.bossenbroek at me.com (Anton Bossenbroek)
+Date: Thu, 06 Oct 2016 13:12:43 -0400
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <22518.31858.943575.20803@max.nulle.part>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+ <22518.31858.943575.20803@max.nulle.part>
+Message-ID: <5B815EC9-259E-4349-A22B-163B96A37D1D@me.com>
+
+Hi Dirk,
+
+Thanks for clarifying. I love the QuantLib package, I used while I was working in quant finance before moving to data science.
+
+The idea behind my code is that I want to create a C++ backend to the GeneralTree package I recently committed on CRAN (https://cran.r-project.org/web/packages/GeneralTree/index.html <https://cran.r-project.org/web/packages/GeneralTree/index.html> ). I have two goals:
+1. provide a fast and unified interface to xml, JSON, YAML parsers. 
+2. provide a easy way to handle different models based on the same data using decision rules in the tree
+
+The reason I want to write the backend in C++ is because R6 objects are slow. I initially wanted to keep objects by reference to prevent data.frames or entire models to be copied, which could be more important in case 2 than 1. What is your thought on this?
+
+I could rewrite all the shared_ptr to XPtr to make sure the entire memory is managed by R instead of a mixture model. But if you think copies are better I might choose that approach.
+
+Best,
+
+Anton
+
+> On 6 Oct 2016, at 12:31, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> Hi Anton,
+> 
+> Thanks for posting here.
+> 
+> On 6 October 2016 at 10:52, Anton Bossenbroek wrote:
+> | I want to add a large number of objects in C++ that are managed by `shared_ptr` in a `vector`. However, when I push the limits of the amount that I want to allocate the data in R becomes inconsistent.
+> 
+> A bit of background.
+> 
+> Rcpp exists because of the excellent idea (by Dominick, around 2004 to 2005)
+> that using C++ templates for SEXP++ would make interfacing QuantLib easier in
+> the RQuantLib package I had started a few years earlier.
+> 
+> QuantLib is a marvel. It started in the early 2000s and was the first project
+> I saw which has bet "big" on Boost testing, and, very importantly,
+> shared_ptr.  QuantLib also makes extensive use of SWIG to govern interfaces
+> to (a large number of) other languages.  And here is the key: None of those
+> can use shared_ptr objects.  Neither does RQuantLib. Even though they are
+> pervasive in QuantLib.
+> 
+> Now, we are here to interface R.  All that Rcpp does, in essence, is making
+> it trivially easy to get objects in and out of R as proxy objects:
+> lightweight, no copy.  And the memory _is still managed by R_. So that you
+> never need to use a SEXP directly in C++.  That is a feature.  [ Of course,
+> sometimes you need the SEXP as a quasi-variant type, but that is not the
+> common use. So let's just call it 'no SEXP in user code'. ]
+> 
+> So I am not claiming that what you want to do here is impossible -- but I am
+> not aware of another project having done this: hold R objects in a smart_ptr.
+> 
+> Also, you haven't really explained what you want to do, what the life cyle of your
+> objects is etc pp.
+> 
+> At the simplest level, Rcpp use is synchronous:  you call from R, pass some
+> content, do some calculations, report something back -- and everything
+> intermediary is destroyed.  You can persist things, of course, when you
+> manage the memory.  But you need to be very sure the things are then away
+> from R -- copies are probably best. XPtr objects are used in that context.
+> 
+> Anyway, end of short speech.  I would recommend you try to break you project
+> into smaller, more fundamental tasks.  Maybe we can help with those, one by one.
+> 
+> Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161006/85537891/attachment-0001.html>
+
+From edd at debian.org  Thu Oct  6 19:36:11 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Oct 2016 12:36:11 -0500
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <5B815EC9-259E-4349-A22B-163B96A37D1D@me.com>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+ <22518.31858.943575.20803@max.nulle.part>
+ <5B815EC9-259E-4349-A22B-163B96A37D1D@me.com>
+Message-ID: <22518.35723.592625.234570@max.nulle.part>
+
+
+On 6 October 2016 at 13:12, Anton Bossenbroek wrote:
+| The idea behind my code is that I want to create a C++ backend to the
+| GeneralTree package I recently committed on CRAN (https://cran.r-project.org/
+| web/packages/GeneralTree/index.html ). I have two goals:
+| 1. provide a fast and unified interface to xml, JSON, YAML parsers. 
+| 2. provide a easy way to handle different models based on the same data using
+| decision rules in the tree
+| 
+| The reason I want to write the backend in C++ is because R6 objects are slow. I
+| initially wanted to keep objects by reference to prevent data.frames or entire
+| models to be copied, which could be more important in case 2 than 1. What is
+| your thought on this?
+
+Everything you get from R is already by reference (well, technically, a
+pointer as the P in SEXP). That is the beauty of proxy objects in Rcpp.
+
+So just simplify things, and don't interfere with R's memory management.
+Should be much smoother sailing.
+
+I get the feeling that are both very ambitious, yet somewhat new to Rcpp. I
+would simply urge patience, recommend you study a couple of existing packages
+and start small.
+
+Good luck,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From anton.bossenbroek at me.com  Thu Oct  6 19:41:03 2016
+From: anton.bossenbroek at me.com (Anton Bossenbroek)
+Date: Thu, 06 Oct 2016 13:41:03 -0400
+Subject: [Rcpp-devel] Logic error causes R memory to be corrupt
+In-Reply-To: <22518.35723.592625.234570@max.nulle.part>
+References: <0BD8F619-AA67-4F7A-8E70-A091DBA0E1F0@me.com>
+ <22518.31858.943575.20803@max.nulle.part>
+ <5B815EC9-259E-4349-A22B-163B96A37D1D@me.com>
+ <22518.35723.592625.234570@max.nulle.part>
+Message-ID: <26E38066-F2CD-4D4B-9A75-6B2DC0D983AB@me.com>
+
+
+> On 6 Oct 2016, at 13:36, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 6 October 2016 at 13:12, Anton Bossenbroek wrote:
+> | The idea behind my code is that I want to create a C++ backend to the
+> | GeneralTree package I recently committed on CRAN (https://cran.r-project.org/
+> | web/packages/GeneralTree/index.html ). I have two goals:
+> | 1. provide a fast and unified interface to xml, JSON, YAML parsers. 
+> | 2. provide a easy way to handle different models based on the same data using
+> | decision rules in the tree
+> | 
+> | The reason I want to write the backend in C++ is because R6 objects are slow. I
+> | initially wanted to keep objects by reference to prevent data.frames or entire
+> | models to be copied, which could be more important in case 2 than 1. What is
+> | your thought on this?
+> 
+> Everything you get from R is already by reference (well, technically, a
+> pointer as the P in SEXP). That is the beauty of proxy objects in Rcpp.
+> 
+That?s what I thought, but also the reason why I don?t understand why the memory becomes corrupt with large n.
+
+> So just simplify things, and don't interfere with R's memory management.
+> Should be much smoother sailing.
+> 
+With my ignorance of Rcpp, say I where to implement this in C++ I would make the content either with void *. Templates wouldn?t work since the type of data is only known at runtime. Would this solve part of the problem?
+
+> I get the feeling that are both very ambitious, yet somewhat new to Rcpp. I
+> would simply urge patience, recommend you study a couple of existing packages
+> and start small.
+> 
+I guess you a right, it?s the first time for me writing a data structure in C++ for R. I used Rcpp more for optimization of inner loops, never data structures.
+
+> Good luck,  Dirk
+> 
+> -- 
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+
+From avraham.adler at gmail.com  Thu Oct  6 19:48:15 2016
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Thu, 6 Oct 2016 13:48:15 -0400
+Subject: [Rcpp-devel] Can an Rcpp package include Fortran code?
+Message-ID: <CAL6gwnJ_=gZfmWe-1YwP=b+RZv-rNwU4ob7qz9YSO1xHHnGqeQ@mail.gmail.com>
+
+On Thu, Oct 6, 2016 at 12:52 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+> My best guess is that the issue here is that 'gfortran' is being used for
+> linking, e.g.
+>
+> c:/Rtools/mingw_64/bin/gfortran -shared -s
+> -Wl,--allow-multiple-definition -static-libgcc -o ForTest.dll tmp.def
+> RcppExports.o VecSum_C.o VecSum_F.o -LC:/R/RLocalSoft/lib/x64
+> -LC:/R/RLocalSoft/lib -LC:/R/RCurrent/R-33~1.1PA/bin/x64 -lR
+>
+> You likely need to force the C++ compiler (g++) to be used for linking,
+> although I'm not exactly ensure how to accomplish this. Hopefully, setting
+> one of:
+>
+>    SHLIB_LD = $(CXX)
+>    SHLIB_FCLD = $(CXX)
+>    DYLIB_LD = $(CXX)
+>
+> in your src/Makevars[.win] will be sufficient, but no guarantees...
+>
+> Kevin
+
+Yes, Kevin, that was it. Unfortunately, setting Makevars[.win] in the
+package doesn't help, as per
+https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Using-Makevars:
+
+  "There are some macros25 which are set whilst configuring the
+building of R itself and are stored in R_HOME/etcR_ARCH/Makeconf. That
+makefile is included as a Makefile after Makevars[.win], and the
+macros it defines can be used in macro assignments and make command
+lines in the latter."
+
+
+So I had to manually edit /etc/Makeconf to SHLIB_FCLD =  $(CXX). Would
+you know of any way to "override" Makeconf to get the package variable
+to override the Makeconf variable? Or is this something I should ask
+on R-devel.
+
+Thank you!
+
+Avi
+
+On Thu, Oct 6, 2016 at 12:52 PM, Kevin Ushey <kevinushey at gmail.com> wrote:
+> My best guess is that the issue here is that 'gfortran' is being used for
+> linking, e.g.
+>
+> c:/Rtools/mingw_64/bin/gfortran -shared -s
+> -Wl,--allow-multiple-definition -static-libgcc -o ForTest.dll tmp.def
+> RcppExports.o VecSum_C.o VecSum_F.o -LC:/R/RLocalSoft/lib/x64
+> -LC:/R/RLocalSoft/lib -LC:/R/RCurrent/R-33~1.1PA/bin/x64 -lR
+>
+> You likely need to force the C++ compiler (g++) to be used for linking,
+> although I'm not exactly ensure how to accomplish this. Hopefully, setting
+> one of:
+>
+>    SHLIB_LD = $(CXX)
+>    SHLIB_FCLD = $(CXX)
+>    DYLIB_LD = $(CXX)
+>
+> in your src/Makevars[.win] will be sufficient, but no guarantees...
+>
+> Kevin
+>
+> On Thu, Oct 6, 2016 at 9:37 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>>
+>> On 6 October 2016 at 12:19, Avraham Adler wrote:
+>> | Has anyone successfully created a package that uses Rcpp for C++ code
+>> | and which also has Fortran code? I'm experimenting with comparing
+>> | Fortran and C++ and if I could use Rcpp to handle the C++ portion, it
+>> | would reduce the steepness of the learning curve.
+>> |
+>> | However, I haven't had success. The following C++ and Fortran snippets
+>> | compile properly separately?the C++ as part of Rcpp and the Fortran
+>> | using R CMD SHLIB and dynload?and the R snippets call them properly,
+>> | but when I put both the .cpp and .f95 files in /src, I get the huge
+>> | error posted below the files.
+>> |
+>> | Am I missing something simple or will having C++ and Fortran code in
+>> | the same package prevent the use of Rcpp and require the old methods
+>> | of calling compiled code?
+>>
+>> I was about to say 'sure, why not' when I remembered that Writiing R
+>> Extension has something to say about this in section 1.2.4:
+>>
+>>      There is no guarantee that C++11 can be used in a package in
+>>   combination with any other compiled language (even C), as the C++11
+>>   compiler may be incompatible with the native compilers for the platform.
+>>   (There are known problems mixing C++11 with Fortran.)
+>>
+>> but then this warning is just about C++11 and Fortran.
+>>
+>> That said, your description above suggests that you are "simply" too
+>> optimistic about 'Rcpp Attributes' -- those do not aim to support all
+>> languages. They provide a (very powerful) convenience tool for Rcpp. And
+>> hence C++.
+>>
+>> If it works in a package, stick with a package. That gets you different
+>> compilation units, and hopefully sane linking.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+
+From jbuonagurio at exponent.com  Thu Oct  6 20:15:47 2016
+From: jbuonagurio at exponent.com (John Buonagurio)
+Date: Thu, 6 Oct 2016 18:15:47 +0000
+Subject: [Rcpp-devel] Can an Rcpp package include Fortran code?
+In-Reply-To: <CAL6gwnJcMbEOkK0dzC+FbLsDj_3nX9mGNwT1_4mrH4mUw82MhA@mail.gmail.com>
+References: <CAL6gwnJcMbEOkK0dzC+FbLsDj_3nX9mGNwT1_4mrH4mUw82MhA@mail.gmail.com>
+Message-ID: <00F9E64B563E7C45818C85C1B7FCC726015F7579F8@SFMB02.exponent.com>
+
+On 6 October 2016 at 12:19, Avraham Adler wrote:
+| Has anyone successfully created a package that uses Rcpp for C++ code
+| and which also has Fortran code? I'm experimenting with comparing
+| Fortran and C++ and if I could use Rcpp to handle the C++ portion, it
+| would reduce the steepness of the learning curve.
+| 
+| However, I haven't had success. The following C++ and Fortran snippets
+| compile properly separately?the C++ as part of Rcpp and the Fortran
+| using R CMD SHLIB and dynload?and the R snippets call them properly,
+| but when I put both the .cpp and .f95 files in /src, I get the huge
+| error posted below the files.
+| 
+| Am I missing something simple or will having C++ and Fortran code in
+| the same package prevent the use of Rcpp and require the old methods
+| of calling compiled code?
+
+Avi,
+
+Take a look at my package 'htdp' for a complete example:
+
+https://github.com/jbuonagurio/RHTDP
+
+Specifically:
+
+src/Makevars
+src/RcppHTDP.cpp
+src/htdp/htdp.h
+src/htdp/README
+
+A few notes:
+
+1. I have a single Fortran file with F95 INCLUDE statements to simplify 
+the build, at the cost of incremental linking. You don't have to do 
+this, see the 'matrix' package on CRAN for a more complex build example. 
+
+2. Set 'PKG_LIBS = $(FLIBS)' in Makevars to link the appropriate 
+libraries (-lgfortran -lquadmath -lm). 
+
+3. Do not use Fortran I/O if you want your package on CRAN (e.g. WRITE, 
+STOP). Use the R-only versions of error and warning (REXIT, RWARN). 
+These are defined in src/main/xxxpr.f in the R sources. 
+
+4. This package will probably only work with gfortran, which exports all 
+symbols with a trailing underscore by default. Make sure your function 
+prototypes have the underscore in the header file, with extern "c". 
+
+5. A better and more interoperable way to call Fortran from C/C++ is to 
+use ISO_C_BINDING, which lets you pass by value, set number of bytes for 
+storage, etc. I originally set up this package to use ISO_C_BINDING, 
+however I realized later that earlier versions of gfortran (before GCC 
+4.9.3) require explicit interfaces which I didn't want to bother with. 
+You probably should. See this older commit for the ISO_C_BINDING version:
+
+<https://github.com/jbuonagurio/RHTDP/commit/5912279aa139b15baa435db2d6e6f78807a707a3> 
+
+6. Don't use .Fortran(). Call the Fortran code from C++, and let Rcpp 
+attributes create the .Call() statements for you. 
+
+
+Dirk/Kevin, please feel free to add/revise!
+
+Best,
+John Buonagurio
+
+
+From edd at debian.org  Thu Oct  6 20:24:10 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Oct 2016 13:24:10 -0500
+Subject: [Rcpp-devel] Can an Rcpp package include Fortran code?
+In-Reply-To: <CAL6gwnJ_=gZfmWe-1YwP=b+RZv-rNwU4ob7qz9YSO1xHHnGqeQ@mail.gmail.com>
+References: <CAL6gwnJ_=gZfmWe-1YwP=b+RZv-rNwU4ob7qz9YSO1xHHnGqeQ@mail.gmail.com>
+Message-ID: <22518.38602.767047.44241@max.nulle.part>
+
+
+On 6 October 2016 at 13:48, Avraham Adler wrote:
+| So I had to manually edit /etc/Makeconf to SHLIB_FCLD =  $(CXX). Would
+| you know of any way to "override" Makeconf to get the package variable
+| to override the Makeconf variable? Or is this something I should ask
+| on R-devel.
+
+One cannot.  That is super-annoying but a fact.  But I think you have the
+(local) hook ~/.R/Makeconf.  How to set SHLIB_FCLD in a package is harder.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From aminashahzadi at gmail.com  Tue Oct 11 04:54:00 2016
+From: aminashahzadi at gmail.com (Amina Shahzadi)
+Date: Tue, 11 Oct 2016 15:54:00 +1300
+Subject: [Rcpp-devel] How to call a function from an R package in cpp code
+Message-ID: <CAMbX5wmTH8WDRD2_mvwsem+UkO09AgemYRBQTS1N994WQGP8Fg@mail.gmail.com>
+
+Hi Rcpp Friends
+
+I want to use dgev(x,shape=1,scale=1,location=0,log=FALSE) function of an R
+package "FAdist" in the framework of Rcpp. How can I call that?
+
+For example for the Poisson distribution which is basic function of R I
+have written the following code.
+
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+//[[Rcpp::export]]
+
+NumericVector poiss(NumerixVector x, double lam, int give_log)
+{
+        return R::dpois(x, lam, give_log);
+}
+
+
+Thank you
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161011/e67aeef5/attachment.html>
+
+From xinda.yang at unsw.edu.au  Tue Oct 11 06:10:23 2016
+From: xinda.yang at unsw.edu.au (Xinda Yang)
+Date: Tue, 11 Oct 2016 04:10:23 +0000
+Subject: [Rcpp-devel] a question about missing rcpp.h
+Message-ID: <MEXPR01MB12691440572BFC52108D1FCDC0DA0@MEXPR01MB1269.ausprd01.prod.outlook.com>
+
+Dear all
+
+I am using a Windows 7 system, R studio 0.99.467, R x64 3.3.1 and R tools 34.
+
+I have been trying to run sourceCpp("reglinRcpp.cpp") in my R studio and got the following error message. It seems clear that the issue is that the Rcpp.h file cannot be found. So I have tried to run set PKG_CXXFLAGS='-I/H:/R/win-library/3.3/Rcpp/include' in the windows command window (see attached screenshot). However, this does not solve the issue. Could anyone advise me what I should do? Thanks a lot in advance!
+
+Kind regards
+Xinda
+
+
+c:/Rtools/mingw_64/bin/g++  -I"C:/PROGRA~1/R/R-33~1.1/include" -DNDEBUG     -I"//INFPWFS1014.ad.unsw.edu.au/Staff081z3271570/R/win-library/3.3/Rcpp/include" -I"C:/Users/z3271570/Desktop/rsrcpp"  -I"d:/Compiler/gcc-4.9.3/local330/include"  -std=c++11   -O2 -Wall  -mtune=core2 -c reglinRcpp.cpp -o reglinRcpp.o
+
+reglinRcpp.cpp:1:18: fatal error: Rcpp.h: No such file or directory
+
+ #include <Rcpp.h>
+
+                  ^
+
+compilation terminated.
+
+make: *** [reglinRcpp.o] Error 1
+
+Warning message:
+
+running command 'make -f "C:/PROGRA~1/R/R-33~1.1/etc/x64/Makeconf" -f "C:/PROGRA~1/R/R-33~1.1/share/make/winshlib.mk" SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)' SHLIB="sourceCpp_17.dll" WIN=64 TCLBIN=64 OBJECTS="reglinRcpp.o"' had status 2
+
+Error in sourceCpp("reglinRcpp.cpp") :
+
+  Error 1 occurred building shared library.
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161011/babe8826/attachment.html>
+-------------- next part --------------
+An embedded and charset-unspecified text was scrubbed...
+Name: reglinRcpp.cpp
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161011/babe8826/attachment.ksh>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Capture.PNG
+Type: image/png
+Size: 2082 bytes
+Desc: Capture.PNG
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161011/babe8826/attachment.png>
+
+From edd at debian.org  Tue Oct 11 13:11:43 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 11 Oct 2016 06:11:43 -0500
+Subject: [Rcpp-devel] a question about missing rcpp.h
+In-Reply-To: <MEXPR01MB12691440572BFC52108D1FCDC0DA0@MEXPR01MB1269.ausprd01.prod.outlook.com>
+References: <MEXPR01MB12691440572BFC52108D1FCDC0DA0@MEXPR01MB1269.ausprd01.prod.outlook.com>
+Message-ID: <22524.51439.529577.427343@max.nulle.part>
+
+
+On 11 October 2016 at 04:10, Xinda Yang wrote:
+| I am using a Windows 7 system, R studio 0.99.467, R x64 3.3.1 and R tools 34.
+
+But you have R installed in a path with spaces. That sometimes creates
+problems, and is still recommended against in question 2.2 of the 'R on
+Windows FAQ' at
+https://cran.r-project.org/bin/windows/base/rw-FAQ.html#How-do-I-install-R-for-Windows_003f
+
+Worse your include path seems to be on a network drive:
+-I"//INFPWFS1014.ad.unsw.edu.au/Staff081z3271570/R/...."
+
+As this fails for you, I would suggest a local 'on the machine'
+installation.
+
+I always put mine into c:/opt/R/R-current/ instead of c:/R/R-3.3.1, say.
+
+| I have been trying to run sourceCpp("reglinRcpp.cpp") in my R studio and got
+| the following error message. It seems clear that the issue is that the Rcpp.h
+| file cannot be found. So I have tried to run set PKG_CXXFLAGS=?-I/H:/R/
+| win-library/3.3/Rcpp/include? in the windows command window (see attached
+
+You don't need to do that. As you can see R knew where Rcpp was.
+
+And I don't see screenshots as I read email in text mode. Sorry.
+
+Dirk
+
+| screenshot). However, this does not solve the issue. Could anyone advise me
+| what I should do? Thanks a lot in advance!
+| 
+|  
+| 
+| Kind regards
+| 
+| Xinda
+| 
+|  
+| 
+| c:/Rtools/mingw_64/bin/g++  -I"C:/PROGRA~1/R/R-33~1.1/include" -DNDEBUG     -I"//INFPWFS1014.ad.unsw.edu.au/Staff081z3271570/R/win-library/3.3/Rcpp/include" -I"C:/Users/z3271570/Desktop/rsrcpp"  -I"d:/Compiler/gcc-4.9.3/local330/include"  -std=c++11   -O2 -Wall  -mtune=core2 -c reglinRcpp.cpp -o reglinRcpp.o
+| 
+| reglinRcpp.cpp:1:18: fatal error: Rcpp.h: No such file or directory
+| 
+|  #include <Rcpp.h>
+| 
+|                   ^
+| 
+| compilation terminated.
+| 
+| make: *** [reglinRcpp.o] Error 1
+| 
+| Warning message:
+| 
+| running command 'make -f "C:/PROGRA~1/R/R-33~1.1/etc/x64/Makeconf" -f "C:/PROGRA~1/R/R-33~1.1/share/make/winshlib.mk" SHLIB_LDFLAGS='$(SHLIB_CXXLDFLAGS)' SHLIB_LD='$(SHLIB_CXXLD)' SHLIB="sourceCpp_17.dll" WIN=64 TCLBIN=64 OBJECTS="reglinRcpp.o"' had status 2 
+| 
+| Error in sourceCpp("reglinRcpp.cpp") : 
+| 
+|   Error 1 occurred building shared library.
+| 
+|  
+| 
+|  
+| 
+|  
+| 
+| x[DELETED ATTACHMENT reglinRcpp.cpp, plain text]
+| x[DELETED ATTACHMENT Capture.PNG, PNG image]
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Oct 11 13:02:00 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 11 Oct 2016 06:02:00 -0500
+Subject: [Rcpp-devel] How to call a function from an R package in cpp
+	code
+In-Reply-To: <CAMbX5wmTH8WDRD2_mvwsem+UkO09AgemYRBQTS1N994WQGP8Fg@mail.gmail.com>
+References: <CAMbX5wmTH8WDRD2_mvwsem+UkO09AgemYRBQTS1N994WQGP8Fg@mail.gmail.com>
+Message-ID: <22524.50856.595545.779304@max.nulle.part>
+
+
+On 11 October 2016 at 15:54, Amina Shahzadi wrote:
+| I want to use dgev(x,shape=1,scale=1,location=0,log=FALSE) function of an R
+| package "FAdist" in the framework of Rcpp. How can I call that?
+| 
+| For example for the Poisson distribution which is basic function of R I have
+| written the following code.
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| //[[Rcpp::export]]
+| 
+| NumericVector poiss(NumerixVector x, double lam, int give_log)
+| {
+| ??????? return R::dpois(x, lam, give_log);
+| }
+
+First off, your example makes no sense. You probably want to call Rcpp::dpois
+as you work on a _vector_ x. Rcpp::dpois closely corresponds to what you have
+in R as dpois() __because we an underlying function we can call to do the
+same__.
+
+You have said nothing about how FAdist::dgev() is implemented. The answer
+will depend on that, and there is nothing we can say as it is stated.
+
+Not everything you see in any given R package as underlying C++ code.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fintzij at uw.edu  Wed Oct 12 22:43:20 2016
+From: fintzij at uw.edu (Jonathan Fintzi)
+Date: Wed, 12 Oct 2016 13:43:20 -0700
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+Message-ID: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+
+Hello,
+
+I am trying to use the std::copy() function to copy elements from an
+Rcpp::NumericVector into rows of armadillo matrices. A simplified version
+of my code is as follows:
+
+cppFunction('void copyinto(Rcpp::NumericVector& v, arma::mat& d1,
+arma::mat& d2) {
+        std::copy(v.begin(), v.begin() + 3, d1.begin_row(0));
+        std::copy(v.begin() + 3, v.end(), d2.begin_row(0));
+}', depends = "RcppArmadillo")
+
+v <- runif(6)
+d1 <- matrix(0.0, 3,3)
+d2 <- matrix(0.0, 3,3)
+
+copyinto(v, d1, d2)
+
+However, when I attempt to compile the code, I receive a list of
+compilation errors including "no type named 'XXXXXX' in 'class
+arma::Mat<double>row_iterator", where XXXXXX is iterator_category,
+value_type, difference_type, pointer, and reference.
+
+If I change the iterators to column iterators (e.g. d1.begin_col(0))
+everything compiles and works just fine. I feel that I must be missing
+something quite basic here, but in searching around I haven't been able to
+identify my mistake.
+
+Thank you for your help!
+Jon
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161012/195348ce/attachment.html>
+
+From edd at debian.org  Wed Oct 12 23:10:04 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 12 Oct 2016 16:10:04 -0500
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+In-Reply-To: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+References: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+Message-ID: <22526.42668.963821.737406@max.nulle.part>
+
+
+On 12 October 2016 at 13:43, Jonathan Fintzi wrote:
+| Hello,
+| 
+| I am trying to use the std::copy() function to copy elements from an
+| Rcpp::NumericVector into rows of armadillo matrices. A simplified version of my
+| code is as follows:
+| 
+| cppFunction('void copyinto(Rcpp::NumericVector& v, arma::mat& d1, arma::mat&
+| d2) {
+| ??????? std::copy(v.begin(), v.begin() + 3, d1.begin_row(0));
+| ??????? std::copy(v.begin() + 3, v.end(), d2.begin_row(0));
+| }', depends = "RcppArmadillo")
+
+You should not need to mix an _Rcpp_ vector with an _Armadillo_ matrix using
+std::copy.  Check the decent Armadillo docs -- all the subsetting and slicing
+can be done with Armadillo.  And that is what I would do.
+
+But maybe I didn't quite understand what you are really after.
+
+Dirk
+ 
+| v <- runif(6)
+| d1 <- matrix(0.0, 3,3)
+| d2 <- matrix(0.0, 3,3)
+| 
+| copyinto(v, d1, d2)
+| 
+| However, when I attempt to compile the code, I receive a list of compilation
+| errors including "no type named 'XXXXXX' in 'class arma::Mat<double>
+| row_iterator", where XXXXXX is iterator_category, value_type, difference_type,
+| pointer, and reference.
+| 
+| If I change the iterators to column iterators (e.g. d1.begin_col(0)) everything
+| compiles and works just fine. I feel that I must be missing something quite
+| basic here, but in searching around I haven't been able to identify my mistake.
+| 
+| Thank you for your help!
+| Jon
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fintzij at uw.edu  Wed Oct 12 23:20:36 2016
+From: fintzij at uw.edu (Jonathan Fintzi)
+Date: Wed, 12 Oct 2016 14:20:36 -0700
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+In-Reply-To: <22526.42668.963821.737406@max.nulle.part>
+References: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+ <22526.42668.963821.737406@max.nulle.part>
+Message-ID: <CAJxst-MSgJcBYz6vyC55rVEWEomBnu51TV9+81yQyRDQDnObwA@mail.gmail.com>
+
+Hi Dirk,
+
+Thanks for the quick response. In the broader project, the vector being
+copied from is an Rcpp::NumericVector that contatenates vectorized versions
+of a number of other objects that are integrated numerically using the
+boost odeint solvers. I couldn't quite get the numerical integrators to
+play nice with Armadillo objects, and in using std::copy I was trying to
+avoid converting the vector 'v' to an arma::vec since I would have to
+convert it back for further integration. Perhaps this was a mistake?
+
+Still, I don't quite understand why armadillo row pointers don't work which
+armadillo column pointers are fine.
+
+Thanks,
+Jon
+
+On Wed, Oct 12, 2016 at 2:10 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 12 October 2016 at 13:43, Jonathan Fintzi wrote:
+> | Hello,
+> |
+> | I am trying to use the std::copy() function to copy elements from an
+> | Rcpp::NumericVector into rows of armadillo matrices. A simplified
+> version of my
+> | code is as follows:
+> |
+> | cppFunction('void copyinto(Rcpp::NumericVector& v, arma::mat& d1,
+> arma::mat&
+> | d2) {
+> |         std::copy(v.begin(), v.begin() + 3, d1.begin_row(0));
+> |         std::copy(v.begin() + 3, v.end(), d2.begin_row(0));
+> | }', depends = "RcppArmadillo")
+>
+> You should not need to mix an _Rcpp_ vector with an _Armadillo_ matrix
+> using
+> std::copy.  Check the decent Armadillo docs -- all the subsetting and
+> slicing
+> can be done with Armadillo.  And that is what I would do.
+>
+> But maybe I didn't quite understand what you are really after.
+>
+> Dirk
+>
+> | v <- runif(6)
+> | d1 <- matrix(0.0, 3,3)
+> | d2 <- matrix(0.0, 3,3)
+> |
+> | copyinto(v, d1, d2)
+> |
+> | However, when I attempt to compile the code, I receive a list of
+> compilation
+> | errors including "no type named 'XXXXXX' in 'class arma::Mat<double>
+> | row_iterator", where XXXXXX is iterator_category, value_type,
+> difference_type,
+> | pointer, and reference.
+> |
+> | If I change the iterators to column iterators (e.g. d1.begin_col(0))
+> everything
+> | compiles and works just fine. I feel that I must be missing something
+> quite
+> | basic here, but in searching around I haven't been able to identify my
+> mistake.
+> |
+> | Thank you for your help!
+> | Jon
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161012/b7351025/attachment.html>
+
+From edd at debian.org  Wed Oct 12 23:36:54 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 12 Oct 2016 16:36:54 -0500
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+In-Reply-To: <CAJxst-MSgJcBYz6vyC55rVEWEomBnu51TV9+81yQyRDQDnObwA@mail.gmail.com>
+References: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+ <22526.42668.963821.737406@max.nulle.part>
+ <CAJxst-MSgJcBYz6vyC55rVEWEomBnu51TV9+81yQyRDQDnObwA@mail.gmail.com>
+Message-ID: <22526.44278.620759.515163@max.nulle.part>
+
+
+Hi Jon,
+
+On 12 October 2016 at 14:20, Jonathan Fintzi wrote:
+| Thanks for the quick response. In the broader project, the vector being copied
+| from is an Rcpp::NumericVector that contatenates vectorized versions of a
+| number of other objects that are integrated numerically using the boost odeint
+| solvers. I couldn't quite get the numerical integrators to play nice with
+| Armadillo objects, and in using std::copy I was trying to avoid converting the
+| vector 'v' to an arma::vec since I would have to convert it back for further
+| integration. Perhaps this was a mistake?
+
+Yes -- the transformation in as essentially costless.  We have some
+benchmarking that show that.
+
+| Still, I don't quite understand why armadillo row pointers don't work which
+| armadillo column pointers are fine.
+
+Now you phrase your question as "arma-only" (which makes sense) but that
+is not what your code does, is it?
+
+I see that you are having an issue mixing things. So I suggest an easy
+simplification. You are of course free to ignore that -- but you may then
+have to provide another layer as the compiler so far appears to be unhappy.
+
+Dirk
+ 
+| Thanks,
+| Jon
+| 
+| On Wed, Oct 12, 2016 at 2:10 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+|    
+|     On 12 October 2016 at 13:43, Jonathan Fintzi wrote:
+|     | Hello,
+|     |
+|     | I am trying to use the std::copy() function to copy elements from an
+|     | Rcpp::NumericVector into rows of armadillo matrices. A simplified version
+|     of my
+|     | code is as follows:
+|     |
+|     | cppFunction('void copyinto(Rcpp::NumericVector& v, arma::mat& d1,
+|     arma::mat&
+|     | d2) {
+|     | ??????? std::copy(v.begin(), v.begin() + 3, d1.begin_row(0));
+|     | ??????? std::copy(v.begin() + 3, v.end(), d2.begin_row(0));
+|     | }', depends = "RcppArmadillo")
+| 
+|     You should not need to mix an _Rcpp_ vector with an _Armadillo_ matrix
+|     using
+|     std::copy.? Check the decent Armadillo docs -- all the subsetting and
+|     slicing
+|     can be done with Armadillo.? And that is what I would do.
+| 
+|     But maybe I didn't quite understand what you are really after.
+| 
+|     Dirk
+|    
+|     | v <- runif(6)
+|     | d1 <- matrix(0.0, 3,3)
+|     | d2 <- matrix(0.0, 3,3)
+|     |
+|     | copyinto(v, d1, d2)
+|     |
+|     | However, when I attempt to compile the code, I receive a list of
+|     compilation
+|     | errors including "no type named 'XXXXXX' in 'class arma::Mat<double>
+|     | row_iterator", where XXXXXX is iterator_category, value_type,
+|     difference_type,
+|     | pointer, and reference.
+|     |
+|     | If I change the iterators to column iterators (e.g. d1.begin_col(0))
+|     everything
+|     | compiles and works just fine. I feel that I must be missing something
+|     quite
+|     | basic here, but in searching around I haven't been able to identify my
+|     mistake.
+|     |
+|     | Thank you for your help!
+|     | Jon
+|     | _______________________________________________
+|     | Rcpp-devel mailing list
+|     | Rcpp-devel at lists.r-forge.r-project.org
+|     | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+|    
+|     --
+|     http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+| 
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fintzij at uw.edu  Wed Oct 12 23:54:39 2016
+From: fintzij at uw.edu (Jonathan Fintzi)
+Date: Wed, 12 Oct 2016 14:54:39 -0700
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+In-Reply-To: <22526.44278.620759.515163@max.nulle.part>
+References: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+ <22526.42668.963821.737406@max.nulle.part>
+ <CAJxst-MSgJcBYz6vyC55rVEWEomBnu51TV9+81yQyRDQDnObwA@mail.gmail.com>
+ <22526.44278.620759.515163@max.nulle.part>
+Message-ID: <CAJxst-ONgyObnyZ+O-KFJHqO_5SGKeaVwQRFg4=UxfZyGx+SzQ@mail.gmail.com>
+
+Hi Dirk,
+
+I take your point. Given that the conversion is essentially free, temporary
+conversion makes the most sense.
+
+Thank you again!
+Jon
+
+On Wed, Oct 12, 2016 at 2:36 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Jon,
+>
+> On 12 October 2016 at 14:20, Jonathan Fintzi wrote:
+> | Thanks for the quick response. In the broader project, the vector being
+> copied
+> | from is an Rcpp::NumericVector that contatenates vectorized versions of a
+> | number of other objects that are integrated numerically using the boost
+> odeint
+> | solvers. I couldn't quite get the numerical integrators to play nice with
+> | Armadillo objects, and in using std::copy I was trying to avoid
+> converting the
+> | vector 'v' to an arma::vec since I would have to convert it back for
+> further
+> | integration. Perhaps this was a mistake?
+>
+> Yes -- the transformation in as essentially costless.  We have some
+> benchmarking that show that.
+>
+> | Still, I don't quite understand why armadillo row pointers don't work
+> which
+> | armadillo column pointers are fine.
+>
+> Now you phrase your question as "arma-only" (which makes sense) but that
+> is not what your code does, is it?
+>
+> I see that you are having an issue mixing things. So I suggest an easy
+> simplification. You are of course free to ignore that -- but you may then
+> have to provide another layer as the compiler so far appears to be unhappy.
+>
+> Dirk
+>
+> | Thanks,
+> | Jon
+> |
+> | On Wed, Oct 12, 2016 at 2:10 PM, Dirk Eddelbuettel <edd at debian.org>
+> wrote:
+> |
+> |
+> |     On 12 October 2016 at 13:43, Jonathan Fintzi wrote:
+> |     | Hello,
+> |     |
+> |     | I am trying to use the std::copy() function to copy elements from
+> an
+> |     | Rcpp::NumericVector into rows of armadillo matrices. A simplified
+> version
+> |     of my
+> |     | code is as follows:
+> |     |
+> |     | cppFunction('void copyinto(Rcpp::NumericVector& v, arma::mat& d1,
+> |     arma::mat&
+> |     | d2) {
+> |     |         std::copy(v.begin(), v.begin() + 3, d1.begin_row(0));
+> |     |         std::copy(v.begin() + 3, v.end(), d2.begin_row(0));
+> |     | }', depends = "RcppArmadillo")
+> |
+> |     You should not need to mix an _Rcpp_ vector with an _Armadillo_
+> matrix
+> |     using
+> |     std::copy.  Check the decent Armadillo docs -- all the subsetting and
+> |     slicing
+> |     can be done with Armadillo.  And that is what I would do.
+> |
+> |     But maybe I didn't quite understand what you are really after.
+> |
+> |     Dirk
+> |
+> |     | v <- runif(6)
+> |     | d1 <- matrix(0.0, 3,3)
+> |     | d2 <- matrix(0.0, 3,3)
+> |     |
+> |     | copyinto(v, d1, d2)
+> |     |
+> |     | However, when I attempt to compile the code, I receive a list of
+> |     compilation
+> |     | errors including "no type named 'XXXXXX' in 'class
+> arma::Mat<double>
+> |     | row_iterator", where XXXXXX is iterator_category, value_type,
+> |     difference_type,
+> |     | pointer, and reference.
+> |     |
+> |     | If I change the iterators to column iterators (e.g.
+> d1.begin_col(0))
+> |     everything
+> |     | compiles and works just fine. I feel that I must be missing
+> something
+> |     quite
+> |     | basic here, but in searching around I haven't been able to
+> identify my
+> |     mistake.
+> |     |
+> |     | Thank you for your help!
+> |     | Jon
+> |     | _______________________________________________
+> |     | Rcpp-devel mailing list
+> |     | Rcpp-devel at lists.r-forge.r-project.org
+> |     | https://lists.r-forge.r-project.org/cgi-bin/mailman/
+> listinfo/rcpp-devel
+> |
+> |     --
+> |     http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> |
+> |
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161012/5e5eeca0/attachment-0001.html>
+
+From serguei.sokol at gmail.com  Thu Oct 13 00:27:29 2016
+From: serguei.sokol at gmail.com (Sokol Serguei)
+Date: Wed, 12 Oct 2016 15:27:29 -0700 (PDT)
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+In-Reply-To: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+References: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+Message-ID: <de9be859-cfc4-1864-636a-3ceaac37a5ad@gmail.com>
+
+Hi Jonathan,
+
+Jonathan Fintzi has written at  Wed, 12 Oct 2016 13:43:20 -0700
+> Hello,
+>
+> I am trying to use the std::copy() function to copy elements from an 
+> Rcpp::NumericVector into rows of armadillo matrices. A simplified 
+> version of my code is as follows:
+>
+> cppFunction('void copyinto(Rcpp::NumericVector& v, arma::mat& d1, 
+> arma::mat& d2) {
+>         std::copy(v.begin(), v.begin() + 3, d1.begin_row(0));
+>         std::copy(v.begin() + 3, v.end(), d2.begin_row(0));
+> }', depends = "RcppArmadillo")
+>
+> v <- runif(6)
+> d1 <- matrix(0.0, 3,3)
+> d2 <- matrix(0.0, 3,3)
+>
+> copyinto(v, d1, d2)
+>
+> However, when I attempt to compile the code, I receive a list of 
+> compilation errors including "no type named 'XXXXXX' in 'class 
+> arma::Mat<double>row_iterator", where XXXXXX is iterator_category, 
+> value_type, difference_type, pointer, and reference.
+>
+> If I change the iterators to column iterators (e.g. d1.begin_col(0)) 
+> everything compiles and works just fine. I feel that I must be missing 
+> something quite basic here, but in searching around I haven't been 
+> able to identify my mistake.
+May be the problem is that you are trying to use std::copy for writing
+to non contiguous memory when you use a row pointer and the class writers
+were smart enough to prevent such situation.
+
+The following code works as expected, may be it can do the job for you:
+
+cppFunction('void copy2(arma::rowvec& v, arma::mat& d1, arma::mat& d2) {
+         d1.row(0)=v(arma::span(0,2));
+         d2.row(0)=v(arma::span(3,5));
+}', depends = "RcppArmadillo")
+
+v <- runif(6)
+d1 <- matrix(0.0, 3,3)
+d2 <- matrix(0.0, 3,3)
+copy2(v, d1, d2)
+
+>
+> Thank you for your help!
+> Jon
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161012/c9882005/attachment.html>
+
+From edd at debian.org  Thu Oct 13 00:34:41 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 12 Oct 2016 17:34:41 -0500
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+In-Reply-To: <de9be859-cfc4-1864-636a-3ceaac37a5ad@gmail.com>
+References: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+ <de9be859-cfc4-1864-636a-3ceaac37a5ad@gmail.com>
+Message-ID: <22526.47745.479893.792152@max.nulle.part>
+
+
+On 12 October 2016 at 15:27, Sokol Serguei wrote:
+| May be the problem is that you are trying to use std::copy for writing
+| to non contiguous memory when you use a row pointer and the class writers
+| were smart enough to prevent such situation.
+| 
+| The following code works as expected, may be it can do the job for you:
+| 
+| cppFunction('void copy2(arma::rowvec& v, arma::mat& d1, arma::mat& d2) {
+| ??????? d1.row(0)=v(arma::span(0,2));
+| ??????? d2.row(0)=v(arma::span(3,5));
+| }', depends = "RcppArmadillo")
+| 
+| v <- runif(6)
+| d1 <- matrix(0.0, 3,3)
+| d2 <- matrix(0.0, 3,3)
+| copy2(v, d1, d2)
+
+Thanks for taking the time to create an example -- this os pretty much what I
+was advocating too.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fintzij at uw.edu  Thu Oct 13 00:39:08 2016
+From: fintzij at uw.edu (Jonathan Fintzi)
+Date: Wed, 12 Oct 2016 15:39:08 -0700
+Subject: [Rcpp-devel] row iterators in RcppArmadillo
+In-Reply-To: <de9be859-cfc4-1864-636a-3ceaac37a5ad@gmail.com>
+References: <CAJxst-PONjo66S7H16ViPmewD3USOLiZ6Y0BNhsSPxs=KM-Q4A@mail.gmail.com>
+ <de9be859-cfc4-1864-636a-3ceaac37a5ad@gmail.com>
+Message-ID: <CAJxst-NqDazRKDY1m5gr=VsvyKgF6B7_7TNWUuo3nSZGSg0KEA@mail.gmail.com>
+
+Hi Sokol,
+
+Yes, that explains it. I ended up implementing the solution that you and
+Dirk identified, which is to simply convert the vector 'v' to an armadillo
+vector for the purpose of copying from it.
+
+Thanks for the help!
+Jon
+
+On Wed, Oct 12, 2016 at 3:27 PM, Sokol Serguei <serguei.sokol at gmail.com>
+wrote:
+
+> Hi Jonathan,
+>
+> Jonathan Fintzi has written at  Wed, 12 Oct 2016 13:43:20 -0700
+>
+> Hello,
+>
+> I am trying to use the std::copy() function to copy elements from an
+> Rcpp::NumericVector into rows of armadillo matrices. A simplified version
+> of my code is as follows:
+>
+> cppFunction('void copyinto(Rcpp::NumericVector& v, arma::mat& d1,
+> arma::mat& d2) {
+>         std::copy(v.begin(), v.begin() + 3, d1.begin_row(0));
+>         std::copy(v.begin() + 3, v.end(), d2.begin_row(0));
+> }', depends = "RcppArmadillo")
+>
+> v <- runif(6)
+> d1 <- matrix(0.0, 3,3)
+> d2 <- matrix(0.0, 3,3)
+>
+> copyinto(v, d1, d2)
+>
+> However, when I attempt to compile the code, I receive a list of
+> compilation errors including "no type named 'XXXXXX' in 'class
+> arma::Mat<double>row_iterator", where XXXXXX is iterator_category,
+> value_type, difference_type, pointer, and reference.
+>
+> If I change the iterators to column iterators (e.g. d1.begin_col(0))
+> everything compiles and works just fine. I feel that I must be missing
+> something quite basic here, but in searching around I haven't been able to
+> identify my mistake.
+>
+> May be the problem is that you are trying to use std::copy for writing
+> to non contiguous memory when you use a row pointer and the class writers
+> were smart enough to prevent such situation.
+>
+> The following code works as expected, may be it can do the job for you:
+>
+> cppFunction('void copy2(arma::rowvec& v, arma::mat& d1, arma::mat& d2) {
+>         d1.row(0)=v(arma::span(0,2));
+>         d2.row(0)=v(arma::span(3,5));
+> }', depends = "RcppArmadillo")
+>
+> v <- runif(6)
+> d1 <- matrix(0.0, 3,3)
+> d2 <- matrix(0.0, 3,3)
+> copy2(v, d1, d2)
+>
+>
+> Thank you for your help!
+> Jon
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing listRcpp-devel at lists.r-forge.r-project.orghttps://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161012/cfbac81c/attachment.html>
+
+From edd at debian.org  Sun Oct 16 21:52:46 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 16 Oct 2016 14:52:46 -0500
+Subject: [Rcpp-devel] [ANN] Rcpp now used by 800 CRAN packages
+Message-ID: <22531.55950.79758.127880@max.nulle.part>
+
+
+Just wow -- a short blog post is here:
+
+   http://dirk.eddelbuettel.com/blog/2016/10/16#rcpp_800_packages
+   
+Thanks so much again to everybody who has been part of this ride...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From yigeli2012pku at 163.com  Sun Oct 16 21:53:58 2016
+From: yigeli2012pku at 163.com (Yige LI)
+Date: Mon, 17 Oct 2016 03:53:58 +0800 (GMT+08:00)
+Subject: [Rcpp-devel] (No Subject)
+Message-ID: <4dbb1b04.f27.157cf0ed6d9.Coremail.yigeli2012pku@163.com>
+
+
+
+
+
+Sent from Mail Master
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161017/f9a92743/attachment.html>
+
+From janez.bindas at gmail.com  Mon Oct 17 17:49:15 2016
+From: janez.bindas at gmail.com (Janez Bindas)
+Date: Mon, 17 Oct 2016 17:49:15 +0200
+Subject: [Rcpp-devel] CMakeList.txt for c++ and Rcpp
+Message-ID: <CAOeSSJ50wgA4hoRv_JivywrtPmD0vAk4n40rVmSHCNesjetcjw@mail.gmail.com>
+
+I am new at R and i would like to automate my building process with cmake.
+I searched the internet for an example of CMakeList.txt in which connect
+C++ and R through Rcpp. I was unable to find that example.
+
+Could you please help me.
+
+Janez Bindas (janex)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161017/314a5ed7/attachment.html>
+
+From jj.allaire at gmail.com  Mon Oct 17 17:52:45 2016
+From: jj.allaire at gmail.com (JJ Allaire)
+Date: Mon, 17 Oct 2016 11:52:45 -0400
+Subject: [Rcpp-devel] CMakeList.txt for c++ and Rcpp
+In-Reply-To: <CAOeSSJ50wgA4hoRv_JivywrtPmD0vAk4n40rVmSHCNesjetcjw@mail.gmail.com>
+References: <CAOeSSJ50wgA4hoRv_JivywrtPmD0vAk4n40rVmSHCNesjetcjw@mail.gmail.com>
+Message-ID: <CAKw=oCxAz1SRk87kwE_334y6TivZ=tuGkhvVneAttJs_B4e9KQ@mail.gmail.com>
+
+I would just have CMake call R CMD [SHLIB/build/INSTALL/etc.) as an
+external tool. R does a tremendous amount behind the scenes to configure
+the build environment and you don't really want to try to replicate that. A
+basic package need only place the cpp files within the "src/" directory and
+they will be built automatically. More advanced scenarios can be covered
+with a custom Makevars[.win] in the "src/" directory.
+
+
+On Mon, Oct 17, 2016 at 11:49 AM, Janez Bindas <janez.bindas at gmail.com>
+wrote:
+
+> I am new at R and i would like to automate my building process with cmake.
+> I searched the internet for an example of CMakeList.txt in which connect
+> C++ and R through Rcpp. I was unable to find that example.
+>
+> Could you please help me.
+>
+> Janez Bindas (janex)
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161017/c8b6c540/attachment.html>
+
+From edd at debian.org  Mon Oct 17 18:17:23 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 17 Oct 2016 11:17:23 -0500
+Subject: [Rcpp-devel] CMakeList.txt for c++ and Rcpp
+In-Reply-To: <CAKw=oCxAz1SRk87kwE_334y6TivZ=tuGkhvVneAttJs_B4e9KQ@mail.gmail.com>
+References: <CAOeSSJ50wgA4hoRv_JivywrtPmD0vAk4n40rVmSHCNesjetcjw@mail.gmail.com>
+ <CAKw=oCxAz1SRk87kwE_334y6TivZ=tuGkhvVneAttJs_B4e9KQ@mail.gmail.com>
+Message-ID: <22532.63891.471893.262631@max.nulle.part>
+
+
+On 17 October 2016 at 11:52, JJ Allaire wrote:
+| I would just have CMake call R CMD [SHLIB/build/INSTALL/etc.) as an external
+| tool. R does a tremendous amount behind the scenes to configure the build
+| environment and you don't really want to try to replicate that. A basic package
+| need only place the cpp files within the "src/" directory and they will be
+| built automatically. More advanced scenarios can be covered with a custom
+| Makevars[.win] in the "src/" directory.
+
+Seconded.
+
+If you really insist on CMake, the RInside project has long had _contributed_
+files in its inst/examples/*/ directories.
+
+CMake is not that widely used within the R world which is why this never
+became a priority here either.  It simply is hard to fully replace something
+that works so reliably for everybody and is well enough understood, possible
+warts and all.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From fragoso2718 at gmail.com  Thu Oct 20 20:17:38 2016
+From: fragoso2718 at gmail.com (Tiago Fragoso)
+Date: Thu, 20 Oct 2016 16:17:38 -0200
+Subject: [Rcpp-devel] Rcpp documentation
+Message-ID: <CAAkfs-uNoZ9qiVs89yvrCWLwVLVeU7TSXu0XqPGGdFHOpPX2=w@mail.gmail.com>
+
+Hello all,
+
+Is there any sort of concise Rcpp documentation that lists the constructors
+and methods for Rcpp classes in an useful way?
+
+I know there are vignettes and examples and all that, but I was looking for
+a dirty quick reference like the (very good one) for Armadillo:
+
+http://arma.sourceforge.net/docs.html
+
+And could find no such thing for Rcpp classes. Is there any?
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161020/f14b80a6/attachment.html>
+
+From edd at debian.org  Thu Oct 20 20:34:17 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 20 Oct 2016 13:34:17 -0500
+Subject: [Rcpp-devel] Rcpp documentation
+In-Reply-To: <CAAkfs-uNoZ9qiVs89yvrCWLwVLVeU7TSXu0XqPGGdFHOpPX2=w@mail.gmail.com>
+References: <CAAkfs-uNoZ9qiVs89yvrCWLwVLVeU7TSXu0XqPGGdFHOpPX2=w@mail.gmail.com>
+Message-ID: <22537.3625.832992.431417@max.nulle.part>
+
+
+On 20 October 2016 at 16:17, Tiago Fragoso wrote:
+| Hello all,
+| 
+| Is there any sort of concise Rcpp documentation that lists the constructors and
+| methods for Rcpp classes in an useful way?
+| 
+| I know there are vignettes and examples and all that, but I was looking for a
+| dirty quick reference like the (very good one) for Armadillo:
+| 
+| http://arma.sourceforge.net/docs.html
+| 
+| And could find no such thing for Rcpp classes. Is there any?
+
+Not that I know of.
+
+We have what is documented and what you found plus the autogenerated Doxygen
+documentation at
+
+   http://dirk.eddelbuettel.com/code/rcpp/html/index.html
+
+It is searchable and can help.  But because of templating and macros it tends
+to show 'too much'.
+
+If someone wants to volunteer and spearhead a new documentation effort,
+please do get in touch (on- or off-list).
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From sergio.bra88 at gmail.com  Wed Oct 26 09:48:04 2016
+From: sergio.bra88 at gmail.com (Sergio Bra)
+Date: Wed, 26 Oct 2016 09:48:04 +0200
+Subject: [Rcpp-devel] Method with default params using RCPP_MODULE
+Message-ID: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+
+I am exposing a c++ class using Rcpp. It works fantastic, but my problem is
+how to implement a method which has default params. I have the class:
+
+class myClass {
+
+    public:
+
+        int myMethod(int param1, int param2 = 0);
+}
+
+and I config the module:
+
+RCPP_MODULE(mymodule) {
+    class_<myClass>("myClass")
+        .constructor()
+        .method("myMethod", &myClass::myMethod)
+;
+}
+
+When I try to execute the function in R passing only the mandatory param I
+get an error because R does not recognize the function, but if I execute it
+with both params, it works great. So, how can I define the method in order
+to be able to execute it without informing the optional params?
+
+Thank you,
+
+Sergio
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161026/630481dc/attachment.html>
+
+From edd at debian.org  Wed Oct 26 17:53:38 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 26 Oct 2016 10:53:38 -0500
+Subject: [Rcpp-devel] Method with default params using RCPP_MODULE
+In-Reply-To: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+References: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+Message-ID: <22544.53634.970030.331850@max.nulle.part>
+
+
+On 26 October 2016 at 09:48, Sergio Bra wrote:
+| I am exposing a c++ class using Rcpp. It works fantastic, but my problem is how
+| to implement a method which has default params. I have the class:
+| 
+| class myClass {
+| 
+| ? ? public:
+| ? ??
+| ? ? ? ? int myMethod(int param1, int param2 = 0);
+| }
+| 
+| and I config the module:
+| 
+| RCPP_MODULE(mymodule) {
+| ? ? class_<myClass>("myClass")
+| ? ? ? ? .constructor()
+| ? ? ? ? .method("myMethod", &myClass::myMethod)
+| ;
+| }
+| 
+| When I try to execute the function in R passing only the mandatory param I get
+| an error because R does not recognize the function, but if I execute it with
+| both params, it works great. So, how can I define the method in order to be
+| able to execute it without informing the optional params?
+
+Hm, I have the feeling I am doing that somewhere too.  Did you check existing
+packages with modules?
+
+I just glanced at RcppCNPy and it does it, albeit with free functions.
+
+You can definitely have multiple constructors, maybe have one with one int
+(defaulting value two) and one with two ints?   There are subtle constraints
+where because of the _C_ interface so you have to 'waste' two function names
+on this.
+
+In sum, the easiest may be to 'hide' the module and deal with this from the R
+side exposing both variants from there and then just calling the one you have now.
+
+Makes sense?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From sergio.bra88 at gmail.com  Wed Oct 26 18:24:54 2016
+From: sergio.bra88 at gmail.com (Sergio Bra)
+Date: Wed, 26 Oct 2016 18:24:54 +0200
+Subject: [Rcpp-devel] Method with default params using RCPP_MODULE
+In-Reply-To: <22544.53634.970030.331850@max.nulle.part>
+References: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+ <22544.53634.970030.331850@max.nulle.part>
+Message-ID: <CAGUs5cgJqi+4Yj2YDJH8GGsHbXkbrvLtm86Xbzo7Jj6syTbAUw@mail.gmail.com>
+
+Hi Dirk, thanks for your answer.
+
+I have checked your RcppCNPy package, but as you say, there is not methods
+implemented, but free functions.
+
+I need to execute something like this in R:
+
+R> res<-new(myClass)
+R>res$myMethod(1000)
+
+So, when you say that I can manage it from the R side, are you talking
+about programming that behaviour in a *.R file? In case of an affirmative
+answer, same file where I have the loadModule sentence?
+
+Thank you again,
+
+Sergio
+
+2016-10-26 17:53 GMT+02:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 26 October 2016 at 09:48, Sergio Bra wrote:
+> | I am exposing a c++ class using Rcpp. It works fantastic, but my problem
+> is how
+> | to implement a method which has default params. I have the class:
+> |
+> | class myClass {
+> |
+> |     public:
+> |
+> |         int myMethod(int param1, int param2 = 0);
+> | }
+> |
+> | and I config the module:
+> |
+> | RCPP_MODULE(mymodule) {
+> |     class_<myClass>("myClass")
+> |         .constructor()
+> |         .method("myMethod", &myClass::myMethod)
+> | ;
+> | }
+> |
+> | When I try to execute the function in R passing only the mandatory param
+> I get
+> | an error because R does not recognize the function, but if I execute it
+> with
+> | both params, it works great. So, how can I define the method in order to
+> be
+> | able to execute it without informing the optional params?
+>
+> Hm, I have the feeling I am doing that somewhere too.  Did you check
+> existing
+> packages with modules?
+>
+> I just glanced at RcppCNPy and it does it, albeit with free functions.
+>
+> You can definitely have multiple constructors, maybe have one with one int
+> (defaulting value two) and one with two ints?   There are subtle
+> constraints
+> where because of the _C_ interface so you have to 'waste' two function
+> names
+> on this.
+>
+> In sum, the easiest may be to 'hide' the module and deal with this from
+> the R
+> side exposing both variants from there and then just calling the one you
+> have now.
+>
+> Makes sense?
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161026/a19935d6/attachment.html>
+
+From edd at debian.org  Wed Oct 26 18:42:55 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 26 Oct 2016 11:42:55 -0500
+Subject: [Rcpp-devel] Method with default params using RCPP_MODULE
+In-Reply-To: <CAGUs5cgJqi+4Yj2YDJH8GGsHbXkbrvLtm86Xbzo7Jj6syTbAUw@mail.gmail.com>
+References: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+ <22544.53634.970030.331850@max.nulle.part>
+ <CAGUs5cgJqi+4Yj2YDJH8GGsHbXkbrvLtm86Xbzo7Jj6syTbAUw@mail.gmail.com>
+Message-ID: <22544.56591.465611.45466@max.nulle.part>
+
+
+On 26 October 2016 at 18:24, Sergio Bra wrote:
+| I need to execute something like this in R:
+| 
+| R> res<-new(myClass)
+| R>res$myMethod(1000)
+| 
+| So, when you say that I can manage it from the R side, are you talking about
+| programming that behaviour in a *.R file? In case of an affirmative answer,
+| same file where I have the?loadModule sentence?
+
+Yes. Anywhere in your package works.
+
+I seem to set default values only with free functions.
+
+So I fear you need to re-jig your code a little.  I coul of course be
+overlooking something too...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From hye at ucsd.edu  Wed Oct 26 19:05:57 2016
+From: hye at ucsd.edu (Hao Ye)
+Date: Wed, 26 Oct 2016 10:05:57 -0700
+Subject: [Rcpp-devel] Method with default params using RCPP_MODULE
+In-Reply-To: <80a2e0c1bcd043bcbd7e8ba2a8a1905f@XCORE-TPCS2.AD.UCSD.EDU>
+References: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+ <80a2e0c1bcd043bcbd7e8ba2a8a1905f@XCORE-TPCS2.AD.UCSD.EDU>
+Message-ID: <CAK1kXLw1YqpeyfegYcSthQ=CPYmaDRne4Q9zOhgc_gpofmHpPw@mail.gmail.com>
+
+>
+> In sum, the easiest may be to 'hide' the module and deal with this from
+> the R
+> side exposing both variants from there and then just calling the one you
+> have now.
+
+
+I agree - though I don't think you even need two variants of the C++
+function if there's an R function to handle default arguments.
+
+Best,
+--
+Hao Ye
+hye at ucsd.edu
+
+On Wed, Oct 26, 2016 at 8:53 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 26 October 2016 at 09:48, Sergio Bra wrote:
+> | I am exposing a c++ class using Rcpp. It works fantastic, but my problem
+> is how
+> | to implement a method which has default params. I have the class:
+> |
+> | class myClass {
+> |
+> |     public:
+> |
+> |         int myMethod(int param1, int param2 = 0);
+> | }
+> |
+> | and I config the module:
+> |
+> | RCPP_MODULE(mymodule) {
+> |     class_<myClass>("myClass")
+> |         .constructor()
+> |         .method("myMethod", &myClass::myMethod)
+> | ;
+> | }
+> |
+> | When I try to execute the function in R passing only the mandatory param
+> I get
+> | an error because R does not recognize the function, but if I execute it
+> with
+> | both params, it works great. So, how can I define the method in order to
+> be
+> | able to execute it without informing the optional params?
+>
+> Hm, I have the feeling I am doing that somewhere too.  Did you check
+> existing
+> packages with modules?
+>
+> I just glanced at RcppCNPy and it does it, albeit with free functions.
+>
+> You can definitely have multiple constructors, maybe have one with one int
+> (defaulting value two) and one with two ints?   There are subtle
+> constraints
+> where because of the _C_ interface so you have to 'waste' two function
+> names
+> on this.
+>
+> In sum, the easiest may be to 'hide' the module and deal with this from
+> the R
+> side exposing both variants from there and then just calling the one you
+> have now.
+>
+> Makes sense?
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161026/d7729e72/attachment.html>
+
+From edd at debian.org  Wed Oct 26 19:10:28 2016
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 26 Oct 2016 12:10:28 -0500
+Subject: [Rcpp-devel] Method with default params using RCPP_MODULE
+In-Reply-To: <CAK1kXLw1YqpeyfegYcSthQ=CPYmaDRne4Q9zOhgc_gpofmHpPw@mail.gmail.com>
+References: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+ <80a2e0c1bcd043bcbd7e8ba2a8a1905f@XCORE-TPCS2.AD.UCSD.EDU>
+ <CAK1kXLw1YqpeyfegYcSthQ=CPYmaDRne4Q9zOhgc_gpofmHpPw@mail.gmail.com>
+Message-ID: <22544.58244.461742.830529@max.nulle.part>
+
+
+On 26 October 2016 at 10:05, Hao Ye wrote:
+|     In sum, the easiest may be to 'hide' the module and deal with this from the
+|     R
+|     side exposing both variants from there and then just calling the one you
+|     have now.
+| 
+| 
+| I agree - though I don't think you even need two variants of the C++ function
+| if there's an R function to handle default arguments.
+
+Good catch, and sloppy wording on my part.  This is what I meant.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From sergio.bra88 at gmail.com  Fri Oct 28 23:10:31 2016
+From: sergio.bra88 at gmail.com (Sergio Bra)
+Date: Fri, 28 Oct 2016 23:10:31 +0200
+Subject: [Rcpp-devel] Method with default params using RCPP_MODULE
+In-Reply-To: <22544.58244.461742.830529@max.nulle.part>
+References: <CAGUs5cgM5JSjn87WGzw_AQvYAg2yu1bg22c3x+2YHX-bdDG96Q@mail.gmail.com>
+ <80a2e0c1bcd043bcbd7e8ba2a8a1905f@XCORE-TPCS2.AD.UCSD.EDU>
+ <CAK1kXLw1YqpeyfegYcSthQ=CPYmaDRne4Q9zOhgc_gpofmHpPw@mail.gmail.com>
+ <22544.58244.461742.830529@max.nulle.part>
+Message-ID: <CAGUs5chumPxKfyk3RYMPyG4vMsGATUSweu-5=1vO5wJvJme3NA@mail.gmail.com>
+
+Thanks for your useful comments, I am trying something like this in a R
+file (I have changed the name of my c++ method compared with the example
+above, now is called myMethodCpp in order to avoid conflicts with the R
+name's function):
+
+myClass$myMethod <- function(param1, param2 = 0L) {
+    invisible(.Call('myMethodCpp', PACKAGE = 'mypackage', param1, param2))
+}
+
+but when I compile the code I get the error:
+
+    objet 'myClass' not found
+
+Do you know how can I fix it? Is there a package which does something
+similar?
+
+Thank you very much,
+
+Sergio
+
+2016-10-26 19:10 GMT+02:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 26 October 2016 at 10:05, Hao Ye wrote:
+> |     In sum, the easiest may be to 'hide' the module and deal with this
+> from the
+> |     R
+> |     side exposing both variants from there and then just calling the one
+> you
+> |     have now.
+> |
+> |
+> | I agree - though I don't think you even need two variants of the C++
+> function
+> | if there's an R function to handle default arguments.
+>
+> Good catch, and sloppy wording on my part.  This is what I meant.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20161028/8c96b600/attachment.html>
+

@@ -1,0 +1,1389 @@
+From jefferis at mrc-lmb.cam.ac.uk  Fri Jul  2 02:13:44 2021
+From: jefferis at mrc-lmb.cam.ac.uk (Dr Gregory Jefferis)
+Date: Fri, 02 Jul 2021 01:13:44 +0100
+Subject: [Rcpp-devel] Rcpp equivalent of sapply(L, length)
+Message-ID: <834ADD59-14A6-4B94-B1B2-1FF528BAA338@mrc-lmb.cam.ac.uk>
+
+Dear RcppUsers,
+
+I feel like there must be a simple way to do the equivalent of
+
+sapply(L, length)
+
+in Rcpp but I can't seem to get past the problem of converting the 
+elements of L into a type for which .size() or .length() are valid. I 
+see that I could do this using some long switch(TYPEOF(x)) statement (eg 
+https://gallery.rcpp.org/articles/rcpp-return-macros/):
+
+// [[Rcpp::export]]
+IntegerVector c_listlengths(List L) {
+   IntegerVector lens(L.size());
+
+   for (int i=0; i<L.size(); i++) {
+     SEXP x = L[i];
+     switch (TYPEOF(x)) {
+     case INTSXP: {
+       lens(i)=as<IntegerVector>(x).size();
+     }
+	// handle other SXP types
+     }
+   }
+   return lens;
+}
+
+but that that seems horribly convoluted. Can anyone point me to a 
+simpler way?
+
+Apologies if this is an FAQ, but I did not yet manage to turn up 
+anything close enough.
+
+With many thanks,
+
+Greg.
+
+# R example
+l=list(1:3, 2:3, 1:6)
+l2=list(letters[1:3], letters[2:3], letters[1:6])
+sapply(l, length)
+sapply(l2, length)
+
+
+
+--
+Gregory Jefferis
+Division of Neurobiology
+MRC Laboratory of Molecular Biology
+Francis Crick Avenue
+Cambridge Biomedical Campus
+Cambridge, CB2 OQH, UK
+
+http://www2.mrc-lmb.cam.ac.uk/group-leaders/h-to-m/g-jefferis
+http://jefferislab.org
+https://www.zoo.cam.ac.uk/research/groups/connectomics
+
+From qkou at qkou.info  Fri Jul  2 03:39:30 2021
+From: qkou at qkou.info (Qiang Kou)
+Date: Thu, 1 Jul 2021 18:39:30 -0700
+Subject: [Rcpp-devel] Rcpp equivalent of sapply(L, length)
+In-Reply-To: <834ADD59-14A6-4B94-B1B2-1FF528BAA338@mrc-lmb.cam.ac.uk>
+References: <834ADD59-14A6-4B94-B1B2-1FF528BAA338@mrc-lmb.cam.ac.uk>
+Message-ID: <CALaeKeGz11eMiV2s8SZP-FiQROfwAXoo1uZAuu_OL_G6XWnquQ@mail.gmail.com>
+
+What about using "Rf_length"?
+
+-------------------------------------------------------
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+IntegerVector c_listlengths(List L) {
+    IntegerVector lens(L.size());
+
+    for (int i=0; i<L.size(); i++) {
+        SEXP x = L[i];
+        lens(i) = Rf_length(x);
+    }
+    return lens;
+}
+----------------------------------------------------------
+
+In R:
+
+> Rcpp::sourceCpp("example.cpp")
+> l=list(1:3, 2:3, 1:6)
+> l2=list(letters[1:3], letters[2:3], letters[1:6])
+> c_listlengths(l)
+[1] 3 2 6
+> c_listlengths(l2)
+[1] 3 2 6
+> l3=list(letters[1:6], letters[2:3], letters[1:3])
+> c_listlengths(l3)
+[1] 6 2 3
+
+
+On Thu, Jul 1, 2021 at 5:14 PM Dr Gregory Jefferis <
+jefferis at mrc-lmb.cam.ac.uk> wrote:
+
+> Dear RcppUsers,
+>
+> I feel like there must be a simple way to do the equivalent of
+>
+> sapply(L, length)
+>
+> in Rcpp but I can't seem to get past the problem of converting the
+> elements of L into a type for which .size() or .length() are valid. I
+> see that I could do this using some long switch(TYPEOF(x)) statement (eg
+> https://gallery.rcpp.org/articles/rcpp-return-macros/):
+>
+> // [[Rcpp::export]]
+> IntegerVector c_listlengths(List L) {
+>    IntegerVector lens(L.size());
+>
+>    for (int i=0; i<L.size(); i++) {
+>      SEXP x = L[i];
+>      switch (TYPEOF(x)) {
+>      case INTSXP: {
+>        lens(i)=as<IntegerVector>(x).size();
+>      }
+>         // handle other SXP types
+>      }
+>    }
+>    return lens;
+> }
+>
+> but that that seems horribly convoluted. Can anyone point me to a
+> simpler way?
+>
+> Apologies if this is an FAQ, but I did not yet manage to turn up
+> anything close enough.
+>
+> With many thanks,
+>
+> Greg.
+>
+> # R example
+> l=list(1:3, 2:3, 1:6)
+> l2=list(letters[1:3], letters[2:3], letters[1:6])
+> sapply(l, length)
+> sapply(l2, length)
+>
+>
+>
+> --
+> Gregory Jefferis
+> Division of Neurobiology
+> MRC Laboratory of Molecular Biology
+> Francis Crick Avenue
+> Cambridge Biomedical Campus
+> Cambridge, CB2 OQH, UK
+>
+> http://www2.mrc-lmb.cam.ac.uk/group-leaders/h-to-m/g-jefferis
+> http://jefferislab.org
+> https://www.zoo.cam.ac.uk/research/groups/connectomics
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+ <https://nyquistdata.com/>   
+<https://www.linkedin.com/company/nyquistdata/>   
+<https://twitter.com/NyquistData>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210701/474e2eda/attachment.html>
+
+From jefferis at mrc-lmb.cam.ac.uk  Fri Jul  2 03:48:54 2021
+From: jefferis at mrc-lmb.cam.ac.uk (Dr Gregory Jefferis)
+Date: Fri, 02 Jul 2021 02:48:54 +0100
+Subject: [Rcpp-devel] Rcpp equivalent of sapply(L, length)
+In-Reply-To: <CALaeKeGz11eMiV2s8SZP-FiQROfwAXoo1uZAuu_OL_G6XWnquQ@mail.gmail.com>
+References: <834ADD59-14A6-4B94-B1B2-1FF528BAA338@mrc-lmb.cam.ac.uk>
+ <CALaeKeGz11eMiV2s8SZP-FiQROfwAXoo1uZAuu_OL_G6XWnquQ@mail.gmail.com>
+Message-ID: <730242AF-DA34-4E4C-A479-401C4DB33B2D@mrc-lmb.cam.ac.uk>
+
+Dear Qiang,
+
+Thank you - that will do perfectly!
+
+And thanks also to Simon Urbanek for pointing out the R `lengths()` 
+function which does the same on the R side.
+
+What great help in so little time. Thank you, colleagues!
+
+Greg.
+
+On 2 Jul 2021, at 2:39, Qiang Kou wrote:
+
+> What about using "Rf_length"?
+>
+> -------------------------------------------------------
+> #include <Rcpp.h>
+>
+> using namespace Rcpp;
+>
+> // [[Rcpp::export]]
+> IntegerVector c_listlengths(List L) {
+>     IntegerVector lens(L.size());
+>
+>     for (int i=0; i<L.size(); i++) {
+>         SEXP x = L[i];
+>         lens(i) = Rf_length(x);
+>     }
+>     return lens;
+> }
+> ----------------------------------------------------------
+>
+> In R:
+>
+>> Rcpp::sourceCpp("example.cpp")
+>> l=list(1:3, 2:3, 1:6)
+>> l2=list(letters[1:3], letters[2:3], letters[1:6])
+>> c_listlengths(l)
+> [1] 3 2 6
+>> c_listlengths(l2)
+> [1] 3 2 6
+>> l3=list(letters[1:6], letters[2:3], letters[1:3])
+>> c_listlengths(l3)
+> [1] 6 2 3
+>
+>
+> On Thu, Jul 1, 2021 at 5:14 PM Dr Gregory Jefferis <
+> jefferis at mrc-lmb.cam.ac.uk> wrote:
+>
+>> Dear RcppUsers,
+>>
+>> I feel like there must be a simple way to do the equivalent of
+>>
+>> sapply(L, length)
+>>
+>> in Rcpp but I can't seem to get past the problem of converting the
+>> elements of L into a type for which .size() or .length() are valid. I
+>> see that I could do this using some long switch(TYPEOF(x)) statement 
+>> (eg
+>> https://gallery.rcpp.org/articles/rcpp-return-macros/):
+>>
+>> // [[Rcpp::export]]
+>> IntegerVector c_listlengths(List L) {
+>>    IntegerVector lens(L.size());
+>>
+>>    for (int i=0; i<L.size(); i++) {
+>>      SEXP x = L[i];
+>>      switch (TYPEOF(x)) {
+>>      case INTSXP: {
+>>        lens(i)=as<IntegerVector>(x).size();
+>>      }
+>>         // handle other SXP types
+>>      }
+>>    }
+>>    return lens;
+>> }
+>>
+>> but that that seems horribly convoluted. Can anyone point me to a
+>> simpler way?
+>>
+>> Apologies if this is an FAQ, but I did not yet manage to turn up
+>> anything close enough.
+>>
+>> With many thanks,
+>>
+>> Greg.
+>>
+>> # R example
+>> l=list(1:3, 2:3, 1:6)
+>> l2=list(letters[1:3], letters[2:3], letters[1:6])
+>> sapply(l, length)
+>> sapply(l2, length)
+>>
+>>
+>>
+>> --
+>> Gregory Jefferis
+>> Division of Neurobiology
+>> MRC Laboratory of Molecular Biology
+>> Francis Crick Avenue
+>> Cambridge Biomedical Campus
+>> Cambridge, CB2 OQH, UK
+>>
+>> http://www2.mrc-lmb.cam.ac.uk/group-leaders/h-to-m/g-jefferis
+>> http://jefferislab.org
+>> https://www.zoo.cam.ac.uk/research/groups/connectomics
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> -- 
+>  <https://nyquistdata.com/>  
+> <https://www.linkedin.com/company/nyquistdata/>  
+> <https://twitter.com/NyquistData>
+
+
+--
+Gregory Jefferis, PhD                   Tel: +44 1223 267048
+Division of Neurobiology
+MRC Laboratory of Molecular Biology
+Francis Crick Avenue
+Cambridge Biomedical Campus
+Cambridge, CB2 0QH, UK
+
+http://www2.mrc-lmb.cam.ac.uk/group-leaders/h-to-m/g-jefferis
+http://jefferislab.org
+http://www.zoo.cam.ac.uk/research/groups/connectomics
+
+From edd at debian.org  Sat Jul  3 19:25:40 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 3 Jul 2021 12:25:40 -0500
+Subject: [Rcpp-devel] Rcpp 1.0.7
+Message-ID: <24800.40340.799029.591328@rob.eddelbuettel.com>
+
+
+Rcpp 1.0.7 was uploaded to CRAN; it may take a few days to sort the release
+out as it the weekend and as the number of reverse dependencies may throw up
+an issue or two.  In the mean time you can get the release from the usual
+drat repo.
+
+See the NEWS.Rd for a summary of changes.  Thanks to everybody who helped
+with the release, especially Inaki.
+
+Cheers, Dirk
+
+
+[1] Which should all be false positives as we did a fair amount of testing
+leading up to this release.
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Jul  7 20:39:34 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 7 Jul 2021 13:39:34 -0500
+Subject: [Rcpp-devel] Rcpp 1.0.7 now on CRAN
+Message-ID: <24805.62694.729022.810923@rob.eddelbuettel.com>
+
+
+Rcpp 1.0.7 is now on CRAN.  As emailed here on Saturday, we actually needed
+to make one change relative to how Modules code from earlier builds is
+handled. (And with that I replaced the 1.0.7 version in the drat repo; if you
+installed it earlier than today, and "experience symptoms", consider an
+update to get the one-line change).
+
+Overall, this release should be fine as you have come to expect from our
+releases. Out of over 2300 packages in a reverse depends check, CRAN (and I
+earlier) found segfaults in four packages in circumstances that are
+suggestive of local issues. I will reach out to the package maintainers,
+likely tomorrow, and try to help but I cannot debug each failing package.
+
+A few more comments on the release (and a big "Welcome to Iñaki" ;-) are in
+the standard blog post announcing it at
+
+  http://dirk.eddelbuettel.com/blog/2021/07/07#rcpp_1.0.7
+
+Thanks,  Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From khoshnevis.naeem at gmail.com  Wed Jul 14 16:41:31 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Wed, 14 Jul 2021 09:41:31 -0500
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+Message-ID: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+
+Hi,
+
+I hope this email finds you well.
+I wondered what the best approaches to troubleshooting C++ dependencies
+issues in general and specifically in R are; specifically, those packages
+which are using OpenMP and we want to install on macOS.
+So far, I am just googling the error and finding out what the problem is.
+However, it is hard to address issues and come up with long-term solutions
+without internalizing the concepts.
+One example is creating a conda environment for each R package project and
+installing llvm, clang, etc into each environment.
+I talked to several software engineers; however, I could not find a
+convincing answer. I think I do not know what I do not know about this
+topic, which prevents me from asking good questions. I would be grateful if
+you could let me know your thoughts about these questions.
+
+Where is a good place to start learning about this topic?
+Is a professional C++ developer necessarily good at troubleshooting
+problems with compilers and linkers? Or these are two different topics.
+
+Best regards,
+Naeem Khoshnevis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210714/39987440/attachment.html>
+
+From edd at debian.org  Wed Jul 14 16:55:31 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 14 Jul 2021 09:55:31 -0500
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+In-Reply-To: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+References: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+Message-ID: <24814.64227.417257.350116@rob.eddelbuettel.com>
+
+
+Hi Naeem,
+
+On 14 July 2021 at 09:41, Naeem Khoshnevis wrote:
+| Hi,
+| 
+| I hope this email finds you well.
+| I wondered what the best approaches to troubleshooting C++ dependencies
+| issues in general and specifically in R are; specifically, those packages
+| which are using OpenMP and we want to install on macOS.
+
+Is this dependencies (plural) or a single core dependency (singular) on a
+single OS (macOS) ?  Those are different issues. (And Rcpp has no incluence
+over what Cupertino (macOS) or Auckland (macOS deployment for R does) -- we
+have to play the card we are dealt, and that have always been "issues" and
+some HOWTOs and duct tape.  On the margin, if this is your question, it may
+also be one for r-sig-mac.
+
+Also, and to make this concrete: Do you have a minimally reproducible issue?
+
+| So far, I am just googling the error and finding out what the problem is.
+| However, it is hard to address issues and come up with long-term solutions
+| without internalizing the concepts.
+| One example is creating a conda environment for each R package project and
+| installing llvm, clang, etc into each environment.
+
+As an R developer, I have a simple rule: Just say No to conda. Mixing and
+matching between standard / core builds (using the recommended R toolchain)
+and conda appears to mostly end in tears.
+
+| I talked to several software engineers; however, I could not find a
+| convincing answer. I think I do not know what I do not know about this
+| topic, which prevents me from asking good questions. I would be grateful if
+| you could let me know your thoughts about these questions.
+
+Again, a reproducible example would help.
+
+Rcpp is used by over 2300 packages on CRAN. Many use OpenMP. You can search
+at GitHub within the mirroring 'cran' organisation to see what other packages
+do. Given that you can also see the outcome (the package 'status' pages at
+CRAN) that is not a bad approach.
+
+Dirk
+
+| Where is a good place to start learning about this topic?
+| Is a professional C++ developer necessarily good at troubleshooting
+| problems with compilers and linkers? Or these are two different topics.
+| 
+| Best regards,
+| Naeem Khoshnevis
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From khoshnevis.naeem at gmail.com  Wed Jul 14 18:03:43 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Wed, 14 Jul 2021 11:03:43 -0500
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+In-Reply-To: <24814.64227.417257.350116@rob.eddelbuettel.com>
+References: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+ <24814.64227.417257.350116@rob.eddelbuettel.com>
+Message-ID: <CAKOOZvOymcEnNYncCWUHk+k7j8PRRH8F+YkFGE7yiYDN9ZXvuQ@mail.gmail.com>
+
+Hi Dirk,
+
+Thank you so much for your response. Rcpp is excellent, and I am using it
+(with OpenMP), and it significantly improved the package (Thank you!). I
+have tried it on macOS and centos. I was trying to set up a conda
+environment. There are many HPC clusters that are using old versions of R
+as well as rstudio. In the past, using conda env helped me to install an
+updated version of R., But I understand why you do not recommend it. I will
+prepare a reproducible example and will let you know. Thank you so much.
+
+Best regards,
+Naeem
+
+On Wed, Jul 14, 2021 at 9:55 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Hi Naeem,
+>
+> On 14 July 2021 at 09:41, Naeem Khoshnevis wrote:
+> | Hi,
+> |
+> | I hope this email finds you well.
+> | I wondered what the best approaches to troubleshooting C++ dependencies
+> | issues in general and specifically in R are; specifically, those packages
+> | which are using OpenMP and we want to install on macOS.
+>
+> Is this dependencies (plural) or a single core dependency (singular) on a
+> single OS (macOS) ?  Those are different issues. (And Rcpp has no incluence
+> over what Cupertino (macOS) or Auckland (macOS deployment for R does) -- we
+> have to play the card we are dealt, and that have always been "issues" and
+> some HOWTOs and duct tape.  On the margin, if this is your question, it may
+> also be one for r-sig-mac.
+>
+> Also, and to make this concrete: Do you have a minimally reproducible
+> issue?
+>
+> | So far, I am just googling the error and finding out what the problem is.
+> | However, it is hard to address issues and come up with long-term
+> solutions
+> | without internalizing the concepts.
+> | One example is creating a conda environment for each R package project
+> and
+> | installing llvm, clang, etc into each environment.
+>
+> As an R developer, I have a simple rule: Just say No to conda. Mixing and
+> matching between standard / core builds (using the recommended R toolchain)
+> and conda appears to mostly end in tears.
+>
+> | I talked to several software engineers; however, I could not find a
+> | convincing answer. I think I do not know what I do not know about this
+> | topic, which prevents me from asking good questions. I would be grateful
+> if
+> | you could let me know your thoughts about these questions.
+>
+> Again, a reproducible example would help.
+>
+> Rcpp is used by over 2300 packages on CRAN. Many use OpenMP. You can search
+> at GitHub within the mirroring 'cran' organisation to see what other
+> packages
+> do. Given that you can also see the outcome (the package 'status' pages at
+> CRAN) that is not a bad approach.
+>
+> Dirk
+>
+> | Where is a good place to start learning about this topic?
+> | Is a professional C++ developer necessarily good at troubleshooting
+> | problems with compilers and linkers? Or these are two different topics.
+> |
+> | Best regards,
+> | Naeem Khoshnevis
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210714/12ee23b4/attachment.html>
+
+From edd at debian.org  Wed Jul 14 22:46:06 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 14 Jul 2021 15:46:06 -0500
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+In-Reply-To: <CAKOOZvOymcEnNYncCWUHk+k7j8PRRH8F+YkFGE7yiYDN9ZXvuQ@mail.gmail.com>
+References: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+ <24814.64227.417257.350116@rob.eddelbuettel.com>
+ <CAKOOZvOymcEnNYncCWUHk+k7j8PRRH8F+YkFGE7yiYDN9ZXvuQ@mail.gmail.com>
+Message-ID: <24815.19726.570695.31272@rob.eddelbuettel.com>
+
+
+Hi Naeem,
+
+On 14 July 2021 at 11:03, Naeem Khoshnevis wrote:
+| Thank you so much for your response. Rcpp is excellent, and I am using it
+| (with OpenMP), and it significantly improved the package (Thank you!). I
+| have tried it on macOS and centos.
+
+Ok, as stated, I do not work on or know macOS. Others may be of help, there
+are tutorials (often by @coatless) which got a lot people going. Give that a
+shot, ask here when you get stuck.
+
+CentOS can be iffy. When I had to use in the past the setup in the distro was
+so old that we went the "devtoolset" (IIRC) route: a semi- or fully official
+newer compiler set a few versions ahead of what is in the distro. That should
+include OpenMP.
+
+| I was trying to set up a conda
+| environment. There are many HPC clusters that are using old versions of R
+| as well as rstudio. In the past, using conda env helped me to install an
+
+HPC can indeed be tricky. Best to liaise with your local sysadmins. One
+difficulty once you load the 'modules' (or however the scheme is called at
+your end) you have to align it with R. Use 'R CMD config --all' to see what R
+uses, you be able to tweak via your ~/.R/Makevars
+
+| updated version of R., But I understand why you do not recommend it. I will
+| prepare a reproducible example and will let you know. Thank you so much.
+
+Sounds good. Hopefully we get that squared away in a few controlled steps.
+
+Dirk
+
+| Best regards,
+| Naeem
+| 
+| On Wed, Jul 14, 2021 at 9:55 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > Hi Naeem,
+| >
+| > On 14 July 2021 at 09:41, Naeem Khoshnevis wrote:
+| > | Hi,
+| > |
+| > | I hope this email finds you well.
+| > | I wondered what the best approaches to troubleshooting C++ dependencies
+| > | issues in general and specifically in R are; specifically, those packages
+| > | which are using OpenMP and we want to install on macOS.
+| >
+| > Is this dependencies (plural) or a single core dependency (singular) on a
+| > single OS (macOS) ?  Those are different issues. (And Rcpp has no incluence
+| > over what Cupertino (macOS) or Auckland (macOS deployment for R does) -- we
+| > have to play the card we are dealt, and that have always been "issues" and
+| > some HOWTOs and duct tape.  On the margin, if this is your question, it may
+| > also be one for r-sig-mac.
+| >
+| > Also, and to make this concrete: Do you have a minimally reproducible
+| > issue?
+| >
+| > | So far, I am just googling the error and finding out what the problem is.
+| > | However, it is hard to address issues and come up with long-term
+| > solutions
+| > | without internalizing the concepts.
+| > | One example is creating a conda environment for each R package project
+| > and
+| > | installing llvm, clang, etc into each environment.
+| >
+| > As an R developer, I have a simple rule: Just say No to conda. Mixing and
+| > matching between standard / core builds (using the recommended R toolchain)
+| > and conda appears to mostly end in tears.
+| >
+| > | I talked to several software engineers; however, I could not find a
+| > | convincing answer. I think I do not know what I do not know about this
+| > | topic, which prevents me from asking good questions. I would be grateful
+| > if
+| > | you could let me know your thoughts about these questions.
+| >
+| > Again, a reproducible example would help.
+| >
+| > Rcpp is used by over 2300 packages on CRAN. Many use OpenMP. You can search
+| > at GitHub within the mirroring 'cran' organisation to see what other
+| > packages
+| > do. Given that you can also see the outcome (the package 'status' pages at
+| > CRAN) that is not a bad approach.
+| >
+| > Dirk
+| >
+| > | Where is a good place to start learning about this topic?
+| > | Is a professional C++ developer necessarily good at troubleshooting
+| > | problems with compilers and linkers? Or these are two different topics.
+| > |
+| > | Best regards,
+| > | Naeem Khoshnevis
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| > --
+| > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From cjard at hotmail.com  Thu Jul 15 10:24:21 2021
+From: cjard at hotmail.com (ma wh)
+Date: Thu, 15 Jul 2021 08:24:21 +0000
+Subject: [Rcpp-devel] Any recent change that would remove
+	Rcpp_precious_remove?
+Message-ID: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+
+Hi list
+
+Colleague of mine wrote some R last week that was working OK, and hasn't been changed in itself since that time. This week it's ceased working( I've tried it on my machine and also see a fail, the following error is encountered:
+
+Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+
+Searching around there aren't many hits. Those I do find seem quite recent (stackoverflow questions or GitHub issues logged in various projects, dates of posting are within the last few days). None of the posted queries seem to have a solution, one person said restarting RStudio helped, but not in my case. The SO question I found was marked as deleted. The GitHub issue I found was "I solved it" but no mention of how. The SO question was asking about svg export: https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function
+The GitHub were also asking about packages I don't use -
+https://github.com/r-spatial/spdep/issues/60
+https://github.com/drizopoulos/JMbayes2/issues/5
+
+Anyone on the list have any pointers? Thanks
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210715/17bc2b75/attachment.html>
+
+From simon.urbanek at R-project.org  Thu Jul 15 10:25:30 2021
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Thu, 15 Jul 2021 20:25:30 +1200
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+In-Reply-To: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+References: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+Message-ID: <E85C9C65-D3D3-4878-A8C9-CD05608B90D1@R-project.org>
+
+Naeem,
+
+I'm not sure which issues are you talking about specifically. If your package is well written, the instructions at https://mac.r-project.org/openmp/ should be sufficient with regular CRAN installation of R and standard tools.
+
+Cheers,
+Simon
+
+
+
+> On Jul 15, 2021, at 02:41, Naeem Khoshnevis <khoshnevis.naeem at gmail.com> wrote:
+> 
+> Hi,
+> 
+> I hope this email finds you well.
+> I wondered what the best approaches to troubleshooting C++ dependencies issues in general and specifically in R are; specifically, those packages which are using OpenMP and we want to install on macOS. 
+> So far, I am just googling the error and finding out what the problem is. However, it is hard to address issues and come up with long-term solutions without internalizing the concepts.
+> One example is creating a conda environment for each R package project and installing llvm, clang, etc into each environment.  
+> I talked to several software engineers; however, I could not find a convincing answer. I think I do not know what I do not know about this topic, which prevents me from asking good questions. I would be grateful if you could let me know your thoughts about these questions.
+> 
+> Where is a good place to start learning about this topic?
+> Is a professional C++ developer necessarily good at troubleshooting problems with compilers and linkers? Or these are two different topics.
+> 
+> Best regards,
+> Naeem Khoshnevis
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From edd at debian.org  Thu Jul 15 14:12:46 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 15 Jul 2021 07:12:46 -0500
+Subject: [Rcpp-devel] Any recent change that would
+	remove	Rcpp_precious_remove?
+In-Reply-To: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+Message-ID: <24816.9790.765864.646219@rob.eddelbuettel.com>
+
+
+On 15 July 2021 at 08:24, ma wh wrote:
+| Colleague of mine wrote some R last week that was working OK, and hasn't been changed in itself since that time. This week it's ceased working( I've tried it on my machine and also see a fail, the following error is encountered:
+| 
+| Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+| 
+| Searching around there aren't many hits. Those I do find seem quite recent (stackoverflow questions or GitHub issues logged in various projects, dates of posting are within the last few days). None of the posted queries seem to have a solution, one person said restarting RStudio helped, but not in my case. The SO question I found was marked as deleted. The GitHub issue I found was "I solved it" but no mention of how. The SO question was asking about svg export: https://stackoverflow.com/questions/68345118/exporting-a-ggplot-in-svg-call-a-non-esixting-function
+| The GitHub were also asking about packages I don't use -
+| https://github.com/r-spatial/spdep/issues/60
+| https://github.com/drizopoulos/JMbayes2/issues/5
+| 
+| Anyone on the list have any pointers? Thanks
+
+Packages following a the GNU style often have a file ChangeLog which "details
+changes made to the code". Rcpp follows this convention, see 2021-07-05 and
+2021-01-017.
+
+Packages following the R packaging conventions often have a file inst/NEWS.rd
+(also rendered as NEWS at CRAN). Rcpp follow this conventions, see the Rcpp
+1.0.7 release (even if the functions is not named).
+
+Packages have source code you can search.I like `ag` aka "the
+silversearcher":
+
+  edd at rob:~/git/rcpp(master)$ ag -c Rcpp_precious_remove
+  ChangeLog:2
+  inst/include/Rcpp/routines.h:3
+  inst/include/RcppCommon.h:2
+  src/rcpp_init.cpp:1
+  src/barrier.cpp:1
+  edd at rob:~/git/rcpp(master)$ 
+
+It is still there, and available via the standard export mechanism.
+
+I recommend your friend take a look. The function is a) still there yet has
+also b) been supplanted by a more sufficient alternative.
+
+Otherwise, a reproducible example would be the only way to make this
+concrete.
+
+Hope this helps, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Thu Jul 15 14:41:26 2021
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Thu, 15 Jul 2021 14:41:26 +0200
+Subject: [Rcpp-devel] Any recent change that would remove
+	Rcpp_precious_remove?
+In-Reply-To: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+Message-ID: <CALEXWq199eMXHVYMAQJFdvcH=YwrKxJ5HFVHR-n6T4zqbViVgw@mail.gmail.com>
+
+On Thu, 15 Jul 2021 at 10:27, ma wh <cjard at hotmail.com> wrote:
+>
+> Hi list
+>
+> Colleague of mine wrote some R last week that was working OK, and hasn't been changed in itself since that time. This week it's ceased working( I've tried it on my machine and also see a fail, the following error is encountered:
+>
+> Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+
+TL;DR: update your library.
+
+It seems that you are using a package (lubridate) compiled against the
+most recent Rcpp release, but you are trying to load it using an old
+version of Rcpp. We try hard to smooth things out so that the
+transition "forward" (i.e., updating Rcpp) is as painless as possible.
+In fact, the recent v1.0.7 landed on CRAN with 2.3k+ reverse depends
+and only a couple of issues that got resolved with a rebuild. This is
+the inverse situation: the rest of the packages are updated (built
+against the newest Rcpp), but the local Rcpp version is an old one.
+This is not supported and cannot be supported; otherwise, our hands
+would be tied to make any progress or innovation.
+
+-- 
+Iñaki Úcar
+
+From edd at debian.org  Thu Jul 15 15:20:05 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 15 Jul 2021 08:20:05 -0500
+Subject: [Rcpp-devel] Any recent change that would
+	remove	Rcpp_precious_remove?
+In-Reply-To: <CALEXWq199eMXHVYMAQJFdvcH=YwrKxJ5HFVHR-n6T4zqbViVgw@mail.gmail.com>
+References: <PR3P194MB0812D2DFEDE1FE7636E40E0EB1129@PR3P194MB0812.EURP194.PROD.OUTLOOK.COM>
+ <CALEXWq199eMXHVYMAQJFdvcH=YwrKxJ5HFVHR-n6T4zqbViVgw@mail.gmail.com>
+Message-ID: <24816.13829.856691.451229@rob.eddelbuettel.com>
+
+
+On 15 July 2021 at 14:41, Iñaki Ucar wrote:
+| On Thu, 15 Jul 2021 at 10:27, ma wh <cjard at hotmail.com> wrote:
+| > Error in C_valid_tz(tzone): Function 'Rcpp_precious_remove' not provided by package 'Rcpp'
+| 
+| TL;DR: update your library.
+
+Good catch by Inaki. I had overlooked the C_valid_tz() handle. You are trying
+to _run_ code, I had assumed you had tried to compile code.
+
+The only situation that is supportable and testable under the CRAN model is
+in fact the CRAN model: _all_ your packages need to be current as they are
+tested jointly.  Nobody has the ability to test all random cross-products of
+old and new versions.  Usually, it just works, when it doesn't you need to
+really make sure everything is current.
+
+And in general, we work really hard to not modify interfaces, and we have
+done so only a very few times in the nearly fifteen year history of Rcpp. As
+this particular change is an important one, we went ahead with this change.
+And would likely do so again.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From khoshnevis.naeem at gmail.com  Thu Jul 15 22:44:13 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Thu, 15 Jul 2021 15:44:13 -0500
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+In-Reply-To: <E85C9C65-D3D3-4878-A8C9-CD05608B90D1@R-project.org>
+References: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+ <E85C9C65-D3D3-4878-A8C9-CD05608B90D1@R-project.org>
+Message-ID: <CAKOOZvMLNy2XYp=z+dS5G9zabns9L8xWSc8NO-ELFmAn5ZatUA@mail.gmail.com>
+
+Thanks, Simon and Dirk,
+
+I can install the packages normally on macOS. However, I want to install it
+in a conda environment. Thanks for sharing the link. I really appreciate
+it.
+
+Here is a reproducible example, in case you have time to try.
+
+On macOS:
+
+Step 1: create a conda environment and install R
+
+conda create -n r-environment r-essentials r-base
+
+Step 2: activate the environment
+
+conda activate r-environment
+
+Step 3: Install rstudio
+
+conda install -c r rstudio
+
+Step 4: Install some required packages
+
+conda install -c r r-devtools
+conda install -c r r-wcorr
+conda install -c r r-ranger
+conda install -c conda-forge r-rcpparmadillo
+conda install -c r r-testthat
+conda install -c conda-forge r-superlearner
+conda install -c conda-forge r-polycor
+conda install -c conda-forge r-logger
+
+Step 6:
+According to this page, download dependencies:
+https://mac.r-project.org/openmp/
+
+And copied them into the environment include and lib directory.
+
+
+Step 7:
+According to this page, I exported variables in step 6.
+https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#set-env-vars
+
+#!/bin/sh
+
+export PKG_CPPFLAGS='-Xclang -fopenmp'
+export PKG_LIBS='-lomp'
+
+Step 8:
+Reactivated the conda environment
+
+Step 9:
+run: rstudio
+
+Step 10:
+inside rstudio
+library(devtools)
+install_github("fasrc/CausalGPS")
+
+I get the following error:
+
+Downloading GitHub repo fasrc/CausalGPS at master
+Error: Could not find tools necessary to compile a package
+
+I think something is wrong with Step 7. Because apparently, I lost the path
+to Xcode. Without Step 7, I get the following error:
+
+In file included from ColorSpace.cpp:1:
+In file included from ./ColorSpace.h:4:
+In file included from env/bin/../include/c++/v1/typeinfo:60:
+In file included from env/bin/../include/c++/v1/exception:81:
+In file included from env/bin/../include/c++/v1/cstdlib:85:
+In file included from env/bin/../include/c++/v1/stdlib.h:100:
+env/bin/../include/c++/v1/math.h:773:12: error: no member named 'labs' in
+the global namespace; did you mean 'abs'?
+  return ::labs(__x);
+         ~~^
+~/env/bin/../include/c++/v1/math.h:772:39: note: 'abs' declared here
+inline _LIBCPP_INLINE_VISIBILITY long abs(long __x) _NOEXCEPT {
+                                      ^
+~/env/bin/../include/c++/v1/math.h:777:12: error: no member named 'llabs'
+in the global namespace
+  return ::llabs(__x);
+         ~~^
+~/env/bin/../include/c++/v1/math.h:785:12: error: no member named 'fabsf'
+in the global namespace
+  return ::fabsf(__lcpp_x);
+         ~~^
+~/env/bin/../include/c++/v1/math.h:789:12: error: no member named 'fabs' in
+the global namespace; did you mean 'abs'?
+  return ::fabs(__lcpp_x);
+         ~~^
+~/env/bin/../include/c++/v1/math.h:772:39: note: 'abs' declared here
+inline _LIBCPP_INLINE_VISIBILITY long abs(long __x) _NOEXCEPT {
+                                      ^
+~/env/bin/../include/c++/v1/math.h:794:12: error: no member named 'fabsl'
+in the global namespace
+  return ::fabsl(__lcpp_x);
+         ~~^
+
+Best regards,
+Naeem
+
+On Thu, Jul 15, 2021 at 3:25 AM Simon Urbanek <simon.urbanek at r-project.org>
+wrote:
+
+> Naeem,
+>
+> I'm not sure which issues are you talking about specifically. If your
+> package is well written, the instructions at
+> https://mac.r-project.org/openmp/ should be sufficient with regular CRAN
+> installation of R and standard tools.
+>
+> Cheers,
+> Simon
+>
+>
+>
+> > On Jul 15, 2021, at 02:41, Naeem Khoshnevis <khoshnevis.naeem at gmail.com>
+> wrote:
+> >
+> > Hi,
+> >
+> > I hope this email finds you well.
+> > I wondered what the best approaches to troubleshooting C++ dependencies
+> issues in general and specifically in R are; specifically, those packages
+> which are using OpenMP and we want to install on macOS.
+> > So far, I am just googling the error and finding out what the problem
+> is. However, it is hard to address issues and come up with long-term
+> solutions without internalizing the concepts.
+> > One example is creating a conda environment for each R package project
+> and installing llvm, clang, etc into each environment.
+> > I talked to several software engineers; however, I could not find a
+> convincing answer. I think I do not know what I do not know about this
+> topic, which prevents me from asking good questions. I would be grateful if
+> you could let me know your thoughts about these questions.
+> >
+> > Where is a good place to start learning about this topic?
+> > Is a professional C++ developer necessarily good at troubleshooting
+> problems with compilers and linkers? Or these are two different topics.
+> >
+> > Best regards,
+> > Naeem Khoshnevis
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210715/aef00e0d/attachment-0001.html>
+
+From edd at debian.org  Fri Jul 16 00:06:04 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 15 Jul 2021 17:06:04 -0500
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+In-Reply-To: <CAKOOZvMLNy2XYp=z+dS5G9zabns9L8xWSc8NO-ELFmAn5ZatUA@mail.gmail.com>
+References: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+ <E85C9C65-D3D3-4878-A8C9-CD05608B90D1@R-project.org>
+ <CAKOOZvMLNy2XYp=z+dS5G9zabns9L8xWSc8NO-ELFmAn5ZatUA@mail.gmail.com>
+Message-ID: <24816.45388.870051.577346@rob.eddelbuettel.com>
+
+
+On 15 July 2021 at 15:44, Naeem Khoshnevis wrote:
+| Thanks, Simon and Dirk,
+| 
+| I can install the packages normally on macOS. However, I want to install it
+| in a conda environment.
+
+That is (for all intents and purposes) a different use case than what we
+support (for free) so I suggest you rely on the Conda volunteers (or
+commercial supporters) to help you.
+
+We support software on CRAN, which tends to "just work" if used as intended.
+
+But we are volunteers in this, so there are limits to what we can cover.
+
+Dirk
+
+| Thanks for sharing the link. I really appreciate
+| it.
+| 
+| Here is a reproducible example, in case you have time to try.
+| 
+| On macOS:
+| 
+| Step 1: create a conda environment and install R
+| 
+| conda create -n r-environment r-essentials r-base
+| 
+| Step 2: activate the environment
+| 
+| conda activate r-environment
+| 
+| Step 3: Install rstudio
+| 
+| conda install -c r rstudio
+| 
+| Step 4: Install some required packages
+| 
+| conda install -c r r-devtools
+| conda install -c r r-wcorr
+| conda install -c r r-ranger
+| conda install -c conda-forge r-rcpparmadillo
+| conda install -c r r-testthat
+| conda install -c conda-forge r-superlearner
+| conda install -c conda-forge r-polycor
+| conda install -c conda-forge r-logger
+| 
+| Step 6:
+| According to this page, download dependencies:
+| https://mac.r-project.org/openmp/
+| 
+| And copied them into the environment include and lib directory.
+| 
+| 
+| Step 7:
+| According to this page, I exported variables in step 6.
+| https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#set-env-vars
+| 
+| #!/bin/sh
+| 
+| export PKG_CPPFLAGS='-Xclang -fopenmp'
+| export PKG_LIBS='-lomp'
+| 
+| Step 8:
+| Reactivated the conda environment
+| 
+| Step 9:
+| run: rstudio
+| 
+| Step 10:
+| inside rstudio
+| library(devtools)
+| install_github("fasrc/CausalGPS")
+| 
+| I get the following error:
+| 
+| Downloading GitHub repo fasrc/CausalGPS at master
+| Error: Could not find tools necessary to compile a package
+| 
+| I think something is wrong with Step 7. Because apparently, I lost the path
+| to Xcode. Without Step 7, I get the following error:
+| 
+| In file included from ColorSpace.cpp:1:
+| In file included from ./ColorSpace.h:4:
+| In file included from env/bin/../include/c++/v1/typeinfo:60:
+| In file included from env/bin/../include/c++/v1/exception:81:
+| In file included from env/bin/../include/c++/v1/cstdlib:85:
+| In file included from env/bin/../include/c++/v1/stdlib.h:100:
+| env/bin/../include/c++/v1/math.h:773:12: error: no member named 'labs' in
+| the global namespace; did you mean 'abs'?
+|   return ::labs(__x);
+|          ~~^
+| ~/env/bin/../include/c++/v1/math.h:772:39: note: 'abs' declared here
+| inline _LIBCPP_INLINE_VISIBILITY long abs(long __x) _NOEXCEPT {
+|                                       ^
+| ~/env/bin/../include/c++/v1/math.h:777:12: error: no member named 'llabs'
+| in the global namespace
+|   return ::llabs(__x);
+|          ~~^
+| ~/env/bin/../include/c++/v1/math.h:785:12: error: no member named 'fabsf'
+| in the global namespace
+|   return ::fabsf(__lcpp_x);
+|          ~~^
+| ~/env/bin/../include/c++/v1/math.h:789:12: error: no member named 'fabs' in
+| the global namespace; did you mean 'abs'?
+|   return ::fabs(__lcpp_x);
+|          ~~^
+| ~/env/bin/../include/c++/v1/math.h:772:39: note: 'abs' declared here
+| inline _LIBCPP_INLINE_VISIBILITY long abs(long __x) _NOEXCEPT {
+|                                       ^
+| ~/env/bin/../include/c++/v1/math.h:794:12: error: no member named 'fabsl'
+| in the global namespace
+|   return ::fabsl(__lcpp_x);
+|          ~~^
+| 
+| Best regards,
+| Naeem
+| 
+| On Thu, Jul 15, 2021 at 3:25 AM Simon Urbanek <simon.urbanek at r-project.org>
+| wrote:
+| 
+| > Naeem,
+| >
+| > I'm not sure which issues are you talking about specifically. If your
+| > package is well written, the instructions at
+| > https://mac.r-project.org/openmp/ should be sufficient with regular CRAN
+| > installation of R and standard tools.
+| >
+| > Cheers,
+| > Simon
+| >
+| >
+| >
+| > > On Jul 15, 2021, at 02:41, Naeem Khoshnevis <khoshnevis.naeem at gmail.com>
+| > wrote:
+| > >
+| > > Hi,
+| > >
+| > > I hope this email finds you well.
+| > > I wondered what the best approaches to troubleshooting C++ dependencies
+| > issues in general and specifically in R are; specifically, those packages
+| > which are using OpenMP and we want to install on macOS.
+| > > So far, I am just googling the error and finding out what the problem
+| > is. However, it is hard to address issues and come up with long-term
+| > solutions without internalizing the concepts.
+| > > One example is creating a conda environment for each R package project
+| > and installing llvm, clang, etc into each environment.
+| > > I talked to several software engineers; however, I could not find a
+| > convincing answer. I think I do not know what I do not know about this
+| > topic, which prevents me from asking good questions. I would be grateful if
+| > you could let me know your thoughts about these questions.
+| > >
+| > > Where is a good place to start learning about this topic?
+| > > Is a professional C++ developer necessarily good at troubleshooting
+| > problems with compilers and linkers? Or these are two different topics.
+| > >
+| > > Best regards,
+| > > Naeem Khoshnevis
+| > > _______________________________________________
+| > > Rcpp-devel mailing list
+| > > Rcpp-devel at lists.r-forge.r-project.org
+| > > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| >
+| >
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From khoshnevis.naeem at gmail.com  Fri Jul 16 04:43:13 2021
+From: khoshnevis.naeem at gmail.com (Naeem Khoshnevis)
+Date: Thu, 15 Jul 2021 21:43:13 -0500
+Subject: [Rcpp-devel] Troubleshooting dependency issues
+In-Reply-To: <E7BB2566-5245-467F-A9D9-98DDD6DADE5A@R-project.org>
+References: <CAKOOZvPQxO3wwqNaGCXzv_ZYbCtSTLJrTTfO=+3y1wm0-cXrmg@mail.gmail.com>
+ <E85C9C65-D3D3-4878-A8C9-CD05608B90D1@R-project.org>
+ <CAKOOZvMLNy2XYp=z+dS5G9zabns9L8xWSc8NO-ELFmAn5ZatUA@mail.gmail.com>
+ <E7BB2566-5245-467F-A9D9-98DDD6DADE5A@R-project.org>
+Message-ID: <CAKOOZvPnyfpXYjLZDpwDt8XBG-mWxavGDoFzDyjKhwCP-QAv1A@mail.gmail.com>
+
+Dear Dirk and Simon,
+
+Thank you so much for letting me know. Yes, I understand it is off-topic.
+
+Best regards,
+Naeem
+
+On Thu, Jul 15, 2021 at 5:46 PM Simon Urbanek <simon.urbanek at r-project.org>
+wrote:
+
+> Naeem,
+>
+> sorry, no, I can't help you then, the instructions only apply to standard
+> macOS and won't help in your case. Also your issues seem to be stemming
+> from the modified conda environment you're using so you're entirely on your
+> own.
+>
+> Cheers,
+> Simon
+>
+>
+>
+> > On 16/07/2021, at 8:44 AM, Naeem Khoshnevis <khoshnevis.naeem at gmail.com>
+> wrote:
+> >
+> >
+> > Thanks, Simon and Dirk,
+> >
+> > I can install the packages normally on macOS. However, I want to install
+> it in a conda environment. Thanks for sharing the link. I really appreciate
+> it.
+> >
+> > Here is a reproducible example, in case you have time to try.
+> >
+> > On macOS:
+> >
+> > Step 1: create a conda environment and install R
+> >
+> > conda create -n r-environment r-essentials r-base
+> >
+> > Step 2: activate the environment
+> >
+> > conda activate r-environment
+> >
+> > Step 3: Install rstudio
+> >
+> > conda install -c r rstudio
+> >
+> > Step 4: Install some required packages
+> >
+> > conda install -c r r-devtools
+> > conda install -c r r-wcorr
+> > conda install -c r r-ranger
+> > conda install -c conda-forge r-rcpparmadillo
+> > conda install -c r r-testthat
+> > conda install -c conda-forge r-superlearner
+> > conda install -c conda-forge r-polycor
+> > conda install -c conda-forge r-logger
+> >
+> > Step 6:
+> > According to this page, download dependencies:
+> > https://mac.r-project.org/openmp/
+> >
+> > And copied them into the environment include and lib directory.
+> >
+> >
+> > Step 7:
+> > According to this page, I exported variables in step 6.
+> >
+> https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#set-env-vars
+> >
+> > #!/bin/sh
+> >
+> > export PKG_CPPFLAGS='-Xclang -fopenmp'
+> > export PKG_LIBS='-lomp'
+> >
+> > Step 8:
+> > Reactivated the conda environment
+> >
+> > Step 9:
+> > run: rstudio
+> >
+> > Step 10:
+> > inside rstudio
+> > library(devtools)
+> > install_github("fasrc/CausalGPS")
+> >
+> > I get the following error:
+> >
+> > Downloading GitHub repo fasrc/CausalGPS at master
+> > Error: Could not find tools necessary to compile a package
+> >
+> > I think something is wrong with Step 7. Because apparently, I lost the
+> path to Xcode. Without Step 7, I get the following error:
+> >
+> > In file included from ColorSpace.cpp:1:
+> > In file included from ./ColorSpace.h:4:
+> > In file included from env/bin/../include/c++/v1/typeinfo:60:
+> > In file included from env/bin/../include/c++/v1/exception:81:
+> > In file included from env/bin/../include/c++/v1/cstdlib:85:
+> > In file included from env/bin/../include/c++/v1/stdlib.h:100:
+> > env/bin/../include/c++/v1/math.h:773:12: error: no member named 'labs'
+> in the global namespace; did you mean 'abs'?
+> >   return ::labs(__x);
+> >          ~~^
+> > ~/env/bin/../include/c++/v1/math.h:772:39: note: 'abs' declared here
+> > inline _LIBCPP_INLINE_VISIBILITY long abs(long __x) _NOEXCEPT {
+> >                                       ^
+> > ~/env/bin/../include/c++/v1/math.h:777:12: error: no member named
+> 'llabs' in the global namespace
+> >   return ::llabs(__x);
+> >          ~~^
+> > ~/env/bin/../include/c++/v1/math.h:785:12: error: no member named
+> 'fabsf' in the global namespace
+> >   return ::fabsf(__lcpp_x);
+> >          ~~^
+> > ~/env/bin/../include/c++/v1/math.h:789:12: error: no member named 'fabs'
+> in the global namespace; did you mean 'abs'?
+> >   return ::fabs(__lcpp_x);
+> >          ~~^
+> > ~/env/bin/../include/c++/v1/math.h:772:39: note: 'abs' declared here
+> > inline _LIBCPP_INLINE_VISIBILITY long abs(long __x) _NOEXCEPT {
+> >                                       ^
+> > ~/env/bin/../include/c++/v1/math.h:794:12: error: no member named
+> 'fabsl' in the global namespace
+> >   return ::fabsl(__lcpp_x);
+> >          ~~^
+> >
+> > Best regards,
+> > Naeem
+> >
+> > On Thu, Jul 15, 2021 at 3:25 AM Simon Urbanek <
+> simon.urbanek at r-project.org> wrote:
+> > Naeem,
+> >
+> > I'm not sure which issues are you talking about specifically. If your
+> package is well written, the instructions at
+> https://mac.r-project.org/openmp/ should be sufficient with regular CRAN
+> installation of R and standard tools.
+> >
+> > Cheers,
+> > Simon
+> >
+> >
+> >
+> > > On Jul 15, 2021, at 02:41, Naeem Khoshnevis <
+> khoshnevis.naeem at gmail.com> wrote:
+> > >
+> > > Hi,
+> > >
+> > > I hope this email finds you well.
+> > > I wondered what the best approaches to troubleshooting C++
+> dependencies issues in general and specifically in R are; specifically,
+> those packages which are using OpenMP and we want to install on macOS.
+> > > So far, I am just googling the error and finding out what the problem
+> is. However, it is hard to address issues and come up with long-term
+> solutions without internalizing the concepts.
+> > > One example is creating a conda environment for each R package project
+> and installing llvm, clang, etc into each environment.
+> > > I talked to several software engineers; however, I could not find a
+> convincing answer. I think I do not know what I do not know about this
+> topic, which prevents me from asking good questions. I would be grateful if
+> you could let me know your thoughts about these questions.
+> > >
+> > > Where is a good place to start learning about this topic?
+> > > Is a professional C++ developer necessarily good at troubleshooting
+> problems with compilers and linkers? Or these are two different topics.
+> > >
+> > > Best regards,
+> > > Naeem Khoshnevis
+> > > _______________________________________________
+> > > Rcpp-devel mailing list
+> > > Rcpp-devel at lists.r-forge.r-project.org
+> > >
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210715/8aef128e/attachment.html>
+

@@ -1,0 +1,970 @@
+From djsamperi at gmail.com  Wed Feb  1 23:23:09 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Wed, 1 Feb 2023 17:23:09 -0500
+Subject: [Rcpp-devel] R_Interactive vs R_NoEcho
+Message-ID: <CADUbQ5jHd1cf9Uu5tNkoJaVp2AWiW5+CAgmsgohxHcS-CNpteQ@mail.gmail.com>
+
+Since I am not aware of an R-internals mailing list, and since this
+question is related to the behavior of RInside::repl(), perhaps this is the
+appropriate place to post this question.
+
+The function Rstd_ReadConsole() in src/unix/sys-std.c results in the
+user command being echoed when R_Interactive = false,
+and R_NoEcho = false.
+
+But if we set R_NoEcho = true to stop the echo, the prompt is also
+suppressed. Setting R_Interactive = true (with R_NoEcho = false)
+does not suppress the prompt, but it has other side-effects like
+enabling the final confirmation question. Again, if we set R_NoEcho = true
+there is no prompt.
+
+So my question is: why does setting R_NoEcho=true turn off the prompt?
+
+Thanks,
+Dominick
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230201/8ab29412/attachment.html>
+
+From edd at debian.org  Wed Feb  1 23:41:41 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 1 Feb 2023 16:41:41 -0600
+Subject: [Rcpp-devel] R_Interactive vs R_NoEcho
+In-Reply-To: <CADUbQ5jHd1cf9Uu5tNkoJaVp2AWiW5+CAgmsgohxHcS-CNpteQ@mail.gmail.com>
+References: <CADUbQ5jHd1cf9Uu5tNkoJaVp2AWiW5+CAgmsgohxHcS-CNpteQ@mail.gmail.com>
+Message-ID: <25562.60069.614712.226742@rob.eddelbuettel.com>
+
+
+On 1 February 2023 at 17:23, Dominick Samperi wrote:
+| Since I am not aware of an R-internals mailing list, and since this
+
+AFAIK there is no such mailing list. There is a manual of that name:
+https://rstudio.github.io/r-manuals/r-ints/  (nicer quarto rendered version)
+
+Or did you mean the r-devel list?
+
+| question is related to the behavior of RInside::repl(), perhaps this is the
+| appropriate place to post this question.
+| 
+| The function Rstd_ReadConsole() in src/unix/sys-std.c results in the
+| user command being echoed when R_Interactive = false,
+| and R_NoEcho = false.
+| 
+| But if we set R_NoEcho = true to stop the echo, the prompt is also
+| suppressed. Setting R_Interactive = true (with R_NoEcho = false)
+| does not suppress the prompt, but it has other side-effects like
+| enabling the final confirmation question. Again, if we set R_NoEcho = true
+| there is no prompt.
+| 
+| So my question is: why does setting R_NoEcho=true turn off the prompt?
+
+Sounds like an r-devel question to me.  Nothing Rcpp related here.  Simon and
+Tomas both hang out here so if you are lucky they may see it.  Else I'd try
+over there.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at R-project.org  Thu Feb  2 04:02:31 2023
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Thu, 2 Feb 2023 16:02:31 +1300
+Subject: [Rcpp-devel] R_Interactive vs R_NoEcho
+In-Reply-To: <25562.60069.614712.226742@rob.eddelbuettel.com>
+References: <CADUbQ5jHd1cf9Uu5tNkoJaVp2AWiW5+CAgmsgohxHcS-CNpteQ@mail.gmail.com>
+ <25562.60069.614712.226742@rob.eddelbuettel.com>
+Message-ID: <CBFCF713-C7F5-4B64-9A78-B988B1D91791@R-project.org>
+
+
+
+> On Feb 2, 2023, at 11:41 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> On 1 February 2023 at 17:23, Dominick Samperi wrote:
+> | Since I am not aware of an R-internals mailing list, and since this
+> 
+> AFAIK there is no such mailing list. There is a manual of that name:
+> https://rstudio.github.io/r-manuals/r-ints/  (nicer quarto rendered version)
+> 
+> Or did you mean the r-devel list?
+> 
+> | question is related to the behavior of RInside::repl(), perhaps this is the
+> | appropriate place to post this question.
+> | 
+> | The function Rstd_ReadConsole() in src/unix/sys-std.c results in the
+> | user command being echoed when R_Interactive = false,
+> | and R_NoEcho = false.
+> | 
+> | But if we set R_NoEcho = true to stop the echo, the prompt is also
+> | suppressed. Setting R_Interactive = true (with R_NoEcho = false)
+> | does not suppress the prompt, but it has other side-effects like
+> | enabling the final confirmation question. Again, if we set R_NoEcho = true
+> | there is no prompt.
+> | 
+> | So my question is: why does setting R_NoEcho=true turn off the prompt?
+> 
+> Sounds like an r-devel question to me.  Nothing Rcpp related here.  Simon and
+> Tomas both hang out here so if you are lucky they may see it.  Else I'd try
+> over there.
+> 
+
+We do ;). Well, the prompt is part of the echo - in R you can't have a prompt when you are not echoing the command since you'd just see > > > which is not very helpful. But I know nothing about RInside so can't comment on what you are trying to do.
+
+Cheers,
+Simon
+
+
+From edd at debian.org  Thu Feb  2 04:56:26 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 1 Feb 2023 21:56:26 -0600
+Subject: [Rcpp-devel] R_Interactive vs R_NoEcho
+In-Reply-To: <CBFCF713-C7F5-4B64-9A78-B988B1D91791@R-project.org>
+References: <CADUbQ5jHd1cf9Uu5tNkoJaVp2AWiW5+CAgmsgohxHcS-CNpteQ@mail.gmail.com>
+ <25562.60069.614712.226742@rob.eddelbuettel.com>
+ <CBFCF713-C7F5-4B64-9A78-B988B1D91791@R-project.org>
+Message-ID: <25563.13418.772099.838152@rob.eddelbuettel.com>
+
+
+On 2 February 2023 at 16:02, Simon Urbanek wrote:
+| > On Feb 2, 2023, at 11:41 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| > Sounds like an r-devel question to me.  Nothing Rcpp related here.  Simon and
+| > Tomas both hang out here so if you are lucky they may see it.  Else I'd try
+| > over there.
+| > 
+| 
+| We do ;). Well, the prompt is part of the echo - in R you can't have a prompt when you are not echoing the command since you'd just see > > > which is not very helpful. But I know nothing about RInside so can't comment on what you are trying to do.
+
+You should look into RInside! It uses constructors (ie RAII) and destructor
+behaviour to ensure proper set-up and wind-down of resources! Which are the
+very same Rembedding features that, say, Rserve uses.  Was a great idea 15
+years ago, and still is.  Unless you longjmp.
+
+Which R does. So we go around pointing fingers at each other.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From djsamperi at gmail.com  Sat Feb  4 02:02:20 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Fri, 3 Feb 2023 20:02:20 -0500
+Subject: [Rcpp-devel] RInline::repl() issues
+Message-ID: <CADUbQ5hLir+FTRrF_k9fYk-ahFR3f1ctZ_cpMRKyUdzGM2gg-g@mail.gmail.com>
+
+I'm sorry to say that the RInline::repl() issues are not resolved, and to
+resolve them would likely require help from R core.
+
+Here's the test case:
+library(sphereplot)
+rgl.sphgrid(longtype="D")
+
+Under Linux there is no problem, a sphere is drawn, and you can
+rotate with mouse motions.
+
+Under Windows using R, no problem.
+
+But under Windows in RInline::repl() when you click on the image it
+freezes up.
+
+Apparently some kind of graphics
+initialization is required, and perhaps callbacks as well to
+handle mouse events. Just calling run_Rmainloop() is not
+enough.
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230203/e3b494c7/attachment.html>
+
+From edd at debian.org  Sat Feb  4 02:17:08 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 3 Feb 2023 19:17:08 -0600
+Subject: [Rcpp-devel] RInline::repl() issues
+In-Reply-To: <CADUbQ5hLir+FTRrF_k9fYk-ahFR3f1ctZ_cpMRKyUdzGM2gg-g@mail.gmail.com>
+References: <CADUbQ5hLir+FTRrF_k9fYk-ahFR3f1ctZ_cpMRKyUdzGM2gg-g@mail.gmail.com>
+Message-ID: <25565.45588.218579.130134@rob.eddelbuettel.com>
+
+
+Dominick,
+
+On 3 February 2023 at 20:02, Dominick Samperi wrote:
+| I'm sorry to say that the RInline::repl() issues are not resolved, and to
+| resolve them would likely require help from R core.
+| 
+| Here's the test case:
+| library(sphereplot)
+| rgl.sphgrid(longtype="D")
+| 
+| Under Linux there is no problem, a sphere is drawn, and you can
+| rotate with mouse motions.
+| 
+| Under Windows using R, no problem.
+| 
+| But under Windows in RInline::repl() when you click on the image it
+| freezes up.
+| 
+| Apparently some kind of graphics
+| initialization is required, and perhaps callbacks as well to
+| handle mouse events. Just calling run_Rmainloop() is not
+| enough.
+
+Maybe you want to talk to Duncan (CC'ed) about this, he just had a thread
+about rgl and event loop issues on r-package-devel.
+
+As earlier in this (or the preceding) thread, I am not yet _fully_ convinced
+that what you are experiencing are in fact an Rcpp issue.  There is something
+(a lot, actually) to be said about _minimally complete verifiable examples_.
+As Rcpp maintainer, I am not sure if bringing rgl (a fine package, but also
+"complicated" / "ambitious") in does still satisfy "minimally".
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at R-project.org  Sat Feb  4 23:58:52 2023
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Sun, 5 Feb 2023 11:58:52 +1300
+Subject: [Rcpp-devel] RInline::repl() issues
+In-Reply-To: <CADUbQ5hLir+FTRrF_k9fYk-ahFR3f1ctZ_cpMRKyUdzGM2gg-g@mail.gmail.com>
+References: <CADUbQ5hLir+FTRrF_k9fYk-ahFR3f1ctZ_cpMRKyUdzGM2gg-g@mail.gmail.com>
+Message-ID: <4303AFB1-3CDA-44C2-BCFA-099FBB32F093@R-project.org>
+
+Dominick,
+
+again, it's hard to give you advice when you don't post the code, but note that for graphical Windows applications you may need to implement WinMain and make sure you setup the Windows event loop (which is separate from R's event loop) before you use RInside (see Win32 documentation). You may want to to have a look at src/gnuwin32/front-ends in R.
+
+Cheers,
+Simon
+
+
+> On Feb 4, 2023, at 2:02 PM, Dominick Samperi <djsamperi at gmail.com> wrote:
+> 
+> I'm sorry to say that the RInline::repl() issues are not resolved, and to
+> resolve them would likely require help from R core.
+> 
+> Here's the test case:
+> library(sphereplot)
+> rgl.sphgrid(longtype="D")
+> 
+> Under Linux there is no problem, a sphere is drawn, and you can
+> rotate with mouse motions.
+> 
+> Under Windows using R, no problem.
+> 
+> But under Windows in RInline::repl() when you click on the image it
+> freezes up.
+> 
+> Apparently some kind of graphics
+> initialization is required, and perhaps callbacks as well to
+> handle mouse events. Just calling run_Rmainloop() is not
+> enough.
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From djsamperi at gmail.com  Sun Feb  5 18:46:13 2023
+From: djsamperi at gmail.com (Dominick Samperi)
+Date: Sun, 5 Feb 2023 12:46:13 -0500
+Subject: [Rcpp-devel] RInline::repl() issues
+In-Reply-To: <4303AFB1-3CDA-44C2-BCFA-099FBB32F093@R-project.org>
+References: <CADUbQ5hLir+FTRrF_k9fYk-ahFR3f1ctZ_cpMRKyUdzGM2gg-g@mail.gmail.com>
+ <4303AFB1-3CDA-44C2-BCFA-099FBB32F093@R-project.org>
+Message-ID: <CADUbQ5j0PHbnixE9KibasxNZU21gKsnzYeZOk2BKDJQ3cggctg@mail.gmail.com>
+
+Thanks Simon,
+
+Source code is include this time...
+
+For now RInside::repl() works fine under Windows provided there is no
+mouse feedback, and starting the main app using WIN32 GUI
+framework is not trivial.
+
+A simple work-around is to implement RInside::repl() as
+system("Rterm"), which is what happens when R is
+run, but this would make the repl an independent
+application, not ideal.
+
+It looks like rtest.c in the front-ends directory is most
+applicable (as it uses embeddedR like RInside), but the loop
+code there has problems under Windows that led
+to the use of run_Rmainloop() instead. Also, this
+code does not use WinMain.
+
+I tried embedding the Rterm code (rterm.c,
+graphappmain.c, etc.) into the RInside C++ code, but
+there were quite a few technical challenges. A simpler
+approach where selected parts are used is attached
+as repl.cpp.
+
+Here graphappmain.c from src/gnuwin32/front-ends
+is embedded (as extern "C") in the original C++ file
+repl.cpp, and the WinMain entry point is used (WIN32
+API). When NO_WIN32_GRAPHICS_INIT is defined the main
+is like it was before (no WIN32 init), and when it is not
+defined, WinMain calls GA_startgraphapp(), then calls
+AppMain, which calls main. This requires linking to
+Rgraphapp.dll.
+
+The repl() function itself is in RInside.cpp, and is
+shown below. Several permutations of the init
+and looping functions were tried, but with negative
+results. Usually the app just terminates.
+
+This is not too surprising given what has been omitted
+from the original Rterm build (like rtico.rc resouce file).
+
+repl() from RInside.cpp...
+
+extern "C" {
+    extern int GA_initapp(int, char **);
+    void setup_Rmainloop(void);
+    void run_Rmainloop(void);
+    extern void Rf_mainloop(void);
+}
+
+void RInside::repl() {
+    GA_initapp(0, NULL);
+    readconsolecfg();
+    //setup_Rmainloop();
+    //run_Rmainloop();
+    Rf_mainloop();
+
+    // Causes problems under Windows.
+    // For example, terminates after plot(0,0)
+    // R_ReplDLLinit();
+    // while (R_ReplDLLdo1() > 0) {}
+}
+
+
+
+On Sat, Feb 4, 2023 at 5:58 PM Simon Urbanek <simon.urbanek at r-project.org>
+wrote:
+
+> Dominick,
+>
+> again, it's hard to give you advice when you don't post the code, but note
+> that for graphical Windows applications you may need to implement WinMain
+> and make sure you setup the Windows event loop (which is separate from R's
+> event loop) before you use RInside (see Win32 documentation). You may want
+> to to have a look at src/gnuwin32/front-ends in R.
+>
+> Cheers,
+> Simon
+>
+>
+> > On Feb 4, 2023, at 2:02 PM, Dominick Samperi <djsamperi at gmail.com>
+> wrote:
+> >
+> > I'm sorry to say that the RInline::repl() issues are not resolved, and to
+> > resolve them would likely require help from R core.
+> >
+> > Here's the test case:
+> > library(sphereplot)
+> > rgl.sphgrid(longtype="D")
+> >
+> > Under Linux there is no problem, a sphere is drawn, and you can
+> > rotate with mouse motions.
+> >
+> > Under Windows using R, no problem.
+> >
+> > But under Windows in RInline::repl() when you click on the image it
+> > freezes up.
+> >
+> > Apparently some kind of graphics
+> > initialization is required, and perhaps callbacks as well to
+> > handle mouse events. Just calling run_Rmainloop() is not
+> > enough.
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230205/525d95a9/attachment.html>
+-------------- next part --------------
+//#define NO_WIN32_GRAPHICS_INIT
+#ifdef NO_WIN32_GRAPHICS_INIT
+
+// Simple main that uses RInside::repl() without
+// Windows graphics initialization. Works ok provided
+// there are no mouse events to handle. Entry point is main().
+#include <RInside.h>
+int main(int argc, char *argv[]) {
+    RInside R(argc, argv, false, false, false);
+    R.parseEval("options(prompt = 'R > ')");
+    R.repl() ;
+    exit(0);
+}
+
+#else
+
+// Initialize graphics by having Windows use WinMain() entry point,
+// and follow graphappmain.c from src/gnuwin32/front-ends.
+
+#include <RInside.h>
+int main(int argc, char *argv[]) {
+    printf("main called\n");
+    RInside R(argc, argv, false, false, false);
+    R.parseEval("options(prompt = 'R > ')");
+    R.repl() ;
+    exit(0);
+}
+
+extern "C" {
+
+void AppMain(int argc, char *argv[]) {
+    main(argc, argv);
+}
+
+// C code graphappmain.c from src/gnuwin32/front-ends    
+#include <windows.h>
+
+/* The mingw-runtime startup code has _argc and _argv as visible
+   symbols, as do the MS compilers.
+
+   The mingw-w64-crt is different.
+*/
+
+extern void 
+GA_startgraphapp(HINSTANCE Instance, HINSTANCE PrevInstance, int CmdShow);
+
+    #define _W64
+    
+int PASCAL
+WinMain (HINSTANCE Instance, HINSTANCE PrevInstance, LPSTR CmdLine,
+	 int CmdShow)
+{
+    //extern void AppMain(int argc, char **argv);
+
+#ifdef _W64
+    __declspec(dllimport) extern int __argc;
+    __declspec(dllimport) extern char **__argv;
+
+    GA_startgraphapp(Instance, PrevInstance, CmdShow);
+    AppMain(__argc, __argv);
+#else
+    __declspec(dllimport) extern int _argc;
+    __declspec(dllimport) extern char **_argv;
+
+    GA_startgraphapp(Instance, PrevInstance, CmdShow);
+    AppMain(_argc, _argv);
+#endif
+    return 0;
+}
+
+}
+
+#endif
+
+From Kassel.Hingee at anu.edu.au  Tue Feb  7 03:57:16 2023
+From: Kassel.Hingee at anu.edu.au (Kassel Hingee)
+Date: Tue, 7 Feb 2023 02:57:16 +0000
+Subject: [Rcpp-devel] CRAN note about std::cout in shared library
+Message-ID: <MEYP282MB219963A0853542465722D2CFC5DB9@MEYP282MB2199.AUSP282.PROD.OUTLOOK.COM>
+
+Hi all,
+
+I'm running into CRAN check notes about std::cout being present in the Cpp code of a library I'm using.
+
+    Found ‘_ZSt4cout’, possibly from ‘std::cout’ (C++)
+
+It looks like Rcpp is automatically redirecting the std::cout stream to Rcout, which is very handy and to my (shallow) understanding, solves the CRAN concern about where output from the package goes. However, I'm still getting the above CRAN check note.
+
+Does anyone know if CRAN will ignore this note, or if there is a way to avoid it without modifying the library?
+
+This issue was discussed by Watal M. Iwasaki and Dirk back in 2018 [https://lists.r-forge.r-project.org/pipermail/rcpp-devel/2018-October/010163.html], but I couldn't find anything more recent in my searches sorry.
+
+thank you
+Kassel Hingee
+0405 818 479
+kassel.hingee at anu.edu.au
+Postdoctoral Fellow
+Statistician
+Part-winner of the 2022 Eureka Prize in Applied Environmental Research
+[cid:043242e3-8b7c-4eb2-9967-91c068ce528f]
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230207/7ab0f4a2/attachment-0001.html>
+-------------- next part --------------
+A non-text attachment was scrubbed...
+Name: Outlook-iqfzn0d0.png
+Type: image/png
+Size: 11926 bytes
+Desc: Outlook-iqfzn0d0.png
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230207/7ab0f4a2/attachment-0001.png>
+
+From edd at debian.org  Tue Feb  7 12:45:01 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 7 Feb 2023 05:45:01 -0600
+Subject: [Rcpp-devel] CRAN note about std::cout in shared library
+In-Reply-To: <MEYP282MB219963A0853542465722D2CFC5DB9@MEYP282MB2199.AUSP282.PROD.OUTLOOK.COM>
+References: <MEYP282MB219963A0853542465722D2CFC5DB9@MEYP282MB2199.AUSP282.PROD.OUTLOOK.COM>
+Message-ID: <25570.14781.345570.191629@rob.eddelbuettel.com>
+
+
+Hi Kassel,
+
+On 7 February 2023 at 02:57, Kassel Hingee wrote:
+| I'm running into CRAN check notes about std::cout being present in the Cpp code of a library I'm using.
+| 
+|     Found ‘_ZSt4cout’, possibly from ‘std::cout’ (C++)
+| 
+| It looks like Rcpp is automatically redirecting the std::cout stream to Rcout, which is very handy and to my (shallow) understanding, solves the CRAN concern about where output from the package goes. However, I'm still getting the above CRAN check note.
+|
+| Does anyone know if CRAN will ignore this note, or if there is a way to avoid it without modifying the library?
+
+There are two things here.  Years ago Rcpp got a clever pull request adding
+Rcpp::Rcout and Rcpp::Rcerr.  We can (mostly) use these in lieu of std::cout
+and std::cerr, and output will be redirected to R's as if Rprintf() and
+REprintf() had been used as Writing R Extensions demands / suggests. We still
+benefit from that PR.
+
+So far so good. But in code you link against, you still need to ensure that
+that code does not use std::cout etc either!  And that appears to have
+happened here. And more or less the only choice you have is to find where
+that use happens and to comment it out or alter it. There is no automated
+solution or magic here, sadly.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From roberto at spadim.com.br  Thu Feb 23 19:26:47 2023
+From: roberto at spadim.com.br (Roberto Spadim)
+Date: Thu, 23 Feb 2023 15:26:47 -0300
+Subject: [Rcpp-devel] Problem with RCPP Paralell
+Message-ID: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+
+Hi guys
+I'm trying to compile a package (NNS, I'm the developer), and it gives
+errors about RCPP Parallel
+
+Could I suppress these warnings and "make it work"?
+
+It gives me a WARNING and at end of log a status: 1 warning
+I don't know if it have some kind of flag to avoid warnings or accept it
+
+Thanks anyway
+
+
+
+----
+LOG:
+https://win-builder.r-project.org/incoming_pretest/NNS_0.9.6_20230223_190409/Windows/00check.log
+
+
+** checking whether package 'NNS' can be installed ... WARNING
+Found the following significant warnings:*
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/concurrent_hash_map.h:343:23:
+warning: 'template<class _Category, class _Tp, class _Distance, class
+_Pointer, class _Reference> *struct std::iterator' is deprecated
+[-Wdeprecated-declarations]*
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/internal/_concurrent_queue_impl.h:744:21:
+warning: 'template<class _Category, class _Tp, class _Distance, class
+_Pointer, class _Reference> struct std::iterator' is deprecated
+[-Wdeprecated-declarations]
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/internal/_concurrent_queue_impl.h:1003:21:
+warning: 'template<class _Category, class _Tp, class _Distance, class
+_Pointer, class _Reference> struct std::iterator' is deprecated
+[-Wdeprecated-declarations]
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/internal/_concurrent_unordered_impl.h:67:36:
+warning: 'template<class _Category, class _Tp, class _Distance, class
+_Pointer, class _Reference> struct std::iterator' is deprecated
+[-Wdeprecated-declarations]
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/RcppParallel/RMatrix.h:18:24:
+warning: 'template<class _Category, class _Tp, class _Distance, class
+_Pointer, class _Reference> struct std::iterator' is deprecated
+[-Wdeprecated-declarations]
+See 'd:/RCompile/CRANincoming/R-devel/NNS.Rcheck/00install.out' for details.
+* used C++ compiler: 'g++.exe (GCC) 12.2.0'
+
+
+
+-- 
+Roberto Spadim
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230223/894c4df6/attachment.html>
+
+From rsparapa at mcw.edu  Thu Feb 23 19:41:42 2023
+From: rsparapa at mcw.edu (Sparapani, Rodney)
+Date: Thu, 23 Feb 2023 18:41:42 +0000
+Subject: [Rcpp-devel] Problem with RCPP Paralell
+In-Reply-To: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+References: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+Message-ID: <DM5PR01MB2585EA78942A9D737A72AB8FCBAB9@DM5PR01MB2585.prod.exchangelabs.com>
+
+Hi Roberto:
+
+That is interesting.  I see 5 warnings for std::iterator.
+4 of those are coming from a subdirectory named tbb.
+My first thought was that this is the Intel TBB library.
+And sure enough in RcppParallel,
+the SystemRequirements lists Intel TBB.  So, now I’m
+wondering if you have the same version of Intel TBB
+installed on your PC as they do on win-builder.
+Also, are you using GCC 12.2.0 with R 4.3?  Hope
+that helps.  Thanks
+
+--
+Rodney Sparapani, Associate Professor of Biostatistics
+Director, Wisconsin Chapter of the American Statistical Association
+Institute for Health and Equity, Division of Biostatistics
+Medical College of Wisconsin, Milwaukee Campus
+
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of Roberto Spadim <roberto at spadim.com.br>
+Date: Thursday, February 23, 2023 at 12:27 PM
+To: rcpp-devel at lists.r-forge.r-project.org <rcpp-devel at lists.r-forge.r-project.org>
+Subject: [Rcpp-devel] Problem with RCPP Paralell
+ATTENTION: This email originated from a sender outside of MCW. Use caution when clicking on links or opening attachments.
+________________________________
+Hi guys
+I'm trying to compile a package (NNS, I'm the developer), and it gives errors about RCPP Parallel
+
+Could I suppress these warnings and "make it work"?
+
+It gives me a WARNING and at end of log a status: 1 warning
+I don't know if it have some kind of flag to avoid warnings or accept it
+
+Thanks anyway
+
+
+
+----
+LOG:
+https://win-builder.r-project.org/incoming_pretest/NNS_0.9.6_20230223_190409/Windows/00check.log<https://urldefense.com/v3/__https:/win-builder.r-project.org/incoming_pretest/NNS_0.9.6_20230223_190409/Windows/00check.log__;!!H8mHWRdzp34!-lNUUfvx4AY7WFscd-Nf18glo9yXoCof_SWB8x0jgKt5vnYBcl_AGMHn7jVMIebACTsyRpSZ5w2X-N-DyA$>
+
+
+
+
+* checking whether package 'NNS' can be installed ... WARNING
+
+Found the following significant warnings:
+
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/concurrent_hash_map.h:343:23: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/internal/_concurrent_queue_impl.h:744:21: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/internal/_concurrent_queue_impl.h:1003:21: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/tbb/internal/_concurrent_unordered_impl.h:67:36: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+
+  D:/RCompile/CRANpkg/lib/4.3/RcppParallel/include/RcppParallel/RMatrix.h:18:24: warning: 'template<class _Category, class _Tp, class _Distance, class _Pointer, class _Reference> struct std::iterator' is deprecated [-Wdeprecated-declarations]
+
+See 'd:/RCompile/CRANincoming/R-devel/NNS.Rcheck/00install.out' for details.
+
+* used C++ compiler: 'g++.exe (GCC) 12.2.0'
+
+
+--
+Roberto Spadim
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230223/6703a319/attachment-0001.html>
+
+From edd at debian.org  Thu Feb 23 19:52:22 2023
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 23 Feb 2023 12:52:22 -0600
+Subject: [Rcpp-devel] Problem with RCPP Paralell
+In-Reply-To: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+References: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+Message-ID: <25591.46566.470381.580942@rob.eddelbuettel.com>
+
+
+Hi Roberto,
+
+Very briefly:
+
+1) We spell it Rcpp.  Capital R, lowercase cpp.
+
+2) The package you inquire about is called RcppParallel.
+
+3) You didn't list the repo making it harder for us to help you. As a little
+   bit of GitHub searching reveals, it is here
+
+   https://github.com/OVVO-Financial/NNS
+
+4) It clearly compiles in the GitHub Actions but does not pass it
+   tests. Maybe you should focus more on the failing tests first?
+
+5) As it compiles the WARNINGs are not critical. ERRORS would be.
+
+6) Small differences and details matters. You may need to look more closely
+   and see which warnings come from code _in your package_ and are under your
+   control, and which are from _libraries you may call_ over whose content
+   you have less control.
+
+7) If you ask for help with a particular example, it is most efficient (not
+   to mention polite) to distill it, if possible, into a _small
+   self-contained example_ that reproduces the same issue.  It may make
+   addressing it easier than working with a full package and its dependencies.
+
+Hope this helps a little,  Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Thu Feb 23 20:34:32 2023
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 23 Feb 2023 11:34:32 -0800
+Subject: [Rcpp-devel] Problem with RCPP Paralell
+In-Reply-To: <25591.46566.470381.580942@rob.eddelbuettel.com>
+References: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+ <25591.46566.470381.580942@rob.eddelbuettel.com>
+Message-ID: <CAJXgQP3ESXYY2sKekr7C8Bqvkci_8aO-EQVHS5iS17+1_QUr+g@mail.gmail.com>
+
+Hi Roberto,
+
+(RcppParallel maintainer here.) We had some correspondence with
+Professor Ripley regarding this; package authors affected by this
+could request the C++14 standard in their package as described here:
+
+https://cran.r-project.org/doc/manuals/R-exts.html#Using-C_002b_002b-code
+
+I believe it should suffice to include:
+
+CXX_STD = CXX14
+
+in your package's `src/Makevars`.
+
+That said, I'll see about submitting a patched version of RcppParallel
+so that package authors won't need to contend with these issues.
+
+Best,
+Kevin
+
+On Thu, Feb 23, 2023 at 10:52 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> Hi Roberto,
+>
+> Very briefly:
+>
+> 1) We spell it Rcpp.  Capital R, lowercase cpp.
+>
+> 2) The package you inquire about is called RcppParallel.
+>
+> 3) You didn't list the repo making it harder for us to help you. As a little
+>    bit of GitHub searching reveals, it is here
+>
+>    https://github.com/OVVO-Financial/NNS
+>
+> 4) It clearly compiles in the GitHub Actions but does not pass it
+>    tests. Maybe you should focus more on the failing tests first?
+>
+> 5) As it compiles the WARNINGs are not critical. ERRORS would be.
+>
+> 6) Small differences and details matters. You may need to look more closely
+>    and see which warnings come from code _in your package_ and are under your
+>    control, and which are from _libraries you may call_ over whose content
+>    you have less control.
+>
+> 7) If you ask for help with a particular example, it is most efficient (not
+>    to mention polite) to distill it, if possible, into a _small
+>    self-contained example_ that reproduces the same issue.  It may make
+>    addressing it easier than working with a full package and its dependencies.
+>
+> Hope this helps a little,  Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From kevinushey at gmail.com  Mon Feb 27 23:08:59 2023
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Mon, 27 Feb 2023 14:08:59 -0800
+Subject: [Rcpp-devel] Problem with RCPP Paralell
+In-Reply-To: <CAJXgQP3ESXYY2sKekr7C8Bqvkci_8aO-EQVHS5iS17+1_QUr+g@mail.gmail.com>
+References: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+ <25591.46566.470381.580942@rob.eddelbuettel.com>
+ <CAJXgQP3ESXYY2sKekr7C8Bqvkci_8aO-EQVHS5iS17+1_QUr+g@mail.gmail.com>
+Message-ID: <CAJXgQP24hnd91aTFgkL_vdr9wFz4r2DOkC4SBETAYQu0-27WPw@mail.gmail.com>
+
+Hello Roberto,
+
+A new release of RcppParallel (5.1.7) was just published to CRAN, and
+I'm hopeful that this release will resolve the compilation warnings
+you (and other package authors) have seen when trying to use
+RcppParallel. Please let me know if you have any further trouble.
+
+Thanks,
+Kevin
+
+On Thu, Feb 23, 2023 at 11:34 AM Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+> Hi Roberto,
+>
+> (RcppParallel maintainer here.) We had some correspondence with
+> Professor Ripley regarding this; package authors affected by this
+> could request the C++14 standard in their package as described here:
+>
+> https://cran.r-project.org/doc/manuals/R-exts.html#Using-C_002b_002b-code
+>
+> I believe it should suffice to include:
+>
+> CXX_STD = CXX14
+>
+> in your package's `src/Makevars`.
+>
+> That said, I'll see about submitting a patched version of RcppParallel
+> so that package authors won't need to contend with these issues.
+>
+> Best,
+> Kevin
+>
+> On Thu, Feb 23, 2023 at 10:52 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> >
+> > Hi Roberto,
+> >
+> > Very briefly:
+> >
+> > 1) We spell it Rcpp.  Capital R, lowercase cpp.
+> >
+> > 2) The package you inquire about is called RcppParallel.
+> >
+> > 3) You didn't list the repo making it harder for us to help you. As a little
+> >    bit of GitHub searching reveals, it is here
+> >
+> >    https://github.com/OVVO-Financial/NNS
+> >
+> > 4) It clearly compiles in the GitHub Actions but does not pass it
+> >    tests. Maybe you should focus more on the failing tests first?
+> >
+> > 5) As it compiles the WARNINGs are not critical. ERRORS would be.
+> >
+> > 6) Small differences and details matters. You may need to look more closely
+> >    and see which warnings come from code _in your package_ and are under your
+> >    control, and which are from _libraries you may call_ over whose content
+> >    you have less control.
+> >
+> > 7) If you ask for help with a particular example, it is most efficient (not
+> >    to mention polite) to distill it, if possible, into a _small
+> >    self-contained example_ that reproduces the same issue.  It may make
+> >    addressing it easier than working with a full package and its dependencies.
+> >
+> > Hope this helps a little,  Dirk
+> >
+> > --
+> > dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From roberto at spadim.com.br  Tue Feb 28 01:55:41 2023
+From: roberto at spadim.com.br (Roberto Spadim)
+Date: Mon, 27 Feb 2023 21:55:41 -0300
+Subject: [Rcpp-devel] Problem with RCPP Paralell
+In-Reply-To: <CAJXgQP24hnd91aTFgkL_vdr9wFz4r2DOkC4SBETAYQu0-27WPw@mail.gmail.com>
+References: <CAH3kUhFO3=fqCP+onHNytu3kpwnpft8VrPxU9DNBzto+04MvBw@mail.gmail.com>
+ <25591.46566.470381.580942@rob.eddelbuettel.com>
+ <CAJXgQP3ESXYY2sKekr7C8Bqvkci_8aO-EQVHS5iS17+1_QUr+g@mail.gmail.com>
+ <CAJXgQP24hnd91aTFgkL_vdr9wFz4r2DOkC4SBETAYQu0-27WPw@mail.gmail.com>
+Message-ID: <CAH3kUhEqKtHrFiZr=PW_BaKKsRbc7oyJhCMUte3ivzKxsGq8Mg@mail.gmail.com>
+
+Nice! I will test it!
+
+Em seg., 27 de fev. de 2023 às 19:09, Kevin Ushey <kevinushey at gmail.com>
+escreveu:
+
+> Hello Roberto,
+>
+> A new release of RcppParallel (5.1.7) was just published to CRAN, and
+> I'm hopeful that this release will resolve the compilation warnings
+> you (and other package authors) have seen when trying to use
+> RcppParallel. Please let me know if you have any further trouble.
+>
+> Thanks,
+> Kevin
+>
+> On Thu, Feb 23, 2023 at 11:34 AM Kevin Ushey <kevinushey at gmail.com> wrote:
+> >
+> > Hi Roberto,
+> >
+> > (RcppParallel maintainer here.) We had some correspondence with
+> > Professor Ripley regarding this; package authors affected by this
+> > could request the C++14 standard in their package as described here:
+> >
+> >
+> https://cran.r-project.org/doc/manuals/R-exts.html#Using-C_002b_002b-code
+> >
+> > I believe it should suffice to include:
+> >
+> > CXX_STD = CXX14
+> >
+> > in your package's `src/Makevars`.
+> >
+> > That said, I'll see about submitting a patched version of RcppParallel
+> > so that package authors won't need to contend with these issues.
+> >
+> > Best,
+> > Kevin
+> >
+> > On Thu, Feb 23, 2023 at 10:52 AM Dirk Eddelbuettel <edd at debian.org>
+> wrote:
+> > >
+> > >
+> > > Hi Roberto,
+> > >
+> > > Very briefly:
+> > >
+> > > 1) We spell it Rcpp.  Capital R, lowercase cpp.
+> > >
+> > > 2) The package you inquire about is called RcppParallel.
+> > >
+> > > 3) You didn't list the repo making it harder for us to help you. As a
+> little
+> > >    bit of GitHub searching reveals, it is here
+> > >
+> > >    https://github.com/OVVO-Financial/NNS
+> > >
+> > > 4) It clearly compiles in the GitHub Actions but does not pass it
+> > >    tests. Maybe you should focus more on the failing tests first?
+> > >
+> > > 5) As it compiles the WARNINGs are not critical. ERRORS would be.
+> > >
+> > > 6) Small differences and details matters. You may need to look more
+> closely
+> > >    and see which warnings come from code _in your package_ and are
+> under your
+> > >    control, and which are from _libraries you may call_ over whose
+> content
+> > >    you have less control.
+> > >
+> > > 7) If you ask for help with a particular example, it is most efficient
+> (not
+> > >    to mention polite) to distill it, if possible, into a _small
+> > >    self-contained example_ that reproduces the same issue.  It may make
+> > >    addressing it easier than working with a full package and its
+> dependencies.
+> > >
+> > > Hope this helps a little,  Dirk
+> > >
+> > > --
+> > > dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > > _______________________________________________
+> > > Rcpp-devel mailing list
+> > > Rcpp-devel at lists.r-forge.r-project.org
+> > >
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+-- 
+Roberto Spadim
+SPAEmpresarial - Software ERP/Scada
+Eng. Automação e Controle, Eng. Financeira
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20230227/26e55ecf/attachment.html>
+

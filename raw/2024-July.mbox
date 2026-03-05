@@ -1,0 +1,321 @@
+From avraham.adler at gmail.com  Thu Jul 25 01:21:20 2024
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Wed, 24 Jul 2024 19:21:20 -0400
+Subject: [Rcpp-devel] Error installing 1.0.13
+Message-ID: <CAL6gwnKL4YZ4iF5uci8US=QgBcW8JekK-OrKzAzQfnajJx8B8A@mail.gmail.com>
+
+I get the following error when trying to install.
+
+Thanks,
+
+Avi
+
+* installing *source* package 'Rcpp' ...
+** package 'Rcpp' successfully unpacked and MD5 sums checked
+** using staged installation
+** libs
+using C++ compiler: 'G__~1.EXE (GCC) 13.2.0'
+g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+-I../inst/include/
+-I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+-march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+api.cpp -o api.o
+g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+-I../inst/include/
+-I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+-march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+attributes.cpp -o attributes.o
+g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+-I../inst/include/
+-I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+-march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+barrier.cpp -o barrier.o
+In file included from barrier.cpp:31:
+barrier.cpp: In function 'SEXPREC** get_vector_ptr(SEXP)':
+../inst/include/Rcpp/r/compat.h:34:26: error: 'VECTOR_PTR_RO' was not
+declared in this scope; did you mean 'VECTOR_PTR'?
+   34 | # define RCPP_VECTOR_PTR VECTOR_PTR_RO
+      |                          ^~~~~~~~~~~~~
+barrier.cpp:74:30: note: in expansion of macro 'RCPP_VECTOR_PTR'
+   74 |     return const_cast<SEXP*>(RCPP_VECTOR_PTR(x));
+                                         // #nocov end
+      |                              ^~~~~~~~~~~~~~~
+make: *** [C:/R/RCurrent/R-devel/etc/x64/Makeconf:296: barrier.o] Error 1
+ERROR: compilation failed for package 'Rcpp'
+
+From edd at debian.org  Thu Jul 25 01:57:40 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 24 Jul 2024 18:57:40 -0500
+Subject: [Rcpp-devel] Error installing 1.0.13
+In-Reply-To: <CAL6gwnKL4YZ4iF5uci8US=QgBcW8JekK-OrKzAzQfnajJx8B8A@mail.gmail.com>
+References: <CAL6gwnKL4YZ4iF5uci8US=QgBcW8JekK-OrKzAzQfnajJx8B8A@mail.gmail.com>
+Message-ID: <26273.38132.93145.298104@rob.eddelbuettel.com>
+
+
+On 24 July 2024 at 19:21, Avraham Adler wrote:
+| I get the following error when trying to install.
+| 
+| Thanks,
+| 
+| Avi
+| 
+| * installing *source* package 'Rcpp' ...
+| ** package 'Rcpp' successfully unpacked and MD5 sums checked
+| ** using staged installation
+| ** libs
+| using C++ compiler: 'G__~1.EXE (GCC) 13.2.0'
+| g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+| -I../inst/include/
+| -I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+| -march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+| api.cpp -o api.o
+| g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+| -I../inst/include/
+| -I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+| -march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+| attributes.cpp -o attributes.o
+| g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+| -I../inst/include/
+| -I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+| -march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+| barrier.cpp -o barrier.o
+| In file included from barrier.cpp:31:
+| barrier.cpp: In function 'SEXPREC** get_vector_ptr(SEXP)':
+| ../inst/include/Rcpp/r/compat.h:34:26: error: 'VECTOR_PTR_RO' was not
+| declared in this scope; did you mean 'VECTOR_PTR'?
+|    34 | # define RCPP_VECTOR_PTR VECTOR_PTR_RO
+|       |                          ^~~~~~~~~~~~~
+| barrier.cpp:74:30: note: in expansion of macro 'RCPP_VECTOR_PTR'
+|    74 |     return const_cast<SEXP*>(RCPP_VECTOR_PTR(x));
+|                                          // #nocov end
+|       |                              ^~~~~~~~~~~~~~~
+| make: *** [C:/R/RCurrent/R-devel/etc/x64/Makeconf:296: barrier.o] Error 1
+| ERROR: compilation failed for package 'Rcpp'
+
+That's not a good outcome and a little odd.
+
+We can see that CRAN has Windows binaries, and, upon upload, of course also
+first checked with default Windows and Linux build servers by Uwe and Kurt.
+
+As for the error, the file compat.h is pretty trivial and just contains a
+version comparison to then define the replacement wrapper. Line 34 _defines_
+a string rather than using. So I am puzzled.  Maybe something
+is off with your R version?  You often run r-devel, don't you?
+
+In any event, if your R is newer than 4.4.2 maybe (for now) replace the
+conditional logic in compat.h with just the defines ie
+
+  # define RCPP_STRING_PTR STRING_PTR_RO
+
+  # define RCPP_VECTOR_PTR VECTOR_PTR_RO
+
+and use that?
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From avraham.adler at gmail.com  Thu Jul 25 02:02:03 2024
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Wed, 24 Jul 2024 20:02:03 -0400
+Subject: [Rcpp-devel] Error installing 1.0.13
+In-Reply-To: <26273.38132.93145.298104@rob.eddelbuettel.com>
+References: <CAL6gwnKL4YZ4iF5uci8US=QgBcW8JekK-OrKzAzQfnajJx8B8A@mail.gmail.com>
+ <26273.38132.93145.298104@rob.eddelbuettel.com>
+Message-ID: <CAL6gwnJUoPchDkKfgvemr6wuhoEcz6qGXR_WOwKsG0hVLxX0Lg@mail.gmail.com>
+
+Hello, Dirk.
+
+Now that you mention it, ny R is a bit old. I'm running (r-devel of
+course) 2024-05-12 r86534 ucrt.
+
+Let me rebuild R from scratch and I'll try again. I'll report back (in
+a day or so) if that helped.
+
+Thank you!
+
+Avi
+
+On Wed, Jul 24, 2024 at 7:57?PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 24 July 2024 at 19:21, Avraham Adler wrote:
+> | I get the following error when trying to install.
+> |
+> | Thanks,
+> |
+> | Avi
+> |
+> | * installing *source* package 'Rcpp' ...
+> | ** package 'Rcpp' successfully unpacked and MD5 sums checked
+> | ** using staged installation
+> | ** libs
+> | using C++ compiler: 'G__~1.EXE (GCC) 13.2.0'
+> | g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+> | -I../inst/include/
+> | -I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+> | -march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+> | api.cpp -o api.o
+> | g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+> | -I../inst/include/
+> | -I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+> | -march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+> | attributes.cpp -o attributes.o
+> | g++ -std=gnu++17  -I"C:/R/RCurrent/R-devel/include" -DNDEBUG
+> | -I../inst/include/
+> | -I"C:/rtools44/x86_64-w64-mingw32.static.posix/include"     -O3
+> | -march=native -pipe -mno-rtm -Wa,-muse-unaligned-vector-move -c
+> | barrier.cpp -o barrier.o
+> | In file included from barrier.cpp:31:
+> | barrier.cpp: In function 'SEXPREC** get_vector_ptr(SEXP)':
+> | ../inst/include/Rcpp/r/compat.h:34:26: error: 'VECTOR_PTR_RO' was not
+> | declared in this scope; did you mean 'VECTOR_PTR'?
+> |    34 | # define RCPP_VECTOR_PTR VECTOR_PTR_RO
+> |       |                          ^~~~~~~~~~~~~
+> | barrier.cpp:74:30: note: in expansion of macro 'RCPP_VECTOR_PTR'
+> |    74 |     return const_cast<SEXP*>(RCPP_VECTOR_PTR(x));
+> |                                          // #nocov end
+> |       |                              ^~~~~~~~~~~~~~~
+> | make: *** [C:/R/RCurrent/R-devel/etc/x64/Makeconf:296: barrier.o] Error 1
+> | ERROR: compilation failed for package 'Rcpp'
+>
+> That's not a good outcome and a little odd.
+>
+> We can see that CRAN has Windows binaries, and, upon upload, of course also
+> first checked with default Windows and Linux build servers by Uwe and Kurt.
+>
+> As for the error, the file compat.h is pretty trivial and just contains a
+> version comparison to then define the replacement wrapper. Line 34 _defines_
+> a string rather than using. So I am puzzled.  Maybe something
+> is off with your R version?  You often run r-devel, don't you?
+>
+> In any event, if your R is newer than 4.4.2 maybe (for now) replace the
+> conditional logic in compat.h with just the defines ie
+>
+>   # define RCPP_STRING_PTR STRING_PTR_RO
+>
+>   # define RCPP_VECTOR_PTR VECTOR_PTR_RO
+>
+> and use that?
+>
+> Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Thu Jul 25 02:29:42 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 24 Jul 2024 19:29:42 -0500
+Subject: [Rcpp-devel] Error installing 1.0.13
+In-Reply-To: <CAL6gwnJUoPchDkKfgvemr6wuhoEcz6qGXR_WOwKsG0hVLxX0Lg@mail.gmail.com>
+References: <CAL6gwnKL4YZ4iF5uci8US=QgBcW8JekK-OrKzAzQfnajJx8B8A@mail.gmail.com>
+ <26273.38132.93145.298104@rob.eddelbuettel.com>
+ <CAL6gwnJUoPchDkKfgvemr6wuhoEcz6qGXR_WOwKsG0hVLxX0Lg@mail.gmail.com>
+Message-ID: <26273.40054.395272.202670@rob.eddelbuettel.com>
+
+
+On 24 July 2024 at 20:02, Avraham Adler wrote:
+| Let me rebuild R from scratch and I'll try again. I'll report back (in
+| a day or so) if that helped.
+
+Feel free to also check with r-release as a baseline. That said, on Linux I
+keep reasonably current (rebuild a week or two) r-devel around.
+
+Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Thu Jul 25 08:32:40 2024
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Thu, 25 Jul 2024 14:32:40 +0800
+Subject: [Rcpp-devel] Error installing 1.0.13
+In-Reply-To: <26273.40054.395272.202670@rob.eddelbuettel.com>
+References: <CAL6gwnKL4YZ4iF5uci8US=QgBcW8JekK-OrKzAzQfnajJx8B8A@mail.gmail.com>
+ <26273.38132.93145.298104@rob.eddelbuettel.com>
+ <CAL6gwnJUoPchDkKfgvemr6wuhoEcz6qGXR_WOwKsG0hVLxX0Lg@mail.gmail.com>
+ <26273.40054.395272.202670@rob.eddelbuettel.com>
+Message-ID: <CAJXgQP1FppaBqnjh2vvW9eKwd6-STFUFU=4TiGmggR5O4TwSBA@mail.gmail.com>
+
+Rcpp checks for R version >= 4.4.2, so older versions of R-devel
+(which report R 4.5.0) might encounter this error. Updating to the
+latest R-devel should resolve the issue, and any existing releases of
+R shouldn't be affected. See:
+
+https://github.com/RcppCore/Rcpp/blob/c0d16d4601c08b4031f4f7fcff1999096077987f/inst/include/Rcpp/r/compat.h#L27-L37
+
+Thanks,
+Kevin
+
+On Thu, Jul 25, 2024 at 8:29?AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> On 24 July 2024 at 20:02, Avraham Adler wrote:
+> | Let me rebuild R from scratch and I'll try again. I'll report back (in
+> | a day or so) if that helped.
+>
+> Feel free to also check with r-release as a baseline. That said, on Linux I
+> keep reasonably current (rebuild a week or two) r-devel around.
+>
+> Dirk
+>
+> --
+> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From avraham.adler at gmail.com  Thu Jul 25 19:39:14 2024
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Thu, 25 Jul 2024 13:39:14 -0400
+Subject: [Rcpp-devel] Error installing 1.0.13
+In-Reply-To: <CAJXgQP1FppaBqnjh2vvW9eKwd6-STFUFU=4TiGmggR5O4TwSBA@mail.gmail.com>
+References: <CAL6gwnKL4YZ4iF5uci8US=QgBcW8JekK-OrKzAzQfnajJx8B8A@mail.gmail.com>
+ <26273.38132.93145.298104@rob.eddelbuettel.com>
+ <CAL6gwnJUoPchDkKfgvemr6wuhoEcz6qGXR_WOwKsG0hVLxX0Lg@mail.gmail.com>
+ <26273.40054.395272.202670@rob.eddelbuettel.com>
+ <CAJXgQP1FppaBqnjh2vvW9eKwd6-STFUFU=4TiGmggR5O4TwSBA@mail.gmail.com>
+Message-ID: <CAL6gwnJ-aGJv=F+0rHx-if2gUx4_nUZBqMV8eZwQ7B37HfOvrQ@mail.gmail.com>
+
+Thank you.
+
+The issue was an outdated version of R-devel. I can confirm that
+updating to R-devel 86925 allows Rcpp to install properly.
+
+Thank you again,
+
+Avi
+
+On Thu, Jul 25, 2024 at 2:33?AM Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+> Rcpp checks for R version >= 4.4.2, so older versions of R-devel
+> (which report R 4.5.0) might encounter this error. Updating to the
+> latest R-devel should resolve the issue, and any existing releases of
+> R shouldn't be affected. See:
+>
+> https://github.com/RcppCore/Rcpp/blob/c0d16d4601c08b4031f4f7fcff1999096077987f/inst/include/Rcpp/r/compat.h#L27-L37
+>
+> Thanks,
+> Kevin
+>
+> On Thu, Jul 25, 2024 at 8:29?AM Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> >
+> > On 24 July 2024 at 20:02, Avraham Adler wrote:
+> > | Let me rebuild R from scratch and I'll try again. I'll report back (in
+> > | a day or so) if that helped.
+> >
+> > Feel free to also check with r-release as a baseline. That said, on Linux I
+> > keep reasonably current (rebuild a week or two) r-devel around.
+> >
+> > Dirk
+> >
+> > --
+> > dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+

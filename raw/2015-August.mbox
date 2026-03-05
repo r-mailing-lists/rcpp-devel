@@ -1,0 +1,3275 @@
+From rguy at 123mail.org  Sat Aug  1 08:07:14 2015
+From: rguy at 123mail.org (Rguy)
+Date: Sat, 1 Aug 2015 07:07:14 +0100
+Subject: [Rcpp-devel] Getting an R option in Rcpp
+Message-ID: <CAEorq2PyBin+go7DHpvBymtLDKUAcw83LJN98H4CrfKG6jy_cA@mail.gmail.com>
+
+Can I access an R option from within an Rcpp function? I'd like the access
+to happen at runtime, not at compile time. Something like this:
+
+if (getOption("my_option") == x) {
+  do this;
+} else {
+  do that;
+}
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150801/a7b0cd3a/attachment.html>
+
+From sorenh at math.aau.dk  Sat Aug  1 18:15:09 2015
+From: sorenh at math.aau.dk (=?utf-8?B?U8O4cmVuIEjDuGpzZ2FhcmQ=?=)
+Date: Sat, 1 Aug 2015 16:15:09 +0000
+Subject: [Rcpp-devel] Getting an R option in Rcpp
+In-Reply-To: <CAEorq2PyBin+go7DHpvBymtLDKUAcw83LJN98H4CrfKG6jy_cA@mail.gmail.com>
+References: <CAEorq2PyBin+go7DHpvBymtLDKUAcw83LJN98H4CrfKG6jy_cA@mail.gmail.com>
+Message-ID: <7E8037094A0C2146AA3E6F94DAE621C3B5310269@AD-EXCHMBX2-1.aau.dk>
+
+Something like
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+CharacterVector foo() {
+  Function opt("getOption");
+  CharacterVector x = opt("digits");
+  return x;
+}
+
+/*** R
+foo()
+*/
+
+> foo()
+[1] "7"
+
+- all though the result is here a character.
+
+Regards
+S?ren
+
+
+From: rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:rcpp-devel-bounces at lists.r-forge.r-project.org] On Behalf Of Rguy
+Sent: 1. august 2015 08:07
+To: Rcpp
+Subject: [Rcpp-devel] Getting an R option in Rcpp
+
+Can I access an R option from within an Rcpp function? I'd like the access to happen at runtime, not at compile time. Something like this:
+
+if (getOption("my_option") == x) {
+  do this;
+} else {
+  do that;
+}
+
+
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150801/3001dfd7/attachment.html>
+
+From rguy at 123mail.org  Sat Aug  1 19:16:19 2015
+From: rguy at 123mail.org (Rguy)
+Date: Sat, 1 Aug 2015 18:16:19 +0100
+Subject: [Rcpp-devel] Getting an R option in Rcpp
+In-Reply-To: <7E8037094A0C2146AA3E6F94DAE621C3B5310269@AD-EXCHMBX2-1.aau.dk>
+References: <CAEorq2PyBin+go7DHpvBymtLDKUAcw83LJN98H4CrfKG6jy_cA@mail.gmail.com>
+ <7E8037094A0C2146AA3E6F94DAE621C3B5310269@AD-EXCHMBX2-1.aau.dk>
+Message-ID: <CAEorq2Ofo3Xf-_mpMYXOsYp52HcjR_SAW35i6qWLabqq+YoyAw@mail.gmail.com>
+
+Yes, that's exactly what I was looking for. Although I'd return an integer:
+
+// [[Rcpp::export]]
+IntegerVector foo_int() {
+  Function opt("getOption");
+  IntegerVector x = opt("digits");
+  return x;
+}
+
+
+On Sat, Aug 1, 2015 at 5:15 PM, S?ren H?jsgaard <sorenh at math.aau.dk> wrote:
+
+> Something like
+>
+>
+>
+> #include <Rcpp.h>
+>
+> using namespace Rcpp;
+>
+>
+>
+> // [[Rcpp::export]]
+>
+> CharacterVector foo() {
+>
+>   Function opt("getOption");
+>
+>   CharacterVector x = opt("digits");
+>
+>   return x;
+>
+> }
+>
+>
+>
+> /*** R
+>
+> foo()
+>
+> */
+>
+>
+>
+> > foo()
+>
+> [1] "7"
+>
+>
+>
+> - all though the result is here a character.
+>
+>
+>
+> Regards
+>
+> S?ren
+>
+>
+>
+>
+>
+> *From:* rcpp-devel-bounces at lists.r-forge.r-project.org [mailto:
+> rcpp-devel-bounces at lists.r-forge.r-project.org] *On Behalf Of *Rguy
+> *Sent:* 1. august 2015 08:07
+> *To:* Rcpp
+> *Subject:* [Rcpp-devel] Getting an R option in Rcpp
+>
+>
+>
+> Can I access an R option from within an Rcpp function? I'd like the access
+> to happen at runtime, not at compile time. Something like this:
+>
+>
+>
+> if (getOption("my_option") == x) {
+>
+>   do this;
+>
+> } else {
+>
+>   do that;
+>
+> }
+>
+>
+>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150801/4ce823c7/attachment.html>
+
+From tordini at di.unito.it  Fri Aug  7 13:40:17 2015
+From: tordini at di.unito.it (Fabio Tordini)
+Date: Fri, 07 Aug 2015 13:40:17 +0200
+Subject: [Rcpp-devel] Another 'Error: not compatible with requested type'
+Message-ID: <55C49921.9060700@di.unito.it>
+
+Hello,
+I already read the discussion about the issue in object, but I can't 
+find a way out!
+
+That problem came out all of a sudden, in a function that has always 
+worked and has not been modified so far.
+
+I describe the problem here. if more code might help, I'll provide it.
+
+
+I have an R function named 'NormaliseEdges', where I set up variables 
+and objects and then call:
+retEdges <- runNormalisation(miniEdges, fileSAM, numWrks, edgesProb, grain)
+
+the function called is a c++ function defined as:
+// [[Rcpp::export]]
+SEXP runNormalisation(DataFrame mEd, std::string samfile, int nwrks, 
+float e_lm, int chunk)
+
+never had any problems with that.
+
+today it started to crash with the above error.
+Weirdly, this happens only when I call the R function, like:
+NormaliseEdges(g.Edges, file.SAM)
+Error: not compatible with requested type
+Called from: runNormalisation(miniEdges, fileSAM, numWrks, edgesProb, grain)
+
+if I simply call the c++ function it works fine
+retEdges <- runNormalisation(miniEdges, file.SAM, 1, 0, 0)
+
+I double-checked that 'miniEdges' is a data.frame (and it is); also, it 
+has always been.
+
+
+I fear this might have something to do with other modifications in other 
+files, that somehow affected the whole? is it possible?
+I don't see any other error!
+
+
+Regards,
+Fabio
+
+
+From edd at debian.org  Fri Aug  7 14:19:32 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 7 Aug 2015 07:19:32 -0500
+Subject: [Rcpp-devel] Another 'Error: not compatible with requested type'
+In-Reply-To: <55C49921.9060700@di.unito.it>
+References: <55C49921.9060700@di.unito.it>
+Message-ID: <21956.41556.841365.304423@max.nulle.part>
+
+
+On 7 August 2015 at 13:40, Fabio Tordini wrote:
+| Hello,
+| I already read the discussion about the issue in object, but I can't 
+| find a way out!
+
+We can't either.
+
+You supplied a screenful of email but __no reproducible code__ exhibiting an
+error we can reproduce.  Nobody can help you based on what you wrote here.
+
+Dirk
+ 
+| That problem came out all of a sudden, in a function that has always 
+| worked and has not been modified so far.
+| 
+| I describe the problem here. if more code might help, I'll provide it.
+| 
+| 
+| I have an R function named 'NormaliseEdges', where I set up variables 
+| and objects and then call:
+| retEdges <- runNormalisation(miniEdges, fileSAM, numWrks, edgesProb, grain)
+| 
+| the function called is a c++ function defined as:
+| // [[Rcpp::export]]
+| SEXP runNormalisation(DataFrame mEd, std::string samfile, int nwrks, 
+| float e_lm, int chunk)
+| 
+| never had any problems with that.
+| 
+| today it started to crash with the above error.
+| Weirdly, this happens only when I call the R function, like:
+| NormaliseEdges(g.Edges, file.SAM)
+| Error: not compatible with requested type
+| Called from: runNormalisation(miniEdges, fileSAM, numWrks, edgesProb, grain)
+| 
+| if I simply call the c++ function it works fine
+| retEdges <- runNormalisation(miniEdges, file.SAM, 1, 0, 0)
+| 
+| I double-checked that 'miniEdges' is a data.frame (and it is); also, it 
+| has always been.
+| 
+| 
+| I fear this might have something to do with other modifications in other 
+| files, that somehow affected the whole? is it possible?
+| I don't see any other error!
+| 
+| 
+| Regards,
+| Fabio
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tordini at di.unito.it  Fri Aug  7 14:44:14 2015
+From: tordini at di.unito.it (Fabio Tordini)
+Date: Fri, 07 Aug 2015 14:44:14 +0200
+Subject: [Rcpp-devel] Another 'Error: not compatible with requested type'
+In-Reply-To: <21956.41556.841365.304423@max.nulle.part>
+References: <55C49921.9060700@di.unito.it>
+ <21956.41556.841365.304423@max.nulle.part>
+Message-ID: <55C4A81E.7080805@di.unito.it>
+
+I tried to first explaining the scenario.
+Anyway, this seems to be the point:
+
+Step1:
+BuildGraph("POLR2A", fileSAM = "/space/datasets/ord_LiebermanAiden.sam")
+
+no matter what body and result of this function are, the 'fileSAM' 
+string gets assigned to '.GlobalEnv' for subsequent reuse:
+assign("file.SAM", fileSAM, envir = .GlobalEnv)
+
+three other similar strings and the g.Edges datatable (Step2) are also 
+assigned to global environment.
+
+
+Step2:
+NormaliseEdges(edgesList=g.Edges, fileSAM = file.SAM)
+
+the global variable 'file.SAM', that stores the string above, is used 
+again: THIS PRODUCES THE ERROR IN OBJECT, even though it did not give 
+any problem before.
+
+
+Step2_BIS:
+NormaliseEdges(edgesList=g.Edges, fileSAM = 
+"/space/datasets/ord_LiebermanAiden.sam")
+
+pass a string instead of a global variable containing the string: THIS 
+DOES NOT PRODUCE ANY ERROR.
+
+
+Step2_TER:
+retEdges <- runNormalisation(miniEdges, file.SAM, 1, 0, 0)
+
+manually call C++ function, using the global variable 'file.SAM' 
+(miniEdges is a data.frame): THIS DOES NOT PRODUCE ANY ERROR.
+
+
+The 'runNormalisation' function's signature:
+SEXP runNormalisation(Rcpp::DataFrame mEd, std::string samfile, int 
+nwrks, float e_lm, int chunk)
+
+
+The code executed within these functions does not seem to play a part in 
+the error. to me it looks like it has to do with 'file.SAM' scope, or 
+with variables declared in GlobalEnv in general, but I might be wrong.
+Also, it wasn't a problem until early this morning!
+
+
+Regards,
+Fabio
+
+
+
+
+
+
+
+
+On 08/07/2015 02:19 PM, Dirk Eddelbuettel wrote:
+>
+> On 7 August 2015 at 13:40, Fabio Tordini wrote:
+> | Hello,
+> | I already read the discussion about the issue in object, but I can't
+> | find a way out!
+>
+> We can't either.
+>
+> You supplied a screenful of email but __no reproducible code__ exhibiting an
+> error we can reproduce.  Nobody can help you based on what you wrote here.
+>
+> Dirk
+>
+> | That problem came out all of a sudden, in a function that has always
+> | worked and has not been modified so far.
+> |
+> | I describe the problem here. if more code might help, I'll provide it.
+> |
+> |
+> | I have an R function named 'NormaliseEdges', where I set up variables
+> | and objects and then call:
+> | retEdges <- runNormalisation(miniEdges, fileSAM, numWrks, edgesProb, grain)
+> |
+> | the function called is a c++ function defined as:
+> | // [[Rcpp::export]]
+> | SEXP runNormalisation(DataFrame mEd, std::string samfile, int nwrks,
+> | float e_lm, int chunk)
+> |
+> | never had any problems with that.
+> |
+> | today it started to crash with the above error.
+> | Weirdly, this happens only when I call the R function, like:
+> | NormaliseEdges(g.Edges, file.SAM)
+> | Error: not compatible with requested type
+> | Called from: runNormalisation(miniEdges, fileSAM, numWrks, edgesProb, grain)
+> |
+> | if I simply call the c++ function it works fine
+> | retEdges <- runNormalisation(miniEdges, file.SAM, 1, 0, 0)
+> |
+> | I double-checked that 'miniEdges' is a data.frame (and it is); also, it
+> | has always been.
+> |
+> |
+> | I fear this might have something to do with other modifications in other
+> | files, that somehow affected the whole? is it possible?
+> | I don't see any other error!
+> |
+> |
+> | Regards,
+> | Fabio
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+From florian.plaza at jouy.inra.fr  Tue Aug 11 12:30:50 2015
+From: florian.plaza at jouy.inra.fr (=?UTF-8?Q?Florian_Plaza_O=c3=b1ate?=)
+Date: Tue, 11 Aug 2015 12:30:50 +0200
+Subject: [Rcpp-devel] Copy rownames and colnames from a NumericMatrix to
+ another NumericMatrix
+Message-ID: <55C9CEDA.8000609@jouy.inra.fr>
+
+Hi everyone,
+
+I am trying to copy the rownames and the colnames from a NumericMatrix 
+to another NumericMatrix by using Rcpp
+
+Here is my code:
+
+Rcpp::NumericMatrix copy(const Rcpp::NumericMatrix& m)
+{
+   Rcpp::NumericMatrix m2(num_genes, num_samples);
+   Rcpp::rownames(m2) = Rcpp::rownames(m);
+   Rcpp::colnames(m2) = Rcpp::colnames(m);
+
+   return m2;
+}
+
+It does change the default rownames and colnames of the NumericMatrix.
+Do you know how to do it?
+
+Thanks in advance.
+
+From edd at debian.org  Tue Aug 11 13:13:26 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 11 Aug 2015 06:13:26 -0500
+Subject: [Rcpp-devel] Another 'Error: not compatible with requested type'
+In-Reply-To: <55C4A81E.7080805@di.unito.it>
+References: <55C49921.9060700@di.unito.it>
+ <21956.41556.841365.304423@max.nulle.part>
+ <55C4A81E.7080805@di.unito.it>
+Message-ID: <21961.55510.150370.995312@max.nulle.part>
+
+
+Fabio,
+
+That is not a _minimally reproducible example_ as we do not have your data.
+This write-up may be helpful:
+
+  http://stackoverflow.com/questions/5963269/how-to-make-a-great-r-reproducible-example
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Aug 11 13:19:46 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 11 Aug 2015 06:19:46 -0500
+Subject: [Rcpp-devel] Copy rownames and colnames from a NumericMatrix to
+ another NumericMatrix
+In-Reply-To: <55C9CEDA.8000609@jouy.inra.fr>
+References: <55C9CEDA.8000609@jouy.inra.fr>
+Message-ID: <21961.55890.694164.408459@max.nulle.part>
+
+
+On 11 August 2015 at 12:30, Florian Plaza O?ate wrote:
+| Hi everyone,
+| 
+| I am trying to copy the rownames and the colnames from a NumericMatrix 
+| to another NumericMatrix by using Rcpp
+| 
+| Here is my code:
+| 
+| Rcpp::NumericMatrix copy(const Rcpp::NumericMatrix& m)
+| {
+|    Rcpp::NumericMatrix m2(num_genes, num_samples);
+|    Rcpp::rownames(m2) = Rcpp::rownames(m);
+|    Rcpp::colnames(m2) = Rcpp::colnames(m);
+
+If you want a full copy, try 
+
+   Rcpp::NumericMatrix m2 = Rcpp::clone(m);
+
+as in
+
+R> cppFunction("NumericMatrix foo(NumericMatrix m) { return Rcpp::clone(m); }");
+R> m <- matrix(1:4,2,2,TRUE,list(c("a","b"), c("c", "d")))
+R> foo(m)
+  c d
+a 1 2
+b 3 4
+R> 
+ 
+|    return m2;
+| }
+| 
+| It does change the default rownames and colnames of the NumericMatrix.
+| Do you know how to do it?
+
+Now I am confused. You do want to change them or not?
+
+If you do _not_ use clone(), then m2 and m share the same underlying
+pointer.  This has been explained before: we use proxy objects which are more
+lightweight.  Distinct copies require clone().
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From florian.plaza at jouy.inra.fr  Tue Aug 11 14:08:18 2015
+From: florian.plaza at jouy.inra.fr (=?UTF-8?Q?Florian_Plaza_O=c3=b1ate?=)
+Date: Tue, 11 Aug 2015 14:08:18 +0200
+Subject: [Rcpp-devel] Copy rownames and colnames from a NumericMatrix to
+ another NumericMatrix
+In-Reply-To: <55C9E152.8010700@jouy.inra.fr>
+References: <55C9E152.8010700@jouy.inra.fr>
+Message-ID: <55C9E5B2.9060409@jouy.inra.fr>
+
+Thanks for answering.
+
+By
+"It does change the default rownames and colnames of the NumericMatrix"
+understand
+"It does not change the default rownames and colnames of the returned
+NumericMatrix."
+
+Actually, I don't want to create a copy of the matrix.
+I want to create a new matrix which as the same size as the original
+one, the same rownames and the same colnames but not the same content.
+
+I may clone the original matrix and reset his content after. Is clone as
+fast as creating a new matrix?
+
+Le 11/08/2015 13:19, Dirk Eddelbuettel a ?crit :
+>
+> On 11 August 2015 at 12:30, Florian Plaza O?ate wrote:
+> | Hi everyone,
+> |
+> | I am trying to copy the rownames and the colnames from a NumericMatrix
+> | to another NumericMatrix by using Rcpp
+> |
+> | Here is my code:
+> |
+> | Rcpp::NumericMatrix copy(const Rcpp::NumericMatrix& m)
+> | {
+> |    Rcpp::NumericMatrix m2(num_genes, num_samples);
+> |    Rcpp::rownames(m2) = Rcpp::rownames(m);
+> |    Rcpp::colnames(m2) = Rcpp::colnames(m);
+>
+> If you want a full copy, try
+>
+>     Rcpp::NumericMatrix m2 = Rcpp::clone(m);
+>
+> as in
+>
+> R> cppFunction("NumericMatrix foo(NumericMatrix m) { return Rcpp::clone(m); }");
+> R> m <- matrix(1:4,2,2,TRUE,list(c("a","b"), c("c", "d")))
+> R> foo(m)
+>    c d
+> a 1 2
+> b 3 4
+> R>
+>
+> |    return m2;
+> | }
+> |
+> | It does change the default rownames and colnames of the NumericMatrix.
+> | Do you know how to do it?
+>
+> Now I am confused. You do want to change them or not?
+>
+> If you do _not_ use clone(), then m2 and m share the same underlying
+> pointer.  This has been explained before: we use proxy objects which are more
+> lightweight.  Distinct copies require clone().
+>
+> Dirk
+>
+
+
+
+From fernandohtoledo at gmail.com  Tue Aug 11 17:13:07 2015
+From: fernandohtoledo at gmail.com (FHRB Toledo)
+Date: Tue, 11 Aug 2015 10:13:07 -0500
+Subject: [Rcpp-devel] Is Rcpp:: not a good choice for iterators?
+Message-ID: <CAN55XP5C4KP+mwxiOATdiV9sj53N-GGm7ta-T7dC7N+68a9K1A@mail.gmail.com>
+
+Dear All,
+
+It is my first post here at Rcpp-devel List. I'm passionate with the
+awesome work and with all perspectives that it can opens for speed up codes
+and embedding of C++ in R package seamless. Thus, I wish to thank all
+developers.
+
+After, some reading over the Book, online vignettes and so on. I translated
+one of my R scripts using two approaches: taking all advantages of Rcpp;
+and using just the "seamless" integration, i.e., casting SEXP objects,
+working only with std:: objects and wrapping the return.
+
+So far so good, however, by my surprise I found huge difference regarding
+the performance between both implementations. If it's not enough, even the
+raw R code shown better performance compared to the "full Rcpp".
+
+I made a short example to show you the point. First of all let me explain
+the process for who do not have any idea about meiosis: We take a
+hypothetical genome (that gives us the SNPs positions, vector Map); then
+based on this length we draw a Poisson value (where length is lambda), with
+this value (e.g., n) we draw n uniform within the genome length. With this,
+after some manipulations (findInterval % 2) we know where Crossing Over
+(recombination) happened. Then we can take this prototype and generate a
+gamete of some entry genotype (DNA tapes A and B).
+
+The codes are:
+
+Raw R script:
+
+## Meiosis process through Poisson/Uniform
+MeiosisR <- function( Map, TapeA, TapeB )
+    {
+        ## Number of Crossing Overs **Poisson Draw**
+        nCrossOver <- rpois(n = 1, lambda = ceiling(max(Map)))
+        ## Assigning Crossing Overs on the Genome **Uniform Draw**
+        posCrossOver <- sort(runif(n = nCrossOver, min = 0, max = max(Map)))
+        ## Building the "Prototype" **mixture between the 2 haplotypes**
+        Prototype <- findInterval(x = Map, vec = posCrossOver) %% 2
+        ## Raffle for the reference haplotype
+        if ( as.logical( rbinom(n = 1, size = 1, prob = .5)  ) )
+            {
+                ## Building the gamete
+                Gamete <- ifelse(test = as.logical(Prototype),
+                                 yes = TapeA,
+                                 no = TapeB)
+            } else {
+                ## idem with other "guide"
+                Gamete <- ifelse(test = as.logical(Prototype),
+                                 yes = TapeB,
+                                 no = TapeA)
+            }
+        return( Gamete )
+    }
+
+STL cpp version:
+
+// [[Rcpp::plugins(cpp11)]]
+#include <algorithm>
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+std::vector<int> MeiosisSTL( std::vector<double> Map,
+                             std::vector<int> TapeA,
+                             std::vector<int> TapeB ) {
+
+  // Obtaining Chromossome's parameter: length, number & positions of
+SNPs
+  double L = *std::max_element(Map.begin(), Map.end());
+  int Size = Map.size();
+
+  // RNG process: draw the number & positions of Crossing Overs
+  double CrossingNumber = as<double>( rpois(1, L) );
+  std::vector<double> CrossingPositions = as<std::vector<double> >( runif(
+CrossingNumber, 0.0, L ) );
+  std::sort(CrossingPositions.begin(), CrossingPositions.end());
+
+  // Building a Gamete "Prototype"
+  std::vector<bool> Prototype( Size );
+
+  // "findInterval" adapted from Wickham's Rcpp Chapter (
+http://adv-r.had.co.nz/Rcpp.html)
+  std::vector<double>::iterator Iter, Positions;
+  std::vector<bool>::iterator ProtoIter;
+  std::vector<double>::iterator MapBegin = Map.begin();
+  std::vector<double>::iterator MapEnd = Map.end();
+  std::vector<bool>::iterator ProtoBegin = Prototype.begin();
+  std::vector<double>::iterator CrossPosBegin = CrossingPositions.begin();
+  std::vector<double>::iterator CrossPosEnd = CrossingPositions.end();
+
+  for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+++ProtoIter) {
+    Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+    *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or even
+  }
+
+  std::vector<int> Gamete;
+  Gamete.reserve( Size );
+  // raffle: which tape shall be the "guide"?
+  bool v01 = as<bool>( rbinom(1, 1, .5) );
+
+  if ( v01 ) {
+    for ( int i = 0; i < Size; i++ ) {
+      // Build the Gamete from the Prototype
+      Gamete.push_back( ((Prototype.at( i )) ? TapeA.at( i ) : TapeB.at( i
+)) );
+    }
+  } else {
+    for ( int i = 0; i < Size; i++ ) {
+      Gamete.push_back( ((Prototype.at( i )) ? TapeB.at( i ) : TapeA.at( i
+)) );
+    }
+  }
+
+  return Gamete ;
+}
+
+Full Rcpp version:
+
+// [[Rcpp::plugins(cpp11)]]
+#include <algorithm>
+#include <Rcpp.h>
+
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+IntegerVector MeiosisRcpp( NumericVector Map,
+                           IntegerVector TapeA,
+                           IntegerVector TapeB ) {
+
+  double L = max( Map ); // sugar :)
+  int Size = Map.size();
+
+  double CrossingNumber = as<double>( rpois(1, L) );
+  NumericVector CrossingPositions = runif( CrossingNumber, 0.0, L );
+  std::sort(CrossingPositions.begin(), CrossingPositions.end());
+
+  LogicalVector Prototype( Size );
+
+  NumericVector::iterator Iter, Positions;
+  LogicalVector::iterator ProtoIter;
+  NumericVector::iterator MapBegin = Map.begin();
+  NumericVector::iterator MapEnd = Map.end();
+  LogicalVector::iterator ProtoBegin = Prototype.begin();
+  NumericVector::iterator CrossPosBegin = CrossingPositions.begin();
+  NumericVector::iterator CrossPosEnd = CrossingPositions.end();
+
+  for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+++ProtoIter) {
+    Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+    *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or even
+  }
+
+  IntegerVector Gamete;
+  bool v01 = as<bool>( rbinom(1, 1, .5) );
+
+  if ( v01 ) {
+    for ( int i = 0; i < Size; i++ ) {
+      Gamete.push_back( ((Prototype[ i ]) ? TapeA[ i ] : TapeB[ i ]) );
+
+    }
+  } else {
+    for ( int i = 0; i < Size; i++ ) {
+      Gamete.push_back( ((Prototype[ i ]) ? TapeB[ i ] : TapeA[ i ]) );
+    }
+  }
+
+  return Gamete ;
+}
+
+If we take the entry as:
+
+## Genome Setup
+N <- 1E4 # number of gametes
+nM <- 400 # number of Markers (SNPs)
+L <-  4 # genome length (in Morgans)
+
+## building the genome & full heterozigous genotype (diploid, 2 DNA tapes)
+## map <- seq(from = .1, to = L, length.out = nM) # SNPs positions
+**regular**
+map <- sort(runif(nM, 0, L)) # idem **random**
+tapeA <- rep(1, nM)
+tapeB <- rep(2, nM)
+
+You will found results like that:
+
+evaluated expressions:
+
+RawR = replicate(n = N, expr = MeiosisR(Map = map, TapeA = tapeA, TapeB =
+tapeB))
+cppSTL = replicate(n = N, expr = MeiosisSTL(Map = map, TapeA = tapeA, TapeB
+= tapeB))
+Rcpp = replicate(n = N, expr = MeiosisRcpp(Map = map, TapeA = tapeA, TapeB
+= tapeB))
+
+- microbenchmark:
+
+Unit: seconds
+   expr       min        lq      mean   median        uq       max neval cld
+   RawR 1.2169414 1.2655129 1.2978896 1.286561 1.3055376 1.5020700   100  b
+ cppSTL 0.1721323 0.1773904 0.1867463 0.180910 0.1863087 0.2835556   100 a
+   Rcpp 1.9190921 2.0101288 2.0633424 2.046132 2.1081319 2.2832565   100   c
+
+- rbenchmark:
+
+    test replications elapsed user.self sys.self
+2 cppSTL          100  18.048    18.020    0.020
+1   RawR          100 126.264   124.888    1.324
+3   Rcpp          100 208.647   208.548    0.012
+
+Just to report, my sessionInfo() is as follow:
+
+sessionInfo() # Useful Infos **Reproducible Research**
+R version 3.2.1 (2015-06-18)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Debian GNU/Linux 8 (jessie)
+
+locale:
+ [1] LC_CTYPE=en_US.utf8       LC_NUMERIC=C
+ [3] LC_TIME=en_US.utf8        LC_COLLATE=en_US.utf8
+ [5] LC_MONETARY=en_US.utf8    LC_MESSAGES=en_US.utf8
+ [7] LC_PAPER=en_US.utf8       LC_NAME=C
+ [9] LC_ADDRESS=C              LC_TELEPHONE=C
+[11] LC_MEASUREMENT=en_US.utf8 LC_IDENTIFICATION=C
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base
+
+other attached packages:
+[1] rbenchmark_1.0.0     microbenchmark_1.4-2 Rcpp_0.11.5
+
+loaded via a namespace (and not attached):
+ [1] MASS_7.3-40      colorspace_1.2-6 scales_0.2.4     compiler_3.2.1
+ [5] plyr_1.8.2       tools_3.2.1      gtable_0.1.2     reshape2_1.4.1
+ [9] ggplot2_1.0.1    grid_3.2.1       stringr_0.6.2    digest_0.6.8
+[13] proto_0.3-10     munsell_0.4.2
+
+After that, I wish to request help to evaluate those results. Is "full
+Rcpp" not a good choice when using iterators? Let me know if I am not
+taking care about something that may change the things. You may notice that
+I left all parameters as fixed as possible, then, they should not influence
+on that.
+
+I am open to share the files or give further information.
+
+Thank you very much indeed regarding any insight on that.
+
+Cheers,
+FH
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150811/d8a9f444/attachment-0001.html>
+
+From tkeitt at utexas.edu  Tue Aug 11 18:06:24 2015
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Tue, 11 Aug 2015 11:06:24 -0500
+Subject: [Rcpp-devel] Is Rcpp:: not a good choice for iterators?
+In-Reply-To: <CAN55XP5C4KP+mwxiOATdiV9sj53N-GGm7ta-T7dC7N+68a9K1A@mail.gmail.com>
+References: <CAN55XP5C4KP+mwxiOATdiV9sj53N-GGm7ta-T7dC7N+68a9K1A@mail.gmail.com>
+Message-ID: <CANnL8gpz9nAVwEQbzD98e3OviHNozvCNpgnaeqPSnBTdJRKEQw@mail.gmail.com>
+
+1) Figure out where you are making full copies of your data structures
+(casting NumericVector to std::vector<double>)
+2) Use eg R::rbinom instead of rbinom if you do not want the return as an
+Rcpp Vector type.
+3) Move the outer loop (your replicate call) into C++
+
+The copying of data is what is slowing things down most likely.
+
+T.
+
+http://www.keittlab.org/
+
+On Tue, Aug 11, 2015 at 10:13 AM, FHRB Toledo <fernandohtoledo at gmail.com>
+wrote:
+
+> Dear All,
+>
+> It is my first post here at Rcpp-devel List. I'm passionate with the
+> awesome work and with all perspectives that it can opens for speed up codes
+> and embedding of C++ in R package seamless. Thus, I wish to thank all
+> developers.
+>
+> After, some reading over the Book, online vignettes and so on. I
+> translated one of my R scripts using two approaches: taking all advantages
+> of Rcpp; and using just the "seamless" integration, i.e., casting SEXP
+> objects, working only with std:: objects and wrapping the return.
+>
+> So far so good, however, by my surprise I found huge difference regarding
+> the performance between both implementations. If it's not enough, even the
+> raw R code shown better performance compared to the "full Rcpp".
+>
+> I made a short example to show you the point. First of all let me explain
+> the process for who do not have any idea about meiosis: We take a
+> hypothetical genome (that gives us the SNPs positions, vector Map); then
+> based on this length we draw a Poisson value (where length is lambda), with
+> this value (e.g., n) we draw n uniform within the genome length. With this,
+> after some manipulations (findInterval % 2) we know where Crossing Over
+> (recombination) happened. Then we can take this prototype and generate a
+> gamete of some entry genotype (DNA tapes A and B).
+>
+> The codes are:
+>
+> Raw R script:
+>
+> ## Meiosis process through Poisson/Uniform
+> MeiosisR <- function( Map, TapeA, TapeB )
+>     {
+>         ## Number of Crossing Overs **Poisson Draw**
+>         nCrossOver <- rpois(n = 1, lambda = ceiling(max(Map)))
+>         ## Assigning Crossing Overs on the Genome **Uniform Draw**
+>         posCrossOver <- sort(runif(n = nCrossOver, min = 0, max =
+> max(Map)))
+>         ## Building the "Prototype" **mixture between the 2 haplotypes**
+>         Prototype <- findInterval(x = Map, vec = posCrossOver) %% 2
+>         ## Raffle for the reference haplotype
+>         if ( as.logical( rbinom(n = 1, size = 1, prob = .5)  ) )
+>             {
+>                 ## Building the gamete
+>                 Gamete <- ifelse(test = as.logical(Prototype),
+>                                  yes = TapeA,
+>                                  no = TapeB)
+>             } else {
+>                 ## idem with other "guide"
+>                 Gamete <- ifelse(test = as.logical(Prototype),
+>                                  yes = TapeB,
+>                                  no = TapeA)
+>             }
+>         return( Gamete )
+>     }
+>
+> STL cpp version:
+>
+> // [[Rcpp::plugins(cpp11)]]
+> #include <algorithm>
+> #include <Rcpp.h>
+>
+> using namespace Rcpp;
+>
+> // [[Rcpp::export]]
+> std::vector<int> MeiosisSTL( std::vector<double> Map,
+>                              std::vector<int> TapeA,
+>                              std::vector<int> TapeB ) {
+>
+>   // Obtaining Chromossome's parameter: length, number & positions of
+> SNPs
+>   double L = *std::max_element(Map.begin(), Map.end());
+>   int Size = Map.size();
+>
+>   // RNG process: draw the number & positions of Crossing Overs
+>   double CrossingNumber = as<double>( rpois(1, L) );
+>   std::vector<double> CrossingPositions = as<std::vector<double> >( runif(
+> CrossingNumber, 0.0, L ) );
+>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>
+>   // Building a Gamete "Prototype"
+>   std::vector<bool> Prototype( Size );
+>
+>   // "findInterval" adapted from Wickham's Rcpp Chapter (
+> http://adv-r.had.co.nz/Rcpp.html)
+>   std::vector<double>::iterator Iter, Positions;
+>   std::vector<bool>::iterator ProtoIter;
+>   std::vector<double>::iterator MapBegin = Map.begin();
+>   std::vector<double>::iterator MapEnd = Map.end();
+>   std::vector<bool>::iterator ProtoBegin = Prototype.begin();
+>   std::vector<double>::iterator CrossPosBegin = CrossingPositions.begin();
+>   std::vector<double>::iterator CrossPosEnd = CrossingPositions.end();
+>
+>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+> ++ProtoIter) {
+>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+> even
+>   }
+>
+>   std::vector<int> Gamete;
+>   Gamete.reserve( Size );
+>   // raffle: which tape shall be the "guide"?
+>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>
+>   if ( v01 ) {
+>     for ( int i = 0; i < Size; i++ ) {
+>       // Build the Gamete from the Prototype
+>       Gamete.push_back( ((Prototype.at( i )) ? TapeA.at( i ) : TapeB.at( i
+> )) );
+>     }
+>   } else {
+>     for ( int i = 0; i < Size; i++ ) {
+>       Gamete.push_back( ((Prototype.at( i )) ? TapeB.at( i ) : TapeA.at( i
+> )) );
+>     }
+>   }
+>
+>   return Gamete ;
+> }
+>
+> Full Rcpp version:
+>
+> // [[Rcpp::plugins(cpp11)]]
+> #include <algorithm>
+> #include <Rcpp.h>
+>
+> using namespace Rcpp;
+>
+> // [[Rcpp::export]]
+> IntegerVector MeiosisRcpp( NumericVector Map,
+>                            IntegerVector TapeA,
+>                            IntegerVector TapeB ) {
+>
+>   double L = max( Map ); // sugar :)
+>   int Size = Map.size();
+>
+>   double CrossingNumber = as<double>( rpois(1, L) );
+>   NumericVector CrossingPositions = runif( CrossingNumber, 0.0, L );
+>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>
+>   LogicalVector Prototype( Size );
+>
+>   NumericVector::iterator Iter, Positions;
+>   LogicalVector::iterator ProtoIter;
+>   NumericVector::iterator MapBegin = Map.begin();
+>   NumericVector::iterator MapEnd = Map.end();
+>   LogicalVector::iterator ProtoBegin = Prototype.begin();
+>   NumericVector::iterator CrossPosBegin = CrossingPositions.begin();
+>   NumericVector::iterator CrossPosEnd = CrossingPositions.end();
+>
+>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+> ++ProtoIter) {
+>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+> even
+>   }
+>
+>   IntegerVector Gamete;
+>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>
+>   if ( v01 ) {
+>     for ( int i = 0; i < Size; i++ ) {
+>       Gamete.push_back( ((Prototype[ i ]) ? TapeA[ i ] : TapeB[ i ]) );
+>
+>     }
+>   } else {
+>     for ( int i = 0; i < Size; i++ ) {
+>       Gamete.push_back( ((Prototype[ i ]) ? TapeB[ i ] : TapeA[ i ]) );
+>     }
+>   }
+>
+>   return Gamete ;
+> }
+>
+> If we take the entry as:
+>
+> ## Genome Setup
+> N <- 1E4 # number of gametes
+> nM <- 400 # number of Markers (SNPs)
+> L <-  4 # genome length (in Morgans)
+>
+> ## building the genome & full heterozigous genotype (diploid, 2 DNA tapes)
+> ## map <- seq(from = .1, to = L, length.out = nM) # SNPs positions
+> **regular**
+> map <- sort(runif(nM, 0, L)) # idem **random**
+> tapeA <- rep(1, nM)
+> tapeB <- rep(2, nM)
+>
+> You will found results like that:
+>
+> evaluated expressions:
+>
+> RawR = replicate(n = N, expr = MeiosisR(Map = map, TapeA = tapeA, TapeB =
+> tapeB))
+> cppSTL = replicate(n = N, expr = MeiosisSTL(Map = map, TapeA = tapeA,
+> TapeB = tapeB))
+> Rcpp = replicate(n = N, expr = MeiosisRcpp(Map = map, TapeA = tapeA, TapeB
+> = tapeB))
+>
+> - microbenchmark:
+>
+> Unit: seconds
+>    expr       min        lq      mean   median        uq       max neval
+> cld
+>    RawR 1.2169414 1.2655129 1.2978896 1.286561 1.3055376 1.5020700   100
+> b
+>  cppSTL 0.1721323 0.1773904 0.1867463 0.180910 0.1863087 0.2835556   100
+> a
+>    Rcpp 1.9190921 2.0101288 2.0633424 2.046132 2.1081319 2.2832565   100
+> c
+>
+> - rbenchmark:
+>
+>     test replications elapsed user.self sys.self
+> 2 cppSTL          100  18.048    18.020    0.020
+> 1   RawR          100 126.264   124.888    1.324
+> 3   Rcpp          100 208.647   208.548    0.012
+>
+> Just to report, my sessionInfo() is as follow:
+>
+> sessionInfo() # Useful Infos **Reproducible Research**
+> R version 3.2.1 (2015-06-18)
+> Platform: x86_64-pc-linux-gnu (64-bit)
+> Running under: Debian GNU/Linux 8 (jessie)
+>
+> locale:
+>  [1] LC_CTYPE=en_US.utf8       LC_NUMERIC=C
+>  [3] LC_TIME=en_US.utf8        LC_COLLATE=en_US.utf8
+>  [5] LC_MONETARY=en_US.utf8    LC_MESSAGES=en_US.utf8
+>  [7] LC_PAPER=en_US.utf8       LC_NAME=C
+>  [9] LC_ADDRESS=C              LC_TELEPHONE=C
+> [11] LC_MEASUREMENT=en_US.utf8 LC_IDENTIFICATION=C
+>
+> attached base packages:
+> [1] stats     graphics  grDevices utils     datasets  methods   base
+>
+> other attached packages:
+> [1] rbenchmark_1.0.0     microbenchmark_1.4-2 Rcpp_0.11.5
+>
+> loaded via a namespace (and not attached):
+>  [1] MASS_7.3-40      colorspace_1.2-6 scales_0.2.4     compiler_3.2.1
+>  [5] plyr_1.8.2       tools_3.2.1      gtable_0.1.2     reshape2_1.4.1
+>  [9] ggplot2_1.0.1    grid_3.2.1       stringr_0.6.2    digest_0.6.8
+> [13] proto_0.3-10     munsell_0.4.2
+>
+> After that, I wish to request help to evaluate those results. Is "full
+> Rcpp" not a good choice when using iterators? Let me know if I am not
+> taking care about something that may change the things. You may notice that
+> I left all parameters as fixed as possible, then, they should not influence
+> on that.
+>
+> I am open to share the files or give further information.
+>
+> Thank you very much indeed regarding any insight on that.
+>
+> Cheers,
+> FH
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150811/59706b8c/attachment.html>
+
+From hye at ucsd.edu  Tue Aug 11 18:16:59 2015
+From: hye at ucsd.edu (Hao Ye)
+Date: Tue, 11 Aug 2015 12:16:59 -0400
+Subject: [Rcpp-devel] Is Rcpp:: not a good choice for iterators?
+In-Reply-To: <CANnL8gpz9nAVwEQbzD98e3OviHNozvCNpgnaeqPSnBTdJRKEQw@mail.gmail.com>
+References: <CAN55XP5C4KP+mwxiOATdiV9sj53N-GGm7ta-T7dC7N+68a9K1A@mail.gmail.com>
+ <CANnL8gpz9nAVwEQbzD98e3OviHNozvCNpgnaeqPSnBTdJRKEQw@mail.gmail.com>
+Message-ID: <CAK1kXLxqjAkr-O65OggZR5XDOXcAJ-A_dT1-=dJ7+buJVBPsZQ@mail.gmail.com>
+
+It also looks like you are not initializing the size of Gamete in the "full
+Rcpp" version, so it is resizing on every loop iteration...
+
+Best,
+--
+Hao Ye
+hye at ucsd.edu
+
+On Tue, Aug 11, 2015 at 12:06 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+
+> 1) Figure out where you are making full copies of your data structures
+> (casting NumericVector to std::vector<double>)
+> 2) Use eg R::rbinom instead of rbinom if you do not want the return as an
+> Rcpp Vector type.
+> 3) Move the outer loop (your replicate call) into C++
+>
+> The copying of data is what is slowing things down most likely.
+>
+> T.
+>
+> http://www.keittlab.org/
+>
+> On Tue, Aug 11, 2015 at 10:13 AM, FHRB Toledo <fernandohtoledo at gmail.com>
+> wrote:
+>
+>> Dear All,
+>>
+>> It is my first post here at Rcpp-devel List. I'm passionate with the
+>> awesome work and with all perspectives that it can opens for speed up codes
+>> and embedding of C++ in R package seamless. Thus, I wish to thank all
+>> developers.
+>>
+>> After, some reading over the Book, online vignettes and so on. I
+>> translated one of my R scripts using two approaches: taking all advantages
+>> of Rcpp; and using just the "seamless" integration, i.e., casting SEXP
+>> objects, working only with std:: objects and wrapping the return.
+>>
+>> So far so good, however, by my surprise I found huge difference regarding
+>> the performance between both implementations. If it's not enough, even the
+>> raw R code shown better performance compared to the "full Rcpp".
+>>
+>> I made a short example to show you the point. First of all let me explain
+>> the process for who do not have any idea about meiosis: We take a
+>> hypothetical genome (that gives us the SNPs positions, vector Map); then
+>> based on this length we draw a Poisson value (where length is lambda), with
+>> this value (e.g., n) we draw n uniform within the genome length. With this,
+>> after some manipulations (findInterval % 2) we know where Crossing Over
+>> (recombination) happened. Then we can take this prototype and generate a
+>> gamete of some entry genotype (DNA tapes A and B).
+>>
+>> The codes are:
+>>
+>> Raw R script:
+>>
+>> ## Meiosis process through Poisson/Uniform
+>> MeiosisR <- function( Map, TapeA, TapeB )
+>>     {
+>>         ## Number of Crossing Overs **Poisson Draw**
+>>         nCrossOver <- rpois(n = 1, lambda = ceiling(max(Map)))
+>>         ## Assigning Crossing Overs on the Genome **Uniform Draw**
+>>         posCrossOver <- sort(runif(n = nCrossOver, min = 0, max =
+>> max(Map)))
+>>         ## Building the "Prototype" **mixture between the 2 haplotypes**
+>>         Prototype <- findInterval(x = Map, vec = posCrossOver) %% 2
+>>         ## Raffle for the reference haplotype
+>>         if ( as.logical( rbinom(n = 1, size = 1, prob = .5)  ) )
+>>             {
+>>                 ## Building the gamete
+>>                 Gamete <- ifelse(test = as.logical(Prototype),
+>>                                  yes = TapeA,
+>>                                  no = TapeB)
+>>             } else {
+>>                 ## idem with other "guide"
+>>                 Gamete <- ifelse(test = as.logical(Prototype),
+>>                                  yes = TapeB,
+>>                                  no = TapeA)
+>>             }
+>>         return( Gamete )
+>>     }
+>>
+>> STL cpp version:
+>>
+>> // [[Rcpp::plugins(cpp11)]]
+>> #include <algorithm>
+>> #include <Rcpp.h>
+>>
+>> using namespace Rcpp;
+>>
+>> // [[Rcpp::export]]
+>> std::vector<int> MeiosisSTL( std::vector<double> Map,
+>>                              std::vector<int> TapeA,
+>>                              std::vector<int> TapeB ) {
+>>
+>>   // Obtaining Chromossome's parameter: length, number & positions of
+>> SNPs
+>>   double L = *std::max_element(Map.begin(), Map.end());
+>>   int Size = Map.size();
+>>
+>>   // RNG process: draw the number & positions of Crossing Overs
+>>   double CrossingNumber = as<double>( rpois(1, L) );
+>>   std::vector<double> CrossingPositions = as<std::vector<double> >(
+>> runif( CrossingNumber, 0.0, L ) );
+>>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>>
+>>   // Building a Gamete "Prototype"
+>>   std::vector<bool> Prototype( Size );
+>>
+>>   // "findInterval" adapted from Wickham's Rcpp Chapter (
+>> http://adv-r.had.co.nz/Rcpp.html)
+>>   std::vector<double>::iterator Iter, Positions;
+>>   std::vector<bool>::iterator ProtoIter;
+>>   std::vector<double>::iterator MapBegin = Map.begin();
+>>   std::vector<double>::iterator MapEnd = Map.end();
+>>   std::vector<bool>::iterator ProtoBegin = Prototype.begin();
+>>   std::vector<double>::iterator CrossPosBegin = CrossingPositions.begin();
+>>   std::vector<double>::iterator CrossPosEnd = CrossingPositions.end();
+>>
+>>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+>> ++ProtoIter) {
+>>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+>> even
+>>   }
+>>
+>>   std::vector<int> Gamete;
+>>   Gamete.reserve( Size );
+>>   // raffle: which tape shall be the "guide"?
+>>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>>
+>>   if ( v01 ) {
+>>     for ( int i = 0; i < Size; i++ ) {
+>>       // Build the Gamete from the Prototype
+>>       Gamete.push_back( ((Prototype.at( i )) ? TapeA.at( i ) : TapeB.at(
+>> i )) );
+>>     }
+>>   } else {
+>>     for ( int i = 0; i < Size; i++ ) {
+>>       Gamete.push_back( ((Prototype.at( i )) ? TapeB.at( i ) : TapeA.at(
+>> i )) );
+>>     }
+>>   }
+>>
+>>   return Gamete ;
+>> }
+>>
+>> Full Rcpp version:
+>>
+>> // [[Rcpp::plugins(cpp11)]]
+>> #include <algorithm>
+>> #include <Rcpp.h>
+>>
+>> using namespace Rcpp;
+>>
+>> // [[Rcpp::export]]
+>> IntegerVector MeiosisRcpp( NumericVector Map,
+>>                            IntegerVector TapeA,
+>>                            IntegerVector TapeB ) {
+>>
+>>   double L = max( Map ); // sugar :)
+>>   int Size = Map.size();
+>>
+>>   double CrossingNumber = as<double>( rpois(1, L) );
+>>   NumericVector CrossingPositions = runif( CrossingNumber, 0.0, L );
+>>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>>
+>>   LogicalVector Prototype( Size );
+>>
+>>   NumericVector::iterator Iter, Positions;
+>>   LogicalVector::iterator ProtoIter;
+>>   NumericVector::iterator MapBegin = Map.begin();
+>>   NumericVector::iterator MapEnd = Map.end();
+>>   LogicalVector::iterator ProtoBegin = Prototype.begin();
+>>   NumericVector::iterator CrossPosBegin = CrossingPositions.begin();
+>>   NumericVector::iterator CrossPosEnd = CrossingPositions.end();
+>>
+>>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+>> ++ProtoIter) {
+>>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+>> even
+>>   }
+>>
+>>   IntegerVector Gamete;
+>>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>>
+>>   if ( v01 ) {
+>>     for ( int i = 0; i < Size; i++ ) {
+>>       Gamete.push_back( ((Prototype[ i ]) ? TapeA[ i ] : TapeB[ i ]) );
+>>
+>>     }
+>>   } else {
+>>     for ( int i = 0; i < Size; i++ ) {
+>>       Gamete.push_back( ((Prototype[ i ]) ? TapeB[ i ] : TapeA[ i ]) );
+>>     }
+>>   }
+>>
+>>   return Gamete ;
+>> }
+>>
+>> If we take the entry as:
+>>
+>> ## Genome Setup
+>> N <- 1E4 # number of gametes
+>> nM <- 400 # number of Markers (SNPs)
+>> L <-  4 # genome length (in Morgans)
+>>
+>> ## building the genome & full heterozigous genotype (diploid, 2 DNA tapes)
+>> ## map <- seq(from = .1, to = L, length.out = nM) # SNPs positions
+>> **regular**
+>> map <- sort(runif(nM, 0, L)) # idem **random**
+>> tapeA <- rep(1, nM)
+>> tapeB <- rep(2, nM)
+>>
+>> You will found results like that:
+>>
+>> evaluated expressions:
+>>
+>> RawR = replicate(n = N, expr = MeiosisR(Map = map, TapeA = tapeA, TapeB =
+>> tapeB))
+>> cppSTL = replicate(n = N, expr = MeiosisSTL(Map = map, TapeA = tapeA,
+>> TapeB = tapeB))
+>> Rcpp = replicate(n = N, expr = MeiosisRcpp(Map = map, TapeA = tapeA,
+>> TapeB = tapeB))
+>>
+>> - microbenchmark:
+>>
+>> Unit: seconds
+>>    expr       min        lq      mean   median        uq       max neval
+>> cld
+>>    RawR 1.2169414 1.2655129 1.2978896 1.286561 1.3055376 1.5020700   100
+>> b
+>>  cppSTL 0.1721323 0.1773904 0.1867463 0.180910 0.1863087 0.2835556   100
+>> a
+>>    Rcpp 1.9190921 2.0101288 2.0633424 2.046132 2.1081319 2.2832565
+>> 100   c
+>>
+>> - rbenchmark:
+>>
+>>     test replications elapsed user.self sys.self
+>> 2 cppSTL          100  18.048    18.020    0.020
+>> 1   RawR          100 126.264   124.888    1.324
+>> 3   Rcpp          100 208.647   208.548    0.012
+>>
+>> Just to report, my sessionInfo() is as follow:
+>>
+>> sessionInfo() # Useful Infos **Reproducible Research**
+>> R version 3.2.1 (2015-06-18)
+>> Platform: x86_64-pc-linux-gnu (64-bit)
+>> Running under: Debian GNU/Linux 8 (jessie)
+>>
+>> locale:
+>>  [1] LC_CTYPE=en_US.utf8       LC_NUMERIC=C
+>>  [3] LC_TIME=en_US.utf8        LC_COLLATE=en_US.utf8
+>>  [5] LC_MONETARY=en_US.utf8    LC_MESSAGES=en_US.utf8
+>>  [7] LC_PAPER=en_US.utf8       LC_NAME=C
+>>  [9] LC_ADDRESS=C              LC_TELEPHONE=C
+>> [11] LC_MEASUREMENT=en_US.utf8 LC_IDENTIFICATION=C
+>>
+>> attached base packages:
+>> [1] stats     graphics  grDevices utils     datasets  methods   base
+>>
+>> other attached packages:
+>> [1] rbenchmark_1.0.0     microbenchmark_1.4-2 Rcpp_0.11.5
+>>
+>> loaded via a namespace (and not attached):
+>>  [1] MASS_7.3-40      colorspace_1.2-6 scales_0.2.4     compiler_3.2.1
+>>  [5] plyr_1.8.2       tools_3.2.1      gtable_0.1.2     reshape2_1.4.1
+>>  [9] ggplot2_1.0.1    grid_3.2.1       stringr_0.6.2    digest_0.6.8
+>> [13] proto_0.3-10     munsell_0.4.2
+>>
+>> After that, I wish to request help to evaluate those results. Is "full
+>> Rcpp" not a good choice when using iterators? Let me know if I am not
+>> taking care about something that may change the things. You may notice that
+>> I left all parameters as fixed as possible, then, they should not influence
+>> on that.
+>>
+>> I am open to share the files or give further information.
+>>
+>> Thank you very much indeed regarding any insight on that.
+>>
+>> Cheers,
+>> FH
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150811/bf875e2c/attachment-0001.html>
+
+From fernandohtoledo at gmail.com  Tue Aug 11 20:46:50 2015
+From: fernandohtoledo at gmail.com (FHRB Toledo)
+Date: Tue, 11 Aug 2015 13:46:50 -0500
+Subject: [Rcpp-devel] Is Rcpp:: not a good choice for iterators?
+In-Reply-To: <CAN55XP5HvYw4DU35-D+K=3S0FthAiHMV7jzrawoAuPnPAEym5A@mail.gmail.com>
+References: <CAN55XP5C4KP+mwxiOATdiV9sj53N-GGm7ta-T7dC7N+68a9K1A@mail.gmail.com>
+ <CANnL8gpz9nAVwEQbzD98e3OviHNozvCNpgnaeqPSnBTdJRKEQw@mail.gmail.com>
+ <CAN55XP5HvYw4DU35-D+K=3S0FthAiHMV7jzrawoAuPnPAEym5A@mail.gmail.com>
+Message-ID: <CAN55XP4SLn++uwUJKWy2-kndNbbxwfMWXGS5x-=xZfuFpyKZ-A@mail.gmail.com>
+
+On 11 August 2015 at 11:30, FHRB Toledo <fernandohtoledo at gmail.com> wrote:
+
+> Dear Tim,
+>
+> I appreciate your contributions!
+>
+> However, looking to your suggestions and comparing with what I posted we
+> can see that those improvements, can be applied to the STL version, that is
+> showing good performance.
+>
+> In the Rcpp version, there are casting only for the Poisson draw and in
+> the bool storing for the rbinom draw, but both also are in the STL version.
+>
+> I shall implement your suggestions, but they may improve even more the the
+> STL version instead of the target (full Rcpp).
+>
+> Regarding the loop, It was performed just for the benchmark. Everything is
+> bigger than this; working only for reproducibility.
+>
+> Anyway, thank you regarding your insights and helpfulness.
+>
+> Cheers,
+> FH
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150811/d346cb41/attachment.html>
+
+From fernandohtoledo at gmail.com  Tue Aug 11 20:47:09 2015
+From: fernandohtoledo at gmail.com (FHRB Toledo)
+Date: Tue, 11 Aug 2015 13:47:09 -0500
+Subject: [Rcpp-devel] Fwd:  Is Rcpp:: not a good choice for iterators?
+In-Reply-To: <CAN55XP75OFM0O5OwbsSeH4O+CXeV-shs-gSvZ6CguMZH7g80Xw@mail.gmail.com>
+References: <CAN55XP5C4KP+mwxiOATdiV9sj53N-GGm7ta-T7dC7N+68a9K1A@mail.gmail.com>
+ <CANnL8gpz9nAVwEQbzD98e3OviHNozvCNpgnaeqPSnBTdJRKEQw@mail.gmail.com>
+ <CAK1kXLxqjAkr-O65OggZR5XDOXcAJ-A_dT1-=dJ7+buJVBPsZQ@mail.gmail.com>
+ <CAN55XP75OFM0O5OwbsSeH4O+CXeV-shs-gSvZ6CguMZH7g80Xw@mail.gmail.com>
+Message-ID: <CAN55XP4wthZV7K7fE93sK2Ym29+J2S9cMqO11Yjnp-x6OA=Ujw@mail.gmail.com>
+
+---------- Forwarded message ----------
+From: FHRB Toledo <fernandohtoledo at gmail.com>
+Date: 11 August 2015 at 11:42
+Subject: Re: [Rcpp-devel] Is Rcpp:: not a good choice for iterators?
+To: Hao Ye <hye at ucsd.edu>
+
+
+Dear Hao Ye,
+
+Thanks regarding your reply.
+
+I have read something related to resize Rcpp::?Vectors on StackOverFLow (
+http://stackoverflow.com/questions/13782943/how-to-resize-a-numericvector)!
+
+Comparing the threads, your contribution seems a good point. Maybe I can
+initialize the Gamete vector with no_int( Size ) and then perform the loop
+over it filling with the mix between the tapes.
+
+I will also try the Eddelbuette suggestion, making gamete as a std::vector
+and then wrapping it on the return statement.
+
+I will implement it  and shall report the updated benchmarks!
+
+Cheers,
+FH
+
+On 11 August 2015 at 11:16, Hao Ye <hye at ucsd.edu> wrote:
+
+> It also looks like you are not initializing the size of Gamete in the
+> "full Rcpp" version, so it is resizing on every loop iteration...
+>
+> Best,
+> --
+> Hao Ye
+> hye at ucsd.edu
+>
+> On Tue, Aug 11, 2015 at 12:06 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+>
+>> 1) Figure out where you are making full copies of your data structures
+>> (casting NumericVector to std::vector<double>)
+>> 2) Use eg R::rbinom instead of rbinom if you do not want the return as an
+>> Rcpp Vector type.
+>> 3) Move the outer loop (your replicate call) into C++
+>>
+>> The copying of data is what is slowing things down most likely.
+>>
+>> T.
+>>
+>> http://www.keittlab.org/
+>>
+>> On Tue, Aug 11, 2015 at 10:13 AM, FHRB Toledo <fernandohtoledo at gmail.com>
+>> wrote:
+>>
+>>> Dear All,
+>>>
+>>> It is my first post here at Rcpp-devel List. I'm passionate with the
+>>> awesome work and with all perspectives that it can opens for speed up codes
+>>> and embedding of C++ in R package seamless. Thus, I wish to thank all
+>>> developers.
+>>>
+>>> After, some reading over the Book, online vignettes and so on. I
+>>> translated one of my R scripts using two approaches: taking all advantages
+>>> of Rcpp; and using just the "seamless" integration, i.e., casting SEXP
+>>> objects, working only with std:: objects and wrapping the return.
+>>>
+>>> So far so good, however, by my surprise I found huge difference
+>>> regarding the performance between both implementations. If it's not enough,
+>>> even the raw R code shown better performance compared to the "full Rcpp".
+>>>
+>>> I made a short example to show you the point. First of all let me
+>>> explain the process for who do not have any idea about meiosis: We take a
+>>> hypothetical genome (that gives us the SNPs positions, vector Map); then
+>>> based on this length we draw a Poisson value (where length is lambda), with
+>>> this value (e.g., n) we draw n uniform within the genome length. With this,
+>>> after some manipulations (findInterval % 2) we know where Crossing Over
+>>> (recombination) happened. Then we can take this prototype and generate a
+>>> gamete of some entry genotype (DNA tapes A and B).
+>>>
+>>> The codes are:
+>>>
+>>> Raw R script:
+>>>
+>>> ## Meiosis process through Poisson/Uniform
+>>> MeiosisR <- function( Map, TapeA, TapeB )
+>>>     {
+>>>         ## Number of Crossing Overs **Poisson Draw**
+>>>         nCrossOver <- rpois(n = 1, lambda = ceiling(max(Map)))
+>>>         ## Assigning Crossing Overs on the Genome **Uniform Draw**
+>>>         posCrossOver <- sort(runif(n = nCrossOver, min = 0, max =
+>>> max(Map)))
+>>>         ## Building the "Prototype" **mixture between the 2 haplotypes**
+>>>         Prototype <- findInterval(x = Map, vec = posCrossOver) %% 2
+>>>         ## Raffle for the reference haplotype
+>>>         if ( as.logical( rbinom(n = 1, size = 1, prob = .5)  ) )
+>>>             {
+>>>                 ## Building the gamete
+>>>                 Gamete <- ifelse(test = as.logical(Prototype),
+>>>                                  yes = TapeA,
+>>>                                  no = TapeB)
+>>>             } else {
+>>>                 ## idem with other "guide"
+>>>                 Gamete <- ifelse(test = as.logical(Prototype),
+>>>                                  yes = TapeB,
+>>>                                  no = TapeA)
+>>>             }
+>>>         return( Gamete )
+>>>     }
+>>>
+>>> STL cpp version:
+>>>
+>>> // [[Rcpp::plugins(cpp11)]]
+>>> #include <algorithm>
+>>> #include <Rcpp.h>
+>>>
+>>> using namespace Rcpp;
+>>>
+>>> // [[Rcpp::export]]
+>>> std::vector<int> MeiosisSTL( std::vector<double> Map,
+>>>                              std::vector<int> TapeA,
+>>>                              std::vector<int> TapeB ) {
+>>>
+>>>   // Obtaining Chromossome's parameter: length, number & positions of
+>>> SNPs
+>>>   double L = *std::max_element(Map.begin(), Map.end());
+>>>   int Size = Map.size();
+>>>
+>>>   // RNG process: draw the number & positions of Crossing Overs
+>>>   double CrossingNumber = as<double>( rpois(1, L) );
+>>>   std::vector<double> CrossingPositions = as<std::vector<double> >(
+>>> runif( CrossingNumber, 0.0, L ) );
+>>>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>>>
+>>>   // Building a Gamete "Prototype"
+>>>   std::vector<bool> Prototype( Size );
+>>>
+>>>   // "findInterval" adapted from Wickham's Rcpp Chapter (
+>>> http://adv-r.had.co.nz/Rcpp.html)
+>>>   std::vector<double>::iterator Iter, Positions;
+>>>   std::vector<bool>::iterator ProtoIter;
+>>>   std::vector<double>::iterator MapBegin = Map.begin();
+>>>   std::vector<double>::iterator MapEnd = Map.end();
+>>>   std::vector<bool>::iterator ProtoBegin = Prototype.begin();
+>>>   std::vector<double>::iterator CrossPosBegin =
+>>> CrossingPositions.begin();
+>>>   std::vector<double>::iterator CrossPosEnd = CrossingPositions.end();
+>>>
+>>>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+>>> ++ProtoIter) {
+>>>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>>>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+>>> even
+>>>   }
+>>>
+>>>   std::vector<int> Gamete;
+>>>   Gamete.reserve( Size );
+>>>   // raffle: which tape shall be the "guide"?
+>>>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>>>
+>>>   if ( v01 ) {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       // Build the Gamete from the Prototype
+>>>       Gamete.push_back( ((Prototype.at( i )) ? TapeA.at( i ) : TapeB.at(
+>>> i )) );
+>>>     }
+>>>   } else {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       Gamete.push_back( ((Prototype.at( i )) ? TapeB.at( i ) : TapeA.at(
+>>> i )) );
+>>>     }
+>>>   }
+>>>
+>>>   return Gamete ;
+>>> }
+>>>
+>>> Full Rcpp version:
+>>>
+>>> // [[Rcpp::plugins(cpp11)]]
+>>> #include <algorithm>
+>>> #include <Rcpp.h>
+>>>
+>>> using namespace Rcpp;
+>>>
+>>> // [[Rcpp::export]]
+>>> IntegerVector MeiosisRcpp( NumericVector Map,
+>>>                            IntegerVector TapeA,
+>>>                            IntegerVector TapeB ) {
+>>>
+>>>   double L = max( Map ); // sugar :)
+>>>   int Size = Map.size();
+>>>
+>>>   double CrossingNumber = as<double>( rpois(1, L) );
+>>>   NumericVector CrossingPositions = runif( CrossingNumber, 0.0, L );
+>>>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>>>
+>>>   LogicalVector Prototype( Size );
+>>>
+>>>   NumericVector::iterator Iter, Positions;
+>>>   LogicalVector::iterator ProtoIter;
+>>>   NumericVector::iterator MapBegin = Map.begin();
+>>>   NumericVector::iterator MapEnd = Map.end();
+>>>   LogicalVector::iterator ProtoBegin = Prototype.begin();
+>>>   NumericVector::iterator CrossPosBegin = CrossingPositions.begin();
+>>>   NumericVector::iterator CrossPosEnd = CrossingPositions.end();
+>>>
+>>>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+>>> ++ProtoIter) {
+>>>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>>>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+>>> even
+>>>   }
+>>>
+>>>   IntegerVector Gamete;
+>>>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>>>
+>>>   if ( v01 ) {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       Gamete.push_back( ((Prototype[ i ]) ? TapeA[ i ] : TapeB[ i ]) );
+>>>
+>>>     }
+>>>   } else {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       Gamete.push_back( ((Prototype[ i ]) ? TapeB[ i ] : TapeA[ i ]) );
+>>>     }
+>>>   }
+>>>
+>>>   return Gamete ;
+>>> }
+>>>
+>>> If we take the entry as:
+>>>
+>>> ## Genome Setup
+>>> N <- 1E4 # number of gametes
+>>> nM <- 400 # number of Markers (SNPs)
+>>> L <-  4 # genome length (in Morgans)
+>>>
+>>> ## building the genome & full heterozigous genotype (diploid, 2 DNA
+>>> tapes)
+>>> ## map <- seq(from = .1, to = L, length.out = nM) # SNPs positions
+>>> **regular**
+>>> map <- sort(runif(nM, 0, L)) # idem **random**
+>>> tapeA <- rep(1, nM)
+>>> tapeB <- rep(2, nM)
+>>>
+>>> You will found results like that:
+>>>
+>>> evaluated expressions:
+>>>
+>>> RawR = replicate(n = N, expr = MeiosisR(Map = map, TapeA = tapeA, TapeB
+>>> = tapeB))
+>>> cppSTL = replicate(n = N, expr = MeiosisSTL(Map = map, TapeA = tapeA,
+>>> TapeB = tapeB))
+>>> Rcpp = replicate(n = N, expr = MeiosisRcpp(Map = map, TapeA = tapeA,
+>>> TapeB = tapeB))
+>>>
+>>> - microbenchmark:
+>>>
+>>> Unit: seconds
+>>>    expr       min        lq      mean   median        uq       max neval
+>>> cld
+>>>    RawR 1.2169414 1.2655129 1.2978896 1.286561 1.3055376 1.5020700
+>>> 100  b
+>>>  cppSTL 0.1721323 0.1773904 0.1867463 0.180910 0.1863087 0.2835556   100
+>>> a
+>>>    Rcpp 1.9190921 2.0101288 2.0633424 2.046132 2.1081319 2.2832565
+>>> 100   c
+>>>
+>>> - rbenchmark:
+>>>
+>>>     test replications elapsed user.self sys.self
+>>> 2 cppSTL          100  18.048    18.020    0.020
+>>> 1   RawR          100 126.264   124.888    1.324
+>>> 3   Rcpp          100 208.647   208.548    0.012
+>>>
+>>> Just to report, my sessionInfo() is as follow:
+>>>
+>>> sessionInfo() # Useful Infos **Reproducible Research**
+>>> R version 3.2.1 (2015-06-18)
+>>> Platform: x86_64-pc-linux-gnu (64-bit)
+>>> Running under: Debian GNU/Linux 8 (jessie)
+>>>
+>>> locale:
+>>>  [1] LC_CTYPE=en_US.utf8       LC_NUMERIC=C
+>>>  [3] LC_TIME=en_US.utf8        LC_COLLATE=en_US.utf8
+>>>  [5] LC_MONETARY=en_US.utf8    LC_MESSAGES=en_US.utf8
+>>>  [7] LC_PAPER=en_US.utf8       LC_NAME=C
+>>>  [9] LC_ADDRESS=C              LC_TELEPHONE=C
+>>> [11] LC_MEASUREMENT=en_US.utf8 LC_IDENTIFICATION=C
+>>>
+>>> attached base packages:
+>>> [1] stats     graphics  grDevices utils     datasets  methods   base
+>>>
+>>> other attached packages:
+>>> [1] rbenchmark_1.0.0     microbenchmark_1.4-2 Rcpp_0.11.5
+>>>
+>>> loaded via a namespace (and not attached):
+>>>  [1] MASS_7.3-40      colorspace_1.2-6 scales_0.2.4     compiler_3.2.1
+>>>  [5] plyr_1.8.2       tools_3.2.1      gtable_0.1.2     reshape2_1.4.1
+>>>  [9] ggplot2_1.0.1    grid_3.2.1       stringr_0.6.2    digest_0.6.8
+>>> [13] proto_0.3-10     munsell_0.4.2
+>>>
+>>> After that, I wish to request help to evaluate those results. Is "full
+>>> Rcpp" not a good choice when using iterators? Let me know if I am not
+>>> taking care about something that may change the things. You may notice that
+>>> I left all parameters as fixed as possible, then, they should not influence
+>>> on that.
+>>>
+>>> I am open to share the files or give further information.
+>>>
+>>> Thank you very much indeed regarding any insight on that.
+>>>
+>>> Cheers,
+>>> FH
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150811/0980877e/attachment-0001.html>
+
+From fernandohtoledo at gmail.com  Tue Aug 11 20:47:55 2015
+From: fernandohtoledo at gmail.com (FHRB Toledo)
+Date: Tue, 11 Aug 2015 13:47:55 -0500
+Subject: [Rcpp-devel] Fwd:  Is Rcpp:: not a good choice for iterators?
+In-Reply-To: <CAN55XP7_oTBMBa6XDvfhEWc9opkB1fFkMdu3m5HRRwX1viYfOQ@mail.gmail.com>
+References: <CAN55XP5C4KP+mwxiOATdiV9sj53N-GGm7ta-T7dC7N+68a9K1A@mail.gmail.com>
+ <CANnL8gpz9nAVwEQbzD98e3OviHNozvCNpgnaeqPSnBTdJRKEQw@mail.gmail.com>
+ <CAK1kXLxqjAkr-O65OggZR5XDOXcAJ-A_dT1-=dJ7+buJVBPsZQ@mail.gmail.com>
+ <CAN55XP7_oTBMBa6XDvfhEWc9opkB1fFkMdu3m5HRRwX1viYfOQ@mail.gmail.com>
+Message-ID: <CAN55XP4rr-eD+cMCj1XR4_i6HaOf+_ywvZGnKPGarCm3ycai5Q@mail.gmail.com>
+
+---------- Forwarded message ----------
+From: FHRB Toledo <fernandohtoledo at gmail.com>
+Date: 11 August 2015 at 12:07
+Subject: Re: [Rcpp-devel] Is Rcpp:: not a good choice for iterators?
+To: Hao Ye <hye at ucsd.edu>
+
+
+Hi Hao Ye,
+
+Great, , you are right! I tried your suggestion through:
+
+NumericVector Gamete = no_init( Size );
+
+And then change the loop such as:
+
+ for ( int i = 0; i < Size; i++ ) {
+      Gamete[ i ] = ( ((Prototype[ i ]) ? TapeA[ i ] : TapeB[ i ])
+);
+    }
+
+With those, the results seem much more reasonable:
+
+  expr       min        lq      mean    median        uq       max neval cld
+   RawR 1.2258215 1.2904011 1.3287819 1.3133870 1.3466908 1.6158531   100
+c
+ cppSTL 0.1741156 0.1791741 0.1933450 0.1835020 0.2083610 0.2628995   100 a
+   Rcpp 0.2019144 0.2086193 0.2217021 0.2154814 0.2234401 0.4010162   100  b
+
+and as rebuttal:
+
+ test replications elapsed user.self sys.self
+2 cppSTL          100  18.788    18.700    0.080
+3   Rcpp          100  21.451    21.444    0.000
+1   RawR          100 133.003   131.604    1.344
+
+Consistently, both C++ versions are faster than raw R.
+
+Thank you very much indeed.
+
+P.S.: As I mentioned, I also will try the Eddelbuette's comment and asap
+report the benchmark for complementarity over the thread.
+
+Cheers,
+FH
+
+On 11 August 2015 at 11:16, Hao Ye <hye at ucsd.edu> wrote:
+
+> It also looks like you are not initializing the size of Gamete in the
+> "full Rcpp" version, so it is resizing on every loop iteration...
+>
+> Best,
+> --
+> Hao Ye
+> hye at ucsd.edu
+>
+> On Tue, Aug 11, 2015 at 12:06 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+>
+>> 1) Figure out where you are making full copies of your data structures
+>> (casting NumericVector to std::vector<double>)
+>> 2) Use eg R::rbinom instead of rbinom if you do not want the return as an
+>> Rcpp Vector type.
+>> 3) Move the outer loop (your replicate call) into C++
+>>
+>> The copying of data is what is slowing things down most likely.
+>>
+>> T.
+>>
+>> http://www.keittlab.org/
+>>
+>> On Tue, Aug 11, 2015 at 10:13 AM, FHRB Toledo <fernandohtoledo at gmail.com>
+>> wrote:
+>>
+>>> Dear All,
+>>>
+>>> It is my first post here at Rcpp-devel List. I'm passionate with the
+>>> awesome work and with all perspectives that it can opens for speed up codes
+>>> and embedding of C++ in R package seamless. Thus, I wish to thank all
+>>> developers.
+>>>
+>>> After, some reading over the Book, online vignettes and so on. I
+>>> translated one of my R scripts using two approaches: taking all advantages
+>>> of Rcpp; and using just the "seamless" integration, i.e., casting SEXP
+>>> objects, working only with std:: objects and wrapping the return.
+>>>
+>>> So far so good, however, by my surprise I found huge difference
+>>> regarding the performance between both implementations. If it's not enough,
+>>> even the raw R code shown better performance compared to the "full Rcpp".
+>>>
+>>> I made a short example to show you the point. First of all let me
+>>> explain the process for who do not have any idea about meiosis: We take a
+>>> hypothetical genome (that gives us the SNPs positions, vector Map); then
+>>> based on this length we draw a Poisson value (where length is lambda), with
+>>> this value (e.g., n) we draw n uniform within the genome length. With this,
+>>> after some manipulations (findInterval % 2) we know where Crossing Over
+>>> (recombination) happened. Then we can take this prototype and generate a
+>>> gamete of some entry genotype (DNA tapes A and B).
+>>>
+>>> The codes are:
+>>>
+>>> Raw R script:
+>>>
+>>> ## Meiosis process through Poisson/Uniform
+>>> MeiosisR <- function( Map, TapeA, TapeB )
+>>>     {
+>>>         ## Number of Crossing Overs **Poisson Draw**
+>>>         nCrossOver <- rpois(n = 1, lambda = ceiling(max(Map)))
+>>>         ## Assigning Crossing Overs on the Genome **Uniform Draw**
+>>>         posCrossOver <- sort(runif(n = nCrossOver, min = 0, max =
+>>> max(Map)))
+>>>         ## Building the "Prototype" **mixture between the 2 haplotypes**
+>>>         Prototype <- findInterval(x = Map, vec = posCrossOver) %% 2
+>>>         ## Raffle for the reference haplotype
+>>>         if ( as.logical( rbinom(n = 1, size = 1, prob = .5)  ) )
+>>>             {
+>>>                 ## Building the gamete
+>>>                 Gamete <- ifelse(test = as.logical(Prototype),
+>>>                                  yes = TapeA,
+>>>                                  no = TapeB)
+>>>             } else {
+>>>                 ## idem with other "guide"
+>>>                 Gamete <- ifelse(test = as.logical(Prototype),
+>>>                                  yes = TapeB,
+>>>                                  no = TapeA)
+>>>             }
+>>>         return( Gamete )
+>>>     }
+>>>
+>>> STL cpp version:
+>>>
+>>> // [[Rcpp::plugins(cpp11)]]
+>>> #include <algorithm>
+>>> #include <Rcpp.h>
+>>>
+>>> using namespace Rcpp;
+>>>
+>>> // [[Rcpp::export]]
+>>> std::vector<int> MeiosisSTL( std::vector<double> Map,
+>>>                              std::vector<int> TapeA,
+>>>                              std::vector<int> TapeB ) {
+>>>
+>>>   // Obtaining Chromossome's parameter: length, number & positions of
+>>> SNPs
+>>>   double L = *std::max_element(Map.begin(), Map.end());
+>>>   int Size = Map.size();
+>>>
+>>>   // RNG process: draw the number & positions of Crossing Overs
+>>>   double CrossingNumber = as<double>( rpois(1, L) );
+>>>   std::vector<double> CrossingPositions = as<std::vector<double> >(
+>>> runif( CrossingNumber, 0.0, L ) );
+>>>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>>>
+>>>   // Building a Gamete "Prototype"
+>>>   std::vector<bool> Prototype( Size );
+>>>
+>>>   // "findInterval" adapted from Wickham's Rcpp Chapter (
+>>> http://adv-r.had.co.nz/Rcpp.html)
+>>>   std::vector<double>::iterator Iter, Positions;
+>>>   std::vector<bool>::iterator ProtoIter;
+>>>   std::vector<double>::iterator MapBegin = Map.begin();
+>>>   std::vector<double>::iterator MapEnd = Map.end();
+>>>   std::vector<bool>::iterator ProtoBegin = Prototype.begin();
+>>>   std::vector<double>::iterator CrossPosBegin =
+>>> CrossingPositions.begin();
+>>>   std::vector<double>::iterator CrossPosEnd = CrossingPositions.end();
+>>>
+>>>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+>>> ++ProtoIter) {
+>>>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>>>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+>>> even
+>>>   }
+>>>
+>>>   std::vector<int> Gamete;
+>>>   Gamete.reserve( Size );
+>>>   // raffle: which tape shall be the "guide"?
+>>>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>>>
+>>>   if ( v01 ) {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       // Build the Gamete from the Prototype
+>>>       Gamete.push_back( ((Prototype.at( i )) ? TapeA.at( i ) : TapeB.at(
+>>> i )) );
+>>>     }
+>>>   } else {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       Gamete.push_back( ((Prototype.at( i )) ? TapeB.at( i ) : TapeA.at(
+>>> i )) );
+>>>     }
+>>>   }
+>>>
+>>>   return Gamete ;
+>>> }
+>>>
+>>> Full Rcpp version:
+>>>
+>>> // [[Rcpp::plugins(cpp11)]]
+>>> #include <algorithm>
+>>> #include <Rcpp.h>
+>>>
+>>> using namespace Rcpp;
+>>>
+>>> // [[Rcpp::export]]
+>>> IntegerVector MeiosisRcpp( NumericVector Map,
+>>>                            IntegerVector TapeA,
+>>>                            IntegerVector TapeB ) {
+>>>
+>>>   double L = max( Map ); // sugar :)
+>>>   int Size = Map.size();
+>>>
+>>>   double CrossingNumber = as<double>( rpois(1, L) );
+>>>   NumericVector CrossingPositions = runif( CrossingNumber, 0.0, L );
+>>>   std::sort(CrossingPositions.begin(), CrossingPositions.end());
+>>>
+>>>   LogicalVector Prototype( Size );
+>>>
+>>>   NumericVector::iterator Iter, Positions;
+>>>   LogicalVector::iterator ProtoIter;
+>>>   NumericVector::iterator MapBegin = Map.begin();
+>>>   NumericVector::iterator MapEnd = Map.end();
+>>>   LogicalVector::iterator ProtoBegin = Prototype.begin();
+>>>   NumericVector::iterator CrossPosBegin = CrossingPositions.begin();
+>>>   NumericVector::iterator CrossPosEnd = CrossingPositions.end();
+>>>
+>>>   for(Iter = MapBegin, ProtoIter = ProtoBegin; Iter != MapEnd; ++Iter,
+>>> ++ProtoIter) {
+>>>     Positions = std::upper_bound(CrossPosBegin, CrossPosEnd, *Iter);
+>>>     *ProtoIter = std::distance(CrossPosBegin, Positions) % 2; // odd or
+>>> even
+>>>   }
+>>>
+>>>   IntegerVector Gamete;
+>>>   bool v01 = as<bool>( rbinom(1, 1, .5) );
+>>>
+>>>   if ( v01 ) {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       Gamete.push_back( ((Prototype[ i ]) ? TapeA[ i ] : TapeB[ i ]) );
+>>>
+>>>     }
+>>>   } else {
+>>>     for ( int i = 0; i < Size; i++ ) {
+>>>       Gamete.push_back( ((Prototype[ i ]) ? TapeB[ i ] : TapeA[ i ]) );
+>>>     }
+>>>   }
+>>>
+>>>   return Gamete ;
+>>> }
+>>>
+>>> If we take the entry as:
+>>>
+>>> ## Genome Setup
+>>> N <- 1E4 # number of gametes
+>>> nM <- 400 # number of Markers (SNPs)
+>>> L <-  4 # genome length (in Morgans)
+>>>
+>>> ## building the genome & full heterozigous genotype (diploid, 2 DNA
+>>> tapes)
+>>> ## map <- seq(from = .1, to = L, length.out = nM) # SNPs positions
+>>> **regular**
+>>> map <- sort(runif(nM, 0, L)) # idem **random**
+>>> tapeA <- rep(1, nM)
+>>> tapeB <- rep(2, nM)
+>>>
+>>> You will found results like that:
+>>>
+>>> evaluated expressions:
+>>>
+>>> RawR = replicate(n = N, expr = MeiosisR(Map = map, TapeA = tapeA, TapeB
+>>> = tapeB))
+>>> cppSTL = replicate(n = N, expr = MeiosisSTL(Map = map, TapeA = tapeA,
+>>> TapeB = tapeB))
+>>> Rcpp = replicate(n = N, expr = MeiosisRcpp(Map = map, TapeA = tapeA,
+>>> TapeB = tapeB))
+>>>
+>>> - microbenchmark:
+>>>
+>>> Unit: seconds
+>>>    expr       min        lq      mean   median        uq       max neval
+>>> cld
+>>>    RawR 1.2169414 1.2655129 1.2978896 1.286561 1.3055376 1.5020700
+>>> 100  b
+>>>  cppSTL 0.1721323 0.1773904 0.1867463 0.180910 0.1863087 0.2835556   100
+>>> a
+>>>    Rcpp 1.9190921 2.0101288 2.0633424 2.046132 2.1081319 2.2832565
+>>> 100   c
+>>>
+>>> - rbenchmark:
+>>>
+>>>     test replications elapsed user.self sys.self
+>>> 2 cppSTL          100  18.048    18.020    0.020
+>>> 1   RawR          100 126.264   124.888    1.324
+>>> 3   Rcpp          100 208.647   208.548    0.012
+>>>
+>>> Just to report, my sessionInfo() is as follow:
+>>>
+>>> sessionInfo() # Useful Infos **Reproducible Research**
+>>> R version 3.2.1 (2015-06-18)
+>>> Platform: x86_64-pc-linux-gnu (64-bit)
+>>> Running under: Debian GNU/Linux 8 (jessie)
+>>>
+>>> locale:
+>>>  [1] LC_CTYPE=en_US.utf8       LC_NUMERIC=C
+>>>  [3] LC_TIME=en_US.utf8        LC_COLLATE=en_US.utf8
+>>>  [5] LC_MONETARY=en_US.utf8    LC_MESSAGES=en_US.utf8
+>>>  [7] LC_PAPER=en_US.utf8       LC_NAME=C
+>>>  [9] LC_ADDRESS=C              LC_TELEPHONE=C
+>>> [11] LC_MEASUREMENT=en_US.utf8 LC_IDENTIFICATION=C
+>>>
+>>> attached base packages:
+>>> [1] stats     graphics  grDevices utils     datasets  methods   base
+>>>
+>>> other attached packages:
+>>> [1] rbenchmark_1.0.0     microbenchmark_1.4-2 Rcpp_0.11.5
+>>>
+>>> loaded via a namespace (and not attached):
+>>>  [1] MASS_7.3-40      colorspace_1.2-6 scales_0.2.4     compiler_3.2.1
+>>>  [5] plyr_1.8.2       tools_3.2.1      gtable_0.1.2     reshape2_1.4.1
+>>>  [9] ggplot2_1.0.1    grid_3.2.1       stringr_0.6.2    digest_0.6.8
+>>> [13] proto_0.3-10     munsell_0.4.2
+>>>
+>>> After that, I wish to request help to evaluate those results. Is "full
+>>> Rcpp" not a good choice when using iterators? Let me know if I am not
+>>> taking care about something that may change the things. You may notice that
+>>> I left all parameters as fixed as possible, then, they should not influence
+>>> on that.
+>>>
+>>> I am open to share the files or give further information.
+>>>
+>>> Thank you very much indeed regarding any insight on that.
+>>>
+>>> Cheers,
+>>> FH
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150811/0b3f84de/attachment-0001.html>
+
+From fernandohtoledo at gmail.com  Tue Aug 11 22:02:02 2015
+From: fernandohtoledo at gmail.com (FHRB Toledo)
+Date: Tue, 11 Aug 2015 15:02:02 -0500
+Subject: [Rcpp-devel] Fwd: Is Rcpp:: not a good choice for iterators?
+Message-ID: <CAN55XP5TphA7w_hzbQh2choSh9-uh=U4fF_RXDfhfDh3Z2biGg@mail.gmail.com>
+
+Dear Dr. Eddelbuettel,
+
+Thank you indeed regarding your interposition.
+
+I am really sorry about my impolite reference about you and also about my
+typo on your surname. It isn't my intention. I hope you can understand and
+that this does not diminishes the relevance of my message.
+
+As I have said in the last email, through Hao Ye's suggestion I figured out
+ways to change the source and the results were much more reasonable.
+Anyway, your overview on that, would be extremely valuable.
+
+Kind Regards,
+FH
+
+On 11 August 2015 at 14:20, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> (off-list)
+>
+> On 11 August 2015 at 13:47, FHRB Toledo wrote:
+> | P.S.: As I mentioned, I also will try the Eddelbuette's comment and asap
+> report
+>
+> 1. For now the 2nd time, you omitted the final 'l'. Eddelbuettel.  Not
+> Eddelbuette.
+>
+> 2. In English, it is not a very polite form to just refer to somebody's
+> family name without any first name, title or other alliteration.  You may
+> want to try a different form.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150811/695c5c13/attachment.html>
+
+From simon.barthelme at gipsa-lab.fr  Wed Aug 19 09:46:46 2015
+From: simon.barthelme at gipsa-lab.fr (=?UTF-8?B?U2ltb24gQmFydGhlbG3DqQ==?=)
+Date: Wed, 19 Aug 2015 09:46:46 +0200
+Subject: [Rcpp-devel] Rcpp + roxygen2 with emacs
+Message-ID: <55D43466.9080705@gipsa-lab.fr>
+
+Dear list
+
+Not sure whether this isn't more of an Emacs/ESS question, but has 
+anybody found a good solution for editing roxygen documentation in C++? 
+By that I mean all the stuff that starts with //', which is really 
+R-related even though it's in a C++ file. ESS has good support for 
+editing documentation from .R files, but of course it doesn't consider 
+.cpp files to be any of its business. Maybe polymode could be used? Any 
+ideas? Thanks a lot!
+
+Best
+
+Simon Barthelme
+
+
+
+From edd at debian.org  Wed Aug 19 12:32:47 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 19 Aug 2015 05:32:47 -0500
+Subject: [Rcpp-devel] Rcpp + roxygen2 with emacs
+In-Reply-To: <55D43466.9080705@gipsa-lab.fr>
+References: <55D43466.9080705@gipsa-lab.fr>
+Message-ID: <21972.23375.374496.1347@max.nulle.part>
+
+
+On 19 August 2015 at 09:46, Simon Barthelm? wrote:
+| Not sure whether this isn't more of an Emacs/ESS question, but has 
+| anybody found a good solution for editing roxygen documentation in C++? 
+| By that I mean all the stuff that starts with //', which is really 
+| R-related even though it's in a C++ file. ESS has good support for 
+| editing documentation from .R files, but of course it doesn't consider 
+| .cpp files to be any of its business. Maybe polymode could be used? Any 
+| ideas? Thanks a lot!
+
+I use that toolchain as well, but agree that this may (as you suggest) be a
+question for the ESS list.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From danielmc999 at gmail.com  Mon Aug 24 16:19:22 2015
+From: danielmc999 at gmail.com (Daniel McCarthy)
+Date: Mon, 24 Aug 2015 10:19:22 -0400
+Subject: [Rcpp-devel] Making R package with Rcpp Issue: Found '_ZSt4cout'
+Message-ID: <CAMHtN4tEB1HcqoFfkAX1NObLQDJhve3HrUCXAcpX5RVmETbMjw@mail.gmail.com>
+
+I am attempting to push a package to CRAN but am having the following issue
+with the CRAN checks:
+
+* using R version 3.1.3 (2015-03-09)* using platform:
+x86_64-w64-mingw32 (64-bit)....* checking compiled code ... NOTEFile
+'perccal/libs/i386/perccal.dll':
+  Found '_ZSt4cout', possibly from 'std::cout' (C++)
+    Object: 'dboot_multi.o'File 'perccal/libs/x64/perccal.dll':
+  Found '_ZSt4cout', possibly from 'std::cout' (C++)
+    Object: 'dboot_multi.o'
+
+This post referenced a similar issue:
+http://comments.gmane.org/gmane.comp.lang.r.rcpp/3071
+
+A Google search seems to indicate many packages have similar notes:
+https://www.google.com/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=Found+
+'_ZSt4cout'+note+package
+
+For example, bayes-tree:
+http://www2.uaem.mx/r-mirror/bin/windows/contrib/3.1/check/BayesTree-check.log
+
+This is the only note remaining -- everything else went through without
+issue and '_ZSt4cout' was not part of any code that I had written. I am
+importing Rcpp and RcppArmadillo for 2 functions used in the package. I am
+stumped, but assume that I would not be allowed to push a package to CRAN
+which has this note. Any help would be most appreciated!
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150824/d2053759/attachment.html>
+
+From edd at debian.org  Mon Aug 24 16:37:42 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 24 Aug 2015 09:37:42 -0500
+Subject: [Rcpp-devel] Making R package with Rcpp Issue: Found '_ZSt4cout'
+In-Reply-To: <CAMHtN4tEB1HcqoFfkAX1NObLQDJhve3HrUCXAcpX5RVmETbMjw@mail.gmail.com>
+References: <CAMHtN4tEB1HcqoFfkAX1NObLQDJhve3HrUCXAcpX5RVmETbMjw@mail.gmail.com>
+Message-ID: <21979.11318.978626.686008@max.nulle.part>
+
+
+On 24 August 2015 at 10:19, Daniel McCarthy wrote:
+| 
+| I am attempting to push a package to CRAN but am having the following issue
+| with the CRAN checks:
+| 
+| * using R version 3.1.3 (2015-03-09)
+| * using platform: x86_64-w64-mingw32 (64-bit)
+| ....
+| * checking compiled code ... NOTE
+| File 'perccal/libs/i386/perccal.dll':
+|   Found '_ZSt4cout', possibly from 'std::cout' (C++)
+|     Object: 'dboot_multi.o'
+| File 'perccal/libs/x64/perccal.dll':
+|   Found '_ZSt4cout', possibly from 'std::cout' (C++)
+|     Object: 'dboot_multi.o'
+
+See "Writing R Extensions"; this is not a Rcpp issue (though Rcpp offers you
+the Rcpp::Rcout "device" to send output to in order to have it synced with
+the R standard output).
+
+| This post referenced a similar issue:?http://comments.gmane.org/
+| gmane.comp.lang.r.rcpp/3071
+| 
+| A Google search seems to indicate many packages have similar notes:https://
+| www.google.com/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=Found+
+| '_ZSt4cout'+note+package
+| 
+| For example, bayes-tree:?http://www2.uaem.mx/r-mirror/bin/windows/contrib/3.1/
+| check/BayesTree-check.log
+| 
+| This is the only note remaining -- everything else went through without issue
+| and '_ZSt4cout' was not part of any code that I had written. I am importing
+| Rcpp and RcppArmadillo for 2 functions used in the package. I am stumped, but
+
+By default we take care of this:
+
+  // Rcpp has its own stream object which cooperates more nicely with R's i/o
+  // And as of Armadillo 2.4.3, we can use this stream object as well 
+  #if !defined(ARMA_DEFAULT_OSTREAM)
+  #define ARMA_DEFAULT_OSTREAM Rcpp::Rcout
+  #endif
+
+Maybe you accidentally undefined this...
+
+| assume that I would not be allowed to push a package to CRAN which has this
+| note. Any help would be most appreciated!
+
+The message is rather explicit, something in the object code dboot_multi.o
+refers to std::cout.   You need to clean that up.
+
+(I think some folks have some clever macros in their headers to automate
+this.  I have in the past resorted to explicitly alterting code, or to macro
+use to switch to our Rcout as above.)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From avraham.adler at gmail.com  Tue Aug 25 23:39:42 2015
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Tue, 25 Aug 2015 17:39:42 -0400
+Subject: [Rcpp-devel] Optimization flag may be needed in Makevars.win for
+	4.9.2 toolchain
+Message-ID: <CAL6gwnJ8ovgORp_4+QCq21jaNH2mOHXeUfK_T_a8Z2mp+i1gqQ@mail.gmail.com>
+
+I've been testing a GCC 4.9.2-based toolchain for Windows for the last
+week or so, and today fell afoul of the error uncovered here
+<https://stat.ethz.ch/pipermail/r-devel/2015-March/070814.html>. I've
+been passing different optimization flags, and Rcpp compiled properly
+under every one EXCEPT when a -march (ivybridge) flag was passed
+without an optimization flag. In that case, I received the
+"collect2.exe: error: ld returned 5 exit status" error as discussed on
+R-devel. Passing a -mtune flag without an -O flag did not cause an
+error.
+
+Downloading the Rcpp source code and manually adding -O2 to Rcpp's
+Makevars.win, re-tar/gzipping it and installing the local version
+allowed Rcpp to compile properly.
+
+I don't know if it is better to tell people to change their local
+Makevars under HOME/.R to pass -O2 or -O3 (that would probably be a
+call by you, Dirk, as you would know best if O3 would help or hinder),
+or if it is better to have Rcpp enforce it, but it should be noted
+somewhere once a 4.9.2-based Windows is eventually released.
+
+Thank you,
+
+Avi
+
+From edd at debian.org  Tue Aug 25 23:50:35 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 25 Aug 2015 16:50:35 -0500
+Subject: [Rcpp-devel] Optimization flag may be needed in Makevars.win
+	for	4.9.2 toolchain
+In-Reply-To: <CAL6gwnJ8ovgORp_4+QCq21jaNH2mOHXeUfK_T_a8Z2mp+i1gqQ@mail.gmail.com>
+References: <CAL6gwnJ8ovgORp_4+QCq21jaNH2mOHXeUfK_T_a8Z2mp+i1gqQ@mail.gmail.com>
+Message-ID: <21980.58155.83696.568311@max.nulle.part>
+
+
+On 25 August 2015 at 17:39, Avraham Adler wrote:
+| I've been testing a GCC 4.9.2-based toolchain for Windows for the last
+| week or so, and today fell afoul of the error uncovered here
+| <https://stat.ethz.ch/pipermail/r-devel/2015-March/070814.html>. I've
+| been passing different optimization flags, and Rcpp compiled properly
+| under every one EXCEPT when a -march (ivybridge) flag was passed
+| without an optimization flag. In that case, I received the
+| "collect2.exe: error: ld returned 5 exit status" error as discussed on
+| R-devel. Passing a -mtune flag without an -O flag did not cause an
+| error.
+| 
+| Downloading the Rcpp source code and manually adding -O2 to Rcpp's
+| Makevars.win, re-tar/gzipping it and installing the local version
+| allowed Rcpp to compile properly.
+| 
+| I don't know if it is better to tell people to change their local
+| Makevars under HOME/.R to pass -O2 or -O3 (that would probably be a
+| call by you, Dirk, as you would know best if O3 would help or hinder),
+| or if it is better to have Rcpp enforce it, but it should be noted
+| somewhere once a 4.9.2-based Windows is eventually released.
+
+CRAN disallows non-portable flags such as -march.
+
+So yes, ~/.R/Makevars it is.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From avraham.adler at gmail.com  Tue Aug 25 23:54:38 2015
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Tue, 25 Aug 2015 17:54:38 -0400
+Subject: [Rcpp-devel] Optimization flag may be needed in Makevars.win
+ for 4.9.2 toolchain
+In-Reply-To: <21980.58155.83696.568311@max.nulle.part>
+References: <CAL6gwnJ8ovgORp_4+QCq21jaNH2mOHXeUfK_T_a8Z2mp+i1gqQ@mail.gmail.com>
+ <21980.58155.83696.568311@max.nulle.part>
+Message-ID: <CAL6gwn+zZdjnh8g0j+KaKjdHzPcM-JXJMN9XvRULXrHFBSSZuA@mail.gmail.com>
+
+The -march is local, of course. The question is should Rcpp always
+enforce at least -O2 or the like? From your answer I guess not.
+
+The reason why not to simply have an optimization flag in the local
+makevars is that, at least in my experience, some code is faster with
+O2 and some with O3, and by having one in makevars, I am overriding
+the cases where the package author (who knows better) is passing a
+different flag. Of course one can just add that flag and install Rcpp
+by itself.
+
+Thanks again,
+
+Avi
+
+On Tue, Aug 25, 2015 at 5:50 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+> On 25 August 2015 at 17:39, Avraham Adler wrote:
+> | I've been testing a GCC 4.9.2-based toolchain for Windows for the last
+> | week or so, and today fell afoul of the error uncovered here
+> | <https://stat.ethz.ch/pipermail/r-devel/2015-March/070814.html>. I've
+> | been passing different optimization flags, and Rcpp compiled properly
+> | under every one EXCEPT when a -march (ivybridge) flag was passed
+> | without an optimization flag. In that case, I received the
+> | "collect2.exe: error: ld returned 5 exit status" error as discussed on
+> | R-devel. Passing a -mtune flag without an -O flag did not cause an
+> | error.
+> |
+> | Downloading the Rcpp source code and manually adding -O2 to Rcpp's
+> | Makevars.win, re-tar/gzipping it and installing the local version
+> | allowed Rcpp to compile properly.
+> |
+> | I don't know if it is better to tell people to change their local
+> | Makevars under HOME/.R to pass -O2 or -O3 (that would probably be a
+> | call by you, Dirk, as you would know best if O3 would help or hinder),
+> | or if it is better to have Rcpp enforce it, but it should be noted
+> | somewhere once a 4.9.2-based Windows is eventually released.
+>
+> CRAN disallows non-portable flags such as -march.
+>
+> So yes, ~/.R/Makevars it is.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From kevinushey at gmail.com  Wed Aug 26 01:02:26 2015
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Tue, 25 Aug 2015 16:02:26 -0700
+Subject: [Rcpp-devel] Optimization flag may be needed in Makevars.win
+ for 4.9.2 toolchain
+In-Reply-To: <CAL6gwn+zZdjnh8g0j+KaKjdHzPcM-JXJMN9XvRULXrHFBSSZuA@mail.gmail.com>
+References: <CAL6gwnJ8ovgORp_4+QCq21jaNH2mOHXeUfK_T_a8Z2mp+i1gqQ@mail.gmail.com>
+ <21980.58155.83696.568311@max.nulle.part>
+ <CAL6gwn+zZdjnh8g0j+KaKjdHzPcM-JXJMN9XvRULXrHFBSSZuA@mail.gmail.com>
+Message-ID: <CAJXgQP1Pz3CcxM4icacj4z095Wqu7qZMLqmYB6M4G5_qTfDscw@mail.gmail.com>
+
+Doesn't CRAN R default to using -O2 flags when compiling C++ source
+files? (I think the default is -O3 for C source files).
+
+Are you using CRAN R, or a locally built R? You might need to set that
+explicitly yourself when configuring R?
+
+On Tue, Aug 25, 2015 at 2:54 PM, Avraham Adler <avraham.adler at gmail.com> wrote:
+> The -march is local, of course. The question is should Rcpp always
+> enforce at least -O2 or the like? From your answer I guess not.
+>
+> The reason why not to simply have an optimization flag in the local
+> makevars is that, at least in my experience, some code is faster with
+> O2 and some with O3, and by having one in makevars, I am overriding
+> the cases where the package author (who knows better) is passing a
+> different flag. Of course one can just add that flag and install Rcpp
+> by itself.
+>
+> Thanks again,
+>
+> Avi
+>
+> On Tue, Aug 25, 2015 at 5:50 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>> On 25 August 2015 at 17:39, Avraham Adler wrote:
+>> | I've been testing a GCC 4.9.2-based toolchain for Windows for the last
+>> | week or so, and today fell afoul of the error uncovered here
+>> | <https://stat.ethz.ch/pipermail/r-devel/2015-March/070814.html>. I've
+>> | been passing different optimization flags, and Rcpp compiled properly
+>> | under every one EXCEPT when a -march (ivybridge) flag was passed
+>> | without an optimization flag. In that case, I received the
+>> | "collect2.exe: error: ld returned 5 exit status" error as discussed on
+>> | R-devel. Passing a -mtune flag without an -O flag did not cause an
+>> | error.
+>> |
+>> | Downloading the Rcpp source code and manually adding -O2 to Rcpp's
+>> | Makevars.win, re-tar/gzipping it and installing the local version
+>> | allowed Rcpp to compile properly.
+>> |
+>> | I don't know if it is better to tell people to change their local
+>> | Makevars under HOME/.R to pass -O2 or -O3 (that would probably be a
+>> | call by you, Dirk, as you would know best if O3 would help or hinder),
+>> | or if it is better to have Rcpp enforce it, but it should be noted
+>> | somewhere once a 4.9.2-based Windows is eventually released.
+>>
+>> CRAN disallows non-portable flags such as -march.
+>>
+>> So yes, ~/.R/Makevars it is.
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Wed Aug 26 01:47:55 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 25 Aug 2015 18:47:55 -0500
+Subject: [Rcpp-devel] Optimization flag may be needed in Makevars.win
+ for 4.9.2 toolchain
+In-Reply-To: <CAJXgQP1Pz3CcxM4icacj4z095Wqu7qZMLqmYB6M4G5_qTfDscw@mail.gmail.com>
+References: <CAL6gwnJ8ovgORp_4+QCq21jaNH2mOHXeUfK_T_a8Z2mp+i1gqQ@mail.gmail.com>
+ <21980.58155.83696.568311@max.nulle.part>
+ <CAL6gwn+zZdjnh8g0j+KaKjdHzPcM-JXJMN9XvRULXrHFBSSZuA@mail.gmail.com>
+ <CAJXgQP1Pz3CcxM4icacj4z095Wqu7qZMLqmYB6M4G5_qTfDscw@mail.gmail.com>
+Message-ID: <21980.65195.303987.509391@max.nulle.part>
+
+
+On 25 August 2015 at 16:02, Kevin Ushey wrote:
+| Doesn't CRAN R default to using -O2 flags when compiling C++ source
+| files? (I think the default is -O3 for C source files).
+| 
+| Are you using CRAN R, or a locally built R? You might need to set that
+| explicitly yourself when configuring R?
+
+Optimization levels are commonly
+
+ - inherited from values stored in $R_HOME/etc/Makeconf and set at R's
+   configure and compile time
+
+ - locally set by the user via $HOME/.R/Makevars
+
+and we are generally advised not to set them in src/Makevars* in our
+packages.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Wed Aug 26 03:07:50 2015
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Tue, 25 Aug 2015 21:07:50 -0400
+Subject: [Rcpp-devel] Optimization flag may be needed in Makevars.win
+ for 4.9.2 toolchain
+In-Reply-To: <21980.65195.303987.509391@max.nulle.part>
+References: <CAL6gwnJ8ovgORp_4+QCq21jaNH2mOHXeUfK_T_a8Z2mp+i1gqQ@mail.gmail.com>
+ <21980.58155.83696.568311@max.nulle.part>
+ <CAL6gwn+zZdjnh8g0j+KaKjdHzPcM-JXJMN9XvRULXrHFBSSZuA@mail.gmail.com>
+ <CAJXgQP1Pz3CcxM4icacj4z095Wqu7qZMLqmYB6M4G5_qTfDscw@mail.gmail.com>
+ <21980.65195.303987.509391@max.nulle.part>
+Message-ID: <CAJ_LAMAeSo_mioYOgQGQH_+QU0=km+FE3WHjv85c0MT9aTY_YQ@mail.gmail.com>
+
+By default, it is "-g -O2" if you don't change before compiling R.
+
+I have asked once and R core team said there will be problems using "-O3"
+for some packages.
+
+Best wishes,
+
+KK
+
+On Tue, Aug 25, 2015 at 7:47 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 25 August 2015 at 16:02, Kevin Ushey wrote:
+> | Doesn't CRAN R default to using -O2 flags when compiling C++ source
+> | files? (I think the default is -O3 for C source files).
+> |
+> | Are you using CRAN R, or a locally built R? You might need to set that
+> | explicitly yourself when configuring R?
+>
+> Optimization levels are commonly
+>
+>  - inherited from values stored in $R_HOME/etc/Makeconf and set at R's
+>    configure and compile time
+>
+>  - locally set by the user via $HOME/.R/Makevars
+>
+> and we are generally advised not to set them in src/Makevars* in our
+> packages.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150825/e02400ea/attachment.html>
+
+From Jean-Michel.Perraud at csiro.au  Wed Aug 26 03:24:49 2015
+From: Jean-Michel.Perraud at csiro.au (Jean-Michel.Perraud at csiro.au)
+Date: Wed, 26 Aug 2015 01:24:49 +0000
+Subject: [Rcpp-devel] Rcpp.package.skeleton load fails on Debian with Rcpp
+ 0.12.0, seems OK with Rcpp 0.12.0.2
+Message-ID: <9657E5F32D0E5F4599B08172DA6CE8816491CEC6@exmbx02-cdc.nexus.csiro.au>
+
+Hi,
+
+I noticed that the output of Rcpp.package.skeleton fails with Rcpp 0.12.0 on CRAN if using module=TRUE, at least on a debian box. Installing Rcpp from the source on github, using devtools::install_github, solves the issue. 
+ 
+Repro info:
+
+> library(Rcpp)  # 0.12.0
+> Rcpp.package.skeleton(name = "test", force = TRUE, example_code = TRUE, attributes = TRUE, module = TRUE) 
+
+$ R CMD check test
+
+* checking whether package ?test? can be installed ...*** Error in `/usr/lib/R/bin/exec/R': free(): invalid pointer: 0x0000000002aad848 ***
+ ERROR
+Installation failed.
+
+
+Linux 4.1.0-2-amd64 #1 SMP Debian 4.1.5-1 (2015-08-15) x86_64 GNU/Linux
+gcc (Debian 5.2.1-15) 5.2.1 20150808
+> sessionInfo()
+R version 3.2.2 (2015-08-14)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Debian GNU/Linux stretch/sid
+
+
+I could not see it captured under https://github.com/RcppCore/Rcpp/issues, but may have missed it, or captured in another form.
+
+Cheers.
+
+
+From edd at debian.org  Wed Aug 26 03:36:01 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 25 Aug 2015 20:36:01 -0500
+Subject: [Rcpp-devel] Rcpp.package.skeleton load fails on Debian with
+ Rcpp 0.12.0, seems OK with Rcpp 0.12.0.2
+In-Reply-To: <9657E5F32D0E5F4599B08172DA6CE8816491CEC6@exmbx02-cdc.nexus.csiro.au>
+References: <9657E5F32D0E5F4599B08172DA6CE8816491CEC6@exmbx02-cdc.nexus.csiro.au>
+Message-ID: <21981.6145.10215.416351@max.nulle.part>
+
+
+On 26 August 2015 at 01:24, Jean-Michel.Perraud at csiro.au wrote:
+| Hi,
+| 
+| I noticed that the output of Rcpp.package.skeleton fails with Rcpp 0.12.0 on CRAN if using module=TRUE, at least on a debian box. Installing Rcpp from the source on github, using devtools::install_github, solves the issue. 
+
+Yes -- that is likely a known bug which R 3.2.2 tickles as it deals now
+differently with multiple modules definitions under the same name.  We happen
+to have multiple modules named 'World' and that bites.
+
+Try the current GitHub version which disabled one test -- see its commit here
+  https://github.com/RcppCore/Rcpp/commit/d9db8dec96ef06b6404e9167042c4fe107ed650a
+which is a crude stop-gap measure.
+
+I am right now working on disambiguating the Modules names -- which after
+email discussions with several R Core members has been suggested as the best
+approach.
+
+| Repro info:
+| 
+| > library(Rcpp)  # 0.12.0
+| > Rcpp.package.skeleton(name = "test", force = TRUE, example_code = TRUE, attributes = TRUE, module = TRUE) 
+| 
+| $ R CMD check test
+| 
+| * checking whether package ?test? can be installed ...*** Error in `/usr/lib/R/bin/exec/R': free(): invalid pointer: 0x0000000002aad848 ***
+|  ERROR
+| Installation failed.
+
+Yup. I privately reported these seg.faults to several R Core members too.
+The "cause" is a recent change in R which came out in R 3.2.2, but it appears
+to (now) be tickled by something we do so I am changing that.  
+
+Sorry about the inconvenience.
+
+Dirk
+
+
+| 
+| Linux 4.1.0-2-amd64 #1 SMP Debian 4.1.5-1 (2015-08-15) x86_64 GNU/Linux
+| gcc (Debian 5.2.1-15) 5.2.1 20150808
+| > sessionInfo()
+| R version 3.2.2 (2015-08-14)
+| Platform: x86_64-pc-linux-gnu (64-bit)
+| Running under: Debian GNU/Linux stretch/sid
+| 
+| 
+| I could not see it captured under https://github.com/RcppCore/Rcpp/issues, but may have missed it, or captured in another form.
+| 
+| Cheers.
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Wed Aug 26 23:27:31 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 26 Aug 2015 16:27:31 -0500
+Subject: [Rcpp-devel] Rcpp.package.skeleton load fails on Debian with
+ Rcpp 0.12.0, seems OK with Rcpp 0.12.0.2
+In-Reply-To: <21981.6145.10215.416351@max.nulle.part>
+References: <9657E5F32D0E5F4599B08172DA6CE8816491CEC6@exmbx02-cdc.nexus.csiro.au>
+ <21981.6145.10215.416351@max.nulle.part>
+Message-ID: <21982.12099.193717.281125@max.nulle.part>
+
+
+Jean-Michel,
+
+On 25 August 2015 at 20:36, Dirk Eddelbuettel wrote:
+| 
+| On 26 August 2015 at 01:24, Jean-Michel.Perraud at csiro.au wrote:
+| | Hi,
+| | 
+| | I noticed that the output of Rcpp.package.skeleton fails with Rcpp 0.12.0 on CRAN if using module=TRUE, at least on a debian box. Installing Rcpp from the source on github, using devtools::install_github, solves the issue. 
+| 
+| Yes -- that is likely a known bug which R 3.2.2 tickles as it deals now
+| differently with multiple modules definitions under the same name.  We happen
+| to have multiple modules named 'World' and that bites.
+ 
+The GitHub master branch now contains Rcpp 0.12.0.3 which has this fixed.
+ 
+| | Linux 4.1.0-2-amd64 #1 SMP Debian 4.1.5-1 (2015-08-15) x86_64 GNU/Linux
+| | gcc (Debian 5.2.1-15) 5.2.1 20150808
+| | > sessionInfo()
+| | R version 3.2.2 (2015-08-14)
+| | Platform: x86_64-pc-linux-gnu (64-bit)
+| | Running under: Debian GNU/Linux stretch/sid
+
+Nice to see folks running stretch/sid :)
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jon at thon.cc  Sun Aug 30 16:09:08 2015
+From: jon at thon.cc (Jonathon Love)
+Date: Sun, 30 Aug 2015 16:09:08 +0200
+Subject: [Rcpp-devel] building RInside under debian
+Message-ID: <55E30E84.4090605@thon.cc>
+
+hi,
+
+i'm building RInside on debian, and am interested in the hardening
+arguments to g++
+
+building RInside results in the following calls:
+
+    g++ -I/usr/share/R/include -DNDEBUG -I. -I../inst/include/ 
+-I"/usr/lib/R/site-library/Rcpp/include"   -fpic  -g -O2
+-fstack-protector-strong -Wformat -Werror=format-security
+-D_FORTIFY_SOURCE=2 -g  -c MemBuf.cpp -o MemBuf.o
+    g++ -I/usr/share/R/include -DNDEBUG -I. -I../inst/include/ 
+-I"/usr/lib/R/site-library/Rcpp/include"   -fpic  -g -O2
+-fstack-protector-strong -Wformat -Werror=format-security
+-D_FORTIFY_SOURCE=2 -g  -c RInside.cpp -o RInside.o
+    g++ -shared -L/usr/lib/R/lib -Wl,-z,relro -o RInside.so MemBuf.o
+RInside.o -L/usr/lib/R/lib -lR
+    g++ -o libRInside.so MemBuf.o RInside.o -shared   -L/usr/lib/R/lib -lR
+
+these are correct, and the hardening flags are present
+(-D_FORTIFY_SOURCE, -Wl,-z,relro, etc. etc.), except for the fourth
+command, which is lacking them. if i drill down in Makevars to the line:
+
+    $(USERLIB): $(OBJECTS)
+        $(SHLIB_CXXLD) -o $(USERLIB) $^ $(SHLIB_CXXLDFLAGS) $(ALL_LIBS)
+
+then add a variable, and add it to the call:
+
+HARDEN_LD = $(shell dpkg-buildflags --get LDFLAGS)
+
+    $(USERLIB): $(OBJECTS)
+        $(SHLIB_CXXLD) -o $(USERLIB) $^ $(SHLIB_CXXLDFLAGS) $(HARDEN_LD)
+$(ALL_LIBS)
+
+then the hardening works correctly.
+
+(i also tried SHLIB_CXXLDFLAGS += $(shell dpkg-buildflags --get
+LDFLAGS), but that doesn't work, not sure why)
+
+i'm wondering why this isn't working correctly by default. is there an
+issue with my system? is the Makevars file not quite correct? is there a
+"correct" way to achieve this without editing Makevars?
+
+with thanks
+
+jonathon
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+
+From danielmc999 at gmail.com  Sun Aug 30 22:39:16 2015
+From: danielmc999 at gmail.com (Daniel McCarthy)
+Date: Sun, 30 Aug 2015 16:39:16 -0400
+Subject: [Rcpp-devel] Making R package with Rcpp Issue: Found '_ZSt4cout'
+In-Reply-To: <21979.11318.978626.686008@max.nulle.part>
+References: <CAMHtN4tEB1HcqoFfkAX1NObLQDJhve3HrUCXAcpX5RVmETbMjw@mail.gmail.com>
+ <21979.11318.978626.686008@max.nulle.part>
+Message-ID: <CAMHtN4sZWvr9hPCD5DN_-fA6vZT1OVcBdjb4+OywPgDi0G2UXQ@mail.gmail.com>
+
+Thank you Dirk!
+
+The issue stemmed from my using RcppArmadillo's sample function.  Reference
+link here:
+http://gallery.rcpp.org/articles/using-the-Rcpp-based-sample-implementation/
+
+At the top of my .cpp file I had used the following code to be able to call
+upon that function:
+
+#include <armadillo>
+#include <RcppArmadilloExtensions/sample.h>
+//[[Rcpp::depends(RcppArmadillo)]]
+
+
+After I created another function that avoided my needing to call upon the
+function that required this, then going back to putting the usual stuff at
+the top of my .cpp file,
+
+#include <RcppArmadillo.h>
+//[[Rcpp::depends(RcppArmadillo)]]
+
+
+the note went away.
+
+Thank you again,
+Dan
+
+
+
+
+On Mon, Aug 24, 2015 at 10:37 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 24 August 2015 at 10:19, Daniel McCarthy wrote:
+> |
+> | I am attempting to push a package to CRAN but am having the following
+> issue
+> | with the CRAN checks:
+> |
+> | * using R version 3.1.3 (2015-03-09)
+> | * using platform: x86_64-w64-mingw32 (64-bit)
+> | ....
+> | * checking compiled code ... NOTE
+> | File 'perccal/libs/i386/perccal.dll':
+> |   Found '_ZSt4cout', possibly from 'std::cout' (C++)
+> |     Object: 'dboot_multi.o'
+> | File 'perccal/libs/x64/perccal.dll':
+> |   Found '_ZSt4cout', possibly from 'std::cout' (C++)
+> |     Object: 'dboot_multi.o'
+>
+> See "Writing R Extensions"; this is not a Rcpp issue (though Rcpp offers
+> you
+> the Rcpp::Rcout "device" to send output to in order to have it synced with
+> the R standard output).
+>
+> | This post referenced a similar issue: http://comments.gmane.org/
+> | gmane.comp.lang.r.rcpp/3071
+> |
+> | A Google search seems to indicate many packages have similar
+> notes:https://
+> |
+> www.google.com/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=Found+
+> | '_ZSt4cout'+note+package
+> |
+> | For example, bayes-tree:
+> http://www2.uaem.mx/r-mirror/bin/windows/contrib/3.1/
+> | check/BayesTree-check.log
+> |
+> | This is the only note remaining -- everything else went through without
+> issue
+> | and '_ZSt4cout' was not part of any code that I had written. I am
+> importing
+> | Rcpp and RcppArmadillo for 2 functions used in the package. I am
+> stumped, but
+>
+> By default we take care of this:
+>
+>   // Rcpp has its own stream object which cooperates more nicely with R's
+> i/o
+>   // And as of Armadillo 2.4.3, we can use this stream object as well
+>   #if !defined(ARMA_DEFAULT_OSTREAM)
+>   #define ARMA_DEFAULT_OSTREAM Rcpp::Rcout
+>   #endif
+>
+> Maybe you accidentally undefined this...
+>
+> | assume that I would not be allowed to push a package to CRAN which has
+> this
+> | note. Any help would be most appreciated!
+>
+> The message is rather explicit, something in the object code dboot_multi.o
+> refers to std::cout.   You need to clean that up.
+>
+> (I think some folks have some clever macros in their headers to automate
+> this.  I have in the past resorted to explicitly alterting code, or to
+> macro
+> use to switch to our Rcout as above.)
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150830/545d48f3/attachment.html>
+
+From edd at debian.org  Mon Aug 31 00:17:01 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 30 Aug 2015 17:17:01 -0500
+Subject: [Rcpp-devel] building RInside under debian
+In-Reply-To: <55E30E84.4090605@thon.cc>
+References: <55E30E84.4090605@thon.cc>
+Message-ID: <21987.32989.673917.454197@max.nulle.part>
+
+
+Hi Jonathon,
+
+On 30 August 2015 at 16:09, Jonathon Love wrote:
+| hi,
+| 
+| i'm building RInside on debian, and am interested in the hardening
+| arguments to g++
+
+Sure.
+
+I guess you understand we are now in a very OS-flavour specific environment?
+
+| building RInside results in the following calls:
+| 
+|     g++ -I/usr/share/R/include -DNDEBUG -I. -I../inst/include/ 
+| -I"/usr/lib/R/site-library/Rcpp/include"   -fpic  -g -O2
+| -fstack-protector-strong -Wformat -Werror=format-security
+| -D_FORTIFY_SOURCE=2 -g  -c MemBuf.cpp -o MemBuf.o
+|     g++ -I/usr/share/R/include -DNDEBUG -I. -I../inst/include/ 
+| -I"/usr/lib/R/site-library/Rcpp/include"   -fpic  -g -O2
+| -fstack-protector-strong -Wformat -Werror=format-security
+| -D_FORTIFY_SOURCE=2 -g  -c RInside.cpp -o RInside.o
+|     g++ -shared -L/usr/lib/R/lib -Wl,-z,relro -o RInside.so MemBuf.o
+| RInside.o -L/usr/lib/R/lib -lR
+|     g++ -o libRInside.so MemBuf.o RInside.o -shared   -L/usr/lib/R/lib -lR
+| 
+| these are correct, and the hardening flags are present
+
+Those flags are all OS defaults, and appear to be passed down to the CFLAGS
+and PKG_CFLAGS (and CXX variants) automagically.
+
+| (-D_FORTIFY_SOURCE, -Wl,-z,relro, etc. etc.), except for the fourth
+| command, which is lacking them. if i drill down in Makevars to the line:
+| 
+|     $(USERLIB): $(OBJECTS)
+|         $(SHLIB_CXXLD) -o $(USERLIB) $^ $(SHLIB_CXXLDFLAGS) $(ALL_LIBS)
+| 
+| then add a variable, and add it to the call:
+| 
+| HARDEN_LD = $(shell dpkg-buildflags --get LDFLAGS)
+
+This is no longer portable as not all system using src/Makevars will have
+dpkg-buildflags.   If we really wanted to we could test for presence of
+/usr/bin/dpkg-buildflags just like the following line does to detect the OS X
+use case where we need install_name_tool to do some magic for rpath.
+ 
+|     $(USERLIB): $(OBJECTS)
+|         $(SHLIB_CXXLD) -o $(USERLIB) $^ $(SHLIB_CXXLDFLAGS) $(HARDEN_LD)
+| $(ALL_LIBS)
+| 
+| then the hardening works correctly.
+| 
+| (i also tried SHLIB_CXXLDFLAGS += $(shell dpkg-buildflags --get
+| LDFLAGS), but that doesn't work, not sure why)
+| 
+| i'm wondering why this isn't working correctly by default. is there an
+| issue with my system? is the Makevars file not quite correct? is there a
+| "correct" way to achieve this without editing Makevars?
+
+The general rule is to never ever write your own src/Makevars unless you
+absolutely must.
+
+And AFAIK only Rserve or RInside do -- by diverting the standard package
+build process into something else to accomodate their need for building an
+executable or special library.  And when you do something nonstandard like
+this some nonstandard behaviour may follow.
+
+To me it seems that you figured out what you needed for a local build, and we
+are not really in a situation that warrants this for the overall case.
+
+If we thought otherwise would add a configure script -- but adding one makes
+the build longer and slower for everyone just to satisfy what seems like a
+corner case for you.  And I say that as a Debian maintainer.
+
+In short, no need to modify the general build case as best as I can tell.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Mon Aug 31 00:20:01 2015
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 30 Aug 2015 17:20:01 -0500
+Subject: [Rcpp-devel] Making R package with Rcpp Issue: Found '_ZSt4cout'
+In-Reply-To: <CAMHtN4sZWvr9hPCD5DN_-fA6vZT1OVcBdjb4+OywPgDi0G2UXQ@mail.gmail.com>
+References: <CAMHtN4tEB1HcqoFfkAX1NObLQDJhve3HrUCXAcpX5RVmETbMjw@mail.gmail.com>
+ <21979.11318.978626.686008@max.nulle.part>
+ <CAMHtN4sZWvr9hPCD5DN_-fA6vZT1OVcBdjb4+OywPgDi0G2UXQ@mail.gmail.com>
+Message-ID: <21987.33169.105664.149082@max.nulle.part>
+
+
+On 30 August 2015 at 16:39, Daniel McCarthy wrote:
+| Thank you Dirk! ?
+| 
+| The issue stemmed from my using RcppArmadillo's sample function.? Reference
+| link here:?
+| http://gallery.rcpp.org/articles/using-the-Rcpp-based-sample-implementation/
+| 
+| At the top of my .cpp file I had used the following code to be able to call
+| upon that function:?
+| 
+| #include <armadillo>
+| #include <RcppArmadilloExtensions/sample.h>
+| //[[Rcpp::depends(RcppArmadillo)]]
+| 
+| 
+| After I created another function that avoided my needing to call upon the
+| function that required this, then going back to putting the usual stuff at the
+| top of my .cpp file,
+| 
+| #include <RcppArmadillo.h>
+| //[[Rcpp::depends(RcppArmadillo)]]
+| 
+| 
+| the note went away. ?
+
+Look more closely.  I suspect the issue was likely caused you including
+
+     #include <armadillo>
+
+without also including our settings. So you get vanilla Armadillo -- without
+our override.  If you did
+
+     #include <RcppArmadillo.h>
+     #include <RcppArmadilloExtensions/sample.h>
+     // [[Rcpp::depends(RcppArmadillo)]]
+
+I am fairly certain you would RcppArmadillo AND the desired sample() function
+BUT NOT the dreaded cout.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From danielmc999 at gmail.com  Mon Aug 31 01:18:52 2015
+From: danielmc999 at gmail.com (Daniel McCarthy)
+Date: Sun, 30 Aug 2015 19:18:52 -0400
+Subject: [Rcpp-devel] Making R package with Rcpp Issue: Found '_ZSt4cout'
+In-Reply-To: <21987.33169.105664.149082@max.nulle.part>
+References: <CAMHtN4tEB1HcqoFfkAX1NObLQDJhve3HrUCXAcpX5RVmETbMjw@mail.gmail.com>
+ <21979.11318.978626.686008@max.nulle.part>
+ <CAMHtN4sZWvr9hPCD5DN_-fA6vZT1OVcBdjb4+OywPgDi0G2UXQ@mail.gmail.com>
+ <21987.33169.105664.149082@max.nulle.part>
+Message-ID: <CAMHtN4umTe+cx=n0z3gG3+OafZkuoDOgDjPSRtgn-YEWqdmFVA@mail.gmail.com>
+
+Dirk, as expected, you are correct.  Many thanks...
+
+Dan
+
+On Sun, Aug 30, 2015 at 6:20 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 30 August 2015 at 16:39, Daniel McCarthy wrote:
+> | Thank you Dirk!
+> |
+> | The issue stemmed from my using RcppArmadillo's sample function.
+> Reference
+> | link here:
+> |
+> http://gallery.rcpp.org/articles/using-the-Rcpp-based-sample-implementation/
+> |
+> | At the top of my .cpp file I had used the following code to be able to
+> call
+> | upon that function:
+> |
+> | #include <armadillo>
+> | #include <RcppArmadilloExtensions/sample.h>
+> | //[[Rcpp::depends(RcppArmadillo)]]
+> |
+> |
+> | After I created another function that avoided my needing to call upon the
+> | function that required this, then going back to putting the usual stuff
+> at the
+> | top of my .cpp file,
+> |
+> | #include <RcppArmadillo.h>
+> | //[[Rcpp::depends(RcppArmadillo)]]
+> |
+> |
+> | the note went away.
+>
+> Look more closely.  I suspect the issue was likely caused you including
+>
+>      #include <armadillo>
+>
+> without also including our settings. So you get vanilla Armadillo --
+> without
+> our override.  If you did
+>
+>      #include <RcppArmadillo.h>
+>      #include <RcppArmadilloExtensions/sample.h>
+>      // [[Rcpp::depends(RcppArmadillo)]]
+>
+> I am fairly certain you would RcppArmadillo AND the desired sample()
+> function
+> BUT NOT the dreaded cout.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150830/50d16082/attachment-0001.html>
+
+From jon at thon.cc  Mon Aug 31 09:02:40 2015
+From: jon at thon.cc (Jonathon Love)
+Date: Mon, 31 Aug 2015 09:02:40 +0200
+Subject: [Rcpp-devel] building RInside under debian
+In-Reply-To: <21987.32989.673917.454197@max.nulle.part>
+References: <55E30E84.4090605@thon.cc>
+ <21987.32989.673917.454197@max.nulle.part>
+Message-ID: <55E3FC10.4070707@thon.cc>
+
+awesome. thanks again.
+
+jonathon
+
+
+> To me it seems that you figured out what you needed for a local build, and we
+> are not really in a situation that warrants this for the overall case.
+> 
+> If we thought otherwise would add a configure script -- but adding one makes
+> the build longer and slower for everyone just to satisfy what seems like a
+> corner case for you.  And I say that as a Debian maintainer.
+> 
+> In short, no need to modify the general build case as best as I can tell.
+> 
+> Dirk
+> 
+
+
+-- 
+
+JASP - A Fresh Way to Do Statistics
+http://jasp-stats.org/
+
+--
+
+How happy is he born and taught,
+That serveth not another's will;
+Whose armour is his honest thought,
+And simple truth his utmost skill
+
+This man is freed from servile bands
+Of hope to rise, or fear to fall:
+Lord of himself, though not of lands,
+And, having nothing, yet hath all.
+
+  -- Sir Henry Wotton
+
+

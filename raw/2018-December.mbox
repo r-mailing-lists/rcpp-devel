@@ -1,0 +1,3625 @@
+From markoilcan at gmail.com  Sat Dec  1 04:49:04 2018
+From: markoilcan at gmail.com (M A)
+Date: Fri, 30 Nov 2018 21:49:04 -0600
+Subject: [Rcpp-devel] finding plugins
+Message-ID: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+
+Is there a standard way to list what plugins are available in Rcpp? And,
+given a plugin, how do I find out what exactly is in that plugin? I did
+find in the inline package inline::getPlugin() for the second of these
+questions, but it does not work on Rcpp plugins (e.g. the openmp plugin)
+and I can't find an equivalent in Rcpp. These seem like they should be easy
+questions with obvious solutions, but I can't find anything. Sorry if I did
+miss something obvious.
+
+Mark
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181130/63212b02/attachment.html>
+
+From edd at debian.org  Sat Dec  1 16:18:40 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 1 Dec 2018 09:18:40 -0600
+Subject: [Rcpp-devel] finding plugins
+In-Reply-To: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+References: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+Message-ID: <23554.42576.360573.752771@rob.eddelbuettel.com>
+
+
+On 30 November 2018 at 21:49, M A wrote:
+| Is there a standard way to list what plugins are available in Rcpp? And,
+| given a plugin, how do I find out what exactly is in that plugin? I did
+| find in the inline package inline::getPlugin() for the second of these
+| questions, but it does not work on Rcpp plugins (e.g. the openmp plugin)
+| and I can't find an equivalent in Rcpp. These seem like they should be easy
+| questions with obvious solutions, but I can't find anything. Sorry if I did
+| miss something obvious.
+
+Have you found this obvious answer yet:
+
+   Rcpp FAQ Question 3.6
+   "How do I write a plugin for inline and/or Rcpp Attributes"
+
+My pdf reader shows me 36 hits for 'plugin' in that Rcpp FAQ document.
+
+As for 'what exists': there is no central registry as packages can bring
+their own; the mechanism is such that when a package loads it can register
+upon load.  You could use the same hooks to a) scan all your installed (but
+not yet loaded) packages and b) list currently registered plugins. I don't
+think anybody has written such a helper yet.
+
+As for 'what is in it':  "Use the source, Luke." 
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From markoilcan at gmail.com  Sat Dec  1 18:30:44 2018
+From: markoilcan at gmail.com (M A)
+Date: Sat, 1 Dec 2018 11:30:44 -0600
+Subject: [Rcpp-devel] finding plugins
+In-Reply-To: <23554.42576.360573.752771@rob.eddelbuettel.com>
+References: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+ <23554.42576.360573.752771@rob.eddelbuettel.com>
+Message-ID: <CAARRV4S6p=Rfg5HJM+TRFSg3NWNZnysan0hM-EJPaMeS34sMzw@mail.gmail.com>
+
+Yes, thanks, I did at least manage to read through the FAQ, but,
+unfortunately, none of the mentions of 'plugins' was helpful for my
+questions. I can search through the source to find the plugins that come
+with Rcpp, but I'm not familiar enough with the necessary mechanisms to
+know what hooks to look for or use to be able to list currently registered
+plugins.
+
+An issue is that I can't get at least some plugins to work with
+cppFunction. For instance:
+library(Rcpp)
+library(RcppArmadillo)
+library(inline)
+cppFunction('//Anything', depends="RcppArmadillo", plugin="RcppArmadillo",
+verbose=TRUE)
+
+just gives error:
+Error in .findPlugin(pluginName) :
+  Inline plugin 'RcppArmadillo' could not be found within the Rcpp package.
+You should be sure to call registerPlugin before using a plugin.
+
+Thanks,
+Mark
+
+On Sat, Dec 1, 2018 at 9:18 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 30 November 2018 at 21:49, M A wrote:
+> | Is there a standard way to list what plugins are available in Rcpp? And,
+> | given a plugin, how do I find out what exactly is in that plugin? I did
+> | find in the inline package inline::getPlugin() for the second of these
+> | questions, but it does not work on Rcpp plugins (e.g. the openmp plugin)
+> | and I can't find an equivalent in Rcpp. These seem like they should be
+> easy
+> | questions with obvious solutions, but I can't find anything. Sorry if I
+> did
+> | miss something obvious.
+>
+> Have you found this obvious answer yet:
+>
+>    Rcpp FAQ Question 3.6
+>    "How do I write a plugin for inline and/or Rcpp Attributes"
+>
+> My pdf reader shows me 36 hits for 'plugin' in that Rcpp FAQ document.
+>
+> As for 'what exists': there is no central registry as packages can bring
+> their own; the mechanism is such that when a package loads it can register
+> upon load.  You could use the same hooks to a) scan all your installed (but
+> not yet loaded) packages and b) list currently registered plugins. I don't
+> think anybody has written such a helper yet.
+>
+> As for 'what is in it':  "Use the source, Luke."
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181201/cabab7aa/attachment.html>
+
+From balamut2 at illinois.edu  Sat Dec  1 18:59:21 2018
+From: balamut2 at illinois.edu (Balamuta, James Joseph)
+Date: Sat, 1 Dec 2018 17:59:21 +0000
+Subject: [Rcpp-devel] finding plugins
+In-Reply-To: <CAARRV4S6p=Rfg5HJM+TRFSg3NWNZnysan0hM-EJPaMeS34sMzw@mail.gmail.com>
+References: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+ <23554.42576.360573.752771@rob.eddelbuettel.com>
+ <CAARRV4S6p=Rfg5HJM+TRFSg3NWNZnysan0hM-EJPaMeS34sMzw@mail.gmail.com>
+Message-ID: <2F4C9A92-7137-44E8-803F-22A99495EF5A@illinois.edu>
+
+Mark,
+
+Consider:
+
+cppFunction('//Anything', depends="RcppArmadillo", plugin="RcppArmadillo", verbose=TRUE)
+
+Armadillo is not a plugin but a library. Plugins are for changing the C++ compilation standard, enabling OpenMP, or changing the long jump behavior. Examples of built-in plugins can be found here:
+
+https://github.com/RcppCore/Rcpp/blob/b7dc5f16488d5b6f46bf3aadbce3ef06ca72ff3f/R/Attributes.R#L469-L534
+
+Perhaps try with:
+
+cppFunction('//Anything', depends="RcppArmadillo", verbose=TRUE)
+
+Full list:
+
+
+  *   cpp98
+  *   cpp11
+  *   cpp0x
+     *   older gcc C++11
+  *   cpp14
+  *   cpp1y
+     *   C++14/C++17 standard under dev
+  *   cpp17
+  *   cpp1z
+     *   C++17 standard under dev
+  *   openmp
+     *   Enable OpenMP
+  *   unwindProtect
+     *   long jump behavior
+
+Sincerely,
+
+JJB
+
+From: Rcpp-devel <rcpp-devel-bounces at lists.r-forge.r-project.org> on behalf of M A <markoilcan at gmail.com>
+Date: Saturday, December 1, 2018 at 11:31 AM
+To: "edd at debian.org" <edd at debian.org>
+Cc: "rcpp-devel at lists.r-forge.r-project.org" <rcpp-devel at lists.r-forge.r-project.org>
+Subject: Re: [Rcpp-devel] finding plugins
+
+Yes, thanks, I did at least manage to read through the FAQ, but, unfortunately, none of the mentions of 'plugins' was helpful for my questions. I can search through the source to find the plugins that come with Rcpp, but I'm not familiar enough with the necessary mechanisms to know what hooks to look for or use to be able to list currently registered plugins.
+
+An issue is that I can't get at least some plugins to work with cppFunction. For instance:
+library(Rcpp)
+library(RcppArmadillo)
+library(inline)
+cppFunction('//Anything', depends="RcppArmadillo", plugin="RcppArmadillo", verbose=TRUE)
+
+just gives error:
+Error in .findPlugin(pluginName) :
+  Inline plugin 'RcppArmadillo' could not be found within the Rcpp package. You should be sure to call registerPlugin before using a plugin.
+
+Thanks,
+Mark
+
+On Sat, Dec 1, 2018 at 9:18 AM Dirk Eddelbuettel <edd at debian.org<mailto:edd at debian.org>> wrote:
+
+On 30 November 2018 at 21:49, M A wrote:
+| Is there a standard way to list what plugins are available in Rcpp? And,
+| given a plugin, how do I find out what exactly is in that plugin? I did
+| find in the inline package inline::getPlugin() for the second of these
+| questions, but it does not work on Rcpp plugins (e.g. the openmp plugin)
+| and I can't find an equivalent in Rcpp. These seem like they should be easy
+| questions with obvious solutions, but I can't find anything. Sorry if I did
+| miss something obvious.
+
+Have you found this obvious answer yet:
+
+   Rcpp FAQ Question 3.6
+   "How do I write a plugin for inline and/or Rcpp Attributes"
+
+My pdf reader shows me 36 hits for 'plugin' in that Rcpp FAQ document.
+
+As for 'what exists': there is no central registry as packages can bring
+their own; the mechanism is such that when a package loads it can register
+upon load.  You could use the same hooks to a) scan all your installed (but
+not yet loaded) packages and b) list currently registered plugins. I don't
+think anybody has written such a helper yet.
+
+As for 'what is in it':  "Use the source, Luke."
+
+Dirk
+
+--
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org<mailto:edd at debian.org>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181201/007cc3a5/attachment-0001.html>
+
+From edd at debian.org  Sat Dec  1 19:14:05 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 1 Dec 2018 12:14:05 -0600
+Subject: [Rcpp-devel] finding plugins
+In-Reply-To: <2F4C9A92-7137-44E8-803F-22A99495EF5A@illinois.edu>
+References: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+ <23554.42576.360573.752771@rob.eddelbuettel.com>
+ <CAARRV4S6p=Rfg5HJM+TRFSg3NWNZnysan0hM-EJPaMeS34sMzw@mail.gmail.com>
+ <2F4C9A92-7137-44E8-803F-22A99495EF5A@illinois.edu>
+Message-ID: <23554.53101.771451.120409@rob.eddelbuettel.com>
+
+
+Mark,
+
+You still haven't explained what your actual problem is. Or maybe I missed it.
+
+
+James,
+
+On 1 December 2018 at 17:59, Balamuta, James Joseph wrote:
+| Armadillo is not a plugin but a library. Plugins are for changing the C++ compilation standard, enabling OpenMP, or changing the long jump behavior. Examples of built-in plugins can be found here:
+| 
+| https://github.com/RcppCore/Rcpp/blob/b7dc5f16488d5b6f46bf3aadbce3ef06ca72ff3f/R/Attributes.R#L469-L534
+| 
+| Perhaps try with:
+| 
+| cppFunction('//Anything', depends="RcppArmadillo", verbose=TRUE)
+| 
+| Full list:
+| 
+| 
+|   *   cpp98
+|   *   cpp11
+|   *   cpp0x
+|      *   older gcc C++11
+|   *   cpp14
+|   *   cpp1y
+|      *   C++14/C++17 standard under dev
+|   *   cpp17
+|   *   cpp1z
+|      *   C++17 standard under dev
+|   *   openmp
+|      *   Enable OpenMP
+|   *   unwindProtect
+|      *   long jump behavior
+
+Plus, as I said, all the ones brought by packages using Rcpp as eg this
+reasonably powerful one for RcppGSL which sets compile and link options:
+
+https://github.com/eddelbuettel/rcppgsl/blob/master/R/inline.R#L47-L59
+
+Maybe this could even be answered with a proper GitHub search query for eg
+Rcpp.plugin.maker. 
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From markoilcan at gmail.com  Sat Dec  1 22:05:51 2018
+From: markoilcan at gmail.com (M A)
+Date: Sat, 1 Dec 2018 15:05:51 -0600
+Subject: [Rcpp-devel] finding plugins
+In-Reply-To: <23554.53101.771451.120409@rob.eddelbuettel.com>
+References: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+ <23554.42576.360573.752771@rob.eddelbuettel.com>
+ <CAARRV4S6p=Rfg5HJM+TRFSg3NWNZnysan0hM-EJPaMeS34sMzw@mail.gmail.com>
+ <2F4C9A92-7137-44E8-803F-22A99495EF5A@illinois.edu>
+ <23554.53101.771451.120409@rob.eddelbuettel.com>
+Message-ID: <CAARRV4QQtUE0wxbH5=nwBL87=0CHxQV+BC5dkN4FAUt9v7eG3Q@mail.gmail.com>
+
+Sorry, I, in fact, wasn't clear about my problem. Essentially I'm going to
+benchmark some matrix operations using R, RcppEigen, and RcppArmadillo so
+when I do my real problem I'm using fast code. Part of this involves seeing
+the effect of multithreading (with either openmp or through a multithreaded
+BLAS, while making sure I'm only doing one of those at a time) and other
+possible compiler flags. Right now, I'm just trying to learn how to do
+these things with Rcpp.
+
+The matrix operation code is not long, so I thought the easiest thing for
+now would be to use cppFunction. Documentation in RcppEigen, for instance,
+uses cxxfunction which specifies the plugin "RcppEigen", and this is also
+what is mostly used in the Rcpp FAQ with an "RcppArmadillo" plugin. The
+help page for cppFunction also says that the plugins argument is a
+character vector of *inline* plugins. James' message has made me realize
+that, actually, there's a difference between a plugin in the cxxfunction
+and a plugin in cppFunction. At least for RcppEigen and RcppArmadillo the
+correct translation is from cxxfunction(..., plugin="RcppX") to
+cppFunction(..., depends="RcppX"). To get the compiler flags I want, I
+think I have to write my own Rcpp plugin, which would then be a plugin for
+cppFunction (and presumably in c++ source file in the attribute //
+[[Rcpp::plugins(myflags)]].
+
+
+Mark
+
+
+On Sat, Dec 1, 2018 at 12:14 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> Mark,
+>
+> You still haven't explained what your actual problem is. Or maybe I missed
+> it.
+>
+>
+> James,
+>
+> On 1 December 2018 at 17:59, Balamuta, James Joseph wrote:
+> | Armadillo is not a plugin but a library. Plugins are for changing the
+> C++ compilation standard, enabling OpenMP, or changing the long jump
+> behavior. Examples of built-in plugins can be found here:
+> |
+> |
+> https://github.com/RcppCore/Rcpp/blob/b7dc5f16488d5b6f46bf3aadbce3ef06ca72ff3f/R/Attributes.R#L469-L534
+> |
+> | Perhaps try with:
+> |
+> | cppFunction('//Anything', depends="RcppArmadillo", verbose=TRUE)
+> |
+> | Full list:
+> |
+> |
+> |   *   cpp98
+> |   *   cpp11
+> |   *   cpp0x
+> |      *   older gcc C++11
+> |   *   cpp14
+> |   *   cpp1y
+> |      *   C++14/C++17 standard under dev
+> |   *   cpp17
+> |   *   cpp1z
+> |      *   C++17 standard under dev
+> |   *   openmp
+> |      *   Enable OpenMP
+> |   *   unwindProtect
+> |      *   long jump behavior
+>
+> Plus, as I said, all the ones brought by packages using Rcpp as eg this
+> reasonably powerful one for RcppGSL which sets compile and link options:
+>
+> https://github.com/eddelbuettel/rcppgsl/blob/master/R/inline.R#L47-L59
+>
+> Maybe this could even be answered with a proper GitHub search query for eg
+> Rcpp.plugin.maker.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181201/d3c33ee6/attachment.html>
+
+From edd at debian.org  Sat Dec  1 22:26:19 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 1 Dec 2018 15:26:19 -0600
+Subject: [Rcpp-devel] finding plugins
+In-Reply-To: <CAARRV4QQtUE0wxbH5=nwBL87=0CHxQV+BC5dkN4FAUt9v7eG3Q@mail.gmail.com>
+References: <CAARRV4Si=A4M38mqgotwawo5d2ZUYyMpEk9q0Be6169wNvcHiQ@mail.gmail.com>
+ <23554.42576.360573.752771@rob.eddelbuettel.com>
+ <CAARRV4S6p=Rfg5HJM+TRFSg3NWNZnysan0hM-EJPaMeS34sMzw@mail.gmail.com>
+ <2F4C9A92-7137-44E8-803F-22A99495EF5A@illinois.edu>
+ <23554.53101.771451.120409@rob.eddelbuettel.com>
+ <CAARRV4QQtUE0wxbH5=nwBL87=0CHxQV+BC5dkN4FAUt9v7eG3Q@mail.gmail.com>
+Message-ID: <23554.64635.698585.101706@rob.eddelbuettel.com>
+
+
+Yep:
+
+ - usage with inline (the package) != usage with Rcpp Attributes.
+
+ - usage with cppFunction != usage with sourceCpp
+
+ - usage with sourceCpp != usage with packages
+
+I wish this was simpler, but this simply is the cognitive cost of having
+developed this over multiple years.  Sometimes things change, folks often see
+one of the older approaches and stick with those.
+
+The cleanest (but maybe most laborious) way would be to create mini-packages
+with your benchmark code.  One each for Armadillo, Eigen, ...
+
+The run those with/without optimised blas, multithreaded blas, ...
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Mon Dec  3 19:33:58 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 3 Dec 2018 19:33:58 +0100
+Subject: [Rcpp-devel] Different Rcout object for each translation unit
+Message-ID: <CALEXWq1Ti-w+NR6cTS4rU3D0O45_hYkMjdmZoFZHwcsChDWb9g@mail.gmail.com>
+
+Hi,
+
+Rcout is defined in iostream/Rstreambuf.h as a static object. This
+means that different translation units see a different Rcout, while
+they see the same std::cout (I have a minimal package showing this if
+needed). As a result, for example, one object allocated in a certain
+.cpp cannot redirect the output of other object allocated in another
+.cpp. Is there any solution to this (apart from putting everything in
+a huge .cpp)?
+
+Regards,
+-- 
+I?aki ?car
+
+From kevinushey at gmail.com  Mon Dec  3 20:32:31 2018
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Mon, 3 Dec 2018 11:32:31 -0800
+Subject: [Rcpp-devel] Different Rcout object for each translation unit
+In-Reply-To: <CALEXWq1Ti-w+NR6cTS4rU3D0O45_hYkMjdmZoFZHwcsChDWb9g@mail.gmail.com>
+References: <CALEXWq1Ti-w+NR6cTS4rU3D0O45_hYkMjdmZoFZHwcsChDWb9g@mail.gmail.com>
+Message-ID: <CAJXgQP0N5mvynEW-vXmnjF_AZDJzYvinCGSvLxuG_w8XHiUouA@mail.gmail.com>
+
+I think this might be worth fixing on the Rcpp side -- there should
+really only be one instance of the Rcout object. Would you mind filing
+an issue at https://github.com/RcppCore/Rcpp/issues, so we don't lose
+track of this?
+
+You could of course just create your own Rcout / Rcerr objects as well
+(the Rstreambuf class is public and part of the Rcpp namespace).
+
+Kevin
+
+On Mon, Dec 3, 2018 at 10:34 AM I?aki Ucar <iucar at fedoraproject.org> wrote:
+>
+> Hi,
+>
+> Rcout is defined in iostream/Rstreambuf.h as a static object. This
+> means that different translation units see a different Rcout, while
+> they see the same std::cout (I have a minimal package showing this if
+> needed). As a result, for example, one object allocated in a certain
+> .cpp cannot redirect the output of other object allocated in another
+> .cpp. Is there any solution to this (apart from putting everything in
+> a huge .cpp)?
+>
+> Regards,
+> --
+> I?aki ?car
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From iucar at fedoraproject.org  Mon Dec  3 20:41:14 2018
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 3 Dec 2018 20:41:14 +0100
+Subject: [Rcpp-devel] Different Rcout object for each translation unit
+In-Reply-To: <CAJXgQP0N5mvynEW-vXmnjF_AZDJzYvinCGSvLxuG_w8XHiUouA@mail.gmail.com>
+References: <CALEXWq1Ti-w+NR6cTS4rU3D0O45_hYkMjdmZoFZHwcsChDWb9g@mail.gmail.com>
+ <CAJXgQP0N5mvynEW-vXmnjF_AZDJzYvinCGSvLxuG_w8XHiUouA@mail.gmail.com>
+Message-ID: <CALEXWq0RM5NU=yr7=ugy0VRmUgKEWu6wa4V1vawbf6s2Ge6-BQ@mail.gmail.com>
+
+On Mon, 3 Dec 2018 at 20:33, Kevin Ushey <kevinushey at gmail.com> wrote:
+>
+> I think this might be worth fixing on the Rcpp side -- there should
+> really only be one instance of the Rcout object. Would you mind filing
+> an issue at https://github.com/RcppCore/Rcpp/issues, so we don't lose
+> track of this?
+
+Sure, no problem.
+
+> You could of course just create your own Rcout / Rcerr objects as well
+> (the Rstreambuf class is public and part of the Rcpp namespace).
+
+Yeap, but that's suboptimal. I agree that this might be worth fixing
+on the Rcpp side. I asked first here because I'm not sure if that's
+possible, because packages cannot (in general) link to other packages.
+
+I?aki
+
+From till.huelsmann at mpibpc.mpg.de  Thu Dec  6 14:29:07 2018
+From: till.huelsmann at mpibpc.mpg.de (Huelsmann, Till)
+Date: Thu, 6 Dec 2018 13:29:07 +0000
+Subject: [Rcpp-devel] Debug Rcpp datatypes with lldb
+Message-ID: <bd91b29e4742468fba98ae9bc247e3aa@mpibpc.mpg.de>
+
+Hello,
+
+First of all, I really like Rccp and would like to thank you all for your work.
+I try to debug an cpp file, which I source from R, using the lldb debuger.
+
+sourceCpp("source.cpp")
+
+Everything is woking fine, but I dont get how can I show the content of specific datatypes. Like NumericVector or CharackterVector.
+
+E.g.:
+
+(lldb) fr v myvec gives me:
+
+(Rcpp::CharacterVector) myvec= {
+  Rcpp::PreserveStorage<Rcpp::Vector<4> > = (data = 0x000055555899e970)
+  cache = {
+    p = 0x00007fffffffc070
+  }
+}
+
+How it is possible to get the values of the vector in lldb?
+I think, that the struct CharacterVector only stores the Memory address of the data.
+
+I have the same problem with NumericVectors, which are stored as double.
+If I tried to access them (format as double, 2072 bytes) but I didn?t get the expected values:
+
+(lldb) memory read ?format f 0x000055555899e970
+(llldb) memory read -s2072 -fu -c2072 0x000055555899e970 --force
+
+
+Maybe I have a mistake. I would be very happy if someone could help me.
+I've already posted this question on Stackoverflow, but have not received an answer.
+See: https://stackoverflow.com/questions/53611600/debug-rcpp-with-lldb
+
+Bests,
+Till
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181206/fe725879/attachment.html>
+
+From edd at debian.org  Thu Dec  6 15:34:01 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Dec 2018 08:34:01 -0600
+Subject: [Rcpp-devel] Debug Rcpp datatypes with lldb
+In-Reply-To: <bd91b29e4742468fba98ae9bc247e3aa@mpibpc.mpg.de>
+References: <bd91b29e4742468fba98ae9bc247e3aa@mpibpc.mpg.de>
+Message-ID: <23561.13145.996267.788497@rob.eddelbuettel.com>
+
+
+On 6 December 2018 at 13:29, Huelsmann, Till wrote:
+| Hello,
+| 
+| First of all, I really like Rccp and would like to thank you all for your work.
+
+s/Rccp/Rcpp/
+
+Rccp = Russian for USSR
+
+Rcpp = R bindings for C++
+
+A not uncommon typo ...
+
+| I try to debug an cpp file, which I source from R, using the lldb debuger.
+| 
+| sourceCpp("source.cpp")
+| 
+| Everything is woking fine, but I dont get how can I show the content of specific datatypes. Like NumericVector or CharackterVector.
+| 
+| E.g.:
+| 
+| (lldb) fr v myvec gives me:
+| 
+| (Rcpp::CharacterVector) myvec= {
+|   Rcpp::PreserveStorage<Rcpp::Vector<4> > = (data = 0x000055555899e970)
+|   cache = {
+|     p = 0x00007fffffffc070
+|   }
+| }
+| 
+| How it is possible to get the values of the vector in lldb?
+| I think, that the struct CharacterVector only stores the Memory address of the data.
+| 
+| I have the same problem with NumericVectors, which are stored as double.
+| If I tried to access them (format as double, 2072 bytes) but I didn?t get the expected values:
+| 
+| (lldb) memory read ?format f 0x000055555899e970
+| (llldb) memory read -s2072 -fu -c2072 0x000055555899e970 --force
+| 
+| 
+| Maybe I have a mistake. I would be very happy if someone could help me.
+| I've already posted this question on Stackoverflow, but have not received an answer.
+| See: https://stackoverflow.com/questions/53611600/debug-rcpp-with-lldb
+
+I answered it, and I have nothing more to add. Read "Writing R Extension",
+twice or more times as it is dense. It explains a) how to launch a debugger
+(and while most of us use gdb it applies equally to lldb) and then b) realize
+that everything is a SEXP with is opaque.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From serguei.sokol at gmail.com  Thu Dec  6 15:41:03 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Thu, 6 Dec 2018 15:41:03 +0100
+Subject: [Rcpp-devel] Debug Rcpp datatypes with lldb
+In-Reply-To: <23561.13145.996267.788497@rob.eddelbuettel.com>
+References: <bd91b29e4742468fba98ae9bc247e3aa@mpibpc.mpg.de>
+ <23561.13145.996267.788497@rob.eddelbuettel.com>
+Message-ID: <641121ea-c4b5-94b1-492d-89af84037fac@gmail.com>
+
+Le 06/12/2018 ? 15:34, Dirk Eddelbuettel a ?crit?:
+> 
+> On 6 December 2018 at 13:29, Huelsmann, Till wrote:
+> | Hello,
+> |
+> | First of all, I really like Rccp and would like to thank you all for your work.
+> 
+> s/Rccp/Rcpp/
+> 
+> Rccp = Russian for USSR
+Did you mean CCCP? ;)
+
+Serguei.
+
+From edd at debian.org  Thu Dec  6 15:50:53 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 6 Dec 2018 08:50:53 -0600
+Subject: [Rcpp-devel] Debug Rcpp datatypes with lldb
+In-Reply-To: <641121ea-c4b5-94b1-492d-89af84037fac@gmail.com>
+References: <bd91b29e4742468fba98ae9bc247e3aa@mpibpc.mpg.de>
+ <23561.13145.996267.788497@rob.eddelbuettel.com>
+ <641121ea-c4b5-94b1-492d-89af84037fac@gmail.com>
+Message-ID: <23561.14157.844558.16953@rob.eddelbuettel.com>
+
+
+On 6 December 2018 at 15:41, Serguei Sokol wrote:
+| Le 06/12/2018 ? 15:34, Dirk Eddelbuettel a ?crit?:
+| > 
+| > On 6 December 2018 at 13:29, Huelsmann, Till wrote:
+| > | Hello,
+| > |
+| > | First of all, I really like Rccp and would like to thank you all for your work.
+| > 
+| > s/Rccp/Rcpp/
+| > 
+| > Rccp = Russian for USSR
+| Did you mean CCCP? ;)
+
+Yes, oops. Can't even get that right. My bad. But do have vivid memory of
+seeing those jerseys on tv at international sports competitions growing up.
+
+Apologies also to Till: I had replied to someone else on SO in the same week
+about lldb / debugger use, not him.
+
+The hint about the manual 'Writing R Extensions' still holds. No othr magic
+bullet, sadly.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From markleeds2 at gmail.com  Sun Dec  9 09:35:28 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Sun, 9 Dec 2018 03:35:28 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of already
+	existing vector
+Message-ID: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+
+Hi All: I wrote below and it works but I have a strong feeling there's a
+better way to do it. I looked on the net and found some material from back
+in ~2014 about concatenating
+vectors but I didn't see anything final about it. Thanks for any insights.
+
+Also, the documentation for Rcpp is beyond incredible (thanks to dirk,
+romain, kevin and all the other people I'm leaving out )  but is there a
+general methodology for finding equivalents of R functions. For example, if
+I want a cumsum function in Rcpp, how do I know whether to use the stl with
+accumulate or if there's already one built in so
+that I just call cumsum.
+
+Thanks.
+
+#=======================================================
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+  std::vector<double> tmp(x.size() + 1);
+  tmp[0] = firstelem;
+  for (int i = 1; i < (x.size()+1); i++)
+    tmp[i] = x[i-1];
+  return tmp;
+}
+
+/*** R
+
+testvec = c(1,2,3)
+testelem <- 7
+mybar(testvec,testelem)
+
+*/
+
+#===============================
+# OUTPUT FROM RUNNING ABOVE
+#=================================
+> testvec <-  c(1,2,3)
+> testelem <- 7
+> mybar(testvec,testelem)
+[1] 7 1 2 3
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181209/51028745/attachment.html>
+
+From barthriley at comcast.net  Sun Dec  9 10:03:33 2018
+From: barthriley at comcast.net (Barth Riley)
+Date: Sun, 9 Dec 2018 03:03:33 -0600
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ alreadyexisting vector
+In-Reply-To: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+Message-ID: <mailman.12.1544346402.2601.rcpp-devel@lists.r-forge.r-project.org>
+
+Dear Mark
+
+Regarding your second question, the STL has a function called partial_sum() which can be used to compute the cumulative sum. Go to the following URL for details:
+
+http://gallery.rcpp.org/articles/vector-cumulative-sum/
+
+Barth
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181209/f4551119/attachment.html>
+
+From markleeds2 at gmail.com  Sun Dec  9 10:19:48 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Sun, 9 Dec 2018 04:19:48 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ alreadyexisting vector
+In-Reply-To: <5c0cda66.1c69fb81.cfda.9af3SMTPIN_ADDED_MISSING@mx.google.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <5c0cda66.1c69fb81.cfda.9af3SMTPIN_ADDED_MISSING@mx.google.com>
+Message-ID: <CAHz+bWZ_Pp0zm_o3Ff8Xt_s7GRPgh1b-0AV+kw27=dgjSvJ6jw@mail.gmail.com>
+
+Thanks Barh. I'll check that out.
+
+
+On Sun, Dec 9, 2018 at 4:03 AM Barth Riley <barthriley at comcast.net> wrote:
+
+> Dear Mark
+>
+>
+>
+> Regarding your second question, the STL has a function called
+> partial_sum() which can be used to compute the cumulative sum. Go to the
+> following URL for details:
+>
+>
+>
+> http://gallery.rcpp.org/articles/vector-cumulative-sum/
+>
+>
+>
+> Barth
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181209/e84e4223/attachment.html>
+
+From markleeds2 at gmail.com  Sun Dec  9 10:43:29 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Sun, 9 Dec 2018 04:43:29 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ alreadyexisting vector
+In-Reply-To: <5c0cda66.1c69fb81.cfda.9af3SMTPIN_ADDED_MISSING@mx.google.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <5c0cda66.1c69fb81.cfda.9af3SMTPIN_ADDED_MISSING@mx.google.com>
+Message-ID: <CAHz+bWa2nDf9kmP6kZE74P9QnDZsgqok+Ku1+Tri2Yd2qLRmHg@mail.gmail.com>
+
+Hi Barth. That example is perfecto. I went through the list of gallery
+questions with my eye when looking for a cumsum so I must have
+missed that one somehow ( getting old possibly).  Thanks a lot.
+
+
+
+
+On Sun, Dec 9, 2018 at 4:03 AM Barth Riley <barthriley at comcast.net> wrote:
+
+> Dear Mark
+>
+>
+>
+> Regarding your second question, the STL has a function called
+> partial_sum() which can be used to compute the cumulative sum. Go to the
+> following URL for details:
+>
+>
+>
+> http://gallery.rcpp.org/articles/vector-cumulative-sum/
+>
+>
+>
+> Barth
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181209/caeb54cd/attachment.html>
+
+From serguei.sokol at gmail.com  Mon Dec 10 12:10:17 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Mon, 10 Dec 2018 12:10:17 +0100
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+Message-ID: <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+
+Le 09/12/2018 ? 09:35, Mark Leeds a ?crit?:
+> Hi All: I wrote below and it works but I have a strong feeling there's a 
+> better way to do it.
+If performance is an issue, you can save few percents of cpu time by 
+using std::copy() instead of explicit for loop. Yet, for this operation 
+R's c() remains the best bet. It is more then twice faster than both 
+Rcpp versions below:
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+   std::vector<double> tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   for (int i = 1; i < (x.size()+1); i++)
+     tmp[i] = x[i-1];
+   return tmp;
+}
+// [[Rcpp::export]]
+std::vector<double> mybar2(const std::vector<double>& x, double firstelem) {
+   std::vector<double> tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   std::copy(x.begin(), x.end(), tmp.begin()+1);
+   return tmp;
+}
+
+/*** R
+library(microbenchmark)
+n=100000
+testvec = c(1,seq_len(n))
+testelem <- 7
+microbenchmark(c(testelem, testvec), mybar(testvec,testelem), 
+mybar2(testvec,testelem))
+*/
+
+# Ouput
+Unit: microseconds
+                       expr     min       lq      mean   median        uq
+       c(testelem, testvec) 247.098 248.5655  444.8657 257.3300  630.7725
+   mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230 1386.8385
+  mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055 1351.6740
+        max neval
+   7587.977   100
+  22149.605   100
+  11651.831   100
+
+
+Best,
+Serguei.
+
+> I looked on the net and found some material from 
+> back in ~2014 about concatenating
+> vectors but I didn't see anything final about it. Thanks for any insights.
+> 
+> Also, the documentation for Rcpp is beyond incredible (thanks to dirk, 
+> romain, kevin and all the other people I'm leaving out )? but is there a 
+> general methodology for finding equivalents of R functions. For example, 
+> if I want a cumsum function in Rcpp, how do I know whether to use the 
+> stl with accumulate or if there's already one built in so
+> that I just call cumsum.
+> 
+> Thanks.
+> 
+> #=======================================================
+> 
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> 
+> // [[Rcpp::export]]
+> std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+>  ? std::vector<double> tmp(x.size() + 1);
+>  ? tmp[0] = firstelem;
+>  ? for (int i = 1; i < (x.size()+1); i++)
+>  ??? tmp[i] = x[i-1];
+>  ? return tmp;
+> }
+> 
+> /*** R
+> 
+> testvec = c(1,2,3)
+> testelem <- 7
+> mybar(testvec,testelem)
+> 
+> */
+> 
+> #===============================
+> # OUTPUT FROM RUNNING ABOVE
+> #=================================
+>  > testvec <-? c(1,2,3)
+>  > testelem <- 7
+>  > mybar(testvec,testelem)
+> [1] 7 1 2 3
+>  >
+> 
+> 
+> 
+> 
+> 
+> 
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From rhelp at eoos.dds.nl  Mon Dec 10 12:28:05 2018
+From: rhelp at eoos.dds.nl (Jan van der Laan)
+Date: Mon, 10 Dec 2018 12:28:05 +0100
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+Message-ID: <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+
+
+For performance memcpy is probably fastest. This gives the same 
+performance a c().
+
+// [[Rcpp::export]]
+NumericVector mybar3(NumericVector x, double firstelem) {
+   NumericVector result(x.size() + 1);
+   result[0] = firstelem;
+   std::memcpy(result.begin()+1, x.begin(), x.size()*sizeof(double));
+   return result;
+}
+
+
+Or a more general version concatenating vector of arbitrary lengths:
+
+
+// [[Rcpp::export]]
+NumericVector mybar4(NumericVector x, NumericVector y) {
+   NumericVector result(x.size() + y.size());
+   std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+   std::memcpy(result.begin()+x.size(), y.begin(), y.size()*sizeof(double));
+   return result;
+}
+
+
+
+ > n=1E7
+ > testvec = c(1,seq_len(n))
+ > testelem <- 7
+ > microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
++   mybar2(testvec,testelem),
++   mybar3(testvec,testelem),
++   mybar4(testvec,testelem)
++   )
+Unit: milliseconds
+                       expr       min        lq      mean    median   uq 
+       max neval
+       c(testelem, testvec)  36.48577  36.93754  41.10550  43.76742 
+44.20709  46.09741   100
+   mybar(testvec, testelem) 102.54042 103.21756 106.88749 104.32033 
+110.31527 119.55512   100
+  mybar2(testvec, testelem)  95.64696  96.19447 100.24691 102.61380 
+103.58189 109.28290   100
+  mybar3(testvec, testelem)  36.45794  36.87915  40.43486  37.18063 
+43.49643  95.49049   100
+  mybar4(testvec, testelem)  36.51334  37.05409  41.39680  43.20627 
+43.57958  94.95482   100
+
+
+Best,
+Jan
+
+
+
+On 10-12-18 12:10, Serguei Sokol wrote:
+> Le 09/12/2018 ? 09:35, Mark Leeds a ?crit?:
+>> Hi All: I wrote below and it works but I have a strong feeling there's 
+>> a better way to do it.
+> If performance is an issue, you can save few percents of cpu time by 
+> using std::copy() instead of explicit for loop. Yet, for this operation 
+> R's c() remains the best bet. It is more then twice faster than both 
+> Rcpp versions below:
+> 
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> 
+> // [[Rcpp::export]]
+> std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+>  ? std::vector<double> tmp(x.size() + 1);
+>  ? tmp[0] = firstelem;
+>  ? for (int i = 1; i < (x.size()+1); i++)
+>  ??? tmp[i] = x[i-1];
+>  ? return tmp;
+> }
+> // [[Rcpp::export]]
+> std::vector<double> mybar2(const std::vector<double>& x, double 
+> firstelem) {
+>  ? std::vector<double> tmp(x.size() + 1);
+>  ? tmp[0] = firstelem;
+>  ? std::copy(x.begin(), x.end(), tmp.begin()+1);
+>  ? return tmp;
+> }
+> 
+> /*** R
+> library(microbenchmark)
+> n=100000
+> testvec = c(1,seq_len(n))
+> testelem <- 7
+> microbenchmark(c(testelem, testvec), mybar(testvec,testelem), 
+> mybar2(testvec,testelem))
+> */
+> 
+> # Ouput
+> Unit: microseconds
+>  ????????????????????? expr???? min?????? lq????? mean?? median??????? uq
+>  ????? c(testelem, testvec) 247.098 248.5655? 444.8657 257.3300? 630.7725
+>  ? mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230 1386.8385
+>  ?mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055 1351.6740
+>  ?????? max neval
+>  ? 7587.977?? 100
+>  ?22149.605?? 100
+>  ?11651.831?? 100
+> 
+> 
+> Best,
+> Serguei.
+> 
+>> I looked on the net and found some material from back in ~2014 about 
+>> concatenating
+>> vectors but I didn't see anything final about it. Thanks for any 
+>> insights.
+>>
+>> Also, the documentation for Rcpp is beyond incredible (thanks to dirk, 
+>> romain, kevin and all the other people I'm leaving out )? but is there 
+>> a general methodology for finding equivalents of R functions. For 
+>> example, if I want a cumsum function in Rcpp, how do I know whether to 
+>> use the stl with accumulate or if there's already one built in so
+>> that I just call cumsum.
+>>
+>> Thanks.
+>>
+>> #=======================================================
+>>
+>> #include <Rcpp.h>
+>> using namespace Rcpp;
+>>
+>> // [[Rcpp::export]]
+>> std::vector<double> mybar(const std::vector<double>& x, double 
+>> firstelem) {
+>> ?? std::vector<double> tmp(x.size() + 1);
+>> ?? tmp[0] = firstelem;
+>> ?? for (int i = 1; i < (x.size()+1); i++)
+>> ???? tmp[i] = x[i-1];
+>> ?? return tmp;
+>> }
+>>
+>> /*** R
+>>
+>> testvec = c(1,2,3)
+>> testelem <- 7
+>> mybar(testvec,testelem)
+>>
+>> */
+>>
+>> #===============================
+>> # OUTPUT FROM RUNNING ABOVE
+>> #=================================
+>> ?> testvec <-? c(1,2,3)
+>> ?> testelem <- 7
+>> ?> mybar(testvec,testelem)
+>> [1] 7 1 2 3
+>> ?>
+>>
+>>
+>>
+>>
+>>
+>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+> 
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From rhelp at eoos.dds.nl  Mon Dec 10 13:04:44 2018
+From: rhelp at eoos.dds.nl (Jan van der Laan)
+Date: Mon, 10 Dec 2018 13:04:44 +0100
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+Message-ID: <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+
+Small addendum: A large part of the performance gain in my example comes 
+from using NumericVector instead of std::vector<double>. Which avoids a 
+conversion. An example using std::copy with Numeric vector runs in the 
+same time as the version using memcpy.
+
+Jan
+
+
+
+On 10-12-18 12:28, Jan van der Laan wrote:
+> 
+> For performance memcpy is probably fastest. This gives the same 
+> performance a c().
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar3(NumericVector x, double firstelem) {
+>  ? NumericVector result(x.size() + 1);
+>  ? result[0] = firstelem;
+>  ? std::memcpy(result.begin()+1, x.begin(), x.size()*sizeof(double));
+>  ? return result;
+> }
+> 
+> 
+> Or a more general version concatenating vector of arbitrary lengths:
+> 
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar4(NumericVector x, NumericVector y) {
+>  ? NumericVector result(x.size() + y.size());
+>  ? std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>  ? std::memcpy(result.begin()+x.size(), y.begin(), 
+> y.size()*sizeof(double));
+>  ? return result;
+> }
+> 
+> 
+> 
+>  > n=1E7
+>  > testvec = c(1,seq_len(n))
+>  > testelem <- 7
+>  > microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+> +?? mybar2(testvec,testelem),
+> +?? mybar3(testvec,testelem),
+> +?? mybar4(testvec,testelem)
+> +?? )
+> Unit: milliseconds
+>  ????????????????????? expr?????? min??????? lq????? mean??? median?? uq 
+>  ????? max neval
+>  ????? c(testelem, testvec)? 36.48577? 36.93754? 41.10550? 43.76742 
+> 44.20709? 46.09741?? 100
+>  ? mybar(testvec, testelem) 102.54042 103.21756 106.88749 104.32033 
+> 110.31527 119.55512?? 100
+>  ?mybar2(testvec, testelem)? 95.64696? 96.19447 100.24691 102.61380 
+> 103.58189 109.28290?? 100
+>  ?mybar3(testvec, testelem)? 36.45794? 36.87915? 40.43486? 37.18063 
+> 43.49643? 95.49049?? 100
+>  ?mybar4(testvec, testelem)? 36.51334? 37.05409? 41.39680? 43.20627 
+> 43.57958? 94.95482?? 100
+> 
+> 
+> Best,
+> Jan
+> 
+> 
+> 
+> On 10-12-18 12:10, Serguei Sokol wrote:
+>> Le 09/12/2018 ? 09:35, Mark Leeds a ?crit?:
+>>> Hi All: I wrote below and it works but I have a strong feeling 
+>>> there's a better way to do it.
+>> If performance is an issue, you can save few percents of cpu time by 
+>> using std::copy() instead of explicit for loop. Yet, for this 
+>> operation R's c() remains the best bet. It is more then twice faster 
+>> than both Rcpp versions below:
+>>
+>> #include <Rcpp.h>
+>> using namespace Rcpp;
+>>
+>> // [[Rcpp::export]]
+>> std::vector<double> mybar(const std::vector<double>& x, double 
+>> firstelem) {
+>> ?? std::vector<double> tmp(x.size() + 1);
+>> ?? tmp[0] = firstelem;
+>> ?? for (int i = 1; i < (x.size()+1); i++)
+>> ???? tmp[i] = x[i-1];
+>> ?? return tmp;
+>> }
+>> // [[Rcpp::export]]
+>> std::vector<double> mybar2(const std::vector<double>& x, double 
+>> firstelem) {
+>> ?? std::vector<double> tmp(x.size() + 1);
+>> ?? tmp[0] = firstelem;
+>> ?? std::copy(x.begin(), x.end(), tmp.begin()+1);
+>> ?? return tmp;
+>> }
+>>
+>> /*** R
+>> library(microbenchmark)
+>> n=100000
+>> testvec = c(1,seq_len(n))
+>> testelem <- 7
+>> microbenchmark(c(testelem, testvec), mybar(testvec,testelem), 
+>> mybar2(testvec,testelem))
+>> */
+>>
+>> # Ouput
+>> Unit: microseconds
+>> ?????????????????????? expr???? min?????? lq????? mean?? median??????? uq
+>> ?????? c(testelem, testvec) 247.098 248.5655? 444.8657 257.3300? 630.7725
+>> ?? mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230 1386.8385
+>> ??mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055 1351.6740
+>> ??????? max neval
+>> ?? 7587.977?? 100
+>> ??22149.605?? 100
+>> ??11651.831?? 100
+>>
+>>
+>> Best,
+>> Serguei.
+>>
+>>> I looked on the net and found some material from back in ~2014 about 
+>>> concatenating
+>>> vectors but I didn't see anything final about it. Thanks for any 
+>>> insights.
+>>>
+>>> Also, the documentation for Rcpp is beyond incredible (thanks to 
+>>> dirk, romain, kevin and all the other people I'm leaving out )? but 
+>>> is there a general methodology for finding equivalents of R 
+>>> functions. For example, if I want a cumsum function in Rcpp, how do I 
+>>> know whether to use the stl with accumulate or if there's already one 
+>>> built in so
+>>> that I just call cumsum.
+>>>
+>>> Thanks.
+>>>
+>>> #=======================================================
+>>>
+>>> #include <Rcpp.h>
+>>> using namespace Rcpp;
+>>>
+>>> // [[Rcpp::export]]
+>>> std::vector<double> mybar(const std::vector<double>& x, double 
+>>> firstelem) {
+>>> ?? std::vector<double> tmp(x.size() + 1);
+>>> ?? tmp[0] = firstelem;
+>>> ?? for (int i = 1; i < (x.size()+1); i++)
+>>> ???? tmp[i] = x[i-1];
+>>> ?? return tmp;
+>>> }
+>>>
+>>> /*** R
+>>>
+>>> testvec = c(1,2,3)
+>>> testelem <- 7
+>>> mybar(testvec,testelem)
+>>>
+>>> */
+>>>
+>>> #===============================
+>>> # OUTPUT FROM RUNNING ABOVE
+>>> #=================================
+>>> ?> testvec <-? c(1,2,3)
+>>> ?> testelem <- 7
+>>> ?> mybar(testvec,testelem)
+>>> [1] 7 1 2 3
+>>> ?>
+>>>
+>>>
+>>>
+>>>
+>>>
+>>>
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Mon Dec 10 13:15:08 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 10 Dec 2018 06:15:08 -0600
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+Message-ID: <23566.22732.266097.497351@rob.eddelbuettel.com>
+
+
+On 10 December 2018 at 13:04, Jan van der Laan wrote:
+| Small addendum: A large part of the performance gain in my example comes 
+| from using NumericVector instead of std::vector<double>. Which avoids a 
+| conversion. An example using std::copy with Numeric vector runs in the 
+| same time as the version using memcpy.
+
++1
+
+That sounds reasonable and matches my experience: std::memcpy is good yet
+std::copy may itself be implemented with using it.  And ussing care with the
+interface is important: std::vector<> has its own memory allocation scheme so
+we cannot do without a copy which we notice here in the timings.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From serguei.sokol at gmail.com  Mon Dec 10 14:42:19 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Mon, 10 Dec 2018 14:42:19 +0100
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+Message-ID: <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+
+Le 10/12/2018 ? 13:04, Jan van der Laan a ?crit?:
+> Small addendum: A large part of the performance gain in my example comes 
+> from using NumericVector instead of std::vector<double>. Which avoids a 
+> conversion. An example using std::copy with Numeric vector runs in the 
+> same time as the version using memcpy.
+
+Yep.
+Few more percents of mean cpu time can be saved by using "const &" trick :
+
+// [[Rcpp::export]]
+NumericVector mybar5(const NumericVector &x, const NumericVector &y) {
+    NumericVector result(x.size() + y.size());
+    std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+    std::memcpy(result.begin()+x.size(), y.begin(), 
+y.size()*sizeof(double));
+    return result;
+}
+
+# output
+Unit: microseconds
+                       expr     min       lq     mean   median       uq 
+     max
+       c(testelem, testvec) 258.343 338.3110 418.0047 343.4450 378.7850 
+3077.347
+   mybar(testvec, testelem) 352.699 366.8770 498.3948 374.6635 450.4420 
+3046.408
+  mybar2(testvec, testelem) 334.820 348.3685 425.0098 354.7240 366.5270 
+3024.128
+  mybar3(testvec, testelem) 233.689 244.8640 315.7256 247.5180 255.0955 
+2945.068
+  mybar4(testvec, testelem) 232.083 241.9655 340.0751 245.0035 252.8260 
+2934.312
+  mybar5(testvec, testelem) 150.787 242.7685 285.4264 245.9465 254.1880 
+2049.493
+
+Serguei.
+
+> 
+> Jan
+> 
+> 
+> 
+> On 10-12-18 12:28, Jan van der Laan wrote:
+>>
+>> For performance memcpy is probably fastest. This gives the same 
+>> performance a c().
+>>
+>> // [[Rcpp::export]]
+>> NumericVector mybar3(NumericVector x, double firstelem) {
+>> ?? NumericVector result(x.size() + 1);
+>> ?? result[0] = firstelem;
+>> ?? std::memcpy(result.begin()+1, x.begin(), x.size()*sizeof(double));
+>> ?? return result;
+>> }
+>>
+>>
+>> Or a more general version concatenating vector of arbitrary lengths:
+>>
+>>
+>> // [[Rcpp::export]]
+>> NumericVector mybar4(NumericVector x, NumericVector y) {
+>> ?? NumericVector result(x.size() + y.size());
+>> ?? std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>> ?? std::memcpy(result.begin()+x.size(), y.begin(), 
+>> y.size()*sizeof(double));
+>> ?? return result;
+>> }
+>>
+>>
+>>
+>> ?> n=1E7
+>> ?> testvec = c(1,seq_len(n))
+>> ?> testelem <- 7
+>> ?> microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+>> +?? mybar2(testvec,testelem),
+>> +?? mybar3(testvec,testelem),
+>> +?? mybar4(testvec,testelem)
+>> +?? )
+>> Unit: milliseconds
+>> ?????????????????????? expr?????? min??????? lq????? mean??? median   
+>> uq ?????? max neval
+>> ?????? c(testelem, testvec)? 36.48577? 36.93754? 41.10550? 43.76742 
+>> 44.20709? 46.09741?? 100
+>> ?? mybar(testvec, testelem) 102.54042 103.21756 106.88749 104.32033 
+>> 110.31527 119.55512?? 100
+>> ??mybar2(testvec, testelem)? 95.64696? 96.19447 100.24691 102.61380 
+>> 103.58189 109.28290?? 100
+>> ??mybar3(testvec, testelem)? 36.45794? 36.87915? 40.43486? 37.18063 
+>> 43.49643? 95.49049?? 100
+>> ??mybar4(testvec, testelem)? 36.51334? 37.05409? 41.39680? 43.20627 
+>> 43.57958? 94.95482?? 100
+>>
+>>
+>> Best,
+>> Jan
+>>
+>>
+>>
+>> On 10-12-18 12:10, Serguei Sokol wrote:
+>>> Le 09/12/2018 ? 09:35, Mark Leeds a ?crit?:
+>>>> Hi All: I wrote below and it works but I have a strong feeling 
+>>>> there's a better way to do it.
+>>> If performance is an issue, you can save few percents of cpu time by 
+>>> using std::copy() instead of explicit for loop. Yet, for this 
+>>> operation R's c() remains the best bet. It is more then twice faster 
+>>> than both Rcpp versions below:
+>>>
+>>> #include <Rcpp.h>
+>>> using namespace Rcpp;
+>>>
+>>> // [[Rcpp::export]]
+>>> std::vector<double> mybar(const std::vector<double>& x, double 
+>>> firstelem) {
+>>> ?? std::vector<double> tmp(x.size() + 1);
+>>> ?? tmp[0] = firstelem;
+>>> ?? for (int i = 1; i < (x.size()+1); i++)
+>>> ???? tmp[i] = x[i-1];
+>>> ?? return tmp;
+>>> }
+>>> // [[Rcpp::export]]
+>>> std::vector<double> mybar2(const std::vector<double>& x, double 
+>>> firstelem) {
+>>> ?? std::vector<double> tmp(x.size() + 1);
+>>> ?? tmp[0] = firstelem;
+>>> ?? std::copy(x.begin(), x.end(), tmp.begin()+1);
+>>> ?? return tmp;
+>>> }
+>>>
+>>> /*** R
+>>> library(microbenchmark)
+>>> n=100000
+>>> testvec = c(1,seq_len(n))
+>>> testelem <- 7
+>>> microbenchmark(c(testelem, testvec), mybar(testvec,testelem), 
+>>> mybar2(testvec,testelem))
+>>> */
+>>>
+>>> # Ouput
+>>> Unit: microseconds
+>>> ?????????????????????? expr???? min?????? lq????? mean   
+>>> median??????? uq
+>>> ?????? c(testelem, testvec) 247.098 248.5655? 444.8657 257.3300  
+>>> 630.7725
+>>> ?? mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230 
+>>> 1386.8385
+>>> ??mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055 
+>>> 1351.6740
+>>> ??????? max neval
+>>> ?? 7587.977?? 100
+>>> ??22149.605?? 100
+>>> ??11651.831?? 100
+>>>
+>>>
+>>> Best,
+>>> Serguei.
+>>>
+>>>> I looked on the net and found some material from back in ~2014 about 
+>>>> concatenating
+>>>> vectors but I didn't see anything final about it. Thanks for any 
+>>>> insights.
+>>>>
+>>>> Also, the documentation for Rcpp is beyond incredible (thanks to 
+>>>> dirk, romain, kevin and all the other people I'm leaving out )? but 
+>>>> is there a general methodology for finding equivalents of R 
+>>>> functions. For example, if I want a cumsum function in Rcpp, how do 
+>>>> I know whether to use the stl with accumulate or if there's already 
+>>>> one built in so
+>>>> that I just call cumsum.
+>>>>
+>>>> Thanks.
+>>>>
+>>>> #=======================================================
+>>>>
+>>>> #include <Rcpp.h>
+>>>> using namespace Rcpp;
+>>>>
+>>>> // [[Rcpp::export]]
+>>>> std::vector<double> mybar(const std::vector<double>& x, double 
+>>>> firstelem) {
+>>>> ?? std::vector<double> tmp(x.size() + 1);
+>>>> ?? tmp[0] = firstelem;
+>>>> ?? for (int i = 1; i < (x.size()+1); i++)
+>>>> ???? tmp[i] = x[i-1];
+>>>> ?? return tmp;
+>>>> }
+>>>>
+>>>> /*** R
+>>>>
+>>>> testvec = c(1,2,3)
+>>>> testelem <- 7
+>>>> mybar(testvec,testelem)
+>>>>
+>>>> */
+>>>>
+>>>> #===============================
+>>>> # OUTPUT FROM RUNNING ABOVE
+>>>> #=================================
+>>>> ?> testvec <-? c(1,2,3)
+>>>> ?> testelem <- 7
+>>>> ?> mybar(testvec,testelem)
+>>>> [1] 7 1 2 3
+>>>> ?>
+>>>>
+>>>>
+>>>>
+>>>>
+>>>>
+>>>>
+>>>>
+>>>> _______________________________________________
+>>>> Rcpp-devel mailing list
+>>>> Rcpp-devel at lists.r-forge.r-project.org
+>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>>
+>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From markleeds2 at gmail.com  Mon Dec 10 16:48:59 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Mon, 10 Dec 2018 10:48:59 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+ <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+Message-ID: <CAHz+bWbiejCYnjzG5GPfHwrLqi9X3X0+=6Kvu+PhXQsZGdbO9A@mail.gmail.com>
+
+Thanks to all for all the great repliies. I have to go through them but it
+sounds like memcopy
+is the best so I'll probably ending use that.  Amazing to be part of this
+list and receive all of
+this wisdom.
+
+Oh, as I said, the documentation on Rcpp is incredible but is there
+anything discussing memory because
+I'm pretty lost on that. Thanks again.
+
+
+
+
+
+
+
+
+
+
+
+On Mon, Dec 10, 2018 at 8:42 AM Serguei Sokol <serguei.sokol at gmail.com>
+wrote:
+
+> Le 10/12/2018 ? 13:04, Jan van der Laan a ?crit :
+> > Small addendum: A large part of the performance gain in my example comes
+> > from using NumericVector instead of std::vector<double>. Which avoids a
+> > conversion. An example using std::copy with Numeric vector runs in the
+> > same time as the version using memcpy.
+>
+> Yep.
+> Few more percents of mean cpu time can be saved by using "const &" trick :
+>
+> // [[Rcpp::export]]
+> NumericVector mybar5(const NumericVector &x, const NumericVector &y) {
+>     NumericVector result(x.size() + y.size());
+>     std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>     std::memcpy(result.begin()+x.size(), y.begin(),
+> y.size()*sizeof(double));
+>     return result;
+> }
+>
+> # output
+> Unit: microseconds
+>                        expr     min       lq     mean   median       uq
+>      max
+>        c(testelem, testvec) 258.343 338.3110 418.0047 343.4450 378.7850
+> 3077.347
+>    mybar(testvec, testelem) 352.699 366.8770 498.3948 374.6635 450.4420
+> 3046.408
+>   mybar2(testvec, testelem) 334.820 348.3685 425.0098 354.7240 366.5270
+> 3024.128
+>   mybar3(testvec, testelem) 233.689 244.8640 315.7256 247.5180 255.0955
+> 2945.068
+>   mybar4(testvec, testelem) 232.083 241.9655 340.0751 245.0035 252.8260
+> 2934.312
+>   mybar5(testvec, testelem) 150.787 242.7685 285.4264 245.9465 254.1880
+> 2049.493
+>
+> Serguei.
+>
+> >
+> > Jan
+> >
+> >
+> >
+> > On 10-12-18 12:28, Jan van der Laan wrote:
+> >>
+> >> For performance memcpy is probably fastest. This gives the same
+> >> performance a c().
+> >>
+> >> // [[Rcpp::export]]
+> >> NumericVector mybar3(NumericVector x, double firstelem) {
+> >>    NumericVector result(x.size() + 1);
+> >>    result[0] = firstelem;
+> >>    std::memcpy(result.begin()+1, x.begin(), x.size()*sizeof(double));
+> >>    return result;
+> >> }
+> >>
+> >>
+> >> Or a more general version concatenating vector of arbitrary lengths:
+> >>
+> >>
+> >> // [[Rcpp::export]]
+> >> NumericVector mybar4(NumericVector x, NumericVector y) {
+> >>    NumericVector result(x.size() + y.size());
+> >>    std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+> >>    std::memcpy(result.begin()+x.size(), y.begin(),
+> >> y.size()*sizeof(double));
+> >>    return result;
+> >> }
+> >>
+> >>
+> >>
+> >>  > n=1E7
+> >>  > testvec = c(1,seq_len(n))
+> >>  > testelem <- 7
+> >>  > microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+> >> +   mybar2(testvec,testelem),
+> >> +   mybar3(testvec,testelem),
+> >> +   mybar4(testvec,testelem)
+> >> +   )
+> >> Unit: milliseconds
+> >>                        expr       min        lq      mean    median
+> >> uq        max neval
+> >>        c(testelem, testvec)  36.48577  36.93754  41.10550  43.76742
+> >> 44.20709  46.09741   100
+> >>    mybar(testvec, testelem) 102.54042 103.21756 106.88749 104.32033
+> >> 110.31527 119.55512   100
+> >>   mybar2(testvec, testelem)  95.64696  96.19447 100.24691 102.61380
+> >> 103.58189 109.28290   100
+> >>   mybar3(testvec, testelem)  36.45794  36.87915  40.43486  37.18063
+> >> 43.49643  95.49049   100
+> >>   mybar4(testvec, testelem)  36.51334  37.05409  41.39680  43.20627
+> >> 43.57958  94.95482   100
+> >>
+> >>
+> >> Best,
+> >> Jan
+> >>
+> >>
+> >>
+> >> On 10-12-18 12:10, Serguei Sokol wrote:
+> >>> Le 09/12/2018 ? 09:35, Mark Leeds a ?crit :
+> >>>> Hi All: I wrote below and it works but I have a strong feeling
+> >>>> there's a better way to do it.
+> >>> If performance is an issue, you can save few percents of cpu time by
+> >>> using std::copy() instead of explicit for loop. Yet, for this
+> >>> operation R's c() remains the best bet. It is more then twice faster
+> >>> than both Rcpp versions below:
+> >>>
+> >>> #include <Rcpp.h>
+> >>> using namespace Rcpp;
+> >>>
+> >>> // [[Rcpp::export]]
+> >>> std::vector<double> mybar(const std::vector<double>& x, double
+> >>> firstelem) {
+> >>>    std::vector<double> tmp(x.size() + 1);
+> >>>    tmp[0] = firstelem;
+> >>>    for (int i = 1; i < (x.size()+1); i++)
+> >>>      tmp[i] = x[i-1];
+> >>>    return tmp;
+> >>> }
+> >>> // [[Rcpp::export]]
+> >>> std::vector<double> mybar2(const std::vector<double>& x, double
+> >>> firstelem) {
+> >>>    std::vector<double> tmp(x.size() + 1);
+> >>>    tmp[0] = firstelem;
+> >>>    std::copy(x.begin(), x.end(), tmp.begin()+1);
+> >>>    return tmp;
+> >>> }
+> >>>
+> >>> /*** R
+> >>> library(microbenchmark)
+> >>> n=100000
+> >>> testvec = c(1,seq_len(n))
+> >>> testelem <- 7
+> >>> microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+> >>> mybar2(testvec,testelem))
+> >>> */
+> >>>
+> >>> # Ouput
+> >>> Unit: microseconds
+> >>>                        expr     min       lq      mean
+> >>> median        uq
+> >>>        c(testelem, testvec) 247.098 248.5655  444.8657 257.3300
+> >>> 630.7725
+> >>>    mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230
+> >>> 1386.8385
+> >>>   mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055
+> >>> 1351.6740
+> >>>         max neval
+> >>>    7587.977   100
+> >>>   22149.605   100
+> >>>   11651.831   100
+> >>>
+> >>>
+> >>> Best,
+> >>> Serguei.
+> >>>
+> >>>> I looked on the net and found some material from back in ~2014 about
+> >>>> concatenating
+> >>>> vectors but I didn't see anything final about it. Thanks for any
+> >>>> insights.
+> >>>>
+> >>>> Also, the documentation for Rcpp is beyond incredible (thanks to
+> >>>> dirk, romain, kevin and all the other people I'm leaving out )  but
+> >>>> is there a general methodology for finding equivalents of R
+> >>>> functions. For example, if I want a cumsum function in Rcpp, how do
+> >>>> I know whether to use the stl with accumulate or if there's already
+> >>>> one built in so
+> >>>> that I just call cumsum.
+> >>>>
+> >>>> Thanks.
+> >>>>
+> >>>> #=======================================================
+> >>>>
+> >>>> #include <Rcpp.h>
+> >>>> using namespace Rcpp;
+> >>>>
+> >>>> // [[Rcpp::export]]
+> >>>> std::vector<double> mybar(const std::vector<double>& x, double
+> >>>> firstelem) {
+> >>>>    std::vector<double> tmp(x.size() + 1);
+> >>>>    tmp[0] = firstelem;
+> >>>>    for (int i = 1; i < (x.size()+1); i++)
+> >>>>      tmp[i] = x[i-1];
+> >>>>    return tmp;
+> >>>> }
+> >>>>
+> >>>> /*** R
+> >>>>
+> >>>> testvec = c(1,2,3)
+> >>>> testelem <- 7
+> >>>> mybar(testvec,testelem)
+> >>>>
+> >>>> */
+> >>>>
+> >>>> #===============================
+> >>>> # OUTPUT FROM RUNNING ABOVE
+> >>>> #=================================
+> >>>>  > testvec <-  c(1,2,3)
+> >>>>  > testelem <- 7
+> >>>>  > mybar(testvec,testelem)
+> >>>> [1] 7 1 2 3
+> >>>>  >
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>> _______________________________________________
+> >>>> Rcpp-devel mailing list
+> >>>> Rcpp-devel at lists.r-forge.r-project.org
+> >>>>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >>>>
+> >>>
+> >>> _______________________________________________
+> >>> Rcpp-devel mailing list
+> >>> Rcpp-devel at lists.r-forge.r-project.org
+> >>>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >> _______________________________________________
+> >> Rcpp-devel mailing list
+> >> Rcpp-devel at lists.r-forge.r-project.org
+> >> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181210/03a3d89b/attachment.html>
+
+From serguei.sokol at gmail.com  Mon Dec 10 17:01:40 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Mon, 10 Dec 2018 17:01:40 +0100
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <CAHz+bWbiejCYnjzG5GPfHwrLqi9X3X0+=6Kvu+PhXQsZGdbO9A@mail.gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+ <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+ <CAHz+bWbiejCYnjzG5GPfHwrLqi9X3X0+=6Kvu+PhXQsZGdbO9A@mail.gmail.com>
+Message-ID: <0712d1f7-4e7b-f7af-f6f5-6b0e317bf194@gmail.com>
+
+Le 10/12/2018 ? 16:48, Mark Leeds a ?crit?:
+...
+> Oh, as I said, the documentation on Rcpp is incredible but is there 
+> anything discussing memory because
+> I'm pretty lost on that. Thanks again.
+Are you talking about this list archives?
+http://lists.r-forge.r-project.org/pipermail/rcpp-devel/
+
+Serguei.
+
+From w.vollprecht at gmail.com  Mon Dec 10 17:13:43 2018
+From: w.vollprecht at gmail.com (Wolf Vollprecht)
+Date: Mon, 10 Dec 2018 17:13:43 +0100
+Subject: [Rcpp-devel] Create scalar values in Rcpp
+Message-ID: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+
+Hi,
+
+What's the canonical way of creating a scalar SEXP in Rcpp? E.g. I would
+like to store a single numeric / integer / complex ... value. I can create
+an array with 1 element, but I couldn't find a way to do it for a scalar
+(and I figured out later that a scalar is *not* the same as a 1element
+array even though they print the same).
+
+Any pointers?
+
+Thanks,
+
+Wolf
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181210/47e05f37/attachment-0001.html>
+
+From avraham.adler at gmail.com  Mon Dec 10 17:24:03 2018
+From: avraham.adler at gmail.com (Avraham Adler)
+Date: Mon, 10 Dec 2018 11:24:03 -0500
+Subject: [Rcpp-devel] Create scalar values in Rcpp
+In-Reply-To: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+References: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+Message-ID: <CAL6gwn+pFvBb0GWdp_v04WcaP-dwUZf-dEx_oTrvXbYMRH1EEQ@mail.gmail.com>
+
+There are no scalars in R; there are vectors of length 1.
+
+https://stat.ethz.ch/pipermail/r-help/2003-April/032010.html
+
+Avi
+
+On Mon, Dec 10, 2018 at 11:14 AM Wolf Vollprecht <w.vollprecht at gmail.com>
+wrote:
+
+> Hi,
+>
+> What's the canonical way of creating a scalar SEXP in Rcpp? E.g. I would
+> like to store a single numeric / integer / complex ... value. I can create
+> an array with 1 element, but I couldn't find a way to do it for a scalar
+> (and I figured out later that a scalar is *not* the same as a 1element
+> array even though they print the same).
+>
+> Any pointers?
+>
+> Thanks,
+>
+> Wolf
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+Sent from Gmail Mobile
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181210/6d672507/attachment.html>
+
+From jdnewmil at dcn.davis.ca.us  Mon Dec 10 17:29:52 2018
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Mon, 10 Dec 2018 08:29:52 -0800
+Subject: [Rcpp-devel] trying to insert a number as first element of
+	already existing vector
+In-Reply-To: <0712d1f7-4e7b-f7af-f6f5-6b0e317bf194@gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+ <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+ <CAHz+bWbiejCYnjzG5GPfHwrLqi9X3X0+=6Kvu+PhXQsZGdbO9A@mail.gmail.com>
+ <0712d1f7-4e7b-f7af-f6f5-6b0e317bf194@gmail.com>
+Message-ID: <DFBDFF3C-4DF1-43E3-AD9A-1C18EFD9FC8E@dcn.davis.ca.us>
+
+The archives probably weren't what Mark was hoping for, though they are good medicine. Reading the R documentation [1] is probably also good medicine that Mark is hoping (in vain) to avoid. And then there is the topic of conventional C++ memory handling, which is relevant but for which there are easily hundreds of tutorials unrelated to Rcpp. Syntactic sugar like Rcpp makes coding safer and reduces boilerplate code, but if you want performance then there really is no substitute for understanding what that sugar does for you.
+
+[1] https://cran.r-project.org/doc/manuals/r-release/R-ints.html
+
+https://stackoverflow.com/questions/41602024/should-i-prefer-rcppnumericvector-over-stdvector
+
+On December 10, 2018 8:01:40 AM PST, Serguei Sokol <serguei.sokol at gmail.com> wrote:
+>Le 10/12/2018 ? 16:48, Mark Leeds a ?crit?:
+>...
+>> Oh, as I said, the documentation on Rcpp is incredible but is there 
+>> anything discussing memory because
+>> I'm pretty lost on that. Thanks again.
+>Are you talking about this list archives?
+>http://lists.r-forge.r-project.org/pipermail/rcpp-devel/
+>
+>Serguei.
+>_______________________________________________
+>Rcpp-devel mailing list
+>Rcpp-devel at lists.r-forge.r-project.org
+>https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From edd at debian.org  Mon Dec 10 17:33:53 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 10 Dec 2018 10:33:53 -0600
+Subject: [Rcpp-devel] Create scalar values in Rcpp
+In-Reply-To: <CAL6gwn+pFvBb0GWdp_v04WcaP-dwUZf-dEx_oTrvXbYMRH1EEQ@mail.gmail.com>
+References: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+ <CAL6gwn+pFvBb0GWdp_v04WcaP-dwUZf-dEx_oTrvXbYMRH1EEQ@mail.gmail.com>
+Message-ID: <23566.38257.155475.64454@rob.eddelbuettel.com>
+
+
+On 10 December 2018 at 11:24, Avraham Adler wrote:
+| There are no scalars in R; there are vectors of length 1.
+
+Yep. An R feature, and gotcha if you come from somwhere else. See
+
+  R> a <- 1
+  R> is.vector(a)
+  [1] TRUE
+  R>
+
+And while we can do this
+
+  R> Rcpp::cppFunction("double wolf(double x) { return x+x; }")
+  R> wolf(21.0)
+  [1] 42
+  R> 
+
+it involves a combination of casts and our template magic so make it SEXPs
+which, as representations of R types, are always vectors.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jdnewmil at dcn.davis.ca.us  Mon Dec 10 17:43:48 2018
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Mon, 10 Dec 2018 08:43:48 -0800
+Subject: [Rcpp-devel] Create scalar values in Rcpp
+In-Reply-To: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+References: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+Message-ID: <9B5891FD-6FC8-4662-BD19-D16A31975529@dcn.davis.ca.us>
+
+Your use of the term "array" in this context suggests you still don't have a firm grasp of R data types. R arrays are vectors with dim attributes. What you want is to create an R vector with 1 element, as shown in the quick reference. [1]
+
+[1] http://dirk.eddelbuettel.com/code/rcpp/Rcpp-quickref.pdf
+
+On December 10, 2018 8:13:43 AM PST, Wolf Vollprecht <w.vollprecht at gmail.com> wrote:
+>Hi,
+>
+>What's the canonical way of creating a scalar SEXP in Rcpp? E.g. I
+>would
+>like to store a single numeric / integer / complex ... value. I can
+>create
+>an array with 1 element, but I couldn't find a way to do it for a
+>scalar
+>(and I figured out later that a scalar is *not* the same as a 1element
+>array even though they print the same).
+>
+>Any pointers?
+>
+>Thanks,
+>
+>Wolf
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From edd at debian.org  Mon Dec 10 18:06:20 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 10 Dec 2018 11:06:20 -0600
+Subject: [Rcpp-devel] Create scalar values in Rcpp
+In-Reply-To: <9B5891FD-6FC8-4662-BD19-D16A31975529@dcn.davis.ca.us>
+References: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+ <9B5891FD-6FC8-4662-BD19-D16A31975529@dcn.davis.ca.us>
+Message-ID: <23566.40204.428202.790040@rob.eddelbuettel.com>
+
+
+Jeff,
+
+On 10 December 2018 at 08:43, Jeff Newmiller wrote:
+| Your use of the term "array" in this context suggests you still don't have a firm grasp of R data types. R arrays are vectors with dim attributes. What you want is to create an R vector with 1 element, as shown in the quick reference. [1]
+
+No need to shoot the messenger. I happen to know Wolf comes from C++ and
+Pythonland where array is well defined term.
+
+But yes, over here some things are different.  But not everybody has spent
+10+ (or 20+) years in R and S land as you and I.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From markleeds2 at gmail.com  Mon Dec 10 18:51:40 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Mon, 10 Dec 2018 12:51:40 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <0712d1f7-4e7b-f7af-f6f5-6b0e317bf194@gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+ <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+ <CAHz+bWbiejCYnjzG5GPfHwrLqi9X3X0+=6Kvu+PhXQsZGdbO9A@mail.gmail.com>
+ <0712d1f7-4e7b-f7af-f6f5-6b0e317bf194@gmail.com>
+Message-ID: <CAHz+bWYR-g-JfxHQadZAT6zO=6V4ixmdmefsHp5Y6s94FBLqdw@mail.gmail.com>
+
+Hi Serguei: Thanks for the link but I was talking about how one would
+understand that
+my original Rcpp code was about as memory inefficient as one could possibly
+get.  I
+knew it was ugly but not inefficient.
+
+If there are specific threads that discuss the topic, those are fine also.
+
+
+Mark
+
+On Mon, Dec 10, 2018 at 11:01 AM Serguei Sokol <serguei.sokol at gmail.com>
+wrote:
+
+> Le 10/12/2018 ? 16:48, Mark Leeds a ?crit :
+> ...
+> > Oh, as I said, the documentation on Rcpp is incredible but is there
+> > anything discussing memory because
+> > I'm pretty lost on that. Thanks again.
+> Are you talking about this list archives?
+> http://lists.r-forge.r-project.org/pipermail/rcpp-devel/
+>
+> Serguei.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181210/67d5f821/attachment.html>
+
+From markleeds2 at gmail.com  Mon Dec 10 18:56:17 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Mon, 10 Dec 2018 12:56:17 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <DFBDFF3C-4DF1-43E3-AD9A-1C18EFD9FC8E@dcn.davis.ca.us>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+ <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+ <CAHz+bWbiejCYnjzG5GPfHwrLqi9X3X0+=6Kvu+PhXQsZGdbO9A@mail.gmail.com>
+ <0712d1f7-4e7b-f7af-f6f5-6b0e317bf194@gmail.com>
+ <DFBDFF3C-4DF1-43E3-AD9A-1C18EFD9FC8E@dcn.davis.ca.us>
+Message-ID: <CAHz+bWaFTqEfMC7rziCa=SBStea27o0QYjyhsoBOZb0_B3LpjA@mail.gmail.com>
+
+Thanks Jeff. I'll check those out.  I recently found a gist of Gabor that
+explains the relation
+between Rcpp and the concept of pointers in C.
+
+https://gist.github.com/ggrothendieck
+
+On Mon, Dec 10, 2018 at 11:29 AM Jeff Newmiller <jdnewmil at dcn.davis.ca.us>
+wrote:
+
+> The archives probably weren't what Mark was hoping for, though they are
+> good medicine. Reading the R documentation [1] is probably also good
+> medicine that Mark is hoping (in vain) to avoid. And then there is the
+> topic of conventional C++ memory handling, which is relevant but for which
+> there are easily hundreds of tutorials unrelated to Rcpp. Syntactic sugar
+> like Rcpp makes coding safer and reduces boilerplate code, but if you want
+> performance then there really is no substitute for understanding what that
+> sugar does for you.
+>
+> [1] https://cran.r-project.org/doc/manuals/r-release/R-ints.html
+>
+>
+> https://stackoverflow.com/questions/41602024/should-i-prefer-rcppnumericvector-over-stdvector
+>
+> On December 10, 2018 8:01:40 AM PST, Serguei Sokol <
+> serguei.sokol at gmail.com> wrote:
+> >Le 10/12/2018 ? 16:48, Mark Leeds a ?crit :
+> >...
+> >> Oh, as I said, the documentation on Rcpp is incredible but is there
+> >> anything discussing memory because
+> >> I'm pretty lost on that. Thanks again.
+> >Are you talking about this list archives?
+> >http://lists.r-forge.r-project.org/pipermail/rcpp-devel/
+> >
+> >Serguei.
+> >_______________________________________________
+> >Rcpp-devel mailing list
+> >Rcpp-devel at lists.r-forge.r-project.org
+> >https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> Sent from my phone. Please excuse my brevity.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181210/ac7a0749/attachment-0001.html>
+
+From jdnewmil at dcn.davis.ca.us  Mon Dec 10 18:56:54 2018
+From: jdnewmil at dcn.davis.ca.us (Jeff Newmiller)
+Date: Mon, 10 Dec 2018 09:56:54 -0800
+Subject: [Rcpp-devel] Create scalar values in Rcpp
+In-Reply-To: <23566.40204.428202.790040@rob.eddelbuettel.com>
+References: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+ <9B5891FD-6FC8-4662-BD19-D16A31975529@dcn.davis.ca.us>
+ <23566.40204.428202.790040@rob.eddelbuettel.com>
+Message-ID: <299ACB22-B78B-43DB-B73C-A9B9DEAE4410@dcn.davis.ca.us>
+
+I did not intend to shoot anyone... but my own learning curve led me to skip over the clear descriptions in the "Introduction to R" document because I thought I already understood the terminology. True, it happened a long time ago, but it took me an embarrassingly long time to grok this because the terminology seemed so familiar, and I searched on the wrong terms because of it.
+
+On December 10, 2018 9:06:20 AM PST, Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>Jeff,
+>
+>On 10 December 2018 at 08:43, Jeff Newmiller wrote:
+>| Your use of the term "array" in this context suggests you still don't
+>have a firm grasp of R data types. R arrays are vectors with dim
+>attributes. What you want is to create an R vector with 1 element, as
+>shown in the quick reference. [1]
+>
+>No need to shoot the messenger. I happen to know Wolf comes from C++
+>and
+>Pythonland where array is well defined term.
+>
+>But yes, over here some things are different.  But not everybody has
+>spent
+>10+ (or 20+) years in R and S land as you and I.
+>
+>Dirk
+
+-- 
+Sent from my phone. Please excuse my brevity.
+
+From markleeds2 at gmail.com  Wed Dec 12 01:55:27 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Tue, 11 Dec 2018 19:55:27 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+Message-ID: <CAHz+bWYgwzHtkEZbbX6G8CcGwGyQisrJAjzGM4xwkrKAhgS6Yg@mail.gmail.com>
+
+Serguei: Since you were kind enough to time things in my previous question,
+I just wanted to follow up with something
+I found interesting. I take your code below and only change it in that use
+a NumericVector instead of an std::double<vector>
+and call it mybar3. Somewhat surprisingly, the timing improved
+considerably, even beating c() in R. I only recently learned that
+NumericVector could use begin() and end() statements so I'm not the person
+to understand why except that, from another thread,
+I learned that, to convert to std:: double, deep copies need to be made.
+So, maybe that's why ? I'm going to look at Jan's
+solution next and, if I find anything interesting there, will send it.
+
+#===================================================================================================
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+   std::vector<double> tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   for (int i = 1; i < (x.size()+1); i++)
+     tmp[i] = x[i-1];
+   return tmp;
+}
+// [[Rcpp::export]]
+std::vector<double> mybar2(const std::vector<double>& x, double firstelem) {
+   std::vector<double> tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   std::copy(x.begin(), x.end(), tmp.begin()+1);
+   return tmp;
+}
+
+// [[Rcpp::export]]
+NumericVector mybar3(NumericVector x, double firstelem) {
+   NumericVector tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   std::copy(x.begin(), x.end(), tmp.begin()+1);
+   return tmp;
+}
+
+/*** R
+
+library(microbenchmark)
+n=10000
+testvec = c(1,seq_len(n))
+testelem <- 7
+
+temp2 <- mybar2(testvec, testelem)
+
+microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+mybar2(testvec, testelem), mybar3(testvec, testelem))
+
+*/
+
+  microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+mybar2(testvec, testelem), mybar3(testvec, testelem))
+Unit: microseconds
+                      expr    min      lq     mean  median      uq     max
+neval
+      c(testelem, testvec) 14.780 30.9765 33.42152 32.5605 33.8890
+74.750   100
+  mybar(testvec, testelem) 32.570 35.6150 47.95297 37.9895 42.5220
+705.267   100
+ mybar2(testvec, testelem) 28.520 31.7695 45.36286 33.8250 37.7335
+813.504   100
+ mybar3(testvec, testelem)  9.449 25.0345 33.21592 26.2625 27.4070
+635.800   100
+
+
+On Mon, Dec 10, 2018 at 6:10 AM Serguei Sokol <serguei.sokol at gmail.com>
+wrote:
+
+> Le 09/12/2018 ? 09:35, Mark Leeds a ?crit :
+> > Hi All: I wrote below and it works but I have a strong feeling there's a
+> > better way to do it.
+> If performance is an issue, you can save few percents of cpu time by
+> using std::copy() instead of explicit for loop. Yet, for this operation
+> R's c() remains the best bet. It is more then twice faster than both
+> Rcpp versions below:
+>
+> #include <Rcpp.h>
+> using namespace Rcpp;
+>
+> // [[Rcpp::export]]
+> std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+>    std::vector<double> tmp(x.size() + 1);
+>    tmp[0] = firstelem;
+>    for (int i = 1; i < (x.size()+1); i++)
+>      tmp[i] = x[i-1];
+>    return tmp;
+> }
+> // [[Rcpp::export]]
+> std::vector<double> mybar2(const std::vector<double>& x, double firstelem)
+> {
+>    std::vector<double> tmp(x.size() + 1);
+>    tmp[0] = firstelem;
+>    std::copy(x.begin(), x.end(), tmp.begin()+1);
+>    return tmp;
+> }
+>
+> /*** R
+> library(microbenchmark)
+> n=100000
+> testvec = c(1,seq_len(n))
+> testelem <- 7
+> microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+> mybar2(testvec,testelem))
+> */
+>
+> # Ouput
+> Unit: microseconds
+>                        expr     min       lq      mean   median        uq
+>        c(testelem, testvec) 247.098 248.5655  444.8657 257.3300  630.7725
+>    mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230 1386.8385
+>   mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055 1351.6740
+>         max neval
+>    7587.977   100
+>   22149.605   100
+>   11651.831   100
+>
+>
+> Best,
+> Serguei.
+>
+> > I looked on the net and found some material from
+> > back in ~2014 about concatenating
+> > vectors but I didn't see anything final about it. Thanks for any
+> insights.
+> >
+> > Also, the documentation for Rcpp is beyond incredible (thanks to dirk,
+> > romain, kevin and all the other people I'm leaving out )  but is there a
+> > general methodology for finding equivalents of R functions. For example,
+> > if I want a cumsum function in Rcpp, how do I know whether to use the
+> > stl with accumulate or if there's already one built in so
+> > that I just call cumsum.
+> >
+> > Thanks.
+> >
+> > #=======================================================
+> >
+> > #include <Rcpp.h>
+> > using namespace Rcpp;
+> >
+> > // [[Rcpp::export]]
+> > std::vector<double> mybar(const std::vector<double>& x, double
+> firstelem) {
+> >    std::vector<double> tmp(x.size() + 1);
+> >    tmp[0] = firstelem;
+> >    for (int i = 1; i < (x.size()+1); i++)
+> >      tmp[i] = x[i-1];
+> >    return tmp;
+> > }
+> >
+> > /*** R
+> >
+> > testvec = c(1,2,3)
+> > testelem <- 7
+> > mybar(testvec,testelem)
+> >
+> > */
+> >
+> > #===============================
+> > # OUTPUT FROM RUNNING ABOVE
+> > #=================================
+> >  > testvec <-  c(1,2,3)
+> >  > testelem <- 7
+> >  > mybar(testvec,testelem)
+> > [1] 7 1 2 3
+> >  >
+> >
+> >
+> >
+> >
+> >
+> >
+> >
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181211/323852ff/attachment.html>
+
+From markleeds2 at gmail.com  Wed Dec 12 02:25:26 2018
+From: markleeds2 at gmail.com (Mark Leeds)
+Date: Tue, 11 Dec 2018 20:25:26 -0500
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+ <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+Message-ID: <CAHz+bWZZM+vxszncw4hi7rj1TisapaWHjQiMc=3ehE4EwLjAhg@mail.gmail.com>
+
+Just to close this thread out, I did a more comprehensive benchmark using 8
+different approaches
+and it looks like
+
+A) Jan's solution using memcopy and NumericVector.
+
+B) A push_front solution using  NumericVector
+
+C) Serguei's const trick solution using NumericVector
+
+are the top 3 solutions in terms of speed with  B) push_front technically
+the winner !!!!!
+Thanks to everyone for their help. I learned much.
+
+#======================================================================
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+   std::vector<double> tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   for (int i = 1; i < (x.size()+1); i++)
+     tmp[i] = x[i-1];
+   return tmp;
+}
+// [[Rcpp::export]]
+std::vector<double> mybar2(const std::vector<double>& x, double firstelem) {
+   std::vector<double> tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   std::copy(x.begin(), x.end(), tmp.begin()+1);
+   return tmp;
+}
+
+// [[Rcpp::export]]
+NumericVector mybar3(NumericVector x, double firstelem) {
+   NumericVector tmp(x.size() + 1);
+   tmp[0] = firstelem;
+   std::copy(x.begin(), x.end(), tmp.begin()+1);
+   return tmp;
+}
+
+// [[Rcpp::export]]
+NumericVector mybar4(NumericVector x, double firstelem) {
+   NumericVector result(x.size() + 1);
+   result[0] = firstelem;
+   std::memcpy(result.begin()+1, x.begin(), x.size()*sizeof(double));
+   return result;
+}
+
+// [[Rcpp::export]]
+NumericVector mybar5(NumericVector x, NumericVector y) {
+   NumericVector result(x.size() + y.size());
+   std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+   std::memcpy(result.begin()+x.size(), y.begin(), y.size()*sizeof(double));
+   return result;
+}
+
+// [[Rcpp::export]]
+NumericVector mybar6(NumericVector x, double firstelem) {
+  x.insert(0, firstelem);
+  return x;
+}
+
+// [[Rcpp::export]]
+NumericVector mybar7(NumericVector x, double firstelem) {
+  x.push_front(firstelem);
+  return x;
+}
+
+// [[Rcpp::export]]
+NumericVector mybar8(const NumericVector &x, const NumericVector &y) {
+    NumericVector result(x.size() + y.size());
+    std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+    std::memcpy(result.begin()+x.size(), y.begin(),
+    y.size()*sizeof(double));
+    return result;
+}
+
+
+/*** R
+
+library(microbenchmark)
+
+ n=1E7
+ testvec = c(1,seq_len(n))
+ testelem <- 7
+ microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+ mybar2(testvec,testelem),
+ mybar3(testvec,testelem),
+ mybar4(testvec,testelem),
+ mybar5(testvec,testelem),
+ mybar6(testvec,testelem),
+ mybar7(testvec,testelem),
+ mybar8(testvec,testelem)
+ )
+
+
+ */
+
+microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
++  mybar2(testvec,testelem),
++  mybar3(testvec,testelem),
++  mybar4(testvec,testelem) .... [TRUNCATED]
+Unit: milliseconds
+                      expr      min        lq      mean    median
+uq       max neval
+      c(testelem, testvec) 33.82390  37.41429  42.70048  42.48487
+47.72840  81.53239   100
+  mybar(testvec, testelem) 93.35373 100.67106 105.30134 105.67559 109.62234
+125.15337   100
+ mybar2(testvec, testelem) 88.00770  94.62231  98.84161  98.51031 102.49516
+114.58349   100
+ mybar3(testvec, testelem) 27.93793  31.94207  36.76242  37.17255
+41.52102  47.31534   100
+ mybar4(testvec, testelem) 31.37486  34.73718  39.72786  40.83917
+44.21151  49.48883   100
+ mybar5(testvec, testelem) 30.90608  35.25496  40.24085  40.59592
+44.88581  50.33709   100
+ mybar6(testvec, testelem) 33.24435  38.32075  43.11721  43.46578
+47.93726  52.72538   100
+ mybar7(testvec, testelem) 30.80926  33.41609  38.45877  37.71916
+43.70371  48.88513   100
+ mybar8(testvec, testelem) 30.88067  35.01826  40.38411  40.02501
+44.49641  73.84147   100
+>
+
+
+
+
+On Mon, Dec 10, 2018 at 8:42 AM Serguei Sokol <serguei.sokol at gmail.com>
+wrote:
+
+> Le 10/12/2018 ? 13:04, Jan van der Laan a ?crit :
+> > Small addendum: A large part of the performance gain in my example comes
+> > from using NumericVector instead of std::vector<double>. Which avoids a
+> > conversion. An example using std::copy with Numeric vector runs in the
+> > same time as the version using memcpy.
+>
+> Yep.
+> Few more percents of mean cpu time can be saved by using "const &" trick :
+>
+> // [[Rcpp::export]]
+> NumericVector mybar5(const NumericVector &x, const NumericVector &y) {
+>     NumericVector result(x.size() + y.size());
+>     std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>     std::memcpy(result.begin()+x.size(), y.begin(),
+> y.size()*sizeof(double));
+>     return result;
+> }
+>
+> # output
+> Unit: microseconds
+>                        expr     min       lq     mean   median       uq
+>      max
+>        c(testelem, testvec) 258.343 338.3110 418.0047 343.4450 378.7850
+> 3077.347
+>    mybar(testvec, testelem) 352.699 366.8770 498.3948 374.6635 450.4420
+> 3046.408
+>   mybar2(testvec, testelem) 334.820 348.3685 425.0098 354.7240 366.5270
+> 3024.128
+>   mybar3(testvec, testelem) 233.689 244.8640 315.7256 247.5180 255.0955
+> 2945.068
+>   mybar4(testvec, testelem) 232.083 241.9655 340.0751 245.0035 252.8260
+> 2934.312
+>   mybar5(testvec, testelem) 150.787 242.7685 285.4264 245.9465 254.1880
+> 2049.493
+>
+> Serguei.
+>
+> >
+> > Jan
+> >
+> >
+> >
+> > On 10-12-18 12:28, Jan van der Laan wrote:
+> >>
+> >> For performance memcpy is probably fastest. This gives the same
+> >> performance a c().
+> >>
+> >> // [[Rcpp::export]]
+> >> NumericVector mybar3(NumericVector x, double firstelem) {
+> >>    NumericVector result(x.size() + 1);
+> >>    result[0] = firstelem;
+> >>    std::memcpy(result.begin()+1, x.begin(), x.size()*sizeof(double));
+> >>    return result;
+> >> }
+> >>
+> >>
+> >> Or a more general version concatenating vector of arbitrary lengths:
+> >>
+> >>
+> >> // [[Rcpp::export]]
+> >> NumericVector mybar4(NumericVector x, NumericVector y) {
+> >>    NumericVector result(x.size() + y.size());
+> >>    std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+> >>    std::memcpy(result.begin()+x.size(), y.begin(),
+> >> y.size()*sizeof(double));
+> >>    return result;
+> >> }
+> >>
+> >>
+> >>
+> >>  > n=1E7
+> >>  > testvec = c(1,seq_len(n))
+> >>  > testelem <- 7
+> >>  > microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+> >> +   mybar2(testvec,testelem),
+> >> +   mybar3(testvec,testelem),
+> >> +   mybar4(testvec,testelem)
+> >> +   )
+> >> Unit: milliseconds
+> >>                        expr       min        lq      mean    median
+> >> uq        max neval
+> >>        c(testelem, testvec)  36.48577  36.93754  41.10550  43.76742
+> >> 44.20709  46.09741   100
+> >>    mybar(testvec, testelem) 102.54042 103.21756 106.88749 104.32033
+> >> 110.31527 119.55512   100
+> >>   mybar2(testvec, testelem)  95.64696  96.19447 100.24691 102.61380
+> >> 103.58189 109.28290   100
+> >>   mybar3(testvec, testelem)  36.45794  36.87915  40.43486  37.18063
+> >> 43.49643  95.49049   100
+> >>   mybar4(testvec, testelem)  36.51334  37.05409  41.39680  43.20627
+> >> 43.57958  94.95482   100
+> >>
+> >>
+> >> Best,
+> >> Jan
+> >>
+> >>
+> >>
+> >> On 10-12-18 12:10, Serguei Sokol wrote:
+> >>> Le 09/12/2018 ? 09:35, Mark Leeds a ?crit :
+> >>>> Hi All: I wrote below and it works but I have a strong feeling
+> >>>> there's a better way to do it.
+> >>> If performance is an issue, you can save few percents of cpu time by
+> >>> using std::copy() instead of explicit for loop. Yet, for this
+> >>> operation R's c() remains the best bet. It is more then twice faster
+> >>> than both Rcpp versions below:
+> >>>
+> >>> #include <Rcpp.h>
+> >>> using namespace Rcpp;
+> >>>
+> >>> // [[Rcpp::export]]
+> >>> std::vector<double> mybar(const std::vector<double>& x, double
+> >>> firstelem) {
+> >>>    std::vector<double> tmp(x.size() + 1);
+> >>>    tmp[0] = firstelem;
+> >>>    for (int i = 1; i < (x.size()+1); i++)
+> >>>      tmp[i] = x[i-1];
+> >>>    return tmp;
+> >>> }
+> >>> // [[Rcpp::export]]
+> >>> std::vector<double> mybar2(const std::vector<double>& x, double
+> >>> firstelem) {
+> >>>    std::vector<double> tmp(x.size() + 1);
+> >>>    tmp[0] = firstelem;
+> >>>    std::copy(x.begin(), x.end(), tmp.begin()+1);
+> >>>    return tmp;
+> >>> }
+> >>>
+> >>> /*** R
+> >>> library(microbenchmark)
+> >>> n=100000
+> >>> testvec = c(1,seq_len(n))
+> >>> testelem <- 7
+> >>> microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+> >>> mybar2(testvec,testelem))
+> >>> */
+> >>>
+> >>> # Ouput
+> >>> Unit: microseconds
+> >>>                        expr     min       lq      mean
+> >>> median        uq
+> >>>        c(testelem, testvec) 247.098 248.5655  444.8657 257.3300
+> >>> 630.7725
+> >>>    mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230
+> >>> 1386.8385
+> >>>   mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055
+> >>> 1351.6740
+> >>>         max neval
+> >>>    7587.977   100
+> >>>   22149.605   100
+> >>>   11651.831   100
+> >>>
+> >>>
+> >>> Best,
+> >>> Serguei.
+> >>>
+> >>>> I looked on the net and found some material from back in ~2014 about
+> >>>> concatenating
+> >>>> vectors but I didn't see anything final about it. Thanks for any
+> >>>> insights.
+> >>>>
+> >>>> Also, the documentation for Rcpp is beyond incredible (thanks to
+> >>>> dirk, romain, kevin and all the other people I'm leaving out )  but
+> >>>> is there a general methodology for finding equivalents of R
+> >>>> functions. For example, if I want a cumsum function in Rcpp, how do
+> >>>> I know whether to use the stl with accumulate or if there's already
+> >>>> one built in so
+> >>>> that I just call cumsum.
+> >>>>
+> >>>> Thanks.
+> >>>>
+> >>>> #=======================================================
+> >>>>
+> >>>> #include <Rcpp.h>
+> >>>> using namespace Rcpp;
+> >>>>
+> >>>> // [[Rcpp::export]]
+> >>>> std::vector<double> mybar(const std::vector<double>& x, double
+> >>>> firstelem) {
+> >>>>    std::vector<double> tmp(x.size() + 1);
+> >>>>    tmp[0] = firstelem;
+> >>>>    for (int i = 1; i < (x.size()+1); i++)
+> >>>>      tmp[i] = x[i-1];
+> >>>>    return tmp;
+> >>>> }
+> >>>>
+> >>>> /*** R
+> >>>>
+> >>>> testvec = c(1,2,3)
+> >>>> testelem <- 7
+> >>>> mybar(testvec,testelem)
+> >>>>
+> >>>> */
+> >>>>
+> >>>> #===============================
+> >>>> # OUTPUT FROM RUNNING ABOVE
+> >>>> #=================================
+> >>>>  > testvec <-  c(1,2,3)
+> >>>>  > testelem <- 7
+> >>>>  > mybar(testvec,testelem)
+> >>>> [1] 7 1 2 3
+> >>>>  >
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>>
+> >>>> _______________________________________________
+> >>>> Rcpp-devel mailing list
+> >>>> Rcpp-devel at lists.r-forge.r-project.org
+> >>>>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >>>>
+> >>>
+> >>> _______________________________________________
+> >>> Rcpp-devel mailing list
+> >>> Rcpp-devel at lists.r-forge.r-project.org
+> >>>
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >> _______________________________________________
+> >> Rcpp-devel mailing list
+> >> Rcpp-devel at lists.r-forge.r-project.org
+> >> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> >
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181211/ea34d3f0/attachment-0001.html>
+
+From w.vollprecht at gmail.com  Wed Dec 12 08:55:01 2018
+From: w.vollprecht at gmail.com (Wolf Vollprecht)
+Date: Wed, 12 Dec 2018 08:55:01 +0100
+Subject: [Rcpp-devel] Create scalar values in Rcpp
+In-Reply-To: <299ACB22-B78B-43DB-B73C-A9B9DEAE4410@dcn.davis.ca.us>
+References: <CADDUUuBtHW1u0M8bFLA4YUi1totyvn2-Djg5S81K+E+Q1VTLXA@mail.gmail.com>
+ <9B5891FD-6FC8-4662-BD19-D16A31975529@dcn.davis.ca.us>
+ <23566.40204.428202.790040@rob.eddelbuettel.com>
+ <299ACB22-B78B-43DB-B73C-A9B9DEAE4410@dcn.davis.ca.us>
+Message-ID: <CADDUUuAV3jF3NVMQiyuGreDw6amjaVA-Pn-2GBvYPemvkpLs3Q@mail.gmail.com>
+
+Hi all,
+
+thanks for your responses. Indeed, R can be a little confusing coming from
+C++ / Python :)
+I am now creating a one-element vector, and that seems to work great for
+xtensor-R!
+
+Cheers,
+
+Wolf
+
+Am Mo., 10. Dez. 2018 um 18:56 Uhr schrieb Jeff Newmiller <
+jdnewmil at dcn.davis.ca.us>:
+
+> I did not intend to shoot anyone... but my own learning curve led me to
+> skip over the clear descriptions in the "Introduction to R" document
+> because I thought I already understood the terminology. True, it happened a
+> long time ago, but it took me an embarrassingly long time to grok this
+> because the terminology seemed so familiar, and I searched on the wrong
+> terms because of it.
+>
+> On December 10, 2018 9:06:20 AM PST, Dirk Eddelbuettel <edd at debian.org>
+> wrote:
+> >
+> >Jeff,
+> >
+> >On 10 December 2018 at 08:43, Jeff Newmiller wrote:
+> >| Your use of the term "array" in this context suggests you still don't
+> >have a firm grasp of R data types. R arrays are vectors with dim
+> >attributes. What you want is to create an R vector with 1 element, as
+> >shown in the quick reference. [1]
+> >
+> >No need to shoot the messenger. I happen to know Wolf comes from C++
+> >and
+> >Pythonland where array is well defined term.
+> >
+> >But yes, over here some things are different.  But not everybody has
+> >spent
+> >10+ (or 20+) years in R and S land as you and I.
+> >
+> >Dirk
+>
+> --
+> Sent from my phone. Please excuse my brevity.
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181212/61b68c9c/attachment.html>
+
+From serguei.sokol at gmail.com  Wed Dec 12 11:07:55 2018
+From: serguei.sokol at gmail.com (Serguei Sokol)
+Date: Wed, 12 Dec 2018 11:07:55 +0100
+Subject: [Rcpp-devel] trying to insert a number as first element of
+ already existing vector
+In-Reply-To: <CAHz+bWZZM+vxszncw4hi7rj1TisapaWHjQiMc=3ehE4EwLjAhg@mail.gmail.com>
+References: <CAHz+bWZaQiOMCS_SJ7Tr+3vvBagx14nSqk1vXWWJcpR8CQZWqw@mail.gmail.com>
+ <59e4885d-bfa2-0f07-919a-5c154d2493e3@gmail.com>
+ <c944b0a4-1f39-7665-915b-27858daa53cd@eoos.dds.nl>
+ <cea75078-8536-92ad-e2d5-7de7fa8e2ca9@eoos.dds.nl>
+ <89d29e1e-5cfd-5693-518a-6d420d667dd0@gmail.com>
+ <CAHz+bWZZM+vxszncw4hi7rj1TisapaWHjQiMc=3ehE4EwLjAhg@mail.gmail.com>
+Message-ID: <aff2b2cd-3433-7d01-e8ed-1beb69a77a49@gmail.com>
+
+Le 12/12/2018 ? 02:25, Mark Leeds a ?crit?:
+> 
+> Just to close this thread out, I did a more comprehensive benchmark 
+> using 8 different approaches
+> and it looks like
+> 
+> A) Jan's solution using memcopy and NumericVector.
+> 
+> B) A push_front solution using? NumericVector
+> 
+> C) Serguei's const trick solution using NumericVector
+> 
+> are the top 3 solutions in terms of speed with? B) push_front 
+> technically the winner !!!!!
+Hm. I am wondering how much the jury was payed under the table by the 
+promoters of push_front()? ;)
+More seriously, in your results push_front() is in mybar7 which is 
+second after mybar3 in every timing position (min, lq etc.):
+
+ > Unit: milliseconds
+ >                        expr      min        lq      mean
+ > median        uq       max neval
+ >   mybar3(testvec, testelem) 27.93793  31.94207  36.76242  37.17255
+ > 41.52102  47.31534   100
+ >   mybar7(testvec, testelem) 30.80926  33.41609  38.45877  37.71916
+ > 43.70371  48.88513   100
+
+To be honest, on my machine, mybar3 is far behind other champions (72 ms 
+vs 60 ms) and there is no clear leader among the latter (mybar4 to 8) as 
+the leadership is changing from one run to another.
+
+Best,
+Serguei.
+
+> Thanks to everyone for their help. I learned much.
+> 
+> #======================================================================
+> 
+> #include <Rcpp.h>
+> using namespace Rcpp;
+> 
+> // [[Rcpp::export]]
+> std::vector<double> mybar(const std::vector<double>& x, double firstelem) {
+>  ?? std::vector<double> tmp(x.size() + 1);
+>  ?? tmp[0] = firstelem;
+>  ?? for (int i = 1; i < (x.size()+1); i++)
+>  ???? tmp[i] = x[i-1];
+>  ?? return tmp;
+> }
+> // [[Rcpp::export]]
+> std::vector<double> mybar2(const std::vector<double>& x, double firstelem) {
+>  ?? std::vector<double> tmp(x.size() + 1);
+>  ?? tmp[0] = firstelem;
+>  ?? std::copy(x.begin(), x.end(), tmp.begin()+1);
+>  ?? return tmp;
+> }
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar3(NumericVector x, double firstelem) {
+>  ?? NumericVector tmp(x.size() + 1);
+>  ?? tmp[0] = firstelem;
+>  ?? std::copy(x.begin(), x.end(), tmp.begin()+1);
+>  ?? return tmp;
+> }
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar4(NumericVector x, double firstelem) {
+>  ?? NumericVector result(x.size() + 1);
+>  ?? result[0] = firstelem;
+>  ?? std::memcpy(result.begin()+1, x.begin(), x.size()*sizeof(double));
+>  ?? return result;
+> }
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar5(NumericVector x, NumericVector y) {
+>  ?? NumericVector result(x.size() + y.size());
+>  ?? std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>  ?? std::memcpy(result.begin()+x.size(), y.begin(), 
+> y.size()*sizeof(double));
+>  ?? return result;
+> }
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar6(NumericVector x, double firstelem) {
+>  ? x.insert(0, firstelem);
+>  ? return x;
+> }
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar7(NumericVector x, double firstelem) {
+>  ? x.push_front(firstelem);
+>  ? return x;
+> }
+> 
+> // [[Rcpp::export]]
+> NumericVector mybar8(const NumericVector &x, const NumericVector &y) {
+>  ??? NumericVector result(x.size() + y.size());
+>  ??? std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>  ??? std::memcpy(result.begin()+x.size(), y.begin(),
+>  ??? y.size()*sizeof(double));
+>  ??? return result;
+> }
+> 
+> 
+> /*** R
+> 
+> library(microbenchmark)
+> 
+>  ?n=1E7
+>  ?testvec = c(1,seq_len(n))
+>  ?testelem <- 7
+>  ?microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+>  ?mybar2(testvec,testelem),
+>  ?mybar3(testvec,testelem),
+>  ?mybar4(testvec,testelem),
+>  ?mybar5(testvec,testelem),
+>  ?mybar6(testvec,testelem),
+>  ?mybar7(testvec,testelem),
+>  ?mybar8(testvec,testelem)
+>  ?)
+> 
+> 
+>  ?*/
+> 
+> microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+> +? mybar2(testvec,testelem),
+> +? mybar3(testvec,testelem),
+> +? mybar4(testvec,testelem) .... [TRUNCATED]
+> Unit: milliseconds
+>  ????????????????????? expr????? min??????? lq????? mean    
+> median??????? uq?????? max neval
+>  ????? c(testelem, testvec) 33.82390? 37.41429? 42.70048? 42.48487  
+> 47.72840? 81.53239?? 100
+>  ? mybar(testvec, testelem) 93.35373 100.67106 105.30134 105.67559 
+> 109.62234 125.15337?? 100
+>  ?mybar2(testvec, testelem) 88.00770? 94.62231? 98.84161? 98.51031 
+> 102.49516 114.58349?? 100
+>  ?mybar3(testvec, testelem) 27.93793? 31.94207? 36.76242? 37.17255  
+> 41.52102? 47.31534?? 100
+>  ?mybar4(testvec, testelem) 31.37486? 34.73718? 39.72786? 40.83917  
+> 44.21151? 49.48883?? 100
+>  ?mybar5(testvec, testelem) 30.90608? 35.25496? 40.24085? 40.59592  
+> 44.88581? 50.33709?? 100
+>  ?mybar6(testvec, testelem) 33.24435? 38.32075? 43.11721? 43.46578  
+> 47.93726? 52.72538?? 100
+>  ?mybar7(testvec, testelem) 30.80926? 33.41609? 38.45877? 37.71916  
+> 43.70371? 48.88513?? 100
+>  ?mybar8(testvec, testelem) 30.88067? 35.01826? 40.38411? 40.02501  
+> 44.49641? 73.84147?? 100
+>  >
+> 
+> 
+> 
+> 
+> On Mon, Dec 10, 2018 at 8:42 AM Serguei Sokol <serguei.sokol at gmail.com 
+> <mailto:serguei.sokol at gmail.com>> wrote:
+> 
+>     Le 10/12/2018 ? 13:04, Jan van der Laan a ?crit?:
+>      > Small addendum: A large part of the performance gain in my
+>     example comes
+>      > from using NumericVector instead of std::vector<double>. Which
+>     avoids a
+>      > conversion. An example using std::copy with Numeric vector runs
+>     in the
+>      > same time as the version using memcpy.
+> 
+>     Yep.
+>     Few more percents of mean cpu time can be saved by using "const &"
+>     trick :
+> 
+>     // [[Rcpp::export]]
+>     NumericVector mybar5(const NumericVector &x, const NumericVector &y) {
+>      ? ? NumericVector result(x.size() + y.size());
+>      ? ? std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>      ? ? std::memcpy(result.begin()+x.size(), y.begin(),
+>     y.size()*sizeof(double));
+>      ? ? return result;
+>     }
+> 
+>     # output
+>     Unit: microseconds
+>      ? ? ? ? ? ? ? ? ? ? ? ?expr? ? ?min? ? ? ?lq? ? ?mean? ?median     
+>      ?uq
+>      ? ? ?max
+>      ? ? ? ?c(testelem, testvec) 258.343 338.3110 418.0047 343.4450
+>     378.7850
+>     3077.347
+>      ? ?mybar(testvec, testelem) 352.699 366.8770 498.3948 374.6635
+>     450.4420
+>     3046.408
+>      ? mybar2(testvec, testelem) 334.820 348.3685 425.0098 354.7240
+>     366.5270
+>     3024.128
+>      ? mybar3(testvec, testelem) 233.689 244.8640 315.7256 247.5180
+>     255.0955
+>     2945.068
+>      ? mybar4(testvec, testelem) 232.083 241.9655 340.0751 245.0035
+>     252.8260
+>     2934.312
+>      ? mybar5(testvec, testelem) 150.787 242.7685 285.4264 245.9465
+>     254.1880
+>     2049.493
+> 
+>     Serguei.
+> 
+>      >
+>      > Jan
+>      >
+>      >
+>      >
+>      > On 10-12-18 12:28, Jan van der Laan wrote:
+>      >>
+>      >> For performance memcpy is probably fastest. This gives the same
+>      >> performance a c().
+>      >>
+>      >> // [[Rcpp::export]]
+>      >> NumericVector mybar3(NumericVector x, double firstelem) {
+>      >> ?? NumericVector result(x.size() + 1);
+>      >> ?? result[0] = firstelem;
+>      >> ?? std::memcpy(result.begin()+1, x.begin(),
+>     x.size()*sizeof(double));
+>      >> ?? return result;
+>      >> }
+>      >>
+>      >>
+>      >> Or a more general version concatenating vector of arbitrary lengths:
+>      >>
+>      >>
+>      >> // [[Rcpp::export]]
+>      >> NumericVector mybar4(NumericVector x, NumericVector y) {
+>      >> ?? NumericVector result(x.size() + y.size());
+>      >> ?? std::memcpy(result.begin(), x.begin(), x.size()*sizeof(double));
+>      >> ?? std::memcpy(result.begin()+x.size(), y.begin(),
+>      >> y.size()*sizeof(double));
+>      >> ?? return result;
+>      >> }
+>      >>
+>      >>
+>      >>
+>      >> ?> n=1E7
+>      >> ?> testvec = c(1,seq_len(n))
+>      >> ?> testelem <- 7
+>      >> ?> microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+>      >> +?? mybar2(testvec,testelem),
+>      >> +?? mybar3(testvec,testelem),
+>      >> +?? mybar4(testvec,testelem)
+>      >> +?? )
+>      >> Unit: milliseconds
+>      >> ?????????????????????? expr?????? min??????? lq????? mean??? median
+>      >> uq ?????? max neval
+>      >> ?????? c(testelem, testvec)? 36.48577? 36.93754? 41.10550? 43.76742
+>      >> 44.20709? 46.09741?? 100
+>      >> ?? mybar(testvec, testelem) 102.54042 103.21756 106.88749 104.32033
+>      >> 110.31527 119.55512?? 100
+>      >> ??mybar2(testvec, testelem)? 95.64696? 96.19447 100.24691 102.61380
+>      >> 103.58189 109.28290?? 100
+>      >> ??mybar3(testvec, testelem)? 36.45794? 36.87915? 40.43486? 37.18063
+>      >> 43.49643? 95.49049?? 100
+>      >> ??mybar4(testvec, testelem)? 36.51334? 37.05409? 41.39680? 43.20627
+>      >> 43.57958? 94.95482?? 100
+>      >>
+>      >>
+>      >> Best,
+>      >> Jan
+>      >>
+>      >>
+>      >>
+>      >> On 10-12-18 12:10, Serguei Sokol wrote:
+>      >>> Le 09/12/2018 ? 09:35, Mark Leeds a ?crit?:
+>      >>>> Hi All: I wrote below and it works but I have a strong feeling
+>      >>>> there's a better way to do it.
+>      >>> If performance is an issue, you can save few percents of cpu
+>     time by
+>      >>> using std::copy() instead of explicit for loop. Yet, for this
+>      >>> operation R's c() remains the best bet. It is more then twice
+>     faster
+>      >>> than both Rcpp versions below:
+>      >>>
+>      >>> #include <Rcpp.h>
+>      >>> using namespace Rcpp;
+>      >>>
+>      >>> // [[Rcpp::export]]
+>      >>> std::vector<double> mybar(const std::vector<double>& x, double
+>      >>> firstelem) {
+>      >>> ?? std::vector<double> tmp(x.size() + 1);
+>      >>> ?? tmp[0] = firstelem;
+>      >>> ?? for (int i = 1; i < (x.size()+1); i++)
+>      >>> ???? tmp[i] = x[i-1];
+>      >>> ?? return tmp;
+>      >>> }
+>      >>> // [[Rcpp::export]]
+>      >>> std::vector<double> mybar2(const std::vector<double>& x, double
+>      >>> firstelem) {
+>      >>> ?? std::vector<double> tmp(x.size() + 1);
+>      >>> ?? tmp[0] = firstelem;
+>      >>> ?? std::copy(x.begin(), x.end(), tmp.begin()+1);
+>      >>> ?? return tmp;
+>      >>> }
+>      >>>
+>      >>> /*** R
+>      >>> library(microbenchmark)
+>      >>> n=100000
+>      >>> testvec = c(1,seq_len(n))
+>      >>> testelem <- 7
+>      >>> microbenchmark(c(testelem, testvec), mybar(testvec,testelem),
+>      >>> mybar2(testvec,testelem))
+>      >>> */
+>      >>>
+>      >>> # Ouput
+>      >>> Unit: microseconds
+>      >>> ?????????????????????? expr???? min?????? lq????? mean
+>      >>> median??????? uq
+>      >>> ?????? c(testelem, testvec) 247.098 248.5655? 444.8657 257.3300
+>      >>> 630.7725
+>      >>> ?? mybar(testvec, testelem) 594.978 622.3560 1226.5683 637.0230
+>      >>> 1386.8385
+>      >>> ??mybar2(testvec, testelem) 576.191 604.7565 1029.2124 616.1055
+>      >>> 1351.6740
+>      >>> ??????? max neval
+>      >>> ?? 7587.977?? 100
+>      >>> ??22149.605?? 100
+>      >>> ??11651.831?? 100
+>      >>>
+>      >>>
+>      >>> Best,
+>      >>> Serguei.
+>      >>>
+>      >>>> I looked on the net and found some material from back in ~2014
+>     about
+>      >>>> concatenating
+>      >>>> vectors but I didn't see anything final about it. Thanks for any
+>      >>>> insights.
+>      >>>>
+>      >>>> Also, the documentation for Rcpp is beyond incredible (thanks to
+>      >>>> dirk, romain, kevin and all the other people I'm leaving out
+>     )? but
+>      >>>> is there a general methodology for finding equivalents of R
+>      >>>> functions. For example, if I want a cumsum function in Rcpp,
+>     how do
+>      >>>> I know whether to use the stl with accumulate or if there's
+>     already
+>      >>>> one built in so
+>      >>>> that I just call cumsum.
+>      >>>>
+>      >>>> Thanks.
+>      >>>>
+>      >>>> #=======================================================
+>      >>>>
+>      >>>> #include <Rcpp.h>
+>      >>>> using namespace Rcpp;
+>      >>>>
+>      >>>> // [[Rcpp::export]]
+>      >>>> std::vector<double> mybar(const std::vector<double>& x, double
+>      >>>> firstelem) {
+>      >>>> ?? std::vector<double> tmp(x.size() + 1);
+>      >>>> ?? tmp[0] = firstelem;
+>      >>>> ?? for (int i = 1; i < (x.size()+1); i++)
+>      >>>> ???? tmp[i] = x[i-1];
+>      >>>> ?? return tmp;
+>      >>>> }
+>      >>>>
+>      >>>> /*** R
+>      >>>>
+>      >>>> testvec = c(1,2,3)
+>      >>>> testelem <- 7
+>      >>>> mybar(testvec,testelem)
+>      >>>>
+>      >>>> */
+>      >>>>
+>      >>>> #===============================
+>      >>>> # OUTPUT FROM RUNNING ABOVE
+>      >>>> #=================================
+>      >>>> ?> testvec <-? c(1,2,3)
+>      >>>> ?> testelem <- 7
+>      >>>> ?> mybar(testvec,testelem)
+>      >>>> [1] 7 1 2 3
+>      >>>> ?>
+>      >>>>
+>      >>>>
+>      >>>>
+>      >>>>
+>      >>>>
+>      >>>>
+>      >>>>
+>      >>>> _______________________________________________
+>      >>>> Rcpp-devel mailing list
+>      >>>> Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>      >>>>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>      >>>>
+>      >>>
+>      >>> _______________________________________________
+>      >>> Rcpp-devel mailing list
+>      >>> Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>      >>>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>      >> _______________________________________________
+>      >> Rcpp-devel mailing list
+>      >> Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>      >>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>      >
+> 
+>     _______________________________________________
+>     Rcpp-devel mailing list
+>     Rcpp-devel at lists.r-forge.r-project.org
+>     <mailto:Rcpp-devel at lists.r-forge.r-project.org>
+>     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From rittlern at uchicago.edu  Mon Dec 17 20:30:04 2018
+From: rittlern at uchicago.edu (Nicholas Rittler)
+Date: Mon, 17 Dec 2018 13:30:04 -0600
+Subject: [Rcpp-devel] Package Submission Barred by Pedantic
+In-Reply-To: <CALaeKeE0UNr6S7mEkGqonZhT4gv=sXqO6e4ey=T03FbHa=iOJQ@mail.gmail.com>
+References: <CAA9ha3+iCKhavJtQoD2r=M7qfurRxvRv0NaYaqSDE36ccq=yLQ@mail.gmail.com>
+ <23513.32686.520428.622099@rob.eddelbuettel.com>
+ <CAA9ha3KEwCOBFc6UwSexMz74i46adoE3o5YKq64qzFVirhRk7Q@mail.gmail.com>
+ <CALaeKeE0UNr6S7mEkGqonZhT4gv=sXqO6e4ey=T03FbHa=iOJQ@mail.gmail.com>
+Message-ID: <CAA9ha3JvmJtx+gw4qQ-RcfARgnLeFHtCPurEZfsEgLfjdjaZcw@mail.gmail.com>
+
+I've had no luck arguing that this warning is a false positive with Uwe
+Ligges. How long does this usually take?
+
+What is more, while the issue has been resolved in the Boost code, it seems
+to my untrained eye that winbuidler is indeed setting "-pedantic", which
+it's not supposed to do. Is that not the implication of the following lines
+from my winbuilder logs, along with the fact that I don't set -pedantic in
+my Makevars.win or Makeconf file?:
+
+*** arch - x64
+d:/Compiler/gcc-4.9.3/mingw_64/bin/g++ -m64
+-I"D:/RCompile/recent/R/include" -DNDEBUG -I.
+-I"d:/RCompile/CRANpkg/lib/3.6/BH/include"
+-I"d:/RCompile/CRANpkg/lib/3.6/bigmemory/include"
+-I"d:/RCompile/CRANpkg/lib/3.6/Rcpp/include"
+-I"d:/RCompile/CRANpkg/lib/3.6/RcppArmadillo/include"
+-I"d:/Compiler/gcc-4.9.3/local330/include"     -pedantic -O2 -Wall
+-mtune=core2 -c RcppExports.cpp -o RcppExports.o
+
+
+Thanks as always,
+
+Nick
+
+
+On Mon, Nov 5, 2018 at 11:34 PM Qiang Kou <qkou at qkou.info> wrote:
+
+> Hi, Nicholas,
+>
+> First, what you reported is a known issue from boost [1], not Rcpp.
+>
+> Second, this issue has been fixed in boost 1.69 [2] and the bh package
+> still uses 1.66.
+>
+> Third, this warning won't block your submission to CRAN [3] [4].
+>
+> I hope I answered your question.
+>
+> Best wishes,
+>
+> KK
+>
+> [1] https://github.com/boostorg/interprocess/issues/59
+>
+> [2]
+> https://github.com/boostorg/interprocess/blob/develop/doc/interprocess.qbk#L6767
+>
+> [3]
+> https://github.com/boostorg/interprocess/issues/59#issuecomment-426156101
+>
+> [4]
+> https://www.r-project.org/nosvn/R.check/r-devel-windows-ix86+x86_64/bigmemory-00check.html
+>
+> On Mon, Nov 5, 2018 at 9:16 PM Nicholas Rittler <rittlern at uchicago.edu>
+> wrote:
+>
+>> When you say "unset it", do you mean physically delete the flag from the
+>> file?
+>>
+>> I don't see the pedantic flag set in my {R_HOME}/etc/Makeconf or any
+>> Makevars file locally, so I tried passing "-Wno-pedantic", but this renders
+>> warnings later on about non-portable code.
+>>
+>>
+>>
+>> On Wed, Oct 31, 2018 at 5:11 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>>>
+>>> On 30 October 2018 at 23:52, Nicholas Rittler wrote:
+>>> | In attempting to submit a package to CRAN, I'm receiving the following
+>>> | warning:
+>>>
+>>> "I'm receiving" as in "I see this when I compile at home" or as in "I see
+>>> this in win-builder" ?
+>>>
+>>> |
+>>> d:/RCompile/CRANpkg/lib/3.6/BH/include/boost/interprocess/detail/win32_api.hpp:145:9:
+>>> | warning: ISO C++ prohibits anonymous structs [-Wpedantic]
+>>> |
+>>> | I obviously would like to get rid of this warning and get the package
+>>> on
+>>> | CRAN. I now know that CRAN doesn't set pendantic, however, the
+>>> following is
+>>> | the makevars.win the package is currently using, in it's entirety:
+>>> |
+>>> | PKG_LIBS = $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)
+>>> | PKG_CPPFLAGS = -I.
+>>> |
+>>> | I don't see where this is setting pendantic either. Is it possible
+>>> it's a
+>>> | default local setting on my end? If so, is there some flag that can be
+>>>
+>>> Yes, likely.
+>>>
+>>> | passed in the makevars file that will not generate warnings about
+>>> | non-portable code and will make sure pedantic is not set?
+>>>
+>>> It might be how R was built, ie the flag got "baked in" when R
+>>> configured and
+>>> compiled. These flags then sit in ${R_HOME}/etc/Makeconf.  If so you'd
+>>> have
+>>> to edit the file -- we can't alter these options on the fly.
+>>>
+>>> Or it could be in a file of yours, for me it is ~/.R/Makevars where I in
+>>> fact
+>>> often set -pedantic (and alsod unset it).
+>>>
+>>> The bigger news is that you should not have to worry about it. It is
+>>> just a
+>>> warning, and it comes from code you did not write but just use -- Boost
+>>> headers via the BH package.
+>>>
+>>> Dirk
+>>>
+>>> --
+>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181217/5ed4d9d8/attachment.html>
+
+From edd at debian.org  Mon Dec 17 20:53:48 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 17 Dec 2018 13:53:48 -0600
+Subject: [Rcpp-devel] Package Submission Barred by Pedantic
+In-Reply-To: <CAA9ha3JvmJtx+gw4qQ-RcfARgnLeFHtCPurEZfsEgLfjdjaZcw@mail.gmail.com>
+References: <CAA9ha3+iCKhavJtQoD2r=M7qfurRxvRv0NaYaqSDE36ccq=yLQ@mail.gmail.com>
+ <23513.32686.520428.622099@rob.eddelbuettel.com>
+ <CAA9ha3KEwCOBFc6UwSexMz74i46adoE3o5YKq64qzFVirhRk7Q@mail.gmail.com>
+ <CALaeKeE0UNr6S7mEkGqonZhT4gv=sXqO6e4ey=T03FbHa=iOJQ@mail.gmail.com>
+ <CAA9ha3JvmJtx+gw4qQ-RcfARgnLeFHtCPurEZfsEgLfjdjaZcw@mail.gmail.com>
+Message-ID: <23575.65228.970210.388550@rob.eddelbuettel.com>
+
+
+On 17 December 2018 at 13:30, Nicholas Rittler wrote:
+| I've had no luck arguing that this warning is a false positive with Uwe
+| Ligges. How long does this usually take?
+
+Nobody knows. If in doubt, try to make the issue go away.
+ 
+| What is more, while the issue has been resolved in the Boost code, it seems
+| to my untrained eye that winbuidler is indeed setting "-pedantic", which
+| it's not supposed to do. Is that not the implication of the following lines
+| from my winbuilder logs, along with the fact that I don't set -pedantic in
+| my Makevars.win or Makeconf file?:
+| 
+| *** arch - x64
+| d:/Compiler/gcc-4.9.3/mingw_64/bin/g++ -m64
+| -I"D:/RCompile/recent/R/include" -DNDEBUG -I.
+| -I"d:/RCompile/CRANpkg/lib/3.6/BH/include"
+| -I"d:/RCompile/CRANpkg/lib/3.6/bigmemory/include"
+| -I"d:/RCompile/CRANpkg/lib/3.6/Rcpp/include"
+| -I"d:/RCompile/CRANpkg/lib/3.6/RcppArmadillo/include"
+| -I"d:/Compiler/gcc-4.9.3/local330/include"     -pedantic -O2 -Wall
+| -mtune=core2 -c RcppExports.cpp -o RcppExports.o
+
+You can never delete flags for your _package_ which are coming from the _R
+binary_ itself. C'est la vie.
+
+Can you remind us _what your error was_ ?  There are a bazillion config
+options to Boost.  Eg adding -DBOOST_NO_AUTO_PTR tells the Boost library no
+to use an idiom about which newer compiler complain a lot. (And eg I sent a
+PR to the dplyr team to add this which they, after sitting on it for three
+weeks, now merged.)
+
+| On Mon, Nov 5, 2018 at 11:34 PM Qiang Kou <qkou at qkou.info> wrote:
+| 
+| > Hi, Nicholas,
+| >
+| > First, what you reported is a known issue from boost [1], not Rcpp.
+| >
+| > Second, this issue has been fixed in boost 1.69 [2] and the bh package
+
+What is the issue again? I have BH 1.69 ready but cannot upload it as three
+packages regress so need to make time to write to their maintainers.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at qkou.info  Mon Dec 17 21:00:06 2018
+From: qkou at qkou.info (Qiang Kou)
+Date: Mon, 17 Dec 2018 12:00:06 -0800
+Subject: [Rcpp-devel] Package Submission Barred by Pedantic
+In-Reply-To: <23575.65228.970210.388550@rob.eddelbuettel.com>
+References: <CAA9ha3+iCKhavJtQoD2r=M7qfurRxvRv0NaYaqSDE36ccq=yLQ@mail.gmail.com>
+ <23513.32686.520428.622099@rob.eddelbuettel.com>
+ <CAA9ha3KEwCOBFc6UwSexMz74i46adoE3o5YKq64qzFVirhRk7Q@mail.gmail.com>
+ <CALaeKeE0UNr6S7mEkGqonZhT4gv=sXqO6e4ey=T03FbHa=iOJQ@mail.gmail.com>
+ <CAA9ha3JvmJtx+gw4qQ-RcfARgnLeFHtCPurEZfsEgLfjdjaZcw@mail.gmail.com>
+ <23575.65228.970210.388550@rob.eddelbuettel.com>
+Message-ID: <CALaeKeGW-ebQoKrVMDvxRq3fxmrTRPG4RCC5xYccgJuvtV6q0Q@mail.gmail.com>
+
+Hi, Dirk,
+
+The warning is
+
+"d:/RCompile/CRANpkg/lib/3.6/BH/include/boost/interprocess/detail/win32_api.hpp:145:9:
+warning: ISO C++ prohibits anonymous structs [-Wpedantic]"
+
+It is a Windows-only warning and has been fixed in Boost 1.69.
+
+Best wishes,
+
+KK
+
+On Mon, Dec 17, 2018 at 11:53 AM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 17 December 2018 at 13:30, Nicholas Rittler wrote:
+> | I've had no luck arguing that this warning is a false positive with Uwe
+> | Ligges. How long does this usually take?
+>
+> Nobody knows. If in doubt, try to make the issue go away.
+>
+> | What is more, while the issue has been resolved in the Boost code, it
+> seems
+> | to my untrained eye that winbuidler is indeed setting "-pedantic", which
+> | it's not supposed to do. Is that not the implication of the following
+> lines
+> | from my winbuilder logs, along with the fact that I don't set -pedantic
+> in
+> | my Makevars.win or Makeconf file?:
+> |
+> | *** arch - x64
+> | d:/Compiler/gcc-4.9.3/mingw_64/bin/g++ -m64
+> | -I"D:/RCompile/recent/R/include" -DNDEBUG -I.
+> | -I"d:/RCompile/CRANpkg/lib/3.6/BH/include"
+> | -I"d:/RCompile/CRANpkg/lib/3.6/bigmemory/include"
+> | -I"d:/RCompile/CRANpkg/lib/3.6/Rcpp/include"
+> | -I"d:/RCompile/CRANpkg/lib/3.6/RcppArmadillo/include"
+> | -I"d:/Compiler/gcc-4.9.3/local330/include"     -pedantic -O2 -Wall
+> | -mtune=core2 -c RcppExports.cpp -o RcppExports.o
+>
+> You can never delete flags for your _package_ which are coming from the _R
+> binary_ itself. C'est la vie.
+>
+> Can you remind us _what your error was_ ?  There are a bazillion config
+> options to Boost.  Eg adding -DBOOST_NO_AUTO_PTR tells the Boost library no
+> to use an idiom about which newer compiler complain a lot. (And eg I sent a
+> PR to the dplyr team to add this which they, after sitting on it for three
+> weeks, now merged.)
+>
+> | On Mon, Nov 5, 2018 at 11:34 PM Qiang Kou <qkou at qkou.info> wrote:
+> |
+> | > Hi, Nicholas,
+> | >
+> | > First, what you reported is a known issue from boost [1], not Rcpp.
+> | >
+> | > Second, this issue has been fixed in boost 1.69 [2] and the bh package
+>
+> What is the issue again? I have BH 1.69 ready but cannot upload it as three
+> packages regress so need to make time to write to their maintainers.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20181217/3215711d/attachment.html>
+
+From edd at debian.org  Mon Dec 17 21:13:00 2018
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 17 Dec 2018 14:13:00 -0600
+Subject: [Rcpp-devel] Package Submission Barred by Pedantic
+In-Reply-To: <CALaeKeGW-ebQoKrVMDvxRq3fxmrTRPG4RCC5xYccgJuvtV6q0Q@mail.gmail.com>
+References: <CAA9ha3+iCKhavJtQoD2r=M7qfurRxvRv0NaYaqSDE36ccq=yLQ@mail.gmail.com>
+ <23513.32686.520428.622099@rob.eddelbuettel.com>
+ <CAA9ha3KEwCOBFc6UwSexMz74i46adoE3o5YKq64qzFVirhRk7Q@mail.gmail.com>
+ <CALaeKeE0UNr6S7mEkGqonZhT4gv=sXqO6e4ey=T03FbHa=iOJQ@mail.gmail.com>
+ <CAA9ha3JvmJtx+gw4qQ-RcfARgnLeFHtCPurEZfsEgLfjdjaZcw@mail.gmail.com>
+ <23575.65228.970210.388550@rob.eddelbuettel.com>
+ <CALaeKeGW-ebQoKrVMDvxRq3fxmrTRPG4RCC5xYccgJuvtV6q0Q@mail.gmail.com>
+Message-ID: <23576.844.659983.579540@rob.eddelbuettel.com>
+
+
+Hi KK,
+
+Thanks for the speedy reply.
+
+On 17 December 2018 at 12:00, Qiang Kou wrote:
+| The warning is
+| 
+| "d:/RCompile/CRANpkg/lib/3.6/BH/include/boost/interprocess/detail/win32_api.hpp:145:9:
+| warning: ISO C++ prohibits anonymous structs [-Wpedantic]"
+| 
+| It is a Windows-only warning and has been fixed in Boost 1.69.
+
+And for Boost 1.66 we are really screwed because a good ten line above we
+have
+
+//Ignore -pedantic errors here (anonymous structs, etc.)
+#if defined(BOOST_GCC)
+#  if (BOOST_GCC >= 40600)
+#     pragma GCC diagnostic push
+#     if (BOOST_GCC >= 60000)
+//#        pragma GCC diagnostic ignored "-Wpedantic"
+#     else
+//#        pragma GCC diagnostic ignored "-pedantic"
+#     endif
+#  else
+#     pragma GCC system_header
+#  endif
+#endif
+
+where I *had to* comment out the pragmas because CRAN Policy insists on not
+altering compiler diagnostics.  :-/
+
+Nick:  In short no easy fix.
+
+Greetings from across Chicago,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

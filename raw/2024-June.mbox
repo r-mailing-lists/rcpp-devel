@@ -1,0 +1,402 @@
+From patrik.schilter at gmail.com  Sun Jun 23 21:37:44 2024
+From: patrik.schilter at gmail.com (Patrik Schilter)
+Date: Sun, 23 Jun 2024 21:37:44 +0200
+Subject: [Rcpp-devel] CRAN submission with NOTE about STRING_PTR
+Message-ID: <CAHL7J869OFGt60GS341On55cr1hBanC+qReWsQy7s8QaS2yEvw@mail.gmail.com>
+
+Dear all,
+
+First of all: Thank you very much for creating and also maintaining Rcpp so
+diligently!
+
+I am a co-maintainer of the package REndo which depends on Rcpp &
+RcppEigen. Last week, we submitted an updated versions of our package to
+CRAN but unfortunately we failed the CRAN incoming checks on
+`r-devel-linux-x86_64-debian-gcc` and `r-devel-windows-x86_64` with:
+
+"Found non-API call to R: ?STRING_PTR?  Compiled code should not call
+non-API entry points in R."
+
+The results can be found here:
+https://win-builder.r-project.org/incoming_pretest/REndo_2.4.10_20240619_205001/Windows/00check.log
+https://win-builder.r-project.org/incoming_pretest/REndo_2.4.10_20240619_205001/Debian/00check.log
+
+
+>From Dirks comment on the Github issue tracker (
+https://github.com/RcppCore/Rcpp/issues/1311#issuecomment-2185099772), I
+understand that this issue will not be approached in the upcoming release
+in July but only in the next release thereafter in January.
+
+
+Two questions:
+
+- Does this stem from our usage of `Rcpp::CharacterVector` and could this
+note be avoided if we did not use `Rcpp::CharacterVector?`
+
+- Is my understanding correct, that exiting packages on CRAN which use
+`Rcpp::CharacterVector` therefore cannot be updated until next year because
+they will fail the CRAN pre-tests?
+
+
+Thank you very much
+
+Patrik
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240623/94f4a345/attachment.htm>
+
+From edd at debian.org  Sun Jun 23 22:32:04 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 23 Jun 2024 15:32:04 -0500
+Subject: [Rcpp-devel] CRAN submission with NOTE about STRING_PTR
+In-Reply-To: <CAHL7J869OFGt60GS341On55cr1hBanC+qReWsQy7s8QaS2yEvw@mail.gmail.com>
+References: <CAHL7J869OFGt60GS341On55cr1hBanC+qReWsQy7s8QaS2yEvw@mail.gmail.com>
+Message-ID: <26232.34372.699056.868183@rob.eddelbuettel.com>
+
+
+Hi Patrik,
+
+On 23 June 2024 at 21:37, Patrik Schilter wrote:
+| Dear all,
+| 
+| First of all: Thank you very much for creating and also maintaining Rcpp so
+| diligently!
+
+Thanks for the kind words.
+
+| I am a co-maintainer of the package REndo which depends on Rcpp & RcppEigen.
+| Last week, we submitted an updated versions of our package to CRAN but
+| unfortunately we failed the CRAN incoming checks on
+| `r-devel-linux-x86_64-debian-gcc` and `r-devel-windows-x86_64` with:
+| 
+| "Found non-API call to R: ?STRING_PTR? ?Compiled code should not call non-API
+| entry points in R."
+
+I believe this was a pretty recent addition to the list of symbols flagged.
+And as was mentioned in the github issues you refer to below, all this is
+still very much in flux.
+
+| The results can be found here:
+| https://win-builder.r-project.org/incoming_pretest/REndo_2.4.10_20240619_205001
+| /Windows/00check.log
+| https://win-builder.r-project.org/incoming_pretest/REndo_2.4.10_20240619_205001
+| /Debian/00check.log
+| 
+| 
+| From Dirks comment on the Github issue tracker (https://github.com/RcppCore/
+| Rcpp/issues/1311#issuecomment-2185099772), I understand that this issue will
+| not be approached in the upcoming release in July but only in the next release
+| thereafter in January.
+| 
+| 
+| Two questions:
+| 
+| - Does this stem from our usage of `Rcpp::CharacterVector` and could this note
+| be avoided if we did not use `Rcpp::CharacterVector?`
+| 
+| - Is my understanding correct, that exiting packages on CRAN which use
+| `Rcpp::CharacterVector` therefore cannot be updated until next year because
+| they will fail the CRAN pre-tests?
+
+Good questions. But I fear we don't really have answers yet. It took quite a
+bit of work for the just merged PR to improve things relative to use of
+DATAPTR so I fear we will just have to grind it out one issue at time. Any
+and all help is appreciated and welcome so if you learn something in your
+explorations let us know.
+
+Cheers,  Dirk
+
+| 
+| Thank you very much
+| 
+| Patrik
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From Juan.Domingo at uv.es  Mon Jun 24 01:40:32 2024
+From: Juan.Domingo at uv.es (Juan Domingo Esteve)
+Date: Mon, 24 Jun 2024 01:40:32 +0200
+Subject: [Rcpp-devel] CRAN submission with NOTE about STRING_PTR
+In-Reply-To: <26232.34372.699056.868183@rob.eddelbuettel.com>
+References: <CAHL7J869OFGt60GS341On55cr1hBanC+qReWsQy7s8QaS2yEvw@mail.gmail.com>
+ <26232.34372.699056.868183@rob.eddelbuettel.com>
+Message-ID: <0ff9d7c0-3917-44bd-9d3d-52167eaa9c93@uv.es>
+
+Dear Patrik and Dirk:
+
+  I have received a few days ago a mail from Prof. Ripley with a similar issue
+for my package, scellpam. The error is
+
+checking compiled code ... NOTE
+File ?scellpam/libs/scellpam.so?:
+   Found non-API call to R: ?SET_TYPEOF?
+
+Compiled code should not call non-API entry points in R.
+
+See ?Writing portable packages? in the ?Writing R Extensions? manual.
+
+which is quite similar to the one received by Patrik Schilter, but in his case with
+a different non-API call, 'STRING_PTR'.
+
+I don't know if this may help, but as the answer from Dirk suggests us to make the team
+know about this, I write this mail.
+
+  Also, the answer suggests that the issue needs certain time to be fixed.
+Might it affect many or all the packages that depends on Rcpp (that, I guess, are
+probably a lot of them)?
+If this is the case, could we make some kind of collective petition to CRAN
+to keep temporarily the packages until this can be fixed? (Because mine, for instance,
+according to Prof. Ripley's mail, is scheduled to be retired by next July, 3rd...).
+
+  Thanks a lot for your great effort maintaining Rcpp.
+
+     Juan
+
+El 23/6/24 a las 22:32, Dirk Eddelbuettel escribi?:
+> 
+> Hi Patrik,
+> 
+> On 23 June 2024 at 21:37, Patrik Schilter wrote:
+> | Dear all,
+> |
+> | First of all: Thank you very much for creating and also maintaining Rcpp so
+> | diligently!
+> 
+> Thanks for the kind words.
+> 
+> | I am a co-maintainer of the package REndo which depends on Rcpp & RcppEigen.
+> | Last week, we submitted an updated versions of our package to CRAN but
+> | unfortunately we failed the CRAN incoming checks on
+> | `r-devel-linux-x86_64-debian-gcc` and `r-devel-windows-x86_64` with:
+> |
+> | "Found non-API call to R: ?STRING_PTR? ?Compiled code should not call non-API
+> | entry points in R."
+> 
+> I believe this was a pretty recent addition to the list of symbols flagged.
+> And as was mentioned in the github issues you refer to below, all this is
+> still very much in flux.
+> 
+> | The results can be found here:
+> | https://urldefense.com/v3/__https://win-builder.r-project.org/incoming_pretest/REndo_2.4.10_20240619_205001__;!!D9dNQwwGXtA!TvAt_hVuu_qlqiOt5YVK6UKTrLg3I16AnoWTMJA4XaJojoTJ7-PrFvFLOUUjM4Nmu6UjeKG-efBk$
+> | /Windows/00check.log
+> | https://urldefense.com/v3/__https://win-builder.r-project.org/incoming_pretest/REndo_2.4.10_20240619_205001__;!!D9dNQwwGXtA!TvAt_hVuu_qlqiOt5YVK6UKTrLg3I16AnoWTMJA4XaJojoTJ7-PrFvFLOUUjM4Nmu6UjeKG-efBk$
+> | /Debian/00check.log
+> |
+> |
+> | From Dirks comment on the Github issue tracker (https://urldefense.com/v3/__https://github.com/RcppCore/__;!!D9dNQwwGXtA!TvAt_hVuu_qlqiOt5YVK6UKTrLg3I16AnoWTMJA4XaJojoTJ7-PrFvFLOUUjM4Nmu6UjeInDQNq2$
+> | Rcpp/issues/1311#issuecomment-2185099772), I understand that this issue will
+> | not be approached in the upcoming release in July but only in the next release
+> | thereafter in January.
+> |
+> |
+> | Two questions:
+> |
+> | - Does this stem from our usage of `Rcpp::CharacterVector` and could this note
+> | be avoided if we did not use `Rcpp::CharacterVector?`
+> |
+> | - Is my understanding correct, that exiting packages on CRAN which use
+> | `Rcpp::CharacterVector` therefore cannot be updated until next year because
+> | they will fail the CRAN pre-tests?
+> 
+> Good questions. But I fear we don't really have answers yet. It took quite a
+> bit of work for the just merged PR to improve things relative to use of
+> DATAPTR so I fear we will just have to grind it out one issue at time. Any
+> and all help is appreciated and welcome so if you learn something in your
+> explorations let us know.
+> 
+> Cheers,  Dirk
+> 
+> |
+> | Thank you very much
+> |
+> | Patrik
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://urldefense.com/v3/__https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel__;!!D9dNQwwGXtA!TvAt_hVuu_qlqiOt5YVK6UKTrLg3I16AnoWTMJA4XaJojoTJ7-PrFvFLOUUjM4Nmu6UjeC4ToubL$
+> 
+
+-- 
+________________________________________________________________
+Juan Domingo Esteve
+Dept. of Informatics, School of Engineering
+University of Valencia
+Avda. de la Universidad, s/n.
+         46100-Burjasot (Valencia)
+            SPAIN
+
+Telephone:      +34-963543572
+Fax:            +34-963543550
+email:  Juan.Domingo at uv.es
+________________________________________________________________
+
+From ralf.stubner at gmail.com  Sun Jun 30 13:28:26 2024
+From: ralf.stubner at gmail.com (Ralf Stubner)
+Date: Sun, 30 Jun 2024 11:28:26 +0000
+Subject: [Rcpp-devel] CRAN submission with NOTE about STRING_PTR
+In-Reply-To: <0ff9d7c0-3917-44bd-9d3d-52167eaa9c93@uv.es>
+References: <CAHL7J869OFGt60GS341On55cr1hBanC+qReWsQy7s8QaS2yEvw@mail.gmail.com>
+ <26232.34372.699056.868183@rob.eddelbuettel.com>
+ <0ff9d7c0-3917-44bd-9d3d-52167eaa9c93@uv.es>
+Message-ID: <CAFQwRQzoLzdpGZ-YaO_+fA-M_C+XUhhzGDDg0ee1V53Ej13Qiw@mail.gmail.com>
+
+Dear all,
+
+On Sun, Jun 23, 2024 at 11:40?PM Juan Domingo Esteve <Juan.Domingo at uv.es> wrote:
+> Might it affect many or all the packages that depends on Rcpp (that, I guess, are
+> probably a lot of them)?
+
+I am pretty confident it is not all packages using Rcpp. I have two of
+those on CRAN (dqrng and swephR) and got no message concerning those.
+Also Winbuilder still works fine for these. And I do make use of
+Rcpp::CharacterVector at least in swephR.
+
+Ralf
+
+From Juan.Domingo at uv.es  Sun Jun 30 19:26:36 2024
+From: Juan.Domingo at uv.es (Juan Domingo Esteve)
+Date: Sun, 30 Jun 2024 19:26:36 +0200
+Subject: [Rcpp-devel] CRAN submission with NOTE about STRING_PTR
+In-Reply-To: <CAFQwRQzoLzdpGZ-YaO_+fA-M_C+XUhhzGDDg0ee1V53Ej13Qiw@mail.gmail.com>
+References: <CAHL7J869OFGt60GS341On55cr1hBanC+qReWsQy7s8QaS2yEvw@mail.gmail.com>
+ <26232.34372.699056.868183@rob.eddelbuettel.com>
+ <0ff9d7c0-3917-44bd-9d3d-52167eaa9c93@uv.es>
+ <CAFQwRQzoLzdpGZ-YaO_+fA-M_C+XUhhzGDDg0ee1V53Ej13Qiw@mail.gmail.com>
+Message-ID: <54886e33-fdda-4178-ae6d-bf8c19396bda@uv.es>
+
+
+
+El 30/6/24 a las 13:28, Ralf Stubner escribi?:
+> Dear all,
+> 
+> On Sun, Jun 23, 2024 at 11:40?PM Juan Domingo Esteve <Juan.Domingo at uv.es> wrote:
+>> Might it affect many or all the packages that depends on Rcpp (that, I guess, are
+>> probably a lot of them)?
+> 
+> I am pretty confident it is not all packages using Rcpp. I have two of
+> those on CRAN (dqrng and swephR) and got no message concerning those.
+> Also Winbuilder still works fine for these. And I do make use of
+> Rcpp::CharacterVector at least in swephR.
+> 
+> Ralf
+
+
+Dear Ralf:
+
+  Thank you for your kind response, Nevertheless, I'm afraid the problem is more serious.
+I have just checked my package (scellpam) with Winbuilder, and everything _seems_ OK, except
+one note saying that "The Date field is over a month old.". If you are curious, look at the results
+in
+https://win-builder.r-project.org/7V4tR60V98W7/
+
+So my package passes the Winbuilder test but not CRAN tests and the problem, I guess, might come
+from this piece of the source code of R, taken from source file src/include/Rinternals.h
+
+/* Rest of this file
+    Stuff that is not API and probably should not be but is getting used.
+  */
+
+void (SET_TYPEOF)(SEXP x, int v); // used by Rcpp
+void (SET_OBJECT)(SEXP x, int v); // used by Rcpp
+void (SET_S4_OBJECT)(SEXP x); // used by Rcpp (maybe?)
+void (UNSET_S4_OBJECT)(SEXP x); // used by Rcpp (maybe?)
+const char *R_curErrorBuf(void); // used by unix */
+int (IS_SCALAR)(SEXP x, int type); // used by symengine */
+Rboolean Rf_psmatch(const char *, const char *, Rboolean); // used by rgl
+
+As the initial comment says, it seems that if you use any of these functions (or use Rcpp which uses it),
+you get into trouble with the CRAN maintainers.
+
+My package does not call directly SET_TYPEOF, but a grep inside the library that I generate
+(libscellpam.so) finds it, so I assume it is called by Rcpp.
+
+Other packages like REndo, maintained by Patrik Scheiller, reported a similar error with
+function STRING_PTR in a mail recently sent to this list. I am not sure if such package would
+pass the Winbuilder test, but I guess it would do, so don't be too confident in the Winbuilder
+test.
+
+The answer of Dirk Edderlbuettel to the former issue pointed me to this page:
+
+https://github.com/RcppCore/Rcpp/issues/1311#user-content-fn-1-0bfb88969ba932d4ddf8e167f9b00c34
+
+where they are reporting the progress on Rcpp. They talk about newer versions of Rcpp. Indeed, and
+following their suggestion, I have tried to delete Rcpp and install it again with
+
+install.packages("Rcpp", repos=c("https://RcppCore.github.io/drat", "https://cloud.r-project.org"))
+
+which installs indeed a newer version and using it I have recompiled and tested my package. Everything
+seems to work fine (and the package works) but the string SET_TYPEOF is still inside the shared library,
+so I assume the problem posed by the CRAN maintainers would remain.
+
+  My questions are:
+
+* If you find traces of SET_TYPEOF or any of the functions mentioned before in the R source code before,
+or of STRING_PTR, inside your libraries, is this likely to provoke a rejection from CRAN?
+* In the case the problem is in Rcpp, we will have to wait until Dirk and other maintainers can fix it, which
+obviously will take some time since the problem seems difficult (they announce, I think, a new release for July)
+But in the meantime, our packages will be retired from CRAN (mine will be retired next July 3rd).
+
+First, is this interpretation correct? i.e. is Rcpp the only reason or we have done something wrong
+in our packages that we should correct?
+
+If Rcpp is the reason:
+
+- Can we (the package maintainers) do something to help, apart of test our packages with the new versions of Rcpp
+as they are available and report the result?
+- Could we do something to convince the CRAN maintainers to allow for an extension until issues can be fixed?
+
+   Thanks a lot and sorry for the inconveniences
+
+     Juan
+
+-- 
+________________________________________________________________
+Juan Domingo Esteve
+Dept. of Informatics, School of Engineering
+University of Valencia
+Avda. de la Universidad, s/n.
+         46100-Burjasot (Valencia)
+            SPAIN
+
+Telephone:      +34-963543572
+Fax:            +34-963543550
+email:  Juan.Domingo at uv.es
+________________________________________________________________
+
+From edd at debian.org  Sun Jun 30 21:43:56 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 30 Jun 2024 14:43:56 -0500
+Subject: [Rcpp-devel] CRAN submission with NOTE about STRING_PTR
+In-Reply-To: <54886e33-fdda-4178-ae6d-bf8c19396bda@uv.es>
+References: <CAHL7J869OFGt60GS341On55cr1hBanC+qReWsQy7s8QaS2yEvw@mail.gmail.com>
+ <26232.34372.699056.868183@rob.eddelbuettel.com>
+ <0ff9d7c0-3917-44bd-9d3d-52167eaa9c93@uv.es>
+ <CAFQwRQzoLzdpGZ-YaO_+fA-M_C+XUhhzGDDg0ee1V53Ej13Qiw@mail.gmail.com>
+ <54886e33-fdda-4178-ae6d-bf8c19396bda@uv.es>
+Message-ID: <26241.46460.738374.900990@rob.eddelbuettel.com>
+
+
+Juan,
+
+Rcpp has over 2800 reverse dependencies. We cannot check errors on all of
+them, but you could spot check a few more than the one mentioned. The
+tools::package_depencencies() function can give you all (straight or reverse)
+dependencies of a package, or you can just glance at the CRAN page.
+
+I am with Ralf here: I too have Rcpp-using packages on CRAN, and basically
+all use charater variables, but I do not think I have that warning for them.
+
+All that said in due time we hope to of course improve these matters.  The
+next release should do so for one of the recently-outlawed accessors.  All
+this is a lot of work, so don't expect miracles overnight.
+
+Cheers, Dirk
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

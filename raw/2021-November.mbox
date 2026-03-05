@@ -1,0 +1,557 @@
+From simon.zehnder at googlemail.com  Sun Nov  7 12:41:04 2021
+From: simon.zehnder at googlemail.com (Simon Zehnder)
+Date: Sun, 7 Nov 2021 12:41:04 +0100
+Subject: [Rcpp-devel] Package does not compile on MAC when running
+	R-CMD-check github action
+Message-ID: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+
+Hi everyone,
+
+I have a problem with the compilation of a package on MacOS when running
+the R-CDM-check github action. On all other platforms the package compiles,
+but on MacOS.
+
+I get a problem with the shared library on MacOS:
+
+ OE> Error: package or namespace load failed for ‘finmix’ in dyn.load(file,
+DLLpath = DLLpath, ...):
+  OE>  unable to load shared object
+'/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/RtmpYiig6P/pkg-libc181f84f0aa/finmix/libs/finmix.so':
+  OE>
+dlopen(/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/RtmpYiig6P/pkg-libc181f84f0aa/finmix/libs/finmix.so,
+6): Symbol not found: __ZTT13ParStudentInd
+  OE>   Referenced from:
+/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/RtmpYiig6P/pkg-libc181f84f0aa/finmix/libs/finmix.so
+  OE>   Expected in: flat namespace
+  OE>  in
+/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/RtmpYiig6P/pkg-libc181f84f0aa/finmix/libs/finmix.so
+  OE> Error: loading failed
+  OE> Execution halted
+  OE> ERROR: loading failed
+  OE> * removing
+‘/private/var/folders/24/8k48jl6d249_n_qfxwsl6xvm0000gn/T/RtmpYiig6P/pkg-libc181f84f0aa/finmix’
+
+Here is the link to the package on github (the documentation branch):
+https://github.com/simonsays1980/finmix/tree/documentation
+
+I suspect that the reason might be somewhere in the Makevars. Has anyone
+encountered a similar error when running the R-CMD-check github action on
+his/her package? What might be the reason for this behavior?
+
+I am thankful for any hint.
+
+Best,
+Simon
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211107/bb03ff51/attachment.html>
+
+From edd at debian.org  Sun Nov  7 16:56:37 2021
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 7 Nov 2021 09:56:37 -0600
+Subject: [Rcpp-devel] Package does not compile on MAC when
+	running	R-CMD-check github action
+In-Reply-To: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+References: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+Message-ID: <24967.63285.240776.532690@rob.eddelbuettel.com>
+
+
+Simon,
+
+Your Makevars [1] is very standard so I would suspect it may be the actions
+setup for macOS.  Rcpp is still used by a large number of packages all of
+which appear to build just fine on macOS (as eg evidenced by the CRAN checks)
+if and when everything is setup correctly.
+
+Dirk
+
+[1] https://github.com/simonsays1980/finmix/blob/documentation/src/Makevars
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From simon.urbanek at R-project.org  Sun Nov  7 22:22:43 2021
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Mon, 8 Nov 2021 10:22:43 +1300
+Subject: [Rcpp-devel] Package does not compile on MAC when
+	running	R-CMD-check github action
+In-Reply-To: <24967.63285.240776.532690@rob.eddelbuettel.com>
+References: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+ <24967.63285.240776.532690@rob.eddelbuettel.com>
+Message-ID: <D81E67B5-F505-4E96-A05A-F4146B6611B6@R-project.org>
+
+Simon,
+
+this is not a build issue, it breaks on all platforms in clang (tested on macOS and Debian+clang-11). There are tons of warnings in the C++ code (way over 1000 lines!) which lead to an error at link time (most of them are type mismatches leading to overrides of virtual methods). The particular one you see:
+
+$ for i in `ls *.o`; do nm $i | sed "s:^:$i:" | grep __ZT.13ParStudentInd; done
+ParStudentInd.o0000000000001820 S __ZTI13ParStudentInd
+ParStudentInd.o0000000000001b50 S __ZTS13ParStudentInd
+ParStudentInd.o00000000000017a0 S __ZTV13ParStudentInd
+mcmc_student.o                 U __ZTT13ParStudentInd
+
+So mcmc_student expects a VTT, but there is none defined in the implementation (ParStudentInd). To make it clear pass it thought de-mangler like llvm-cxxfilt:
+
+ParStudentInd.o: 0000000000001820 S typeinfo for ParStudentInd
+ParStudentInd.o: 0000000000001b50 S typeinfo name for ParStudentInd
+ParStudentInd.o: 00000000000017a0 S vtable for ParStudentInd
+mcmc_student.o:                  U VTT for ParStudentInd
+
+The above is just one of many link errors (pretty much all classes are mismatched in the mcmc_*.cpp files).
+
+Cheers,
+Simon
+
+
+
+> On Nov 8, 2021, at 4:56 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> 
+> 
+> Simon,
+> 
+> Your Makevars [1] is very standard so I would suspect it may be the actions
+> setup for macOS.  Rcpp is still used by a large number of packages all of
+> which appear to build just fine on macOS (as eg evidenced by the CRAN checks)
+> if and when everything is setup correctly.
+> 
+> Dirk
+> 
+> [1] https://github.com/simonsays1980/finmix/blob/documentation/src/Makevars
+> 
+> -- 
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+From simon.zehnder at googlemail.com  Mon Nov  8 11:15:37 2021
+From: simon.zehnder at googlemail.com (Simon Zehnder)
+Date: Mon, 8 Nov 2021 11:15:37 +0100
+Subject: [Rcpp-devel] Package does not compile on MAC when running
+ R-CMD-check github action
+In-Reply-To: <24967.63285.240776.532690@rob.eddelbuettel.com>
+References: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+ <24967.63285.240776.532690@rob.eddelbuettel.com>
+Message-ID: <CAGQVrP-fnQMH-t4J3C=+qnJaiBsEQiv5ERe_EFAJxdfyzCDk5g@mail.gmail.com>
+
+Dirk,
+
+thank you for your response. That eliminates already a source. I am
+honestly not anymore that fluent in C++ than I was some years ago.
+
+Best,
+Simon
+
+Am So., 7. Nov. 2021 um 16:56 Uhr schrieb Dirk Eddelbuettel <edd at debian.org
+>:
+
+>
+> Simon,
+>
+> Your Makevars [1] is very standard so I would suspect it may be the actions
+> setup for macOS.  Rcpp is still used by a large number of packages all of
+> which appear to build just fine on macOS (as eg evidenced by the CRAN
+> checks)
+> if and when everything is setup correctly.
+>
+> Dirk
+>
+> [1]
+> https://github.com/simonsays1980/finmix/blob/documentation/src/Makevars
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211108/aca1abb5/attachment.html>
+
+From simon.zehnder at googlemail.com  Mon Nov  8 11:36:24 2021
+From: simon.zehnder at googlemail.com (Simon Zehnder)
+Date: Mon, 8 Nov 2021 11:36:24 +0100
+Subject: [Rcpp-devel] Package does not compile on MAC when running
+ R-CMD-check github action
+In-Reply-To: <D81E67B5-F505-4E96-A05A-F4146B6611B6@R-project.org>
+References: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+ <24967.63285.240776.532690@rob.eddelbuettel.com>
+ <D81E67B5-F505-4E96-A05A-F4146B6611B6@R-project.org>
+Message-ID: <CAGQVrP8dx69CLrbLgxDJUpjnQ19ic4XXzcpybjNNVmUyc_x4mw@mail.gmail.com>
+
+Hi Simon,
+
+thank you for bringing this up. As mentioned in the answer to Dirk, I am at
+this point not anymore that fluent in C++ as I was some years ago. I am
+looking through the classes and I am not yet sure what to look for. What I
+see is an error message:
+
+./PriorStudentInd.h:31:14: warning: 'PriorStudentInd::update' hides
+overloaded virtual function [-Woverloaded-virtual]
+
+When I look into the class definition
+<https://github.com/simonsays1980/finmix/blob/documentation/src/ParStudentInd.h>
+I see:
+
+#ifndef __FINMIX_PARSTUDENTIND_H__
+#define __FINMIX_PARSTUDENTIND_H__
+
+#include "ParStudentFix.h"
+#include "PriorStudentInd.h"
+
+class ParStudentInd : virtual public ParStudentFix {
+public:
+arma::rowvec weight;
+
+ParStudentInd (const bool&,
+               const FinmixModel&);
+virtual ~ParStudentInd ()
+{
+}
+virtual void update(const PriorStudentInd&);
+};
+#endif /* __FINMIX_PARSTUDENTIND_H__ */
+
+Can you give me a hint, what might be the reason here. I have an
+intuition that it is due to either the "virtual" class inheritance or/and
+the "virtual" method definition that now includes a different parameter
+(PriodStudentInd instead of PriorStudentFix).
+
+Best,
+Simon
+
+
+Am So., 7. Nov. 2021 um 22:22 Uhr schrieb Simon Urbanek <
+simon.urbanek at r-project.org>:
+
+> Simon,
+>
+> this is not a build issue, it breaks on all platforms in clang (tested on
+> macOS and Debian+clang-11). There are tons of warnings in the C++ code (way
+> over 1000 lines!) which lead to an error at link time (most of them are
+> type mismatches leading to overrides of virtual methods). The particular
+> one you see:
+>
+> $ for i in `ls *.o`; do nm $i | sed "s:^:$i:" | grep __ZT.13ParStudentInd;
+> done
+> ParStudentInd.o0000000000001820 S __ZTI13ParStudentInd
+> ParStudentInd.o0000000000001b50 S __ZTS13ParStudentInd
+> ParStudentInd.o00000000000017a0 S __ZTV13ParStudentInd
+> mcmc_student.o                 U __ZTT13ParStudentInd
+>
+> So mcmc_student expects a VTT, but there is none defined in the
+> implementation (ParStudentInd). To make it clear pass it thought de-mangler
+> like llvm-cxxfilt:
+>
+> ParStudentInd.o: 0000000000001820 S typeinfo for ParStudentInd
+> ParStudentInd.o: 0000000000001b50 S typeinfo name for ParStudentInd
+> ParStudentInd.o: 00000000000017a0 S vtable for ParStudentInd
+> mcmc_student.o:                  U VTT for ParStudentInd
+>
+> The above is just one of many link errors (pretty much all classes are
+> mismatched in the mcmc_*.cpp files).
+>
+> Cheers,
+> Simon
+>
+>
+>
+> > On Nov 8, 2021, at 4:56 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> >
+> >
+> > Simon,
+> >
+> > Your Makevars [1] is very standard so I would suspect it may be the
+> actions
+> > setup for macOS.  Rcpp is still used by a large number of packages all of
+> > which appear to build just fine on macOS (as eg evidenced by the CRAN
+> checks)
+> > if and when everything is setup correctly.
+> >
+> > Dirk
+> >
+> > [1]
+> https://github.com/simonsays1980/finmix/blob/documentation/src/Makevars
+> >
+> > --
+> > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211108/c45bc28f/attachment-0001.html>
+
+From simon.urbanek at R-project.org  Tue Nov  9 02:54:17 2021
+From: simon.urbanek at R-project.org (Simon Urbanek)
+Date: Tue, 9 Nov 2021 14:54:17 +1300
+Subject: [Rcpp-devel] Package does not compile on MAC when running
+ R-CMD-check github action
+In-Reply-To: <CAGQVrP8dx69CLrbLgxDJUpjnQ19ic4XXzcpybjNNVmUyc_x4mw@mail.gmail.com>
+References: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+ <24967.63285.240776.532690@rob.eddelbuettel.com>
+ <D81E67B5-F505-4E96-A05A-F4146B6611B6@R-project.org>
+ <CAGQVrP8dx69CLrbLgxDJUpjnQ19ic4XXzcpybjNNVmUyc_x4mw@mail.gmail.com>
+Message-ID: <07F3ECE3-E685-43DD-BDB1-8F27F8C8F5C2@R-project.org>
+
+Simon,
+
+I'm not a C++ expert, but I think there are two issues:
+1) you cannot inline virtual methods so you have to remove "inline"
+2) you have to bring in the definition of the method that you want to override if it is intentional
+
+so just to fix ParStudentInd.* you need
+
+diff --git a/src/ParStudentInd.cpp b/src/ParStudentInd.cpp
+index d944440..f8b9596 100644
+--- a/src/ParStudentInd.cpp
++++ b/src/ParStudentInd.cpp
+@@ -12,7 +12,6 @@ ParStudentInd::ParStudentInd (const bool& STARTPAR,
+    }
+ }
+ 
+-inline
+ void ParStudentInd::update(const PriorStudentInd& hyperPar)
+ {
+    weight = rdirichlet(hyperPar.weightPost);
+diff --git a/src/ParStudentInd.h b/src/ParStudentInd.h
+index c7efd45..45b9717 100644
+--- a/src/ParStudentInd.h
++++ b/src/ParStudentInd.h
+@@ -27,6 +27,7 @@ ParStudentInd (const bool&,
+ virtual ~ParStudentInd ()
+ {
+ }
++using ParStudentFix::update;
+ virtual void update(const PriorStudentInd&);
+ };
+ #endif /* __FINMIX_PARSTUDENTIND_H__ */
+
+
+The same will be needed for all the classes. I don't know if it's all, but it's at least one of the issues ;).
+
+Cheers,
+Simon
+
+
+
+> On Nov 8, 2021, at 11:36 PM, Simon Zehnder <simon.zehnder at googlemail.com> wrote:
+> 
+> Hi Simon, 
+> 
+> thank you for bringing this up. As mentioned in the answer to Dirk, I am at this point not anymore that fluent in C++ as I was some years ago. I am looking through the classes and I am not yet sure what to look for. What I see is an error message: 
+> 
+> ./PriorStudentInd.h:31:14: warning: 'PriorStudentInd::update' hides overloaded virtual function [-Woverloaded-virtual]
+> 
+> When I look into the class definition I see: 
+> 
+> #ifndef __FINMIX_PARSTUDENTIND_H__
+> #define __FINMIX_PARSTUDENTIND_H__
+> 
+> #include "ParStudentFix.h"
+> #include "PriorStudentInd.h"
+> 
+> class ParStudentInd : virtual public ParStudentFix {
+> public:
+> arma::rowvec weight;
+> 
+> ParStudentInd (const bool&,
+>                const FinmixModel&);
+> virtual ~ParStudentInd ()
+> {
+> }
+> virtual void update(const PriorStudentInd&);
+> };
+> #endif /* __FINMIX_PARSTUDENTIND_H__ */
+> 
+> Can you give me a hint, what might be the reason here. I have an intuition that it is due to either the "virtual" class inheritance or/and the "virtual" method definition that now includes a different parameter (PriodStudentInd instead of PriorStudentFix). 
+> 
+> Best,
+> Simon
+> 
+> 
+> Am So., 7. Nov. 2021 um 22:22 Uhr schrieb Simon Urbanek <simon.urbanek at r-project.org>:
+> Simon,
+> 
+> this is not a build issue, it breaks on all platforms in clang (tested on macOS and Debian+clang-11). There are tons of warnings in the C++ code (way over 1000 lines!) which lead to an error at link time (most of them are type mismatches leading to overrides of virtual methods). The particular one you see:
+> 
+> $ for i in `ls *.o`; do nm $i | sed "s:^:$i:" | grep __ZT.13ParStudentInd; done
+> ParStudentInd.o0000000000001820 S __ZTI13ParStudentInd
+> ParStudentInd.o0000000000001b50 S __ZTS13ParStudentInd
+> ParStudentInd.o00000000000017a0 S __ZTV13ParStudentInd
+> mcmc_student.o                 U __ZTT13ParStudentInd
+> 
+> So mcmc_student expects a VTT, but there is none defined in the implementation (ParStudentInd). To make it clear pass it thought de-mangler like llvm-cxxfilt:
+> 
+> ParStudentInd.o: 0000000000001820 S typeinfo for ParStudentInd
+> ParStudentInd.o: 0000000000001b50 S typeinfo name for ParStudentInd
+> ParStudentInd.o: 00000000000017a0 S vtable for ParStudentInd
+> mcmc_student.o:                  U VTT for ParStudentInd
+> 
+> The above is just one of many link errors (pretty much all classes are mismatched in the mcmc_*.cpp files).
+> 
+> Cheers,
+> Simon
+> 
+> 
+> 
+> > On Nov 8, 2021, at 4:56 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+> > 
+> > 
+> > Simon,
+> > 
+> > Your Makevars [1] is very standard so I would suspect it may be the actions
+> > setup for macOS.  Rcpp is still used by a large number of packages all of
+> > which appear to build just fine on macOS (as eg evidenced by the CRAN checks)
+> > if and when everything is setup correctly.
+> > 
+> > Dirk
+> > 
+> > [1] https://github.com/simonsays1980/finmix/blob/documentation/src/Makevars
+> > 
+> > -- 
+> > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> > _______________________________________________
+> > Rcpp-devel mailing list
+> > Rcpp-devel at lists.r-forge.r-project.org
+> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> 
+
+
+From simon.zehnder at googlemail.com  Sun Nov 14 12:24:31 2021
+From: simon.zehnder at googlemail.com (Simon Zehnder)
+Date: Sun, 14 Nov 2021 12:24:31 +0100
+Subject: [Rcpp-devel] Package does not compile on MAC when running
+ R-CMD-check github action
+In-Reply-To: <CAGQVrP8dx69CLrbLgxDJUpjnQ19ic4XXzcpybjNNVmUyc_x4mw@mail.gmail.com>
+References: <CAGQVrP9qHAXQXRmtOPYancPEPqS0iqgQ0NVHv-SHL-byHMGgaQ@mail.gmail.com>
+ <24967.63285.240776.532690@rob.eddelbuettel.com>
+ <D81E67B5-F505-4E96-A05A-F4146B6611B6@R-project.org>
+ <CAGQVrP8dx69CLrbLgxDJUpjnQ19ic4XXzcpybjNNVmUyc_x4mw@mail.gmail.com>
+Message-ID: <CAGQVrP-Jif2AHvbgggEascky_jFmWg=UYTsy6mNkk+OJ=kuAxw@mail.gmail.com>
+
+Hi Dirk, Simon, Nik,
+
+I found the roots for the failed checks. I used a virtual method and then
+overloaded it in derived classes. Furthermore I used the inline keyword and
+that produced some undefined symbols. Now all checks run through on all
+platforms.
+
+Thanks again to each one of you for giving me comments that helped me to
+find out what the problem was.
+
+Best, Simon
+
+Am Mo., 8. Nov. 2021 um 11:36 Uhr schrieb Simon Zehnder <
+simon.zehnder at googlemail.com>:
+
+> Hi Simon,
+>
+> thank you for bringing this up. As mentioned in the answer to Dirk, I am
+> at this point not anymore that fluent in C++ as I was some years ago. I am
+> looking through the classes and I am not yet sure what to look for. What I
+> see is an error message:
+>
+> ./PriorStudentInd.h:31:14: warning: 'PriorStudentInd::update' hides
+> overloaded virtual function [-Woverloaded-virtual]
+>
+> When I look into the class definition
+> <https://github.com/simonsays1980/finmix/blob/documentation/src/ParStudentInd.h>
+> I see:
+>
+> #ifndef __FINMIX_PARSTUDENTIND_H__
+> #define __FINMIX_PARSTUDENTIND_H__
+>
+> #include "ParStudentFix.h"
+> #include "PriorStudentInd.h"
+>
+> class ParStudentInd : virtual public ParStudentFix {
+> public:
+> arma::rowvec weight;
+>
+> ParStudentInd (const bool&,
+>                const FinmixModel&);
+> virtual ~ParStudentInd ()
+> {
+> }
+> virtual void update(const PriorStudentInd&);
+> };
+> #endif /* __FINMIX_PARSTUDENTIND_H__ */
+>
+> Can you give me a hint, what might be the reason here. I have an
+> intuition that it is due to either the "virtual" class inheritance or/and
+> the "virtual" method definition that now includes a different parameter
+> (PriodStudentInd instead of PriorStudentFix).
+>
+> Best,
+> Simon
+>
+>
+> Am So., 7. Nov. 2021 um 22:22 Uhr schrieb Simon Urbanek <
+> simon.urbanek at r-project.org>:
+>
+>> Simon,
+>>
+>> this is not a build issue, it breaks on all platforms in clang (tested on
+>> macOS and Debian+clang-11). There are tons of warnings in the C++ code (way
+>> over 1000 lines!) which lead to an error at link time (most of them are
+>> type mismatches leading to overrides of virtual methods). The particular
+>> one you see:
+>>
+>> $ for i in `ls *.o`; do nm $i | sed "s:^:$i:" | grep
+>> __ZT.13ParStudentInd; done
+>> ParStudentInd.o0000000000001820 S __ZTI13ParStudentInd
+>> ParStudentInd.o0000000000001b50 S __ZTS13ParStudentInd
+>> ParStudentInd.o00000000000017a0 S __ZTV13ParStudentInd
+>> mcmc_student.o                 U __ZTT13ParStudentInd
+>>
+>> So mcmc_student expects a VTT, but there is none defined in the
+>> implementation (ParStudentInd). To make it clear pass it thought de-mangler
+>> like llvm-cxxfilt:
+>>
+>> ParStudentInd.o: 0000000000001820 S typeinfo for ParStudentInd
+>> ParStudentInd.o: 0000000000001b50 S typeinfo name for ParStudentInd
+>> ParStudentInd.o: 00000000000017a0 S vtable for ParStudentInd
+>> mcmc_student.o:                  U VTT for ParStudentInd
+>>
+>> The above is just one of many link errors (pretty much all classes are
+>> mismatched in the mcmc_*.cpp files).
+>>
+>> Cheers,
+>> Simon
+>>
+>>
+>>
+>> > On Nov 8, 2021, at 4:56 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>> >
+>> >
+>> > Simon,
+>> >
+>> > Your Makevars [1] is very standard so I would suspect it may be the
+>> actions
+>> > setup for macOS.  Rcpp is still used by a large number of packages all
+>> of
+>> > which appear to build just fine on macOS (as eg evidenced by the CRAN
+>> checks)
+>> > if and when everything is setup correctly.
+>> >
+>> > Dirk
+>> >
+>> > [1]
+>> https://github.com/simonsays1980/finmix/blob/documentation/src/Makevars
+>> >
+>> > --
+>> > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> > _______________________________________________
+>> > Rcpp-devel mailing list
+>> > Rcpp-devel at lists.r-forge.r-project.org
+>> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20211114/2b055f6c/attachment.html>
+

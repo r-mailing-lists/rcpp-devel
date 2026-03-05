@@ -1,0 +1,3789 @@
+From benjamin.blonder at ouce.ox.ac.uk  Wed Nov  1 16:47:10 2017
+From: benjamin.blonder at ouce.ox.ac.uk (Benjamin Blonder)
+Date: Wed, 1 Nov 2017 15:47:10 +0000
+Subject: [Rcpp-devel] My R package that passes CRAN tests crashes on Windows
+ when using Rcpp code - only with antivirus software installed
+Message-ID: <CAHDVgA+S-cx9Pk2xgGrRb4VSP8cAmhRLpo7FmVg0F_6po0NpVw@mail.gmail.com>
+
+I am writing with a very puzzling crash issue I have been unable to resolve
+myself. It concerns my hypervolume R package, which uses Rcpp to call some
+custom functions to build and evaluate a k-d tree data structure.
+Everything has been working fine for several versions of the package, and
+the package passes the CRAN tests.
+
+The complication is on Windows. On a Windows 7/8/10 install, calling
+functions via Rstudio, the package runs just fine. When using Windows
+Rgui/Rscript, if antivirus software (e.g. Sophos or McAfee) is NOT
+installed, the package also runs just fine. However on Windows with
+antivirus and the Rgui/Rscript program, the package repeatably crashes the
+entire program.
+
+A minimally reproducible example is below:
+
+library(hypervolume)
+data(iris)
+hv = hypervolume_svm(iris[,1:2])
+
+On a debug trace, the problem occurs when hypervolume_svm() eventually
+internally calls kdtree_ball_query_multiple(), which is just a wrapper for
+an Rcpp call to a C++ function (in the package's src/convert.cpp):
+
+SEXP kdtree_ball_query_multiple(SEXP tr, SEXP ptlist, SEXP nr, SEXP nc,
+SEXP r, SEXP verb)
+
+{
+
+  XPtr<KDTree> tree = as<XPtr<KDTree> >(tr);
+
+  int nrow = as<int>(nr);
+
+  int ncol = as<int>(nc);
+
+  NumericVector data(ptlist);
+
+  double radius = as<double>(r);
+
+  bool verbose = as<int>(verb);
+
+
+
+  vector<vector< double > > dataMatrix
+
+    = convertMatrixToVector(data.begin(), nrow, ncol);
+
+
+
+  vector<int> finalCounts;
+
+
+
+  if (ncol != tree->ndims())
+
+  {
+
+    throw(length_error("Points not same dimensionality as data in kdtree"));
+
+
+  }
+
+
+
+  RProgress::RProgress pb("[:bar]", nrow);
+
+  if (verbose==1)
+
+  {
+
+    Rcpp::Rcout << "Ball query... \n";
+
+    pb.tick(0);
+
+  }
+
+
+
+  for (int i=0; i<nrow; i++)
+
+  {
+
+
+
+    vector<int> thisIndices;
+
+    vector<double> thisDistances;
+
+
+
+    vector<double> thisPoint = dataMatrix[i];
+
+    tree->ball_query(thisPoint, radius, thisIndices, thisDistances);
+
+
+
+    // store the number of points within the ball for each point
+
+    finalCounts.push_back(thisIndices.size());
+
+
+
+    if (i%10==0 && verbose==1)
+
+    {
+
+      pb.update(1.0*(i+1)/nrow);
+
+    }
+
+
+
+  }
+
+
+
+  if (verbose==1)
+
+  {
+
+    Rcpp::Rcout << "\ndone.\n";
+
+  }
+
+
+
+  pb.update(1);
+
+
+
+  return(wrap(finalCounts));
+
+}
+
+As noted above, that same code works just fine on other platforms and has
+worked well on Windows in other package versions too, with or without
+antivirus.
+
+Does anyone have any ideas for what is going on, or how to fix it? Are
+there any other reports of antivirus programs causing this kind of crash,
+or of Rcpp issues between Rstudio and Rgui or Rscript?
+
+The problem is hard for me to debug as I only get user error reports and
+have limited access to Windows machines with antivirus software - my test
+environment has been Windows 7, no antivirus, in VirtualBox.
+
+Code for the package is up at https://github.com/bblonder/hypervolume.
+
+Thank you for your time!
+
+Best wishes,
+Benjamin Blonder
+
+-- 
+Benjamin Blonder
+Environmental Change Institute
+School of Geography and the Environment
+University of Oxford
+
+Website: http://www.benjaminblonder.org
+Photo-blog (Natural Curiosities): http://bblonder.wordpress.com/
+Google Scholar: http://scholar.google.com/citations?user=l3FNoE8AAAAJ
+University of Arizona Sky School: https://skyschool.arizona.edu/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171101/fbae2acf/attachment.html>
+
+From tkeitt at utexas.edu  Wed Nov  1 17:37:08 2017
+From: tkeitt at utexas.edu (Tim Keitt)
+Date: Wed, 1 Nov 2017 11:37:08 -0500
+Subject: [Rcpp-devel] My R package that passes CRAN tests crashes on
+ Windows when using Rcpp code - only with antivirus software installed
+In-Reply-To: <CAHDVgA+S-cx9Pk2xgGrRb4VSP8cAmhRLpo7FmVg0F_6po0NpVw@mail.gmail.com>
+References: <CAHDVgA+S-cx9Pk2xgGrRb4VSP8cAmhRLpo7FmVg0F_6po0NpVw@mail.gmail.com>
+Message-ID: <CANnL8gpLV2umfg8UPbOR_O38TMBAzUNhxrH0VcfhvECvFSOkGg@mail.gmail.com>
+
+Hi Ben,
+
+I wonder if the RProgress could be triggering something. It does some
+thread manipulation if I recall. If the code does not evoke any warnings
+from valgrind, that is the place I would look next. You could also ask your
+reporters to run R in a debugger while triggering the fault.
+
+THK
+
+http://www.keittlab.org/
+
+On Wed, Nov 1, 2017 at 10:47 AM, Benjamin Blonder <
+benjamin.blonder at ouce.ox.ac.uk> wrote:
+
+> I am writing with a very puzzling crash issue I have been unable to
+> resolve myself. It concerns my hypervolume R package, which uses Rcpp to
+> call some custom functions to build and evaluate a k-d tree data structure.
+> Everything has been working fine for several versions of the package, and
+> the package passes the CRAN tests.
+>
+> The complication is on Windows. On a Windows 7/8/10 install, calling
+> functions via Rstudio, the package runs just fine. When using Windows
+> Rgui/Rscript, if antivirus software (e.g. Sophos or McAfee) is NOT
+> installed, the package also runs just fine. However on Windows with
+> antivirus and the Rgui/Rscript program, the package repeatably crashes the
+> entire program.
+>
+> A minimally reproducible example is below:
+>
+> library(hypervolume)
+> data(iris)
+> hv = hypervolume_svm(iris[,1:2])
+>
+> On a debug trace, the problem occurs when hypervolume_svm() eventually
+> internally calls kdtree_ball_query_multiple(), which is just a wrapper
+> for an Rcpp call to a C++ function (in the package's src/convert.cpp):
+>
+> SEXP kdtree_ball_query_multiple(SEXP tr, SEXP ptlist, SEXP nr, SEXP nc,
+> SEXP r, SEXP verb)
+>
+> {
+>
+>   XPtr<KDTree> tree = as<XPtr<KDTree> >(tr);
+>
+>   int nrow = as<int>(nr);
+>
+>   int ncol = as<int>(nc);
+>
+>   NumericVector data(ptlist);
+>
+>   double radius = as<double>(r);
+>
+>   bool verbose = as<int>(verb);
+>
+>
+>
+>   vector<vector< double > > dataMatrix
+>
+>     = convertMatrixToVector(data.begin(), nrow, ncol);
+>
+>
+>
+>   vector<int> finalCounts;
+>
+>
+>
+>   if (ncol != tree->ndims())
+>
+>   {
+>
+>     throw(length_error("Points not same dimensionality as data in kdtree"));
+>
+>
+>   }
+>
+>
+>
+>   RProgress::RProgress pb("[:bar]", nrow);
+>
+>   if (verbose==1)
+>
+>   {
+>
+>     Rcpp::Rcout << "Ball query... \n";
+>
+>     pb.tick(0);
+>
+>   }
+>
+>
+>
+>   for (int i=0; i<nrow; i++)
+>
+>   {
+>
+>
+>
+>     vector<int> thisIndices;
+>
+>     vector<double> thisDistances;
+>
+>
+>
+>     vector<double> thisPoint = dataMatrix[i];
+>
+>     tree->ball_query(thisPoint, radius, thisIndices, thisDistances);
+>
+>
+>
+>     // store the number of points within the ball for each point
+>
+>     finalCounts.push_back(thisIndices.size());
+>
+>
+>
+>     if (i%10==0 && verbose==1)
+>
+>     {
+>
+>       pb.update(1.0*(i+1)/nrow);
+>
+>     }
+>
+>
+>
+>   }
+>
+>
+>
+>   if (verbose==1)
+>
+>   {
+>
+>     Rcpp::Rcout << "\ndone.\n";
+>
+>   }
+>
+>
+>
+>   pb.update(1);
+>
+>
+>
+>   return(wrap(finalCounts));
+>
+> }
+>
+> As noted above, that same code works just fine on other platforms and has
+> worked well on Windows in other package versions too, with or without
+> antivirus.
+>
+> Does anyone have any ideas for what is going on, or how to fix it? Are
+> there any other reports of antivirus programs causing this kind of crash,
+> or of Rcpp issues between Rstudio and Rgui or Rscript?
+>
+> The problem is hard for me to debug as I only get user error reports and
+> have limited access to Windows machines with antivirus software - my test
+> environment has been Windows 7, no antivirus, in VirtualBox.
+>
+> Code for the package is up at https://github.com/bblonder/hypervolume.
+>
+> Thank you for your time!
+>
+> Best wishes,
+> Benjamin Blonder
+>
+> --
+> Benjamin Blonder
+> Environmental Change Institute
+> School of Geography and the Environment
+> University of Oxford
+>
+> Website: http://www.benjaminblonder.org
+> Photo-blog (Natural Curiosities): http://bblonder.wordpress.com/
+> Google Scholar: http://scholar.google.com/citations?user=l3FNoE8AAAAJ
+> University of Arizona Sky School: https://skyschool.arizona.edu/
+>
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171101/67fd935f/attachment-0001.html>
+
+From edd at debian.org  Thu Nov  2 22:35:18 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 2 Nov 2017 16:35:18 -0500
+Subject: [Rcpp-devel] Construct data.table object at the C++ level ?
+Message-ID: <23035.36758.475695.623429@bud.eddelbuettel.com>
+
+
+Does anybody have any (public) code constructing data.table objects?
+
+I can of course do as we do for data.frame, which is (essentially)
+constructing a List and setting a class attribute at end.  But I gather
+someone may have done something somewhere already?  C code works too, making
+it shorter always works...
+
+Dirk
+
+PS Long-parked related  wishlist ticket is at
+https://github.com/Rdatatable/data.table/issues/1694
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Fri Nov  3 05:24:27 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 2 Nov 2017 23:24:27 -0500
+Subject: [Rcpp-devel] Construct data.table object at the C++ level ?
+In-Reply-To: <CAOuOy3ehRAqa1V3Thy6K06asj-ip7Ktt_tDVrywhcqMLSCokJw@mail.gmail.com>
+References: <23035.36758.475695.623429@bud.eddelbuettel.com>
+ <CAOuOy3ehRAqa1V3Thy6K06asj-ip7Ktt_tDVrywhcqMLSCokJw@mail.gmail.com>
+Message-ID: <23035.61307.969669.661933@bud.eddelbuettel.com>
+
+
+On 2 November 2017 at 15:36, Matt Dowle wrote:
+| I replied in the issue.
+
+So did I, now that I am back online after a company event.
+
+I'll fill a simple concrete event: constructing a DT from a DF and then using
+nanotime to construct sane nanotime/bit64 objects.   All fine and trivial,
+but would be nicer to do this -- and more -- and the C++ level.
+
+| I don't know what you're asking for here.  A data.table is a list of
+| same-length vectors, so it's almost trivial to create.  Then just add the
+
+We understand that part.
+
+We are less sure about to get to the bits that are not data.frame, and how to
+do so at the C level.
+
+Dirk
+
+| attributes which setDT() does from R level, and trace that through to see
+| what it does.  I don't really get what you're asking for as on the face of
+| it it's simple.  I had asked in the issue about whether it's the recycling
+| you need but I'm not clear.
+| 
+| On Thu, Nov 2, 2017 at 2:35 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > Does anybody have any (public) code constructing data.table objects?
+| >
+| > I can of course do as we do for data.frame, which is (essentially)
+| > constructing a List and setting a class attribute at end.  But I gather
+| > someone may have done something somewhere already?  C code works too,
+| > making
+| > it shorter always works...
+| >
+| > Dirk
+| >
+| > PS Long-parked related  wishlist ticket is at
+| > https://github.com/Rdatatable/data.table/issues/1694
+| >
+| > --
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Nov  4 21:22:42 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 4 Nov 2017 15:22:42 -0500
+Subject: [Rcpp-devel] Construct data.table object at the C++ level ?
+In-Reply-To: <23035.61307.969669.661933@bud.eddelbuettel.com>
+References: <23035.36758.475695.623429@bud.eddelbuettel.com>
+ <CAOuOy3ehRAqa1V3Thy6K06asj-ip7Ktt_tDVrywhcqMLSCokJw@mail.gmail.com>
+ <23035.61307.969669.661933@bud.eddelbuettel.com>
+Message-ID: <23038.8594.275126.203417@bud.eddelbuettel.com>
+
+
+On 2 November 2017 at 23:24, Dirk Eddelbuettel wrote:
+| 
+| On 2 November 2017 at 15:36, Matt Dowle wrote:
+| | I replied in the issue.
+| 
+| So did I, now that I am back online after a company event.
+| 
+| I'll fill a simple concrete event: constructing a DT from a DF and then using
+| nanotime to construct sane nanotime/bit64 objects.   All fine and trivial,
+| but would be nicer to do this -- and more -- and the C++ level.
+
+Ok, the 'create a nanotime vector from int64_t' part is now sorted out [1],
+and it trivially becomes a column in a data.frame and hence ...
+| 
+| | I don't know what you're asking for here.  A data.table is a list of
+| | same-length vectors, so it's almost trivial to create.  Then just add the
+| 
+| We understand that part.
+| 
+| We are less sure about to get to the bits that are not data.frame, and how to
+| do so at the C level.
+
+... in a data.table.  But I still call setDT() via Rcpp::Function.  I'll see
+if I can play fast and loose and just set that S3 attribute directly.
+
+I'll try to remind myself to write a Rcpp Gallery piece once I have all the
+pieces.  Having data.table objects with nanosecond-resolution time is pretty
+slick. 
+
+Dirk
+
+[1] Mostly, still uses one call via Rcpp::Function() to create the S4 object
+which we may be able to amortise, but that may not really matter.
+
+
+| Dirk
+| 
+| | attributes which setDT() does from R level, and trace that through to see
+| | what it does.  I don't really get what you're asking for as on the face of
+| | it it's simple.  I had asked in the issue about whether it's the recycling
+| | you need but I'm not clear.
+| | 
+| | On Thu, Nov 2, 2017 at 2:35 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| | 
+| | >
+| | > Does anybody have any (public) code constructing data.table objects?
+| | >
+| | > I can of course do as we do for data.frame, which is (essentially)
+| | > constructing a List and setting a class attribute at end.  But I gather
+| | > someone may have done something somewhere already?  C code works too,
+| | > making
+| | > it shorter always works...
+| | >
+| | > Dirk
+| | >
+| | > PS Long-parked related  wishlist ticket is at
+| | > https://github.com/Rdatatable/data.table/issues/1694
+| | >
+| | > --
+| | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| | >
+| 
+| -- 
+| http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Nov  4 21:30:26 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sat, 4 Nov 2017 15:30:26 -0500
+Subject: [Rcpp-devel] Construct data.table object at the C++ level ?
+In-Reply-To: <23038.8594.275126.203417@bud.eddelbuettel.com>
+References: <23035.36758.475695.623429@bud.eddelbuettel.com>
+ <CAOuOy3ehRAqa1V3Thy6K06asj-ip7Ktt_tDVrywhcqMLSCokJw@mail.gmail.com>
+ <23035.61307.969669.661933@bud.eddelbuettel.com>
+ <23038.8594.275126.203417@bud.eddelbuettel.com>
+Message-ID: <23038.9058.928894.390558@bud.eddelbuettel.com>
+
+
+On 4 November 2017 at 15:22, Dirk Eddelbuettel wrote:
+| 
+| On 2 November 2017 at 23:24, Dirk Eddelbuettel wrote:
+| | 
+| | On 2 November 2017 at 15:36, Matt Dowle wrote:
+| | | I replied in the issue.
+| | 
+| | So did I, now that I am back online after a company event.
+| | 
+| | I'll fill a simple concrete event: constructing a DT from a DF and then using
+| | nanotime to construct sane nanotime/bit64 objects.   All fine and trivial,
+| | but would be nicer to do this -- and more -- and the C++ level.
+| 
+| Ok, the 'create a nanotime vector from int64_t' part is now sorted out [1],
+| and it trivially becomes a column in a data.frame and hence ...
+| | 
+| | | I don't know what you're asking for here.  A data.table is a list of
+| | | same-length vectors, so it's almost trivial to create.  Then just add the
+| | 
+| | We understand that part.
+| | 
+| | We are less sure about to get to the bits that are not data.frame, and how to
+| | do so at the C level.
+| 
+| ... in a data.table.  But I still call setDT() via Rcpp::Function.  I'll see
+| if I can play fast and loose and just set that S3 attribute directly.
+
+Yes, seems to work (at least for a fresh and reasonable data.frame object):
+
+    //Rcpp::Function dt("setDT");
+    //return dt(df);
+    df.attr("class") = Rcpp::CharacterVector::create("data.table", "data.frame");
+    return(df);  
+
+Dirk
+| 
+| I'll try to remind myself to write a Rcpp Gallery piece once I have all the
+| pieces.  Having data.table objects with nanosecond-resolution time is pretty
+| slick. 
+| 
+| Dirk
+| 
+| [1] Mostly, still uses one call via Rcpp::Function() to create the S4 object
+| which we may be able to amortise, but that may not really matter.
+| 
+| 
+| | Dirk
+| | 
+| | | attributes which setDT() does from R level, and trace that through to see
+| | | what it does.  I don't really get what you're asking for as on the face of
+| | | it it's simple.  I had asked in the issue about whether it's the recycling
+| | | you need but I'm not clear.
+| | | 
+| | | On Thu, Nov 2, 2017 at 2:35 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| | | 
+| | | >
+| | | > Does anybody have any (public) code constructing data.table objects?
+| | | >
+| | | > I can of course do as we do for data.frame, which is (essentially)
+| | | > constructing a List and setting a class attribute at end.  But I gather
+| | | > someone may have done something somewhere already?  C code works too,
+| | | > making
+| | | > it shorter always works...
+| | | >
+| | | > Dirk
+| | | >
+| | | > PS Long-parked related  wishlist ticket is at
+| | | > https://github.com/Rdatatable/data.table/issues/1694
+| | | >
+| | | > --
+| | | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| | | >
+| | 
+| | -- 
+| | http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| 
+| -- 
+| http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Mon Nov  6 17:54:42 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 6 Nov 2017 10:54:42 -0600
+Subject: [Rcpp-devel] Construct data.table object at the C++ level ?
+In-Reply-To: <23038.9058.928894.390558@bud.eddelbuettel.com>
+References: <23035.36758.475695.623429@bud.eddelbuettel.com>
+ <CAOuOy3ehRAqa1V3Thy6K06asj-ip7Ktt_tDVrywhcqMLSCokJw@mail.gmail.com>
+ <23035.61307.969669.661933@bud.eddelbuettel.com>
+ <23038.8594.275126.203417@bud.eddelbuettel.com>
+ <23038.9058.928894.390558@bud.eddelbuettel.com>
+Message-ID: <23040.37842.740750.857138@bud.eddelbuettel.com>
+
+
+On 4 November 2017 at 15:30, Dirk Eddelbuettel wrote:
+| | [1] Mostly, still uses one call via Rcpp::Function() to create the S4 object
+| | which we may be able to amortise, but that may not really matter.
+
+And I got rid of that part too.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From benjamin.blonder at ouce.ox.ac.uk  Mon Nov  6 20:14:28 2017
+From: benjamin.blonder at ouce.ox.ac.uk (Benjamin Blonder)
+Date: Mon, 6 Nov 2017 19:14:28 +0000
+Subject: [Rcpp-devel] My R package that passes CRAN tests crashes on
+ Windows when using Rcpp code - only with antivirus software installed
+In-Reply-To: <CANnL8gpLV2umfg8UPbOR_O38TMBAzUNhxrH0VcfhvECvFSOkGg@mail.gmail.com>
+References: <CAHDVgA+S-cx9Pk2xgGrRb4VSP8cAmhRLpo7FmVg0F_6po0NpVw@mail.gmail.com>
+ <CANnL8gpLV2umfg8UPbOR_O38TMBAzUNhxrH0VcfhvECvFSOkGg@mail.gmail.com>
+Message-ID: <CAHDVgAK9b1BQJ8LyY5XqXCTeoOSNAXbNNej15Yoq_txoq1fhjw@mail.gmail.com>
+
+Hi Tim,
+
+Thanks for the idea. I removed all the RProgress calls from the C++ code
+underlying the package, and there are no more crashed on Windows with
+antivirus software. Mysterious as to the details, but a good enough
+solution for me for now. Thanks!
+
+Ben
+
+On Wed, Nov 1, 2017 at 4:37 PM, Tim Keitt <tkeitt at utexas.edu> wrote:
+
+> Hi Ben,
+>
+> I wonder if the RProgress could be triggering something. It does some
+> thread manipulation if I recall. If the code does not evoke any warnings
+> from valgrind, that is the place I would look next. You could also ask your
+> reporters to run R in a debugger while triggering the fault.
+>
+> THK
+>
+> http://www.keittlab.org/
+>
+> On Wed, Nov 1, 2017 at 10:47 AM, Benjamin Blonder <
+> benjamin.blonder at ouce.ox.ac.uk> wrote:
+>
+>> I am writing with a very puzzling crash issue I have been unable to
+>> resolve myself. It concerns my hypervolume R package, which uses Rcpp to
+>> call some custom functions to build and evaluate a k-d tree data structure.
+>> Everything has been working fine for several versions of the package, and
+>> the package passes the CRAN tests.
+>>
+>> The complication is on Windows. On a Windows 7/8/10 install, calling
+>> functions via Rstudio, the package runs just fine. When using Windows
+>> Rgui/Rscript, if antivirus software (e.g. Sophos or McAfee) is NOT
+>> installed, the package also runs just fine. However on Windows with
+>> antivirus and the Rgui/Rscript program, the package repeatably crashes the
+>> entire program.
+>>
+>> A minimally reproducible example is below:
+>>
+>> library(hypervolume)
+>> data(iris)
+>> hv = hypervolume_svm(iris[,1:2])
+>>
+>> On a debug trace, the problem occurs when hypervolume_svm() eventually
+>> internally calls kdtree_ball_query_multiple(), which is just a wrapper
+>> for an Rcpp call to a C++ function (in the package's src/convert.cpp):
+>>
+>> SEXP kdtree_ball_query_multiple(SEXP tr, SEXP ptlist, SEXP nr, SEXP nc,
+>> SEXP r, SEXP verb)
+>>
+>> {
+>>
+>>   XPtr<KDTree> tree = as<XPtr<KDTree> >(tr);
+>>
+>>   int nrow = as<int>(nr);
+>>
+>>   int ncol = as<int>(nc);
+>>
+>>   NumericVector data(ptlist);
+>>
+>>   double radius = as<double>(r);
+>>
+>>   bool verbose = as<int>(verb);
+>>
+>>
+>>
+>>   vector<vector< double > > dataMatrix
+>>
+>>     = convertMatrixToVector(data.begin(), nrow, ncol);
+>>
+>>
+>>
+>>   vector<int> finalCounts;
+>>
+>>
+>>
+>>   if (ncol != tree->ndims())
+>>
+>>   {
+>>
+>>     throw(length_error("Points not same dimensionality as data in kdtree"));
+>>
+>>
+>>   }
+>>
+>>
+>>
+>>   RProgress::RProgress pb("[:bar]", nrow);
+>>
+>>   if (verbose==1)
+>>
+>>   {
+>>
+>>     Rcpp::Rcout << "Ball query... \n";
+>>
+>>     pb.tick(0);
+>>
+>>   }
+>>
+>>
+>>
+>>   for (int i=0; i<nrow; i++)
+>>
+>>   {
+>>
+>>
+>>
+>>     vector<int> thisIndices;
+>>
+>>     vector<double> thisDistances;
+>>
+>>
+>>
+>>     vector<double> thisPoint = dataMatrix[i];
+>>
+>>     tree->ball_query(thisPoint, radius, thisIndices, thisDistances);
+>>
+>>
+>>
+>>     // store the number of points within the ball for each point
+>>
+>>     finalCounts.push_back(thisIndices.size());
+>>
+>>
+>>
+>>     if (i%10==0 && verbose==1)
+>>
+>>     {
+>>
+>>       pb.update(1.0*(i+1)/nrow);
+>>
+>>     }
+>>
+>>
+>>
+>>   }
+>>
+>>
+>>
+>>   if (verbose==1)
+>>
+>>   {
+>>
+>>     Rcpp::Rcout << "\ndone.\n";
+>>
+>>   }
+>>
+>>
+>>
+>>   pb.update(1);
+>>
+>>
+>>
+>>   return(wrap(finalCounts));
+>>
+>> }
+>>
+>> As noted above, that same code works just fine on other platforms and has
+>> worked well on Windows in other package versions too, with or without
+>> antivirus.
+>>
+>> Does anyone have any ideas for what is going on, or how to fix it? Are
+>> there any other reports of antivirus programs causing this kind of crash,
+>> or of Rcpp issues between Rstudio and Rgui or Rscript?
+>>
+>> The problem is hard for me to debug as I only get user error reports and
+>> have limited access to Windows machines with antivirus software - my test
+>> environment has been Windows 7, no antivirus, in VirtualBox.
+>>
+>> Code for the package is up at https://github.com/bblonder/hypervolume.
+>>
+>> Thank you for your time!
+>>
+>> Best wishes,
+>> Benjamin Blonder
+>>
+>> --
+>> Benjamin Blonder
+>> Environmental Change Institute
+>> School of Geography and the Environment
+>> University of Oxford
+>>
+>> Website: http://www.benjaminblonder.org
+>> Photo-blog (Natural Curiosities): http://bblonder.wordpress.com/
+>> Google Scholar: http://scholar.google.com/citations?user=l3FNoE8AAAAJ
+>> University of Arizona Sky School: https://skyschool.arizona.edu/
+>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>
+>
+
+
+-- 
+Benjamin Blonder
+Environmental Change Institute
+School of Geography and the Environment
+University of Oxford
+
+Website: http://www.benjaminblonder.org
+Photo-blog (Natural Curiosities): http://bblonder.wordpress.com/
+Google Scholar: http://scholar.google.com/citations?user=l3FNoE8AAAAJ
+University of Arizona Sky School: https://skyschool.arizona.edu/
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171106/26ea3b7d/attachment-0001.html>
+
+From edd at debian.org  Mon Nov  6 20:31:37 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 6 Nov 2017 13:31:37 -0600
+Subject: [Rcpp-devel] My R package that passes CRAN tests crashes on
+ Windows when using Rcpp code - only with antivirus software installed
+In-Reply-To: <CAHDVgAK9b1BQJ8LyY5XqXCTeoOSNAXbNNej15Yoq_txoq1fhjw@mail.gmail.com>
+References: <CAHDVgA+S-cx9Pk2xgGrRb4VSP8cAmhRLpo7FmVg0F_6po0NpVw@mail.gmail.com>
+ <CANnL8gpLV2umfg8UPbOR_O38TMBAzUNhxrH0VcfhvECvFSOkGg@mail.gmail.com>
+ <CAHDVgAK9b1BQJ8LyY5XqXCTeoOSNAXbNNej15Yoq_txoq1fhjw@mail.gmail.com>
+Message-ID: <23040.47257.391947.67120@bud.eddelbuettel.com>
+
+
+On 6 November 2017 at 19:14, Benjamin Blonder wrote:
+| Thanks for the idea. I removed all the RProgress calls from the C++ code
+| underlying the package, and there are no more crashed on Windows with
+| antivirus software. Mysterious as to the details, but a good enough
+| solution for me for now. Thanks!
+
+Nice catch by Tim, but the general rule stands:
+
+  If something "weird" happens make sure you are not messing with threading.
+
+Cheers,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Tue Nov  7 13:45:01 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 7 Nov 2017 06:45:01 -0600
+Subject: [Rcpp-devel] [Pre-ANN] Rcpp release candidate GitHub release
+Message-ID: <23041.43725.309886.275143@bud.eddelbuettel.com>
+
+
+I put Rcpp 0.12.13.2 into the RcppCore 'drat' repo. You can install it via
+
+  drat::addRepo("RcppCore")        # expands options("repos") for session
+  install.packages("Rcpp")
+
+or
+
+  install.packages("Rcpp", repos="http://RcppCore.github.io/drat")
+
+This should be ready as Rcpp 0.12.14 in about a work or ten days.  Compared
+to previous release, changes are a bit more limited---see below. But we are
+now completing the deprecation of the old (and terrible, bad design of mine)
+DateVector and DatetimeVector classes as announced with Rcpp 0.12.8 in
+November of last year.
+
+That should not affect many packages ... besides two of my own one of which
+[RcppQuantuccia] hit CRAN yesterday with a new version, and the other
+[RQuantLib] will some time this week.
+
+I ran four complete sets of reverse depends last week with different settings
+and we are looking ok.  A handful (or two) of packages managed internal test
+failures as has happened before. The rcpp-logs repo in the RcppCore org at
+GitHub has details.
+
+We have one pending PR by Dan which I may fold in, and nothing else is slated
+right.  If you have something, come file an issue at GH.
+
+The (current) state of NEWS.Rd is below.
+
+Please test this pre-release if you suspect you have code that may be affected.
+
+Cheers,  Dirk
+
+
+\section{Changes in Rcpp version 0.12.14 [unreleased] (2017-11-xx)}{
+  \itemize{
+    \item Changes in Rcpp API:
+    \itemize{
+      \item New const iterators functions \code{cbegin()} and \code{cend()}
+      added to \code{MatrixRow} as well (Dan Dillon in \ghpr{750}).
+      \item The \code{Rostream} object now contains a \code{Buffer} rather than
+      allocating one (Kirill M?ller in \ghpr{763}).
+      \item New \code{DateVector} and \code{DatetimeVector} classes are now the
+      default fully deprecating the old classes as announced one year ago.
+      
+    }
+    \item Changes in Rcpp Package:
+    \itemize{
+      \item DESCRIPTION file now list doi information per CRAN suggestion.
+    }
+    \item Changes in Rcpp Documentation:
+    \itemize{
+      \item Update CITATION file with doi information and PeerJ preprint.
+    }
+  }
+}
+
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From genovese at cmu.edu  Thu Nov  9 07:54:36 2017
+From: genovese at cmu.edu (Christopher Genovese)
+Date: Thu, 9 Nov 2017 01:54:36 -0500
+Subject: [Rcpp-devel] Rcpp module visible after check but not after install
+Message-ID: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+
+Hello,
+
+  I have a package under development that uses Rcpp modules to expose
+some C++ classes. I hadn't touched the package for some months (close
+to a year). At that time the package compiled and installed without problem
+and worked well. I could access the classes as expected. Recently, having
+updated Rcpp and R in the meantime, I reinstalled the package with
+the following result:
+
+    1. If building and loading from within the package directory, all works
+fine.
+    2. When installing the package, either from github, locally, or
+otherwise,
+        the modules are *not* visible.
+
+The package passes devtools:check() and compiles fine.
+
+For instance, for one of those classes, LshParameterSetter, I do
+
+
+RCPP_EXPOSED_CLASS(LshParameterSetter)
+
+RCPP_MODULE(mod_params) {
+    class_<LshParameterSetter>("LshParameterSetter")
+
+    .constructor<int,int>()
+
+    .method("withDefaults", &LshParameterSetter::withDefaults,
+            "Fill with defaults")
+    .method("distance", &LshParameterSetter::distance,
+            "Set distance metric")
+    .method("numHashFunctions", &LshParameterSetter::numHashFunctions,
+            "Set numbers of hash functions and tables")
+    .method("numHashTables",   &LshParameterSetter::numHashTables,
+            "Set numbers of hash functions and tables")
+    .method("storage",   &LshParameterSetter::storage,
+            "Set LSH Hash Table Storage type")
+    .method("family",   &LshParameterSetter::family,
+            "Set LSH Family")
+    .method("rotations",   &LshParameterSetter::rotations,
+            "Number of rotations")
+    .method("asList",        &LshParameterSetter::asList,
+            "List of parameter values by name")
+   ;
+}
+
+and similarly for the other classes. This module is loaded in the R code
+with
+                     Rcpp::loadModule("mod_params", TRUE)
+and similarly for the other modules.
+
+The installed package has the .rdb, .rdx, and .so file, so it's hard to see
+if something has been lost in the installation.  There's no indication what
+is wrong, but after loading the installed package, a class like
+LshParameterSetter
+is not defined. (Loading from within the package source directory it is,
+showing
+
+> > LshParameterSetter
+> C++ class 'LshParameterSetter' <0x7fde72fb1940>
+> Constructors:
+>     LshParameterSetter(int, int)
+>
+> Fields: ...
+>
+as it should be.) I've done this with simple skeletons and not had a
+similar problem. But I don't see a qualitative difference between these
+cases.
+
+The full package code is at  https://github.com/genovese/falconnr
+and the session info is below.
+
+I'd appreciate any pointers on this, as the problem is unclear to me,
+especially since it worked without problem last year. I'm happy to
+provide any useful information that I might have omitted here.
+
+Thanks for your help, Chris
+
+> sessionInfo()
+R version 3.3.2 (2016-10-31)
+Platform: x86_64-apple-darwin13.4.0 (64-bit)
+Running under: macOS Sierra 10.12.6
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] grid      stats     graphics  grDevices utils     datasets  methods
+base
+
+other attached packages:
+[1] falconnr_0.0.0.9001 MASS_7.3-45         lattice_0.20-34
+
+loaded via a namespace (and not attached):
+[1] Rcpp_0.12.13     codetools_0.2-15
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171109/8a2da815/attachment.html>
+
+From edd at debian.org  Thu Nov  9 13:55:25 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 9 Nov 2017 06:55:25 -0600
+Subject: [Rcpp-devel] Rcpp module visible after check but not after
+	install
+In-Reply-To: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+References: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+Message-ID: <23044.20541.548844.651073@bud.eddelbuettel.com>
+
+
+On 9 November 2017 at 01:54, Christopher Genovese wrote:
+| Hello,
+| 
+|   I have a package under development that uses Rcpp modules to expose
+| some C++ classes. I hadn't touched the package for some months (close
+| to a year). At that time the package compiled and installed without problem
+| and worked well. I could access the classes as expected. Recently, having
+| updated Rcpp and R in the meantime, I reinstalled the package with
+| the following result:
+| 
+|     1. If building and loading from within the package directory, all works
+| fine.
+|     2. When installing the package, either from github, locally, or
+| otherwise,
+|         the modules are *not* visible.
+
+What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we are
+meant to create a tar.gz in either way via 'R CMD BUILD' and then install it
+via 'R CMD INSTALL'.
+
+Are you doing that?
+ 
+| The package passes devtools:check() and compiles fine.
+
+Well if it passes check you should be fine.
+ 
+| For instance, for one of those classes, LshParameterSetter, I do
+| 
+| 
+| RCPP_EXPOSED_CLASS(LshParameterSetter)
+| 
+| RCPP_MODULE(mod_params) {
+|     class_<LshParameterSetter>("LshParameterSetter")
+| 
+|     .constructor<int,int>()
+| 
+|     .method("withDefaults", &LshParameterSetter::withDefaults,
+|             "Fill with defaults")
+|     .method("distance", &LshParameterSetter::distance,
+|             "Set distance metric")
+|     .method("numHashFunctions", &LshParameterSetter::numHashFunctions,
+|             "Set numbers of hash functions and tables")
+|     .method("numHashTables",   &LshParameterSetter::numHashTables,
+|             "Set numbers of hash functions and tables")
+|     .method("storage",   &LshParameterSetter::storage,
+|             "Set LSH Hash Table Storage type")
+|     .method("family",   &LshParameterSetter::family,
+|             "Set LSH Family")
+|     .method("rotations",   &LshParameterSetter::rotations,
+|             "Number of rotations")
+|     .method("asList",        &LshParameterSetter::asList,
+|             "List of parameter values by name")
+|    ;
+| }
+| 
+| and similarly for the other classes. This module is loaded in the R code
+| with
+|                      Rcpp::loadModule("mod_params", TRUE)
+| and similarly for the other modules.
+| 
+| The installed package has the .rdb, .rdx, and .so file, so it's hard to see
+| if something has been lost in the installation.  There's no indication what
+| is wrong, but after loading the installed package, a class like
+| LshParameterSetter
+| is not defined. (Loading from within the package source directory it is,
+
+What do you mean by 'loading from within the package source directory' ?
+
+| showing
+| 
+| > > LshParameterSetter
+| > C++ class 'LshParameterSetter' <0x7fde72fb1940>
+| > Constructors:
+| >     LshParameterSetter(int, int)
+| >
+| > Fields: ...
+| >
+| as it should be.) I've done this with simple skeletons and not had a
+| similar problem. But I don't see a qualitative difference between these
+| cases.
+| 
+| The full package code is at  https://github.com/genovese/falconnr
+| and the session info is below.
+
+Thanks for posting the link.  Not a small package ...
+ 
+| I'd appreciate any pointers on this, as the problem is unclear to me,
+| especially since it worked without problem last year. I'm happy to
+| provide any useful information that I might have omitted here.
+
+Not sure what is going on there. Package clearly builds. Testing complains
+some but hey, it is not a CRAN package yet...
+
+You have
+
+    falconnr::LshTable
+
+visible, but (what you probably want) only un-exported:
+
+    falconnr:::LshNnTable
+    falconnr:::LshParameterSetter
+
+I have been using Modules for about as long as we've had them, but I have
+always been a little mystified by the various UPPERCASE_MACROS exporting
+things.  Looking at what was probably my first Modules package, RcppBDT, I
+seem to "simply" do 
+
+RCPP_MODULE(bdtDdMod) {
+    Rcpp::class_<bdtDd>("bdtDd")   
+       // ... stuff omitted
+
+and nothing else for the four or so different modules there.  That worked. I
+think you may rely on a helper macro which may have gotten stale as the
+_underlying R behaviour_ may have changed.  I think I use one or two of the
+exporter macros in other places (ie RcppAnnoy) so you could try that.
+
+In general, I always recommend to simplify as much as you can.
+
+Hope this helps,  Dirk
+
+| Thanks for your help, Chris
+| 
+| > sessionInfo()
+| R version 3.3.2 (2016-10-31)
+| Platform: x86_64-apple-darwin13.4.0 (64-bit)
+| Running under: macOS Sierra 10.12.6
+| 
+| locale:
+| [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+| 
+| attached base packages:
+| [1] grid      stats     graphics  grDevices utils     datasets  methods
+| base
+| 
+| other attached packages:
+| [1] falconnr_0.0.0.9001 MASS_7.3-45         lattice_0.20-34
+| 
+| loaded via a namespace (and not attached):
+| [1] Rcpp_0.12.13     codetools_0.2-15
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From genovese at cmu.edu  Thu Nov  9 15:32:03 2017
+From: genovese at cmu.edu (Christopher Genovese)
+Date: Thu, 9 Nov 2017 09:32:03 -0500
+Subject: [Rcpp-devel] Rcpp module visible after check but not after
+	install
+In-Reply-To: <23044.20541.548844.651073@bud.eddelbuettel.com>
+References: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+ <23044.20541.548844.651073@bud.eddelbuettel.com>
+Message-ID: <CAPum5FgxO_AV4WVu8HcpjwO5MbDhdmhxVNM4kjOS=3nf0-b=Zg@mail.gmail.com>
+
+Thanks, Dirk.
+
+What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we are
+> meant to create a tar.gz in either way via 'R CMD BUILD' and then install
+> it
+> via 'R CMD INSTALL'.
+>
+> Are you doing that?
+>
+
+Yes. I usually use devtools, but I've done it directly as well.
+
+In #1, for instance: I go to the package source directory, start R,
+do devtools::build and devtools::check. This builds and compiles
+the package. After library() at this point, the module components
+are visible, e.g., LshParameterSetter.
+
+In #2, for instance, I do devtools::install() or devtools::install_github()
+or similar.
+Quit R, go to some other directory, restart R, and call library().  The R
+entry
+points are visible, but none of the module classes.
+
+I'm unclear as to what in the installation/export process can explain the
+difference
+between #1 and #2.
+
+Before emailing yesterday, I had tried removing the RCPP_EXPOSED_CLASS()'s,
+but then the code does not compile. There is a static_assert error in
+wrap_dispatch_unknown_iterable in Rcpp's wrap.h (line 520). I did not see an
+easy way to fix that. (I vaguely recall that I only included them
+originally because
+I had to.)
+
+I will  look RcppAnnoy and see if I can find a way around using these
+macros.
+
+Thanks again, Chris
+
+
+
+
+On Thu, Nov 9, 2017 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 9 November 2017 at 01:54, Christopher Genovese wrote:
+> | Hello,
+> |
+> |   I have a package under development that uses Rcpp modules to expose
+> | some C++ classes. I hadn't touched the package for some months (close
+> | to a year). At that time the package compiled and installed without
+> problem
+> | and worked well. I could access the classes as expected. Recently, having
+> | updated Rcpp and R in the meantime, I reinstalled the package with
+> | the following result:
+> |
+> |     1. If building and loading from within the package directory, all
+> works
+> | fine.
+> |     2. When installing the package, either from github, locally, or
+> | otherwise,
+> |         the modules are *not* visible.
+>
+> What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we are
+> meant to create a tar.gz in either way via 'R CMD BUILD' and then install
+> it
+> via 'R CMD INSTALL'.
+>
+> Are you doing that?
+>
+> | The package passes devtools:check() and compiles fine.
+>
+> Well if it passes check you should be fine.
+>
+> | For instance, for one of those classes, LshParameterSetter, I do
+> |
+> |
+> | RCPP_EXPOSED_CLASS(LshParameterSetter)
+> |
+> | RCPP_MODULE(mod_params) {
+> |     class_<LshParameterSetter>("LshParameterSetter")
+> |
+> |     .constructor<int,int>()
+> |
+> |     .method("withDefaults", &LshParameterSetter::withDefaults,
+> |             "Fill with defaults")
+> |     .method("distance", &LshParameterSetter::distance,
+> |             "Set distance metric")
+> |     .method("numHashFunctions", &LshParameterSetter::numHashFunctions,
+> |             "Set numbers of hash functions and tables")
+> |     .method("numHashTables",   &LshParameterSetter::numHashTables,
+> |             "Set numbers of hash functions and tables")
+> |     .method("storage",   &LshParameterSetter::storage,
+> |             "Set LSH Hash Table Storage type")
+> |     .method("family",   &LshParameterSetter::family,
+> |             "Set LSH Family")
+> |     .method("rotations",   &LshParameterSetter::rotations,
+> |             "Number of rotations")
+> |     .method("asList",        &LshParameterSetter::asList,
+> |             "List of parameter values by name")
+> |    ;
+> | }
+> |
+> | and similarly for the other classes. This module is loaded in the R code
+> | with
+> |                      Rcpp::loadModule("mod_params", TRUE)
+> | and similarly for the other modules.
+> |
+> | The installed package has the .rdb, .rdx, and .so file, so it's hard to
+> see
+> | if something has been lost in the installation.  There's no indication
+> what
+> | is wrong, but after loading the installed package, a class like
+> | LshParameterSetter
+> | is not defined. (Loading from within the package source directory it is,
+>
+> What do you mean by 'loading from within the package source directory' ?
+>
+> | showing
+> |
+> | > > LshParameterSetter
+> | > C++ class 'LshParameterSetter' <0x7fde72fb1940>
+> | > Constructors:
+> | >     LshParameterSetter(int, int)
+> | >
+> | > Fields: ...
+> | >
+> | as it should be.) I've done this with simple skeletons and not had a
+> | similar problem. But I don't see a qualitative difference between these
+> | cases.
+> |
+> | The full package code is at  https://github.com/genovese/falconnr
+> | and the session info is below.
+>
+> Thanks for posting the link.  Not a small package ...
+>
+> | I'd appreciate any pointers on this, as the problem is unclear to me,
+> | especially since it worked without problem last year. I'm happy to
+> | provide any useful information that I might have omitted here.
+>
+> Not sure what is going on there. Package clearly builds. Testing complains
+> some but hey, it is not a CRAN package yet...
+>
+> You have
+>
+>     falconnr::LshTable
+>
+> visible, but (what you probably want) only un-exported:
+>
+>     falconnr:::LshNnTable
+>     falconnr:::LshParameterSetter
+>
+> I have been using Modules for about as long as we've had them, but I have
+> always been a little mystified by the various UPPERCASE_MACROS exporting
+> things.  Looking at what was probably my first Modules package, RcppBDT, I
+> seem to "simply" do
+>
+> RCPP_MODULE(bdtDdMod) {
+>     Rcpp::class_<bdtDd>("bdtDd")
+>        // ... stuff omitted
+>
+> and nothing else for the four or so different modules there.  That worked.
+> I
+> think you may rely on a helper macro which may have gotten stale as the
+> _underlying R behaviour_ may have changed.  I think I use one or two of the
+> exporter macros in other places (ie RcppAnnoy) so you could try that.
+>
+> In general, I always recommend to simplify as much as you can.
+>
+> Hope this helps,  Dirk
+>
+> | Thanks for your help, Chris
+> |
+> | > sessionInfo()
+> | R version 3.3.2 (2016-10-31)
+> | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+> | Running under: macOS Sierra 10.12.6
+> |
+> | locale:
+> | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> |
+> | attached base packages:
+> | [1] grid      stats     graphics  grDevices utils     datasets  methods
+> | base
+> |
+> | other attached packages:
+> | [1] falconnr_0.0.0.9001 MASS_7.3-45         lattice_0.20-34
+> |
+> | loaded via a namespace (and not attached):
+> | [1] Rcpp_0.12.13     codetools_0.2-15
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171109/c77eee90/attachment.html>
+
+From edd at debian.org  Thu Nov  9 15:59:19 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 9 Nov 2017 08:59:19 -0600
+Subject: [Rcpp-devel] Rcpp module visible after check but not after
+	install
+In-Reply-To: <CAPum5FgxO_AV4WVu8HcpjwO5MbDhdmhxVNM4kjOS=3nf0-b=Zg@mail.gmail.com>
+References: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+ <23044.20541.548844.651073@bud.eddelbuettel.com>
+ <CAPum5FgxO_AV4WVu8HcpjwO5MbDhdmhxVNM4kjOS=3nf0-b=Zg@mail.gmail.com>
+Message-ID: <23044.27975.576730.543331@bud.eddelbuettel.com>
+
+
+On 9 November 2017 at 09:32, Christopher Genovese wrote:
+| Thanks, Dirk.
+| 
+| What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we are
+| > meant to create a tar.gz in either way via 'R CMD BUILD' and then install
+| > it
+| > via 'R CMD INSTALL'.
+| >
+| > Are you doing that?
+| >
+| 
+| Yes. I usually use devtools, but I've done it directly as well.
+
+Take this up with the devtools developers then, please.
+
+I operate with R command, and possibly very thin littler wrappers such as
+build.r and rcc.r to, respectively, build and check.
+ 
+| In #1, for instance: I go to the package source directory, start R,
+| do devtools::build and devtools::check. This builds and compiles
+| the package. After library() at this point, the module components
+| are visible, e.g., LshParameterSetter.
+| 
+| In #2, for instance, I do devtools::install() or devtools::install_github()
+| or similar.
+| Quit R, go to some other directory, restart R, and call library().  The R
+| entry
+| points are visible, but none of the module classes.
+| 
+| I'm unclear as to what in the installation/export process can explain the
+| difference
+| between #1 and #2.
+
+Again, I have no idea what devtools does here. Other people may.
+
+The Rcpp documentation does not cover devtools so you are on your own.
+ 
+| Before emailing yesterday, I had tried removing the RCPP_EXPOSED_CLASS()'s,
+| but then the code does not compile. There is a static_assert error in
+| wrap_dispatch_unknown_iterable in Rcpp's wrap.h (line 520). I did not see an
+| easy way to fix that. (I vaguely recall that I only included them
+| originally because
+| I had to.)
+
+I think you need those. I just glance at the different variants on the train
+in, they are mostly equivalent and just layers of each other.
+ 
+| I will  look RcppAnnoy and see if I can find a way around using these
+| macros.
+
+Sounds good.
+
+Modules can be frustrating.  I just tried with some larger code at work, and
+it doesn't load :-/  Something else may get in the way but hard to tell.
+
+Rcpp Attributes is just fine.
+
+Dirk
+
+| Thanks again, Chris
+| 
+| 
+| 
+| 
+| On Thu, Nov 9, 2017 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > On 9 November 2017 at 01:54, Christopher Genovese wrote:
+| > | Hello,
+| > |
+| > |   I have a package under development that uses Rcpp modules to expose
+| > | some C++ classes. I hadn't touched the package for some months (close
+| > | to a year). At that time the package compiled and installed without
+| > problem
+| > | and worked well. I could access the classes as expected. Recently, having
+| > | updated Rcpp and R in the meantime, I reinstalled the package with
+| > | the following result:
+| > |
+| > |     1. If building and loading from within the package directory, all
+| > works
+| > | fine.
+| > |     2. When installing the package, either from github, locally, or
+| > | otherwise,
+| > |         the modules are *not* visible.
+| >
+| > What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we are
+| > meant to create a tar.gz in either way via 'R CMD BUILD' and then install
+| > it
+| > via 'R CMD INSTALL'.
+| >
+| > Are you doing that?
+| >
+| > | The package passes devtools:check() and compiles fine.
+| >
+| > Well if it passes check you should be fine.
+| >
+| > | For instance, for one of those classes, LshParameterSetter, I do
+| > |
+| > |
+| > | RCPP_EXPOSED_CLASS(LshParameterSetter)
+| > |
+| > | RCPP_MODULE(mod_params) {
+| > |     class_<LshParameterSetter>("LshParameterSetter")
+| > |
+| > |     .constructor<int,int>()
+| > |
+| > |     .method("withDefaults", &LshParameterSetter::withDefaults,
+| > |             "Fill with defaults")
+| > |     .method("distance", &LshParameterSetter::distance,
+| > |             "Set distance metric")
+| > |     .method("numHashFunctions", &LshParameterSetter::numHashFunctions,
+| > |             "Set numbers of hash functions and tables")
+| > |     .method("numHashTables",   &LshParameterSetter::numHashTables,
+| > |             "Set numbers of hash functions and tables")
+| > |     .method("storage",   &LshParameterSetter::storage,
+| > |             "Set LSH Hash Table Storage type")
+| > |     .method("family",   &LshParameterSetter::family,
+| > |             "Set LSH Family")
+| > |     .method("rotations",   &LshParameterSetter::rotations,
+| > |             "Number of rotations")
+| > |     .method("asList",        &LshParameterSetter::asList,
+| > |             "List of parameter values by name")
+| > |    ;
+| > | }
+| > |
+| > | and similarly for the other classes. This module is loaded in the R code
+| > | with
+| > |                      Rcpp::loadModule("mod_params", TRUE)
+| > | and similarly for the other modules.
+| > |
+| > | The installed package has the .rdb, .rdx, and .so file, so it's hard to
+| > see
+| > | if something has been lost in the installation.  There's no indication
+| > what
+| > | is wrong, but after loading the installed package, a class like
+| > | LshParameterSetter
+| > | is not defined. (Loading from within the package source directory it is,
+| >
+| > What do you mean by 'loading from within the package source directory' ?
+| >
+| > | showing
+| > |
+| > | > > LshParameterSetter
+| > | > C++ class 'LshParameterSetter' <0x7fde72fb1940>
+| > | > Constructors:
+| > | >     LshParameterSetter(int, int)
+| > | >
+| > | > Fields: ...
+| > | >
+| > | as it should be.) I've done this with simple skeletons and not had a
+| > | similar problem. But I don't see a qualitative difference between these
+| > | cases.
+| > |
+| > | The full package code is at  https://github.com/genovese/falconnr
+| > | and the session info is below.
+| >
+| > Thanks for posting the link.  Not a small package ...
+| >
+| > | I'd appreciate any pointers on this, as the problem is unclear to me,
+| > | especially since it worked without problem last year. I'm happy to
+| > | provide any useful information that I might have omitted here.
+| >
+| > Not sure what is going on there. Package clearly builds. Testing complains
+| > some but hey, it is not a CRAN package yet...
+| >
+| > You have
+| >
+| >     falconnr::LshTable
+| >
+| > visible, but (what you probably want) only un-exported:
+| >
+| >     falconnr:::LshNnTable
+| >     falconnr:::LshParameterSetter
+| >
+| > I have been using Modules for about as long as we've had them, but I have
+| > always been a little mystified by the various UPPERCASE_MACROS exporting
+| > things.  Looking at what was probably my first Modules package, RcppBDT, I
+| > seem to "simply" do
+| >
+| > RCPP_MODULE(bdtDdMod) {
+| >     Rcpp::class_<bdtDd>("bdtDd")
+| >        // ... stuff omitted
+| >
+| > and nothing else for the four or so different modules there.  That worked.
+| > I
+| > think you may rely on a helper macro which may have gotten stale as the
+| > _underlying R behaviour_ may have changed.  I think I use one or two of the
+| > exporter macros in other places (ie RcppAnnoy) so you could try that.
+| >
+| > In general, I always recommend to simplify as much as you can.
+| >
+| > Hope this helps,  Dirk
+| >
+| > | Thanks for your help, Chris
+| > |
+| > | > sessionInfo()
+| > | R version 3.3.2 (2016-10-31)
+| > | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+| > | Running under: macOS Sierra 10.12.6
+| > |
+| > | locale:
+| > | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+| > |
+| > | attached base packages:
+| > | [1] grid      stats     graphics  grDevices utils     datasets  methods
+| > | base
+| > |
+| > | other attached packages:
+| > | [1] falconnr_0.0.0.9001 MASS_7.3-45         lattice_0.20-34
+| > |
+| > | loaded via a namespace (and not attached):
+| > | [1] Rcpp_0.12.13     codetools_0.2-15
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| >
+| > --
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From genovese at cmu.edu  Thu Nov  9 17:34:35 2017
+From: genovese at cmu.edu (Christopher Genovese)
+Date: Thu, 9 Nov 2017 11:34:35 -0500
+Subject: [Rcpp-devel] Rcpp module visible after check but not after
+	install
+In-Reply-To: <23044.27975.576730.543331@bud.eddelbuettel.com>
+References: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+ <23044.20541.548844.651073@bud.eddelbuettel.com>
+ <CAPum5FgxO_AV4WVu8HcpjwO5MbDhdmhxVNM4kjOS=3nf0-b=Zg@mail.gmail.com>
+ <23044.27975.576730.543331@bud.eddelbuettel.com>
+Message-ID: <CAPum5FhdfURcEzWCxQUstru8VNSSSObpn_A7cf+jy3qYqwnsZg@mail.gmail.com>
+
+Sorry, let me be clear. I've done it both ways with the same basic
+result (for #2).  Specifically, doing the R CMD CHECK,  R CMD BUILD,
+R CMD INSTALL sequence gives an installed package with the
+the two classes invisible. So I don't think this is a devtools issue.
+
+This is rather frustrating, I agree, especially as it worked previously.
+
+Is there any documentation (preferably short of going through the Rcpp
+modules
+code) on the process by which these symbols get exported into R. The
+symbols are in the .so file, but for instance, where/when would the
+function R_init_falconnr function, which is created by
+Rcpp::compileAttributes
+and seems to load the modules, be called?
+
+Thanks, Chris
+
+
+On Thu, Nov 9, 2017 at 9:59 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 9 November 2017 at 09:32, Christopher Genovese wrote:
+> | Thanks, Dirk.
+> |
+> | What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we
+> are
+> | > meant to create a tar.gz in either way via 'R CMD BUILD' and then
+> install
+> | > it
+> | > via 'R CMD INSTALL'.
+> | >
+> | > Are you doing that?
+> | >
+> |
+> | Yes. I usually use devtools, but I've done it directly as well.
+>
+> Take this up with the devtools developers then, please.
+>
+> I operate with R command, and possibly very thin littler wrappers such as
+> build.r and rcc.r to, respectively, build and check.
+>
+> | In #1, for instance: I go to the package source directory, start R,
+> | do devtools::build and devtools::check. This builds and compiles
+> | the package. After library() at this point, the module components
+> | are visible, e.g., LshParameterSetter.
+> |
+> | In #2, for instance, I do devtools::install() or
+> devtools::install_github()
+> | or similar.
+> | Quit R, go to some other directory, restart R, and call library().  The R
+> | entry
+> | points are visible, but none of the module classes.
+> |
+> | I'm unclear as to what in the installation/export process can explain the
+> | difference
+> | between #1 and #2.
+>
+> Again, I have no idea what devtools does here. Other people may.
+>
+> The Rcpp documentation does not cover devtools so you are on your own.
+>
+> | Before emailing yesterday, I had tried removing the
+> RCPP_EXPOSED_CLASS()'s,
+> | but then the code does not compile. There is a static_assert error in
+> | wrap_dispatch_unknown_iterable in Rcpp's wrap.h (line 520). I did not
+> see an
+> | easy way to fix that. (I vaguely recall that I only included them
+> | originally because
+> | I had to.)
+>
+> I think you need those. I just glance at the different variants on the
+> train
+> in, they are mostly equivalent and just layers of each other.
+>
+> | I will  look RcppAnnoy and see if I can find a way around using these
+> | macros.
+>
+> Sounds good.
+>
+> Modules can be frustrating.  I just tried with some larger code at work,
+> and
+> it doesn't load :-/  Something else may get in the way but hard to tell.
+>
+> Rcpp Attributes is just fine.
+>
+> Dirk
+>
+> | Thanks again, Chris
+> |
+> |
+> |
+> |
+> | On Thu, Nov 9, 2017 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org>
+> wrote:
+> |
+> | >
+> | > On 9 November 2017 at 01:54, Christopher Genovese wrote:
+> | > | Hello,
+> | > |
+> | > |   I have a package under development that uses Rcpp modules to expose
+> | > | some C++ classes. I hadn't touched the package for some months (close
+> | > | to a year). At that time the package compiled and installed without
+> | > problem
+> | > | and worked well. I could access the classes as expected. Recently,
+> having
+> | > | updated Rcpp and R in the meantime, I reinstalled the package with
+> | > | the following result:
+> | > |
+> | > |     1. If building and loading from within the package directory, all
+> | > works
+> | > | fine.
+> | > |     2. When installing the package, either from github, locally, or
+> | > | otherwise,
+> | > |         the modules are *not* visible.
+> | >
+> | > What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we
+> are
+> | > meant to create a tar.gz in either way via 'R CMD BUILD' and then
+> install
+> | > it
+> | > via 'R CMD INSTALL'.
+> | >
+> | > Are you doing that?
+> | >
+> | > | The package passes devtools:check() and compiles fine.
+> | >
+> | > Well if it passes check you should be fine.
+> | >
+> | > | For instance, for one of those classes, LshParameterSetter, I do
+> | > |
+> | > |
+> | > | RCPP_EXPOSED_CLASS(LshParameterSetter)
+> | > |
+> | > | RCPP_MODULE(mod_params) {
+> | > |     class_<LshParameterSetter>("LshParameterSetter")
+> | > |
+> | > |     .constructor<int,int>()
+> | > |
+> | > |     .method("withDefaults", &LshParameterSetter::withDefaults,
+> | > |             "Fill with defaults")
+> | > |     .method("distance", &LshParameterSetter::distance,
+> | > |             "Set distance metric")
+> | > |     .method("numHashFunctions", &LshParameterSetter::
+> numHashFunctions,
+> | > |             "Set numbers of hash functions and tables")
+> | > |     .method("numHashTables",   &LshParameterSetter::numHashTables,
+> | > |             "Set numbers of hash functions and tables")
+> | > |     .method("storage",   &LshParameterSetter::storage,
+> | > |             "Set LSH Hash Table Storage type")
+> | > |     .method("family",   &LshParameterSetter::family,
+> | > |             "Set LSH Family")
+> | > |     .method("rotations",   &LshParameterSetter::rotations,
+> | > |             "Number of rotations")
+> | > |     .method("asList",        &LshParameterSetter::asList,
+> | > |             "List of parameter values by name")
+> | > |    ;
+> | > | }
+> | > |
+> | > | and similarly for the other classes. This module is loaded in the R
+> code
+> | > | with
+> | > |                      Rcpp::loadModule("mod_params", TRUE)
+> | > | and similarly for the other modules.
+> | > |
+> | > | The installed package has the .rdb, .rdx, and .so file, so it's hard
+> to
+> | > see
+> | > | if something has been lost in the installation.  There's no
+> indication
+> | > what
+> | > | is wrong, but after loading the installed package, a class like
+> | > | LshParameterSetter
+> | > | is not defined. (Loading from within the package source directory it
+> is,
+> | >
+> | > What do you mean by 'loading from within the package source directory'
+> ?
+> | >
+> | > | showing
+> | > |
+> | > | > > LshParameterSetter
+> | > | > C++ class 'LshParameterSetter' <0x7fde72fb1940>
+> | > | > Constructors:
+> | > | >     LshParameterSetter(int, int)
+> | > | >
+> | > | > Fields: ...
+> | > | >
+> | > | as it should be.) I've done this with simple skeletons and not had a
+> | > | similar problem. But I don't see a qualitative difference between
+> these
+> | > | cases.
+> | > |
+> | > | The full package code is at  https://github.com/genovese/falconnr
+> | > | and the session info is below.
+> | >
+> | > Thanks for posting the link.  Not a small package ...
+> | >
+> | > | I'd appreciate any pointers on this, as the problem is unclear to me,
+> | > | especially since it worked without problem last year. I'm happy to
+> | > | provide any useful information that I might have omitted here.
+> | >
+> | > Not sure what is going on there. Package clearly builds. Testing
+> complains
+> | > some but hey, it is not a CRAN package yet...
+> | >
+> | > You have
+> | >
+> | >     falconnr::LshTable
+> | >
+> | > visible, but (what you probably want) only un-exported:
+> | >
+> | >     falconnr:::LshNnTable
+> | >     falconnr:::LshParameterSetter
+> | >
+> | > I have been using Modules for about as long as we've had them, but I
+> have
+> | > always been a little mystified by the various UPPERCASE_MACROS
+> exporting
+> | > things.  Looking at what was probably my first Modules package,
+> RcppBDT, I
+> | > seem to "simply" do
+> | >
+> | > RCPP_MODULE(bdtDdMod) {
+> | >     Rcpp::class_<bdtDd>("bdtDd")
+> | >        // ... stuff omitted
+> | >
+> | > and nothing else for the four or so different modules there.  That
+> worked.
+> | > I
+> | > think you may rely on a helper macro which may have gotten stale as the
+> | > _underlying R behaviour_ may have changed.  I think I use one or two
+> of the
+> | > exporter macros in other places (ie RcppAnnoy) so you could try that.
+> | >
+> | > In general, I always recommend to simplify as much as you can.
+> | >
+> | > Hope this helps,  Dirk
+> | >
+> | > | Thanks for your help, Chris
+> | > |
+> | > | > sessionInfo()
+> | > | R version 3.3.2 (2016-10-31)
+> | > | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+> | > | Running under: macOS Sierra 10.12.6
+> | > |
+> | > | locale:
+> | > | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+> | > |
+> | > | attached base packages:
+> | > | [1] grid      stats     graphics  grDevices utils     datasets
+> methods
+> | > | base
+> | > |
+> | > | other attached packages:
+> | > | [1] falconnr_0.0.0.9001 MASS_7.3-45         lattice_0.20-34
+> | > |
+> | > | loaded via a namespace (and not attached):
+> | > | [1] Rcpp_0.12.13     codetools_0.2-15
+> | > | _______________________________________________
+> | > | Rcpp-devel mailing list
+> | > | Rcpp-devel at lists.r-forge.r-project.org
+> | > | https://lists.r-forge.r-project.org/cgi-bin/mailman/
+> listinfo/rcpp-devel
+> | >
+> | > --
+> | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | >
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171109/81cbee16/attachment.html>
+
+From edd at debian.org  Thu Nov  9 18:30:52 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 9 Nov 2017 11:30:52 -0600
+Subject: [Rcpp-devel] Rcpp module visible after check but not after
+	install
+In-Reply-To: <CAPum5FhdfURcEzWCxQUstru8VNSSSObpn_A7cf+jy3qYqwnsZg@mail.gmail.com>
+References: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+ <23044.20541.548844.651073@bud.eddelbuettel.com>
+ <CAPum5FgxO_AV4WVu8HcpjwO5MbDhdmhxVNM4kjOS=3nf0-b=Zg@mail.gmail.com>
+ <23044.27975.576730.543331@bud.eddelbuettel.com>
+ <CAPum5FhdfURcEzWCxQUstru8VNSSSObpn_A7cf+jy3qYqwnsZg@mail.gmail.com>
+Message-ID: <23044.37068.840381.634710@bud.eddelbuettel.com>
+
+
+On 9 November 2017 at 11:34, Christopher Genovese wrote:
+| Sorry, let me be clear. I've done it both ways with the same basic
+| result (for #2).  Specifically, doing the R CMD CHECK,  R CMD BUILD,
+| R CMD INSTALL sequence gives an installed package with the
+| the two classes invisible. So I don't think this is a devtools issue.
+| 
+| This is rather frustrating, I agree, especially as it worked previously.
+
+Agreed.  But some things also changed in R ... and I am not entirely what the
+actual cause was for the change you see.
+ 
+| Is there any documentation (preferably short of going through the Rcpp
+| modules
+| code) on the process by which these symbols get exported into R. The
+| symbols are in the .so file, but for instance, where/when would the
+| function R_init_falconnr function, which is created by
+| Rcpp::compileAttributes
+| and seems to load the modules, be called?
+
+Well, I also find that combining Modules and compileAttributes() can be
+finicky.  If output for this was was generated, you could place it e.g. in
+src/init.c -- R calls the resulting function on package load.  But, and that
+is a big 'but' you don't have to unless you say .registration=TRUE in
+useDynLib() in NAMESPACE.  And I seem to recall I actually wrote the
+src/init.c for RcppAnnoy "by hand" as the generator in R itself does not know
+about Modules.  We may need to add a tool here.
+
+And again, note that you do not need src/init.c -- you only need it if you
+set .registration=TRUE.  So as first step, I'd say 'do not do that'.  I know
+it sounds silly -- but if I were you I'd start from the working Modules
+example eg in the Rcpp unittests and would then re-add my code.  Slowly, and
+step by step.  That way you will know which change breaks it.
+
+And by all I means I don't claim this is ideal -- if we learn something along
+the way we can try to make Modules better.  It remains a useful yet somewhat
+obscure and underdocumented tool.
+
+Dirk
+
+| 
+| Thanks, Chris
+| 
+| 
+| On Thu, Nov 9, 2017 at 9:59 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > On 9 November 2017 at 09:32, Christopher Genovese wrote:
+| > | Thanks, Dirk.
+| > |
+| > | What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we
+| > are
+| > | > meant to create a tar.gz in either way via 'R CMD BUILD' and then
+| > install
+| > | > it
+| > | > via 'R CMD INSTALL'.
+| > | >
+| > | > Are you doing that?
+| > | >
+| > |
+| > | Yes. I usually use devtools, but I've done it directly as well.
+| >
+| > Take this up with the devtools developers then, please.
+| >
+| > I operate with R command, and possibly very thin littler wrappers such as
+| > build.r and rcc.r to, respectively, build and check.
+| >
+| > | In #1, for instance: I go to the package source directory, start R,
+| > | do devtools::build and devtools::check. This builds and compiles
+| > | the package. After library() at this point, the module components
+| > | are visible, e.g., LshParameterSetter.
+| > |
+| > | In #2, for instance, I do devtools::install() or
+| > devtools::install_github()
+| > | or similar.
+| > | Quit R, go to some other directory, restart R, and call library().  The R
+| > | entry
+| > | points are visible, but none of the module classes.
+| > |
+| > | I'm unclear as to what in the installation/export process can explain the
+| > | difference
+| > | between #1 and #2.
+| >
+| > Again, I have no idea what devtools does here. Other people may.
+| >
+| > The Rcpp documentation does not cover devtools so you are on your own.
+| >
+| > | Before emailing yesterday, I had tried removing the
+| > RCPP_EXPOSED_CLASS()'s,
+| > | but then the code does not compile. There is a static_assert error in
+| > | wrap_dispatch_unknown_iterable in Rcpp's wrap.h (line 520). I did not
+| > see an
+| > | easy way to fix that. (I vaguely recall that I only included them
+| > | originally because
+| > | I had to.)
+| >
+| > I think you need those. I just glance at the different variants on the
+| > train
+| > in, they are mostly equivalent and just layers of each other.
+| >
+| > | I will  look RcppAnnoy and see if I can find a way around using these
+| > | macros.
+| >
+| > Sounds good.
+| >
+| > Modules can be frustrating.  I just tried with some larger code at work,
+| > and
+| > it doesn't load :-/  Something else may get in the way but hard to tell.
+| >
+| > Rcpp Attributes is just fine.
+| >
+| > Dirk
+| >
+| > | Thanks again, Chris
+| > |
+| > |
+| > |
+| > |
+| > | On Thu, Nov 9, 2017 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org>
+| > wrote:
+| > |
+| > | >
+| > | > On 9 November 2017 at 01:54, Christopher Genovese wrote:
+| > | > | Hello,
+| > | > |
+| > | > |   I have a package under development that uses Rcpp modules to expose
+| > | > | some C++ classes. I hadn't touched the package for some months (close
+| > | > | to a year). At that time the package compiled and installed without
+| > | > problem
+| > | > | and worked well. I could access the classes as expected. Recently,
+| > having
+| > | > | updated Rcpp and R in the meantime, I reinstalled the package with
+| > | > | the following result:
+| > | > |
+| > | > |     1. If building and loading from within the package directory, all
+| > | > works
+| > | > | fine.
+| > | > |     2. When installing the package, either from github, locally, or
+| > | > | otherwise,
+| > | > |         the modules are *not* visible.
+| > | >
+| > | > What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions' we
+| > are
+| > | > meant to create a tar.gz in either way via 'R CMD BUILD' and then
+| > install
+| > | > it
+| > | > via 'R CMD INSTALL'.
+| > | >
+| > | > Are you doing that?
+| > | >
+| > | > | The package passes devtools:check() and compiles fine.
+| > | >
+| > | > Well if it passes check you should be fine.
+| > | >
+| > | > | For instance, for one of those classes, LshParameterSetter, I do
+| > | > |
+| > | > |
+| > | > | RCPP_EXPOSED_CLASS(LshParameterSetter)
+| > | > |
+| > | > | RCPP_MODULE(mod_params) {
+| > | > |     class_<LshParameterSetter>("LshParameterSetter")
+| > | > |
+| > | > |     .constructor<int,int>()
+| > | > |
+| > | > |     .method("withDefaults", &LshParameterSetter::withDefaults,
+| > | > |             "Fill with defaults")
+| > | > |     .method("distance", &LshParameterSetter::distance,
+| > | > |             "Set distance metric")
+| > | > |     .method("numHashFunctions", &LshParameterSetter::
+| > numHashFunctions,
+| > | > |             "Set numbers of hash functions and tables")
+| > | > |     .method("numHashTables",   &LshParameterSetter::numHashTables,
+| > | > |             "Set numbers of hash functions and tables")
+| > | > |     .method("storage",   &LshParameterSetter::storage,
+| > | > |             "Set LSH Hash Table Storage type")
+| > | > |     .method("family",   &LshParameterSetter::family,
+| > | > |             "Set LSH Family")
+| > | > |     .method("rotations",   &LshParameterSetter::rotations,
+| > | > |             "Number of rotations")
+| > | > |     .method("asList",        &LshParameterSetter::asList,
+| > | > |             "List of parameter values by name")
+| > | > |    ;
+| > | > | }
+| > | > |
+| > | > | and similarly for the other classes. This module is loaded in the R
+| > code
+| > | > | with
+| > | > |                      Rcpp::loadModule("mod_params", TRUE)
+| > | > | and similarly for the other modules.
+| > | > |
+| > | > | The installed package has the .rdb, .rdx, and .so file, so it's hard
+| > to
+| > | > see
+| > | > | if something has been lost in the installation.  There's no
+| > indication
+| > | > what
+| > | > | is wrong, but after loading the installed package, a class like
+| > | > | LshParameterSetter
+| > | > | is not defined. (Loading from within the package source directory it
+| > is,
+| > | >
+| > | > What do you mean by 'loading from within the package source directory'
+| > ?
+| > | >
+| > | > | showing
+| > | > |
+| > | > | > > LshParameterSetter
+| > | > | > C++ class 'LshParameterSetter' <0x7fde72fb1940>
+| > | > | > Constructors:
+| > | > | >     LshParameterSetter(int, int)
+| > | > | >
+| > | > | > Fields: ...
+| > | > | >
+| > | > | as it should be.) I've done this with simple skeletons and not had a
+| > | > | similar problem. But I don't see a qualitative difference between
+| > these
+| > | > | cases.
+| > | > |
+| > | > | The full package code is at  https://github.com/genovese/falconnr
+| > | > | and the session info is below.
+| > | >
+| > | > Thanks for posting the link.  Not a small package ...
+| > | >
+| > | > | I'd appreciate any pointers on this, as the problem is unclear to me,
+| > | > | especially since it worked without problem last year. I'm happy to
+| > | > | provide any useful information that I might have omitted here.
+| > | >
+| > | > Not sure what is going on there. Package clearly builds. Testing
+| > complains
+| > | > some but hey, it is not a CRAN package yet...
+| > | >
+| > | > You have
+| > | >
+| > | >     falconnr::LshTable
+| > | >
+| > | > visible, but (what you probably want) only un-exported:
+| > | >
+| > | >     falconnr:::LshNnTable
+| > | >     falconnr:::LshParameterSetter
+| > | >
+| > | > I have been using Modules for about as long as we've had them, but I
+| > have
+| > | > always been a little mystified by the various UPPERCASE_MACROS
+| > exporting
+| > | > things.  Looking at what was probably my first Modules package,
+| > RcppBDT, I
+| > | > seem to "simply" do
+| > | >
+| > | > RCPP_MODULE(bdtDdMod) {
+| > | >     Rcpp::class_<bdtDd>("bdtDd")
+| > | >        // ... stuff omitted
+| > | >
+| > | > and nothing else for the four or so different modules there.  That
+| > worked.
+| > | > I
+| > | > think you may rely on a helper macro which may have gotten stale as the
+| > | > _underlying R behaviour_ may have changed.  I think I use one or two
+| > of the
+| > | > exporter macros in other places (ie RcppAnnoy) so you could try that.
+| > | >
+| > | > In general, I always recommend to simplify as much as you can.
+| > | >
+| > | > Hope this helps,  Dirk
+| > | >
+| > | > | Thanks for your help, Chris
+| > | > |
+| > | > | > sessionInfo()
+| > | > | R version 3.3.2 (2016-10-31)
+| > | > | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+| > | > | Running under: macOS Sierra 10.12.6
+| > | > |
+| > | > | locale:
+| > | > | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+| > | > |
+| > | > | attached base packages:
+| > | > | [1] grid      stats     graphics  grDevices utils     datasets
+| > methods
+| > | > | base
+| > | > |
+| > | > | other attached packages:
+| > | > | [1] falconnr_0.0.0.9001 MASS_7.3-45         lattice_0.20-34
+| > | > |
+| > | > | loaded via a namespace (and not attached):
+| > | > | [1] Rcpp_0.12.13     codetools_0.2-15
+| > | > | _______________________________________________
+| > | > | Rcpp-devel mailing list
+| > | > | Rcpp-devel at lists.r-forge.r-project.org
+| > | > | https://lists.r-forge.r-project.org/cgi-bin/mailman/
+| > listinfo/rcpp-devel
+| > | >
+| > | > --
+| > | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| > | >
+| >
+| > --
+| > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From genovese at cmu.edu  Thu Nov  9 19:41:00 2017
+From: genovese at cmu.edu (Christopher Genovese)
+Date: Thu, 9 Nov 2017 13:41:00 -0500
+Subject: [Rcpp-devel] Rcpp module visible after check but not after
+	install
+In-Reply-To: <23044.37068.840381.634710@bud.eddelbuettel.com>
+References: <CAPum5Fh8=NyoCX=s8gq9PvgfF7E-OMmZj+EYvrFGAODTGXAEhw@mail.gmail.com>
+ <23044.20541.548844.651073@bud.eddelbuettel.com>
+ <CAPum5FgxO_AV4WVu8HcpjwO5MbDhdmhxVNM4kjOS=3nf0-b=Zg@mail.gmail.com>
+ <23044.27975.576730.543331@bud.eddelbuettel.com>
+ <CAPum5FhdfURcEzWCxQUstru8VNSSSObpn_A7cf+jy3qYqwnsZg@mail.gmail.com>
+ <23044.37068.840381.634710@bud.eddelbuettel.com>
+Message-ID: <CAPum5FiJ5o+PcRH2NSxmJkWSBmrMEsXy1OqMohqkb=qPFFk4Ow@mail.gmail.com>
+
+Thanks again, Dirk. Great suggestions; I will certainly try that
+approach.
+
+I definitely agree that modules are very useful, and I very much
+appreciate all your (and your team's) efforts in bringing this to the
+community.
+
+Regards, Chris
+
+
+
+On Thu, Nov 9, 2017 at 12:30 PM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 9 November 2017 at 11:34, Christopher Genovese wrote:
+> | Sorry, let me be clear. I've done it both ways with the same basic
+> | result (for #2).  Specifically, doing the R CMD CHECK,  R CMD BUILD,
+> | R CMD INSTALL sequence gives an installed package with the
+> | the two classes invisible. So I don't think this is a devtools issue.
+> |
+> | This is rather frustrating, I agree, especially as it worked previously.
+>
+> Agreed.  But some things also changed in R ... and I am not entirely what
+> the
+> actual cause was for the change you see.
+>
+> | Is there any documentation (preferably short of going through the Rcpp
+> | modules
+> | code) on the process by which these symbols get exported into R. The
+> | symbols are in the .so file, but for instance, where/when would the
+> | function R_init_falconnr function, which is created by
+> | Rcpp::compileAttributes
+> | and seems to load the modules, be called?
+>
+> Well, I also find that combining Modules and compileAttributes() can be
+> finicky.  If output for this was was generated, you could place it e.g. in
+> src/init.c -- R calls the resulting function on package load.  But, and
+> that
+> is a big 'but' you don't have to unless you say .registration=TRUE in
+> useDynLib() in NAMESPACE.  And I seem to recall I actually wrote the
+> src/init.c for RcppAnnoy "by hand" as the generator in R itself does not
+> know
+> about Modules.  We may need to add a tool here.
+>
+> And again, note that you do not need src/init.c -- you only need it if you
+> set .registration=TRUE.  So as first step, I'd say 'do not do that'.  I
+> know
+> it sounds silly -- but if I were you I'd start from the working Modules
+> example eg in the Rcpp unittests and would then re-add my code.  Slowly,
+> and
+> step by step.  That way you will know which change breaks it.
+>
+> And by all I means I don't claim this is ideal -- if we learn something
+> along
+> the way we can try to make Modules better.  It remains a useful yet
+> somewhat
+> obscure and underdocumented tool.
+>
+> Dirk
+>
+> |
+> | Thanks, Chris
+> |
+> |
+> | On Thu, Nov 9, 2017 at 9:59 AM, Dirk Eddelbuettel <edd at debian.org>
+> wrote:
+> |
+> | >
+> | > On 9 November 2017 at 09:32, Christopher Genovese wrote:
+> | > | Thanks, Dirk.
+> | > |
+> | > | What exactly do you mean by 1. and 2. ?  Per 'Writing R Extensions'
+> we
+> | > are
+> | > | > meant to create a tar.gz in either way via 'R CMD BUILD' and then
+> | > install
+> | > | > it
+> | > | > via 'R CMD INSTALL'.
+> | > | >
+> | > | > Are you doing that?
+> | > | >
+> | > |
+> | > | Yes. I usually use devtools, but I've done it directly as well.
+> | >
+> | > Take this up with the devtools developers then, please.
+> | >
+> | > I operate with R command, and possibly very thin littler wrappers such
+> as
+> | > build.r and rcc.r to, respectively, build and check.
+> | >
+> | > | In #1, for instance: I go to the package source directory, start R,
+> | > | do devtools::build and devtools::check. This builds and compiles
+> | > | the package. After library() at this point, the module components
+> | > | are visible, e.g., LshParameterSetter.
+> | > |
+> | > | In #2, for instance, I do devtools::install() or
+> | > devtools::install_github()
+> | > | or similar.
+> | > | Quit R, go to some other directory, restart R, and call library().
+> The R
+> | > | entry
+> | > | points are visible, but none of the module classes.
+> | > |
+> | > | I'm unclear as to what in the installation/export process can
+> explain the
+> | > | difference
+> | > | between #1 and #2.
+> | >
+> | > Again, I have no idea what devtools does here. Other people may.
+> | >
+> | > The Rcpp documentation does not cover devtools so you are on your own.
+> | >
+> | > | Before emailing yesterday, I had tried removing the
+> | > RCPP_EXPOSED_CLASS()'s,
+> | > | but then the code does not compile. There is a static_assert error in
+> | > | wrap_dispatch_unknown_iterable in Rcpp's wrap.h (line 520). I did not
+> | > see an
+> | > | easy way to fix that. (I vaguely recall that I only included them
+> | > | originally because
+> | > | I had to.)
+> | >
+> | > I think you need those. I just glance at the different variants on the
+> | > train
+> | > in, they are mostly equivalent and just layers of each other.
+> | >
+> | > | I will  look RcppAnnoy and see if I can find a way around using these
+> | > | macros.
+> | >
+> | > Sounds good.
+> | >
+> | > Modules can be frustrating.  I just tried with some larger code at
+> work,
+> | > and
+> | > it doesn't load :-/  Something else may get in the way but hard to
+> tell.
+> | >
+> | > Rcpp Attributes is just fine.
+> | >
+> | > Dirk
+> | >
+> | > | Thanks again, Chris
+> | > |
+> | > |
+> | > |
+> | > |
+> | > | On Thu, Nov 9, 2017 at 7:55 AM, Dirk Eddelbuettel <edd at debian.org>
+> | > wrote:
+> | > |
+> | > | >
+> | > | > On 9 November 2017 at 01:54, Christopher Genovese wrote:
+> | > | > | Hello,
+> | > | > |
+> | > | > |   I have a package under development that uses Rcpp modules to
+> expose
+> | > | > | some C++ classes. I hadn't touched the package for some months
+> (close
+> | > | > | to a year). At that time the package compiled and installed
+> without
+> | > | > problem
+> | > | > | and worked well. I could access the classes as expected.
+> Recently,
+> | > having
+> | > | > | updated Rcpp and R in the meantime, I reinstalled the package
+> with
+> | > | > | the following result:
+> | > | > |
+> | > | > |     1. If building and loading from within the package
+> directory, all
+> | > | > works
+> | > | > | fine.
+> | > | > |     2. When installing the package, either from github, locally,
+> or
+> | > | > | otherwise,
+> | > | > |         the modules are *not* visible.
+> | > | >
+> | > | > What exactly do you mean by 1. and 2. ?  Per 'Writing R
+> Extensions' we
+> | > are
+> | > | > meant to create a tar.gz in either way via 'R CMD BUILD' and then
+> | > install
+> | > | > it
+> | > | > via 'R CMD INSTALL'.
+> | > | >
+> | > | > Are you doing that?
+> | > | >
+> | > | > | The package passes devtools:check() and compiles fine.
+> | > | >
+> | > | > Well if it passes check you should be fine.
+> | > | >
+> | > | > | For instance, for one of those classes, LshParameterSetter, I do
+> | > | > |
+> | > | > |
+> | > | > | RCPP_EXPOSED_CLASS(LshParameterSetter)
+> | > | > |
+> | > | > | RCPP_MODULE(mod_params) {
+> | > | > |     class_<LshParameterSetter>("LshParameterSetter")
+> | > | > |
+> | > | > |     .constructor<int,int>()
+> | > | > |
+> | > | > |     .method("withDefaults", &LshParameterSetter::withDefaults,
+> | > | > |             "Fill with defaults")
+> | > | > |     .method("distance", &LshParameterSetter::distance,
+> | > | > |             "Set distance metric")
+> | > | > |     .method("numHashFunctions", &LshParameterSetter::
+> | > numHashFunctions,
+> | > | > |             "Set numbers of hash functions and tables")
+> | > | > |     .method("numHashTables",   &LshParameterSetter::
+> numHashTables,
+> | > | > |             "Set numbers of hash functions and tables")
+> | > | > |     .method("storage",   &LshParameterSetter::storage,
+> | > | > |             "Set LSH Hash Table Storage type")
+> | > | > |     .method("family",   &LshParameterSetter::family,
+> | > | > |             "Set LSH Family")
+> | > | > |     .method("rotations",   &LshParameterSetter::rotations,
+> | > | > |             "Number of rotations")
+> | > | > |     .method("asList",        &LshParameterSetter::asList,
+> | > | > |             "List of parameter values by name")
+> | > | > |    ;
+> | > | > | }
+> | > | > |
+> | > | > | and similarly for the other classes. This module is loaded in
+> the R
+> | > code
+> | > | > | with
+> | > | > |                      Rcpp::loadModule("mod_params", TRUE)
+> | > | > | and similarly for the other modules.
+> | > | > |
+> | > | > | The installed package has the .rdb, .rdx, and .so file, so it's
+> hard
+> | > to
+> | > | > see
+> | > | > | if something has been lost in the installation.  There's no
+> | > indication
+> | > | > what
+> | > | > | is wrong, but after loading the installed package, a class like
+> | > | > | LshParameterSetter
+> | > | > | is not defined. (Loading from within the package source
+> directory it
+> | > is,
+> | > | >
+> | > | > What do you mean by 'loading from within the package source
+> directory'
+> | > ?
+> | > | >
+> | > | > | showing
+> | > | > |
+> | > | > | > > LshParameterSetter
+> | > | > | > C++ class 'LshParameterSetter' <0x7fde72fb1940>
+> | > | > | > Constructors:
+> | > | > | >     LshParameterSetter(int, int)
+> | > | > | >
+> | > | > | > Fields: ...
+> | > | > | >
+> | > | > | as it should be.) I've done this with simple skeletons and not
+> had a
+> | > | > | similar problem. But I don't see a qualitative difference between
+> | > these
+> | > | > | cases.
+> | > | > |
+> | > | > | The full package code is at  https://github.com/genovese/
+> falconnr
+> | > | > | and the session info is below.
+> | > | >
+> | > | > Thanks for posting the link.  Not a small package ...
+> | > | >
+> | > | > | I'd appreciate any pointers on this, as the problem is unclear
+> to me,
+> | > | > | especially since it worked without problem last year. I'm happy
+> to
+> | > | > | provide any useful information that I might have omitted here.
+> | > | >
+> | > | > Not sure what is going on there. Package clearly builds. Testing
+> | > complains
+> | > | > some but hey, it is not a CRAN package yet...
+> | > | >
+> | > | > You have
+> | > | >
+> | > | >     falconnr::LshTable
+> | > | >
+> | > | > visible, but (what you probably want) only un-exported:
+> | > | >
+> | > | >     falconnr:::LshNnTable
+> | > | >     falconnr:::LshParameterSetter
+> | > | >
+> | > | > I have been using Modules for about as long as we've had them, but
+> I
+> | > have
+> | > | > always been a little mystified by the various UPPERCASE_MACROS
+> | > exporting
+> | > | > things.  Looking at what was probably my first Modules package,
+> | > RcppBDT, I
+> | > | > seem to "simply" do
+> | > | >
+> | > | > RCPP_MODULE(bdtDdMod) {
+> | > | >     Rcpp::class_<bdtDd>("bdtDd")
+> | > | >        // ... stuff omitted
+> | > | >
+> | > | > and nothing else for the four or so different modules there.  That
+> | > worked.
+> | > | > I
+> | > | > think you may rely on a helper macro which may have gotten stale
+> as the
+> | > | > _underlying R behaviour_ may have changed.  I think I use one or
+> two
+> | > of the
+> | > | > exporter macros in other places (ie RcppAnnoy) so you could try
+> that.
+> | > | >
+> | > | > In general, I always recommend to simplify as much as you can.
+> | > | >
+> | > | > Hope this helps,  Dirk
+> | > | >
+> | > | > | Thanks for your help, Chris
+> | > | > |
+> | > | > | > sessionInfo()
+> | > | > | R version 3.3.2 (2016-10-31)
+> | > | > | Platform: x86_64-apple-darwin13.4.0 (64-bit)
+> | > | > | Running under: macOS Sierra 10.12.6
+> | > | > |
+> | > | > | locale:
+> | > | > | [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-
+> 8
+> | > | > |
+> | > | > | attached base packages:
+> | > | > | [1] grid      stats     graphics  grDevices utils     datasets
+> | > methods
+> | > | > | base
+> | > | > |
+> | > | > | other attached packages:
+> | > | > | [1] falconnr_0.0.0.9001 MASS_7.3-45         lattice_0.20-34
+> | > | > |
+> | > | > | loaded via a namespace (and not attached):
+> | > | > | [1] Rcpp_0.12.13     codetools_0.2-15
+> | > | > | _______________________________________________
+> | > | > | Rcpp-devel mailing list
+> | > | > | Rcpp-devel at lists.r-forge.r-project.org
+> | > | > | https://lists.r-forge.r-project.org/cgi-bin/mailman/
+> | > listinfo/rcpp-devel
+> | > | >
+> | > | > --
+> | > | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | > | >
+> | >
+> | > --
+> | > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> | >
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171109/d993e508/attachment-0001.html>
+
+From fisikop at gmail.com  Thu Nov 16 15:35:42 2017
+From: fisikop at gmail.com (Vissarion Fisikopoulos)
+Date: Thu, 16 Nov 2017 16:35:42 +0200
+Subject: [Rcpp-devel] Rcpp project for GSoC18
+Message-ID: <CAKa7CYMmDhmv29XH2v-jiEc25OhRfFORMmevyQydas8R0kiD3g@mail.gmail.com>
+
+Hello,
+
+I maintain C++ code for random sampling and volume approximation of
+polyhedra (see https://github.com/vissarion/volume_approximation).
+
+I would like to propose a GSoC project to create an R package that
+will use functions of that code inside R. In particular, the package
+will provide functionality for MCMC geometric walks (variations of
+hit-and-run) and volume computation of polyhedra. It could also use
+existing MCMC walks from R. My motivation is the availability of the
+current software tool in a broader set of users (I have requests from
+researchers that want to use the code but have no knowledge of C++).
+
+I had a discussion in GSoC mentor summit last month with the GSoC
+admin of r-project and he proposed to send a message to this list to
+find a second mentor since my knowledge in R is limited.
+
+What do you think?
+
+Best regards,
+Vissarion Fisikopoulos
+
+From edd at debian.org  Thu Nov 16 16:08:23 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Thu, 16 Nov 2017 09:08:23 -0600
+Subject: [Rcpp-devel] Rcpp project for GSoC18
+In-Reply-To: <CAKa7CYMmDhmv29XH2v-jiEc25OhRfFORMmevyQydas8R0kiD3g@mail.gmail.com>
+References: <CAKa7CYMmDhmv29XH2v-jiEc25OhRfFORMmevyQydas8R0kiD3g@mail.gmail.com>
+Message-ID: <23053.43495.697036.746755@bud.eddelbuettel.com>
+
+
+On 16 November 2017 at 16:35, Vissarion Fisikopoulos wrote:
+| Hello,
+| 
+| I maintain C++ code for random sampling and volume approximation of
+| polyhedra (see https://github.com/vissarion/volume_approximation).
+| 
+| I would like to propose a GSoC project to create an R package that
+| will use functions of that code inside R. In particular, the package
+| will provide functionality for MCMC geometric walks (variations of
+| hit-and-run) and volume computation of polyhedra. It could also use
+| existing MCMC walks from R. My motivation is the availability of the
+| current software tool in a broader set of users (I have requests from
+| researchers that want to use the code but have no knowledge of C++).
+| 
+| I had a discussion in GSoC mentor summit last month with the GSoC
+| admin of r-project and he proposed to send a message to this list to
+| find a second mentor since my knowledge in R is limited.
+| 
+| What do you think?
+
+Sure, but you don't need our approval for that.  Discussion of GSoC topics
+will happen as usual under the umbrella of R's particpiation in GSoC when and
+where questions are discussed.  I think this a pretty large number (10 out of
+29 ?) of projects used Rcpp in some way. I was involved in two which extended
+existing packages in the Rcpp space.
+
+
+That said, we should start a wiki page with possible topics:
+
+ - have Rcpp catch up to ALTREP: very important, possibly a lot of work
+
+ - smaller idea I had recently: generalize Jens's bit64 which provides
+   integer64 to possibly make it "templated" and provide both int64_t and
+   uint64_t.
+
+ - lots of others to be added...
+
+Where should have that page?
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From qkou at umail.iu.edu  Thu Nov 16 16:14:07 2017
+From: qkou at umail.iu.edu (Qiang Kou)
+Date: Thu, 16 Nov 2017 10:14:07 -0500
+Subject: [Rcpp-devel] Rcpp project for GSoC18
+In-Reply-To: <23053.43495.697036.746755@bud.eddelbuettel.com>
+References: <CAKa7CYMmDhmv29XH2v-jiEc25OhRfFORMmevyQydas8R0kiD3g@mail.gmail.com>
+ <23053.43495.697036.746755@bud.eddelbuettel.com>
+Message-ID: <CAJ_LAMCmzSxOoettRuaVwFOvFVgYGsAOKRWX-5CX0t5EYov19Q@mail.gmail.com>
+
+I think we already have the page for GSOC 2018:
+
+https://github.com/rstats-gsoc/gsoc2018/wiki/table-of-proposed-coding-projects
+
+Best,
+
+KK
+
+On Thu, Nov 16, 2017 at 10:08 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 16 November 2017 at 16:35, Vissarion Fisikopoulos wrote:
+> | Hello,
+> |
+> | I maintain C++ code for random sampling and volume approximation of
+> | polyhedra (see https://github.com/vissarion/volume_approximation).
+> |
+> | I would like to propose a GSoC project to create an R package that
+> | will use functions of that code inside R. In particular, the package
+> | will provide functionality for MCMC geometric walks (variations of
+> | hit-and-run) and volume computation of polyhedra. It could also use
+> | existing MCMC walks from R. My motivation is the availability of the
+> | current software tool in a broader set of users (I have requests from
+> | researchers that want to use the code but have no knowledge of C++).
+> |
+> | I had a discussion in GSoC mentor summit last month with the GSoC
+> | admin of r-project and he proposed to send a message to this list to
+> | find a second mentor since my knowledge in R is limited.
+> |
+> | What do you think?
+>
+> Sure, but you don't need our approval for that.  Discussion of GSoC topics
+> will happen as usual under the umbrella of R's particpiation in GSoC when
+> and
+> where questions are discussed.  I think this a pretty large number (10 out
+> of
+> 29 ?) of projects used Rcpp in some way. I was involved in two which
+> extended
+> existing packages in the Rcpp space.
+>
+>
+> That said, we should start a wiki page with possible topics:
+>
+>  - have Rcpp catch up to ALTREP: very important, possibly a lot of work
+>
+>  - smaller idea I had recently: generalize Jens's bit64 which provides
+>    integer64 to possibly make it "templated" and provide both int64_t and
+>    uint64_t.
+>
+>  - lots of others to be added...
+>
+> Where should have that page?
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+
+
+
+-- 
+Qiang Kou
+qkou at umail.iu.edu
+School of Informatics and Computing, Indiana University
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171116/acc12639/attachment.html>
+
+From fisikop at gmail.com  Thu Nov 16 16:25:29 2017
+From: fisikop at gmail.com (Vissarion Fisikopoulos)
+Date: Thu, 16 Nov 2017 17:25:29 +0200
+Subject: [Rcpp-devel] Rcpp project for GSoC18
+In-Reply-To: <CAJ_LAMCmzSxOoettRuaVwFOvFVgYGsAOKRWX-5CX0t5EYov19Q@mail.gmail.com>
+References: <CAKa7CYMmDhmv29XH2v-jiEc25OhRfFORMmevyQydas8R0kiD3g@mail.gmail.com>
+ <23053.43495.697036.746755@bud.eddelbuettel.com>
+ <CAJ_LAMCmzSxOoettRuaVwFOvFVgYGsAOKRWX-5CX0t5EYov19Q@mail.gmail.com>
+Message-ID: <CAKa7CYNv2YU03vEtN3m41YiebbdbL-Y610AJ_UwggRZ8aL2YRw@mail.gmail.com>
+
+On 16 November 2017 at 17:14, Qiang Kou <qkou at umail.iu.edu> wrote:
+> I think we already have the page for GSOC 2018:
+>
+> https://github.com/rstats-gsoc/gsoc2018/wiki/table-of-proposed-coding-projects
+>
+> Best,
+>
+> KK
+
+Thank you both for the feedback. I will add my project idea there.
+Still I am in a quest of a second mentor, expert in Rcpp.
+
+Best,
+Vissarion.
+
+> On Thu, Nov 16, 2017 at 10:08 AM, Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>>
+>> On 16 November 2017 at 16:35, Vissarion Fisikopoulos wrote:
+>> | Hello,
+>> |
+>> | I maintain C++ code for random sampling and volume approximation of
+>> | polyhedra (see https://github.com/vissarion/volume_approximation).
+>> |
+>> | I would like to propose a GSoC project to create an R package that
+>> | will use functions of that code inside R. In particular, the package
+>> | will provide functionality for MCMC geometric walks (variations of
+>> | hit-and-run) and volume computation of polyhedra. It could also use
+>> | existing MCMC walks from R. My motivation is the availability of the
+>> | current software tool in a broader set of users (I have requests from
+>> | researchers that want to use the code but have no knowledge of C++).
+>> |
+>> | I had a discussion in GSoC mentor summit last month with the GSoC
+>> | admin of r-project and he proposed to send a message to this list to
+>> | find a second mentor since my knowledge in R is limited.
+>> |
+>> | What do you think?
+>>
+>> Sure, but you don't need our approval for that.  Discussion of GSoC topics
+>> will happen as usual under the umbrella of R's particpiation in GSoC when
+>> and
+>> where questions are discussed.  I think this a pretty large number (10 out
+>> of
+>> 29 ?) of projects used Rcpp in some way. I was involved in two which
+>> extended
+>> existing packages in the Rcpp space.
+>>
+>>
+>> That said, we should start a wiki page with possible topics:
+>>
+>>  - have Rcpp catch up to ALTREP: very important, possibly a lot of work
+>>
+>>  - smaller idea I had recently: generalize Jens's bit64 which provides
+>>    integer64 to possibly make it "templated" and provide both int64_t and
+>>    uint64_t.
+>>
+>>  - lots of others to be added...
+>>
+>> Where should have that page?
+>>
+>> Dirk
+>>
+>> --
+>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+>
+>
+> --
+> Qiang Kou
+> qkou at umail.iu.edu
+> School of Informatics and Computing, Indiana University
+>
+
+From edd at debian.org  Sat Nov 25 04:53:48 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 24 Nov 2017 21:53:48 -0600
+Subject: [Rcpp-devel] [ANN] Rcpp 0.12.14
+Message-ID: <23064.59724.19586.159778@bud.eddelbuettel.com>
+
+
+Rcpp 0.12.14 arrived on CRAN yesterday.  The announcement is at
+
+   http://dirk.eddelbuettel.com/blog/2017/11/24#rcpp_0.12.14
+
+and (without links) below.
+
+Cheers, Dirk
+
+
+  Fri, 24 Nov 2017
+
+  Rcpp 0.12.14: Some deprecation and minor updates
+
+   The fourteenth release in the 0.12.* series of Rcpp landed on CRAN
+   yesterday after a somewhat longer-than-usual gestation period (and word is
+   it may have been due to some unrelated disturbances from lots of changes
+   within the main r-devel build).
+
+   This release follows the 0.12.0 release from July 2016, the 0.12.1 release
+   in September 2016, the 0.12.2 release in November 2016, the 0.12.3 release
+   in January 2017, the 0.12.4 release in March 2016, the 0.12.5 release in
+   May 2016, the 0.12.6 release in July 2016, the 0.12.7 release in September
+   2016, the 0.12.8 release in November 2016, the 0.12.9 release in January
+   2017, the 0.12.10.release in March 2017, the 0.12.11.release in May 2017,
+   the 0.12.12 release in July 2017 and the 0.12.13.release in late September
+   2017 making it the eighteenth release at the steady and predictable
+   bi-montly release frequency.
+
+   Rcpp has become the most popular way of enhancing GNU R with C or C++
+   code. As of today, 1246 packages (and hence 77 more since the last
+   release) on CRAN depend on Rcpp for making analytical code go faster and
+   further, along with another 91 in BioConductor.
+
+   This release is relatively minor compared to other releases, but follows
+   through on the deprecattion of the old vectors for Date and Datetime
+   (which were terrible: I was influenced by the vector design in QuantLib at
+   the time and didn't really understand yet how a SEXP vector should work)
+   we announced with Rcpp 0.12.8 a year ago. So now the new vectors are the
+   default, but you can flip back if you need to with #define.
+
+   Otherwise Dan rounded a corner with the improved iterators he contributed,
+   and Kirill improved the output stream implementation suppressing a warning
+   with newer compilers.
+
+  Changes in Rcpp version 0.12.14 (2017-11-17)
+
+       * Changes in Rcpp API:
+
+            * New const iterators functions cbegin() and cend() added to
+              MatrixRow as well (Dan Dillon in #750).
+
+            * The Rostream object now contains a Buffer rather than
+              allocating one (Kirill M?ller in #763).
+
+            * New DateVector and DatetimeVector classes are now the default
+              fully deprecating the old classes as announced one year ago.
+
+       * Changes in Rcpp Package:
+
+            * DESCRIPTION file now list doi information per CRAN suggestion.
+       * Changes in Rcpp Documentation:
+
+            * Update CITATION file with doi information and PeerJ preprint.
+
+   Thanks to CRANberries, you can also look at a diff to the previous
+   release. As always, details are on the Rcpp Changelog page and the Rcpp
+   page which also leads to the downloads page, the browseable doxygen docs
+   and zip files of doxygen output for the standard formats. A local
+   directory has source and documentation too. Questions, comments etc should
+   go to the rcpp-devel mailing list off the R-Forge page.
+
+   This post by Dirk Eddelbuettel originated on his Thinking inside the box
+   blog. Please report excessive re-aggregation in third-party for-profit
+   settings.
+
+                                                  /code/rcpp | permanent link
+
+                                                                        [IMG]
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From edd at debian.org  Sat Nov 25 04:57:07 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 24 Nov 2017 21:57:07 -0600
+Subject: [Rcpp-devel] [Pre-ANN] RcppArmadillo 0.8.300.0.0 GitHub-only release
+Message-ID: <23064.59923.658651.661339@bud.eddelbuettel.com>
+
+
+Conrad release 8.300.0 of Armadillo. His cadence is a little too quick for
+CRAN so I have been throttling these down to bi-monthly releases like Rcpp.
+That said, it is nice to have them -- so you can via drat, see below.
+
+RcppArmadillo 0.8.300.0.0 is ready via GitHub, and has been tested against
+all (direct) reverse depdendencies which did not reveal any issues. So by all
+means please *do* use and test this too.
+You can install from the drat repo at
+
+      http://rcppcore.github.io/drat/
+
+via a simple
+
+      drat::addRepo("RcppCore")
+      install.packages("RcppArmadillo")
+
+Thanks,  Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rdiaz02 at gmail.com  Mon Nov 27 10:43:56 2017
+From: rdiaz02 at gmail.com (Ramon Diaz-Uriarte)
+Date: Mon, 27 Nov 2017 10:43:56 +0100
+Subject: [Rcpp-devel] clang does not like lists with a DataFrame inside?
+Message-ID: <87y3msdpk3.fsf@gmail.com>
+
+Dear All,
+
+I am trying to pass to C++ an R list that contains a data frame. Using gcc
+the following
+
+#############################
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+void withDF(Rcpp::List bl) {
+  Rcpp::DataFrame df1 = bl["the_df"];
+  Rcpp::Rcout << " rows are " << df1.size() << std::endl;
+}
+
+################
+
+works fine.
+
+Using clang (version 3.8 in a system with Debian, but I think same issues
+in Mac with clang 4) I get
+
+
+f5.cpp:12:19: error: conversion from 'NameProxy' (aka 'generic_name_proxy<19>') to 'Rcpp::DataFrame' (aka
+      'DataFrame_Impl<PreserveStorage>') is ambiguous
+  Rcpp::DataFrame df1 = bl["the_df"];
+                  ^     ~~~~~~~~~~~~
+/home/ramon/Sources/R-3.5.0-73698/library/Rcpp/include/Rcpp/vector/proxy.h:165:3: note: candidate function [with T =
+      Rcpp::DataFrame_Impl<PreserveStorage>]
+                operator T() const {
+                ^
+/home/ramon/Sources/R-3.5.0-73698/library/Rcpp/include/Rcpp/DataFrame.h:51:9: note: candidate constructor [with T =
+      Rcpp::internal::generic_name_proxy<19>]
+        DataFrame_Impl( const T& obj ) ;
+        ^
+1 error generated.
+/home/ramon/Sources/R-3.5.0-73698/etc/Makeconf:166: recipe for target 'f5.o' failed
+make: *** [f5.o] Error 1
+Error in sourceCpp("f5.cpp", verbose = TRUE, rebuild = TRUE) :
+  Error 1 occurred building shared library.
+
+
+
+Note that the following, treating the data frame as a list, works fine with
+both gcc and clang
+
+
+#include <Rcpp.h>
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+void withList(Rcpp::List bl) {
+  Rcpp::List df1 = bl["the_df"];
+  Rcpp::Rcout << " size is " << df1.size() << std::endl;
+  Rcpp::IntegerVector c1 = df1["first"];
+  Rcpp::Rcout << " rows are " << c1.size() << std::endl;
+}
+
+
+Is this bug?
+
+Best,
+
+
+R.
+
+--
+Ramon Diaz-Uriarte
+Department of Biochemistry, Lab B-25
+Facultad de Medicina
+Universidad Aut?noma de Madrid
+Arzobispo Morcillo, 4
+28029 Madrid
+Spain
+
+Phone: +34-91-497-2412
+
+Email: rdiaz02 at gmail.com
+       ramon.diaz at iib.uam.es
+
+http://ligarto.org/rdiaz
+
+From edd at debian.org  Mon Nov 27 14:14:09 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 27 Nov 2017 07:14:09 -0600
+Subject: [Rcpp-devel] clang does not like lists with a DataFrame inside?
+In-Reply-To: <87y3msdpk3.fsf@gmail.com>
+References: <87y3msdpk3.fsf@gmail.com>
+Message-ID: <23068.4001.696568.360261@bud.eddelbuettel.com>
+
+
+Ramon,
+
+On 27 November 2017 at 10:43, Ramon Diaz-Uriarte wrote:
+| Dear All,
+| 
+| I am trying to pass to C++ an R list that contains a data frame. Using gcc
+| the following
+| 
+| #############################
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| // [[Rcpp::export]]
+| void withDF(Rcpp::List bl) {
+|   Rcpp::DataFrame df1 = bl["the_df"];
+
+I think every existing example uses a template when extracting items from a
+list as we cannot know at compile time which run-time SEXP we will be handed.
+
+|   Rcpp::Rcout << " rows are " << df1.size() << std::endl;
+| }
+| 
+| ################
+| 
+| works fine.
+| 
+| Using clang (version 3.8 in a system with Debian, but I think same issues
+| in Mac with clang 4) I get
+| 
+| 
+| f5.cpp:12:19: error: conversion from 'NameProxy' (aka 'generic_name_proxy<19>') to 'Rcpp::DataFrame' (aka
+|       'DataFrame_Impl<PreserveStorage>') is ambiguous
+|   Rcpp::DataFrame df1 = bl["the_df"];
+|                   ^     ~~~~~~~~~~~~
+| /home/ramon/Sources/R-3.5.0-73698/library/Rcpp/include/Rcpp/vector/proxy.h:165:3: note: candidate function [with T =
+|       Rcpp::DataFrame_Impl<PreserveStorage>]
+|                 operator T() const {
+|                 ^
+| /home/ramon/Sources/R-3.5.0-73698/library/Rcpp/include/Rcpp/DataFrame.h:51:9: note: candidate constructor [with T =
+|       Rcpp::internal::generic_name_proxy<19>]
+|         DataFrame_Impl( const T& obj ) ;
+|         ^
+| 1 error generated.
+| /home/ramon/Sources/R-3.5.0-73698/etc/Makeconf:166: recipe for target 'f5.o' failed
+| make: *** [f5.o] Error 1
+| Error in sourceCpp("f5.cpp", verbose = TRUE, rebuild = TRUE) :
+|   Error 1 occurred building shared library.
+| 
+| 
+| 
+| Note that the following, treating the data frame as a list, works fine with
+| both gcc and clang
+| 
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| 
+| // [[Rcpp::export]]
+| void withList(Rcpp::List bl) {
+|   Rcpp::List df1 = bl["the_df"];
+|   Rcpp::Rcout << " size is " << df1.size() << std::endl;
+|   Rcpp::IntegerVector c1 = df1["first"];
+|   Rcpp::Rcout << " rows are " << c1.size() << std::endl;
+| }
+| 
+| 
+| Is this bug?
+
+I don't think so. See eg
+
+https://github.com/eddelbuettel/rcppexamples/blob/master/src/ListExample.cpp
+
+Dirk
+
+| 
+| Best,
+| 
+| 
+| R.
+| 
+| --
+| Ramon Diaz-Uriarte
+| Department of Biochemistry, Lab B-25
+| Facultad de Medicina
+| Universidad Aut?noma de Madrid
+| Arzobispo Morcillo, 4
+| 28029 Madrid
+| Spain
+| 
+| Phone: +34-91-497-2412
+| 
+| Email: rdiaz02 at gmail.com
+|        ramon.diaz at iib.uam.es
+| 
+| http://ligarto.org/rdiaz
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jc.fernandez.navarro at gmail.com  Mon Nov 27 14:28:35 2017
+From: jc.fernandez.navarro at gmail.com (Jose)
+Date: Mon, 27 Nov 2017 14:28:35 +0100
+Subject: [Rcpp-devel] RInside and MinGW (Windows)
+Message-ID: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+
+Hello,
+
+I am trying to build an application that uses RInside on Windows
+and I get linking problems (undefined references to RInside).
+The application builds and links fine on Linux and MAC.
+
+I tried to link against both libRinside.a and libRinside.dll. The linking
+paths are correct and I am also linking against R, blas and lapack (DLLs
+though).
+In my installation of R 3.4 in Windows I only see DLLs for R, blas and
+lapack.
+Am I supposed to build R myself so to obtain the .lib or .a files?
+
+I use CMake and I used the examples on the RInside repository as a
+reference.
+I am trying to build it with MinGW32 (Windows 10).
+
+Has anybody used RInside in Windows? Am I missing something? Thanks for the
+help.
+
+Best,
+Jose
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171127/866fb75a/attachment.html>
+
+From edd at debian.org  Mon Nov 27 16:02:53 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 27 Nov 2017 09:02:53 -0600
+Subject: [Rcpp-devel] RInside and MinGW (Windows)
+In-Reply-To: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+References: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+Message-ID: <23068.10525.741843.897103@bud.eddelbuettel.com>
+
+
+On 27 November 2017 at 14:28, Jose wrote:
+| Hello,
+| 
+| I am trying to build an application that uses RInside on Windows
+| and I get linking problems (undefined references to RInside).
+| The application builds and links fine on Linux and MAC.
+| 
+| I tried to link against both libRinside.a and libRinside.dll. The linking
+| paths are correct and I am also linking against R, blas and lapack (DLLs
+| though).
+| In my installation of R 3.4 in Windows I only see DLLs for R, blas and
+| lapack.
+| Am I supposed to build R myself so to obtain the .lib or .a files?
+| 
+| I use CMake and I used the examples on the RInside repository as a
+| reference.
+| I am trying to build it with MinGW32 (Windows 10).
+| 
+| Has anybody used RInside in Windows? Am I missing something? Thanks for the
+| help.
+
+Yes of course. See the CRAN checks.
+
+The key point, of course, is that _you need Rtools_ and not any random MinGW
+compiler you may have.  Sort your ${PATH} accordingly and everyhting should work.
+
+Dirk
+ 
+| Best,
+| Jose
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jc.fernandez.navarro at gmail.com  Mon Nov 27 17:22:31 2017
+From: jc.fernandez.navarro at gmail.com (Jose)
+Date: Mon, 27 Nov 2017 17:22:31 +0100
+Subject: [Rcpp-devel] RInside and MinGW (Windows)
+In-Reply-To: <23068.10525.741843.897103@bud.eddelbuettel.com>
+References: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+ <23068.10525.741843.897103@bud.eddelbuettel.com>
+Message-ID: <CANjbG7NPBf9h07Kp7Q5CVQR_yqwpkp+EJ0249wXDF4wmxyZ_kg@mail.gmail.com>
+
+Hi Dirk,
+
+Thanks for your email.
+
+I forgot to mention that I am using Rtool's MinGW and the PATH variable
+includes C:\Rtools\bin and C:\Rtools\mingw_32\bin.
+Also, I had to copy some dlls from the original MinGW (which is the one
+that I had before)
+in order to be able to compile with the Rtool's MinGW. The original MinGW
+is not
+included in the PATH variable. I am not sure if both MinGWs are the same
+version
+or how to check that if that actually matters.
+
+Best,
+Jose
+
+
+
+
+
+2017-11-27 16:02 GMT+01:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 27 November 2017 at 14:28, Jose wrote:
+> | Hello,
+> |
+> | I am trying to build an application that uses RInside on Windows
+> | and I get linking problems (undefined references to RInside).
+> | The application builds and links fine on Linux and MAC.
+> |
+> | I tried to link against both libRinside.a and libRinside.dll. The linking
+> | paths are correct and I am also linking against R, blas and lapack (DLLs
+> | though).
+> | In my installation of R 3.4 in Windows I only see DLLs for R, blas and
+> | lapack.
+> | Am I supposed to build R myself so to obtain the .lib or .a files?
+> |
+> | I use CMake and I used the examples on the RInside repository as a
+> | reference.
+> | I am trying to build it with MinGW32 (Windows 10).
+> |
+> | Has anybody used RInside in Windows? Am I missing something? Thanks for
+> the
+> | help.
+>
+> Yes of course. See the CRAN checks.
+>
+> The key point, of course, is that _you need Rtools_ and not any random
+> MinGW
+> compiler you may have.  Sort your ${PATH} accordingly and everyhting
+> should work.
+>
+> Dirk
+>
+> | Best,
+> | Jose
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171127/7f9af583/attachment.html>
+
+From edd at debian.org  Mon Nov 27 17:48:24 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 27 Nov 2017 10:48:24 -0600
+Subject: [Rcpp-devel] RInside and MinGW (Windows)
+In-Reply-To: <CANjbG7NPBf9h07Kp7Q5CVQR_yqwpkp+EJ0249wXDF4wmxyZ_kg@mail.gmail.com>
+References: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+ <23068.10525.741843.897103@bud.eddelbuettel.com>
+ <CANjbG7NPBf9h07Kp7Q5CVQR_yqwpkp+EJ0249wXDF4wmxyZ_kg@mail.gmail.com>
+Message-ID: <23068.16856.283175.337365@bud.eddelbuettel.com>
+
+
+On 27 November 2017 at 17:22, Jose wrote:
+| Hi Dirk,
+| 
+| Thanks for your email.
+| 
+| I forgot to mention that I am using Rtool's MinGW and the PATH variable
+| includes C:\Rtools\bin and C:\Rtools\mingw_32\bin.
+| Also, I had to copy some dlls from the original MinGW (which is the one
+| that I had before)
+| in order to be able to compile with the Rtool's MinGW. The original MinGW
+| is not
+| included in the PATH variable. I am not sure if both MinGWs are the same
+| version
+| or how to check that if that actually matters.
+
+I have built RInside on Windows in the past. Including all the way down to
+building the Qt examples (which at the time required building Qt locally with
+Rtools).
+
+I have not done so in quite some time as I don't work much on Windows.  There
+is no reason to believe it would no longer work -- RInside is on CRAN, and is
+being tested on the usual three (or four) operating systems:
+
+https://cloud.r-project.org/web/checks/check_results_RInside.html
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From rdiaz02 at gmail.com  Tue Nov 28 00:03:36 2017
+From: rdiaz02 at gmail.com (Ramon Diaz-Uriarte)
+Date: Tue, 28 Nov 2017 00:03:36 +0100
+Subject: [Rcpp-devel] clang does not like lists with a DataFrame inside?
+In-Reply-To: <23068.4001.696568.360261@bud.eddelbuettel.com>
+References: <87y3msdpk3.fsf@gmail.com>
+ <23068.4001.696568.360261@bud.eddelbuettel.com>
+Message-ID: <87tvxfcojb.fsf@gmail.com>
+
+Hi Dirk,
+
+
+On Mon, 27-November-2017, at 14:14:09, Dirk Eddelbuettel <edd at debian.org> wrote:
+> Ramon,
+>
+> On 27 November 2017 at 10:43, Ramon Diaz-Uriarte wrote:
+> | Dear All,
+> |
+> | I am trying to pass to C++ an R list that contains a data frame. Using gcc
+> | the following
+> |
+> | #############################
+> |
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> |
+> | // [[Rcpp::export]]
+> | void withDF(Rcpp::List bl) {
+> |   Rcpp::DataFrame df1 = bl["the_df"];
+>
+> I think every existing example uses a template when extracting items from a
+> list as we cannot know at compile time which run-time SEXP we will be handed.
+
+Aha, understood. I did not think much about it, tried with gcc, it worked,
+and then was surprised to see it not work with clang.
+
+
+>
+> |   Rcpp::Rcout << " rows are " << df1.size() << std::endl;
+> | }
+> |
+> | ################
+> |
+> | works fine.
+> |
+> | Using clang (version 3.8 in a system with Debian, but I think same issues
+> | in Mac with clang 4) I get
+> |
+> |
+> | f5.cpp:12:19: error: conversion from 'NameProxy' (aka 'generic_name_proxy<19>') to 'Rcpp::DataFrame' (aka
+> |       'DataFrame_Impl<PreserveStorage>') is ambiguous
+> |   Rcpp::DataFrame df1 = bl["the_df"];
+> |                   ^     ~~~~~~~~~~~~
+> | /home/ramon/Sources/R-3.5.0-73698/library/Rcpp/include/Rcpp/vector/proxy.h:165:3: note: candidate function [with T =
+> |       Rcpp::DataFrame_Impl<PreserveStorage>]
+> |                 operator T() const {
+> |                 ^
+> | /home/ramon/Sources/R-3.5.0-73698/library/Rcpp/include/Rcpp/DataFrame.h:51:9: note: candidate constructor [with T =
+> |       Rcpp::internal::generic_name_proxy<19>]
+> |         DataFrame_Impl( const T& obj ) ;
+> |         ^
+> | 1 error generated.
+> | /home/ramon/Sources/R-3.5.0-73698/etc/Makeconf:166: recipe for target 'f5.o' failed
+> | make: *** [f5.o] Error 1
+> | Error in sourceCpp("f5.cpp", verbose = TRUE, rebuild = TRUE) :
+> |   Error 1 occurred building shared library.
+> |
+> |
+> |
+> | Note that the following, treating the data frame as a list, works fine with
+> | both gcc and clang
+> |
+> |
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> |
+> | // [[Rcpp::export]]
+> | void withList(Rcpp::List bl) {
+> |   Rcpp::List df1 = bl["the_df"];
+> |   Rcpp::Rcout << " size is " << df1.size() << std::endl;
+> |   Rcpp::IntegerVector c1 = df1["first"];
+> |   Rcpp::Rcout << " rows are " << c1.size() << std::endl;
+> | }
+> |
+> |
+> | Is this bug?
+>
+> I don't think so. See eg
+>
+> https://github.com/eddelbuettel/rcppexamples/blob/master/src/ListExample.cpp
+
+
+Thanks for that. Bookmarked for future reference :-)
+
+
+Best,
+
+
+R.
+
+
+>
+> Dirk
+>
+> |
+> | Best,
+> |
+> |
+> | R.
+> |
+> | --
+> | Ramon Diaz-Uriarte
+> | Department of Biochemistry, Lab B-25
+> | Facultad de Medicina
+> | Universidad Aut?noma de Madrid
+> | Arzobispo Morcillo, 4
+> | 28029 Madrid
+> | Spain
+> |
+> | Phone: +34-91-497-2412
+> |
+> | Email: rdiaz02 at gmail.com
+> |        ramon.diaz at iib.uam.es
+> |
+> | http://ligarto.org/rdiaz
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+
+--
+Ramon Diaz-Uriarte
+Department of Biochemistry, Lab B-25
+Facultad de Medicina
+Universidad Aut?noma de Madrid
+Arzobispo Morcillo, 4
+28029 Madrid
+Spain
+
+Phone: +34-91-497-2412
+
+Email: rdiaz02 at gmail.com
+       ramon.diaz at iib.uam.es
+
+http://ligarto.org/rdiaz
+
+From edd at debian.org  Tue Nov 28 00:24:33 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 27 Nov 2017 17:24:33 -0600
+Subject: [Rcpp-devel] clang does not like lists with a DataFrame inside?
+In-Reply-To: <87tvxfcojb.fsf@gmail.com>
+References: <87y3msdpk3.fsf@gmail.com>
+ <23068.4001.696568.360261@bud.eddelbuettel.com>
+ <87tvxfcojb.fsf@gmail.com>
+Message-ID: <23068.40625.95754.59761@bud.eddelbuettel.com>
+
+
+On 28 November 2017 at 00:03, Ramon Diaz-Uriarte wrote:
+| Hi Dirk,
+| 
+| 
+| On Mon, 27-November-2017, at 14:14:09, Dirk Eddelbuettel <edd at debian.org> wrote:
+| > Ramon,
+| >
+| > On 27 November 2017 at 10:43, Ramon Diaz-Uriarte wrote:
+| > | Dear All,
+| > |
+| > | I am trying to pass to C++ an R list that contains a data frame. Using gcc
+| > | the following
+| > |
+| > | #############################
+| > |
+| > | #include <Rcpp.h>
+| > | using namespace Rcpp;
+| > |
+| > | // [[Rcpp::export]]
+| > | void withDF(Rcpp::List bl) {
+| > |   Rcpp::DataFrame df1 = bl["the_df"];
+| >
+| > I think every existing example uses a template when extracting items from a
+| > list as we cannot know at compile time which run-time SEXP we will be handed.
+| 
+| Aha, understood. I did not think much about it, tried with gcc, it worked,
+| and then was surprised to see it not work with clang.
+
+These slight differences annoyed me at the beginning, but the advantage of
+getting older is that you just get generally more forgetful.  "Just assume
+nothing works unless you are explicit about it" seems to be my current motto :)
+
+as<>() and wrap() are pretty magic.  We get by with fewer very explicit
+statement than we used to years ago, but some remain, notably
+
+  -- return statements better not be compound
+  -- assignment from list or data.frame by name
+  -- [ your issue here, space for rent upon request ]
+
+[...]
+
+| > I don't think so. See eg
+| >
+| > https://github.com/eddelbuettel/rcppexamples/blob/master/src/ListExample.cpp
+| 
+| Thanks for that. Bookmarked for future reference :-)
+
+It's old and could be expanded but better than nothing.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jc.fernandez.navarro at gmail.com  Tue Nov 28 16:03:12 2017
+From: jc.fernandez.navarro at gmail.com (Jose)
+Date: Tue, 28 Nov 2017 16:03:12 +0100
+Subject: [Rcpp-devel] RInside and MinGW (Windows)
+In-Reply-To: <23068.16856.283175.337365@bud.eddelbuettel.com>
+References: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+ <23068.10525.741843.897103@bud.eddelbuettel.com>
+ <CANjbG7NPBf9h07Kp7Q5CVQR_yqwpkp+EJ0249wXDF4wmxyZ_kg@mail.gmail.com>
+ <23068.16856.283175.337365@bud.eddelbuettel.com>
+Message-ID: <CANjbG7OjR7D9it=vLVcP6fY5C3A-e2M71PeTudeFySFb+fMkCQ@mail.gmail.com>
+
+I had no reason to believe it would not work neither.
+I was able to make it work. I re-installed R and RTools
+from the scratch and cleaned up the project. So, I am not sure
+what I was missing really. One thing though, I am fine linking just
+against the DDLs and I need to have a variable R_HOME pointing
+to the R root in order to be able to run the app. It works smoothly in
+Windows
+all the R related code.
+
+Thanks for all the help.
+
+Best,
+Jose
+
+2017-11-27 17:48 GMT+01:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 27 November 2017 at 17:22, Jose wrote:
+> | Hi Dirk,
+> |
+> | Thanks for your email.
+> |
+> | I forgot to mention that I am using Rtool's MinGW and the PATH variable
+> | includes C:\Rtools\bin and C:\Rtools\mingw_32\bin.
+> | Also, I had to copy some dlls from the original MinGW (which is the one
+> | that I had before)
+> | in order to be able to compile with the Rtool's MinGW. The original MinGW
+> | is not
+> | included in the PATH variable. I am not sure if both MinGWs are the same
+> | version
+> | or how to check that if that actually matters.
+>
+> I have built RInside on Windows in the past. Including all the way down to
+> building the Qt examples (which at the time required building Qt locally
+> with
+> Rtools).
+>
+> I have not done so in quite some time as I don't work much on Windows.
+> There
+> is no reason to believe it would no longer work -- RInside is on CRAN, and
+> is
+> being tested on the usual three (or four) operating systems:
+>
+> https://cloud.r-project.org/web/checks/check_results_RInside.html
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171128/723c15dd/attachment.html>
+
+From edd at debian.org  Tue Nov 28 16:16:19 2017
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 28 Nov 2017 09:16:19 -0600
+Subject: [Rcpp-devel] RInside and MinGW (Windows)
+In-Reply-To: <CANjbG7OjR7D9it=vLVcP6fY5C3A-e2M71PeTudeFySFb+fMkCQ@mail.gmail.com>
+References: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+ <23068.10525.741843.897103@bud.eddelbuettel.com>
+ <CANjbG7NPBf9h07Kp7Q5CVQR_yqwpkp+EJ0249wXDF4wmxyZ_kg@mail.gmail.com>
+ <23068.16856.283175.337365@bud.eddelbuettel.com>
+ <CANjbG7OjR7D9it=vLVcP6fY5C3A-e2M71PeTudeFySFb+fMkCQ@mail.gmail.com>
+Message-ID: <23069.32195.69405.499707@bud.eddelbuettel.com>
+
+
+On 28 November 2017 at 16:03, Jose wrote:
+| I had no reason to believe it would not work neither.
+| I was able to make it work. I re-installed R and RTools
+| from the scratch and cleaned up the project. So, I am not sure
+| what I was missing really. One thing though, I am fine linking just
+| against the DDLs and I need to have a variable R_HOME pointing
+| to the R root in order to be able to run the app. It works smoothly in
+| Windows
+| all the R related code.
+
+We can always do with better/newer/updated/current HOWTOs and walk-through.
+Maybe you can start with a blog post or step-by-step guide.
+
+And yes, last time I tried I also needed to physically copy some DLLs which
+seems distateful.  But I may well be missing another Windows trick ...
+
+| Thanks for all the help.
+
+Thank you for persisting, and reporting success back here to the list.
+
+Dirk
+
+-- 
+http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jc.fernandez.navarro at gmail.com  Tue Nov 28 17:13:02 2017
+From: jc.fernandez.navarro at gmail.com (Jose)
+Date: Tue, 28 Nov 2017 17:13:02 +0100
+Subject: [Rcpp-devel] RInside and MinGW (Windows)
+In-Reply-To: <23069.32195.69405.499707@bud.eddelbuettel.com>
+References: <CANjbG7PxtVTWcg8TeeDE8U_vy2JmO4RUaNtz6HeVO5v98-pkpg@mail.gmail.com>
+ <23068.10525.741843.897103@bud.eddelbuettel.com>
+ <CANjbG7NPBf9h07Kp7Q5CVQR_yqwpkp+EJ0249wXDF4wmxyZ_kg@mail.gmail.com>
+ <23068.16856.283175.337365@bud.eddelbuettel.com>
+ <CANjbG7OjR7D9it=vLVcP6fY5C3A-e2M71PeTudeFySFb+fMkCQ@mail.gmail.com>
+ <23069.32195.69405.499707@bud.eddelbuettel.com>
+Message-ID: <CANjbG7OFbDF3Z_keOxe_C6jrGWrQGMN6Nw9XaLKgNnMTCE1hsg@mail.gmail.com>
+
+We can always do with better/newer/updated/current HOWTOs and walk-through.
+Maybe you can start with a blog post or step-by-step guide.
+
+I totally agree, unfortunately I never got around starting a blog which is
+bad
+because I have struggled with some interesting problems that could be worth
+sharing.
+(at least I have added this info in the manual of my tool).
+
+And yes, last time I tried I also needed to physically copy some DLLs which
+seems distateful.  But I may well be missing another Windows trick ...
+
+The DDLs are needed in run time. I didn't need them to build the tool the
+second time.
+I believe something was messed up with the two different MinGW versions.
+
+| Thanks for all the help.
+
+Thank you for persisting, and reporting success back here to the list.
+
+Best,
+Jose
+
+2017-11-28 16:16 GMT+01:00 Dirk Eddelbuettel <edd at debian.org>:
+
+>
+> On 28 November 2017 at 16:03, Jose wrote:
+> | I had no reason to believe it would not work neither.
+> | I was able to make it work. I re-installed R and RTools
+> | from the scratch and cleaned up the project. So, I am not sure
+> | what I was missing really. One thing though, I am fine linking just
+> | against the DDLs and I need to have a variable R_HOME pointing
+> | to the R root in order to be able to run the app. It works smoothly in
+> | Windows
+> | all the R related code.
+>
+> We can always do with better/newer/updated/current HOWTOs and walk-through.
+> Maybe you can start with a blog post or step-by-step guide.
+>
+> And yes, last time I tried I also needed to physically copy some DLLs which
+> seems distateful.  But I may well be missing another Windows trick ...
+>
+> | Thanks for all the help.
+>
+> Thank you for persisting, and reporting success back here to the list.
+>
+> Dirk
+>
+> --
+> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20171128/26e21a9c/attachment.html>
+

@@ -1,0 +1,1680 @@
+From edd at debian.org  Sun Jan  2 16:37:39 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 2 Jan 2022 09:37:39 -0600
+Subject: [Rcpp-devel] RcppArmadillo 0.10.8.0.0
+Message-ID: <25041.50883.75224.678405@rob.eddelbuettel.com>
+
+
+Happy New Year to all!
+
+Conrad released version 10.8 Armadillo (and I had prepared two pre-releases
+which passed reverse dependency checks just fine so not expecting surprises).
+
+Given that 0.10.7.5.0, the final RcppRelease for the 10.7.* series with his
+last release 10.7.5, only got to CRAN on December 17 I will wait a little
+(even when CRAN is reopened, scheduled tomorrow) to release it.  But you can
+always get it from the Rcpp drat repo via
+
+  install.packages("RcppArmadillo",
+                   repos=c("https://RcppCore.github.io/drat",
+                           "https://cloud.r-project.org"))
+
+(and/or update or set the drat repo via the drat helper functions). See
+https://RcppCore.github.io/drat for more.
+
+Cheers, Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tdhock5 at gmail.com  Mon Jan 24 20:55:29 2022
+From: tdhock5 at gmail.com (Toby Hocking)
+Date: Mon, 24 Jan 2022 12:55:29 -0700
+Subject: [Rcpp-devel] violates the C++ One Definition Rule ?
+Message-ID: <CALK03d2tb5APFnKc_8JOTghGBP0nhw_zetdSEO9rPARVgijgxg@mail.gmail.com>
+
+Hi Rcpp Devs,
+Does anyone know how to fix this warning in a package with LinkingTo:
+RcppArmadillo? My package plotHMM
+https://www.stats.ox.ac.uk/pub/bdr/LTO/plotHMM.out got this message on CRAN
+Additional Checks LTO flavor,
+https://www.stats.ox.ac.uk/pub/bdr/LTO/README.txt
+
+g++ -std=gnu++14 -shared -L/usr/local/lib64 -o plotHMM.so
+RcppExports.o backward.o eln.o forward.o interface.o multiply.o
+pairwise.o transition.o viterbi.o
+/data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+warning: type ‘struct opts’ violates the C++ One Definition Rule
+[-Wodr]
+   84 |   struct opts
+      |          ^
+/data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+note: a different type is defined in another translation unit
+   84 |   struct opts
+      |          ^
+/data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+note: the first difference of corresponding definitions is field
+‘flags’
+   86 |     const uword flags;
+      |                 ^
+/data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+note: a field of same name but different type is defined in another
+translation unit
+   86 |     const uword flags;
+      |                 ^
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220124/a8ea56fa/attachment.html>
+
+From edd at debian.org  Mon Jan 24 21:14:27 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 24 Jan 2022 14:14:27 -0600
+Subject: [Rcpp-devel] violates the C++ One Definition Rule ?
+In-Reply-To: <CALK03d2tb5APFnKc_8JOTghGBP0nhw_zetdSEO9rPARVgijgxg@mail.gmail.com>
+References: <CALK03d2tb5APFnKc_8JOTghGBP0nhw_zetdSEO9rPARVgijgxg@mail.gmail.com>
+Message-ID: <25071.2211.637974.520731@rob.eddelbuettel.com>
+
+
+On 24 January 2022 at 12:55, Toby Hocking wrote:
+| Hi Rcpp Devs,
+| Does anyone know how to fix this warning in a package with LinkingTo:
+| RcppArmadillo? My package plotHMM
+| https://www.stats.ox.ac.uk/pub/bdr/LTO/plotHMM.out got this message on CRAN
+
+Worth stressing that this happens under link-time optimziation (lto) which I
+am not yet that familiar with.
+
+>From _really briefly_ glancing at your package I see that you include
+RcppArmadillo.h in some files (good !) but also include armadillo
+directly. It's just a hunch and guess at this point but that may lead to
+different 'settings' and #define values.  Maybe try using only RcppArmadillo.h ?
+
+Dirk
+
+| Additional Checks LTO flavor,
+| https://www.stats.ox.ac.uk/pub/bdr/LTO/README.txt
+| 
+| g++ -std=gnu++14 -shared -L/usr/local/lib64 -o plotHMM.so
+| RcppExports.o backward.o eln.o forward.o interface.o multiply.o
+| pairwise.o transition.o viterbi.o
+| /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+| warning: type ‘struct opts’ violates the C++ One Definition Rule
+| [-Wodr]
+|    84 |   struct opts
+|       |          ^
+| /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+| note: a different type is defined in another translation unit
+|    84 |   struct opts
+|       |          ^
+| /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+| note: the first difference of corresponding definitions is field
+| ‘flags’
+|    86 |     const uword flags;
+|       |                 ^
+| /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+| note: a field of same name but different type is defined in another
+| translation unit
+|    86 |     const uword flags;
+|       |                 ^
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From tdhock5 at gmail.com  Tue Jan 25 18:49:46 2022
+From: tdhock5 at gmail.com (Toby Hocking)
+Date: Tue, 25 Jan 2022 10:49:46 -0700
+Subject: [Rcpp-devel] violates the C++ One Definition Rule ?
+In-Reply-To: <25071.2211.637974.520731@rob.eddelbuettel.com>
+References: <CALK03d2tb5APFnKc_8JOTghGBP0nhw_zetdSEO9rPARVgijgxg@mail.gmail.com>
+ <25071.2211.637974.520731@rob.eddelbuettel.com>
+Message-ID: <CALK03d1gp7Q3y8mA3tK=ADhEwGkvT8LB_3XwDMM2AR+KQAjn1A@mail.gmail.com>
+
+That worked! Thanks Dirk.
+
+On Mon, Jan 24, 2022 at 1:14 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 24 January 2022 at 12:55, Toby Hocking wrote:
+> | Hi Rcpp Devs,
+> | Does anyone know how to fix this warning in a package with LinkingTo:
+> | RcppArmadillo? My package plotHMM
+> | https://www.stats.ox.ac.uk/pub/bdr/LTO/plotHMM.out got this message on
+> CRAN
+>
+> Worth stressing that this happens under link-time optimziation (lto) which
+> I
+> am not yet that familiar with.
+>
+> From _really briefly_ glancing at your package I see that you include
+> RcppArmadillo.h in some files (good !) but also include armadillo
+> directly. It's just a hunch and guess at this point but that may lead to
+> different 'settings' and #define values.  Maybe try using only
+> RcppArmadillo.h ?
+>
+> Dirk
+>
+> | Additional Checks LTO flavor,
+> | https://www.stats.ox.ac.uk/pub/bdr/LTO/README.txt
+> |
+> | g++ -std=gnu++14 -shared -L/usr/local/lib64 -o plotHMM.so
+> | RcppExports.o backward.o eln.o forward.o interface.o multiply.o
+> | pairwise.o transition.o viterbi.o
+> |
+> /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+> | warning: type ‘struct opts’ violates the C++ One Definition Rule
+> | [-Wodr]
+> |    84 |   struct opts
+> |       |          ^
+> |
+> /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+> | note: a different type is defined in another translation unit
+> |    84 |   struct opts
+> |       |          ^
+> |
+> /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+> | note: the first difference of corresponding definitions is field
+> | ‘flags’
+> |    86 |     const uword flags;
+> |       |                 ^
+> |
+> /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+> | note: a field of same name but different type is defined in another
+> | translation unit
+> |    86 |     const uword flags;
+> |       |                 ^
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220125/621efb57/attachment.html>
+
+From edd at debian.org  Tue Jan 25 19:26:01 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Tue, 25 Jan 2022 12:26:01 -0600
+Subject: [Rcpp-devel] violates the C++ One Definition Rule ?
+In-Reply-To: <CALK03d1gp7Q3y8mA3tK=ADhEwGkvT8LB_3XwDMM2AR+KQAjn1A@mail.gmail.com>
+References: <CALK03d2tb5APFnKc_8JOTghGBP0nhw_zetdSEO9rPARVgijgxg@mail.gmail.com>
+ <25071.2211.637974.520731@rob.eddelbuettel.com>
+ <CALK03d1gp7Q3y8mA3tK=ADhEwGkvT8LB_3XwDMM2AR+KQAjn1A@mail.gmail.com>
+Message-ID: <25072.16569.420336.10470@rob.eddelbuettel.com>
+
+
+On 25 January 2022 at 10:49, Toby Hocking wrote:
+| That worked! Thanks Dirk.
+
+Splendid.
+
+Now that you have it working again, if you feel curious and have a few
+minutes maybe you can drill down how/where it breaks. Because the general
+ability to link, say, "interface files" that deal with R/C++ interchange (and
+include RcppArmadillo.h) and pure "client library files" (that include the
+armadillo header, and may be used elsewhere) is a nice advanced use case we
+do not want to drop. But we need to document what needs to be turned on to
+enable LTO support.
+
+Dirk
+ 
+| On Mon, Jan 24, 2022 at 1:14 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+| 
+| >
+| > On 24 January 2022 at 12:55, Toby Hocking wrote:
+| > | Hi Rcpp Devs,
+| > | Does anyone know how to fix this warning in a package with LinkingTo:
+| > | RcppArmadillo? My package plotHMM
+| > | https://www.stats.ox.ac.uk/pub/bdr/LTO/plotHMM.out got this message on
+| > CRAN
+| >
+| > Worth stressing that this happens under link-time optimziation (lto) which
+| > I
+| > am not yet that familiar with.
+| >
+| > From _really briefly_ glancing at your package I see that you include
+| > RcppArmadillo.h in some files (good !) but also include armadillo
+| > directly. It's just a hunch and guess at this point but that may lead to
+| > different 'settings' and #define values.  Maybe try using only
+| > RcppArmadillo.h ?
+| >
+| > Dirk
+| >
+| > | Additional Checks LTO flavor,
+| > | https://www.stats.ox.ac.uk/pub/bdr/LTO/README.txt
+| > |
+| > | g++ -std=gnu++14 -shared -L/usr/local/lib64 -o plotHMM.so
+| > | RcppExports.o backward.o eln.o forward.o interface.o multiply.o
+| > | pairwise.o transition.o viterbi.o
+| > |
+| > /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+| > | warning: type ‘struct opts’ violates the C++ One Definition Rule
+| > | [-Wodr]
+| > |    84 |   struct opts
+| > |       |          ^
+| > |
+| > /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:84:10:
+| > | note: a different type is defined in another translation unit
+| > |    84 |   struct opts
+| > |       |          ^
+| > |
+| > /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+| > | note: the first difference of corresponding definitions is field
+| > | ‘flags’
+| > |    86 |     const uword flags;
+| > |       |                 ^
+| > |
+| > /data/gannet/ripley/R/test-4.2/RcppArmadillo/include/armadillo_bits/glue_solve_bones.hpp:86:17:
+| > | note: a field of same name but different type is defined in another
+| > | translation unit
+| > |    86 |     const uword flags;
+| > |       |                 ^
+| > | _______________________________________________
+| > | Rcpp-devel mailing list
+| > | Rcpp-devel at lists.r-forge.r-project.org
+| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+| > --
+| > https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+| >
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From josephpark at ieee.org  Wed Jan 26 19:01:40 2022
+From: josephpark at ieee.org (Joseph Park)
+Date: Wed, 26 Jan 2022 19:01:40 +0100
+Subject: [Rcpp-devel] RcppThread.h:12 ThreadPool.hpp:11 warning: 'new' of
+ type 'quickpool::ThreadPool'
+Message-ID: <78e37d0f-30cf-0082-a09d-ca454e7489ed@IEEE.org>
+
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220126/73024687/attachment.html>
+
+From iucar at fedoraproject.org  Wed Jan 26 19:57:26 2022
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Wed, 26 Jan 2022 19:57:26 +0100
+Subject: [Rcpp-devel] RcppThread.h:12 ThreadPool.hpp:11 warning: 'new'
+ of type 'quickpool::ThreadPool'
+In-Reply-To: <78e37d0f-30cf-0082-a09d-ca454e7489ed@IEEE.org>
+References: <78e37d0f-30cf-0082-a09d-ca454e7489ed@IEEE.org>
+Message-ID: <CALEXWq3oRi3VNs6nB8Da8wTJGgZsDYAb7MWSkAEO7sf0myY2nw@mail.gmail.com>
+
+On Wed, 26 Jan 2022 at 19:02, Joseph Park <josephpark at ieee.org> wrote:
+>
+> Dear RcppDev,
+>
+> A new warning has emerged in mingw compilation on CRAN. The message:
+>
+> *** arch - x64
+> make[1]: Entering directory '/d/temp/RtmpsZcaWL/R.INSTALLb59426674c3e/rEDM/src-x64'
+> d:/Compiler/rtools40/mingw64/bin/g++  -std=gnu++11 -I"D:/RCompile/recent/R-4.1.2/include" -DNDEBUG -I./cppEDM/src -I../ -I'd:/RCompile/CRANpkg/lib/4.1/Rcpp/include' -I'd:/RCompile/CRANpkg/lib/4.1/RcppThread/include'   -I"d:/Compiler/gcc-4.9.3/local330/include"     -O2 -Wall  -mfpmath=sse -msse2 -mstackrealign  -c CCM.cpp -o CCM.o
+> In file included from d:/RCompile/CRANpkg/lib/4.1/RcppThread/include/RcppThread/ThreadPool.hpp:11,
+>                  from d:/RCompile/CRANpkg/lib/4.1/RcppThread/include/RcppThread.h:12,
+>                  from RcppEDMCommon.h:12,
+>                  from CCM.cpp:2:
+> d:/RCompile/CRANpkg/lib/4.1/RcppThread/include/RcppThread/quickpool.hpp: In static member function 'static quickpool::ThreadPool& quickpool::ThreadPool::global_instance()':
+> d:/RCompile/CRANpkg/lib/4.1/RcppThread/include/RcppThread/quickpool.hpp:719:31: warning: 'new' of type 'quickpool::ThreadPool' with extended alignment 64 [-Waligned-new=]
+>          static auto ptr = new ThreadPool;
+>                                ^~~~~~~~~~
+> d:/RCompile/CRANpkg/lib/4.1/RcppThread/include/RcppThread/quickpool.hpp:719:31: note: uses 'void* operator new(std::size_t)', which does not have an alignment parameter
+> d:/RCompile/CRANpkg/lib/4.1/RcppThread/include/RcppThread/quickpool.hpp:719:31: note: use '-faligned-new' to enable C++17 over-aligned new support
+>
+> --
+>
+> Any ideas to address this? The packages uses C++11.
+
+RcppThread is not part of RcppCore. The upstream repo is [1]. Please,
+report it there. Version 2.0.0 was released yesterday on CRAN and it's
+currently failing on a couple of platforms [2].
+
+[1] https://github.com/tnagler/RcppThread
+[2] https://cran.rstudio.com/web/checks/check_results_RcppThread.html
+
+-- 
+Iñaki Úcar
+
+From josephpark at ieee.org  Thu Jan 27 07:13:52 2022
+From: josephpark at ieee.org (Joseph Park)
+Date: Thu, 27 Jan 2022 07:13:52 +0100
+Subject: [Rcpp-devel] RcppThread.h:12 ThreadPool.hpp:11 warning: 'new'
+ of type 'quickpool::ThreadPool'
+In-Reply-To: <CALEXWq3oRi3VNs6nB8Da8wTJGgZsDYAb7MWSkAEO7sf0myY2nw@mail.gmail.com>
+References: <78e37d0f-30cf-0082-a09d-ca454e7489ed@IEEE.org>
+ <CALEXWq3oRi3VNs6nB8Da8wTJGgZsDYAb7MWSkAEO7sf0myY2nw@mail.gmail.com>
+Message-ID: <d3e81d13-6c95-f689-0f8d-24061cc98001@IEEE.org>
+
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220127/ad538145/attachment.html>
+
+From alexilich93 at gmail.com  Fri Jan 28 17:53:39 2022
+From: alexilich93 at gmail.com (Alex Ilich)
+Date: Fri, 28 Jan 2022 11:53:39 -0500
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+Message-ID: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+
+Hi, I have some code I've written to calculate regression parameters using
+ordinarily least squares using RcppArmadillo. This is meant to be performed
+iteratively over many small subsets (sliding window over spatial raster
+data) so I'd like to automatically detect when the regression can't be
+performed and just return a vector of NA's. Currently I check to see if the
+determinant is 0 in order to see if the XtX matrix can be inverted and it
+seems to work in the vast majority of cases but I did run into a case where
+a small amount of precision error was introduced and for some reason this
+causes the determinant to be non-zero in C++ however, the matrix still is
+considered singular (uninvertible) leading to an error. I was wondering if
+anyone had any suggestions? Maybe there's a minimum value non-zero value
+where it's considered essentially singular that I could use instead of 0,
+or maybe there's a way to return a vector of NAs if an error is detected
+rather than stopping execution and printing an error message. I've also
+seen that pinv can be used, but from some tests I ran it's substantially
+slower, so I'd like to avoid using that. I've included some example code
+below. Any suggestions would be greatly appreciated.
+
+Thanks,
+Alex
+
+library(Rcpp)
+cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+arma::mat Y){
+  arma::mat Xt = trans(X);
+  arma::mat XtX = Xt * X;
+  double d = det(XtX);
+  Rcout << d; //print determinant
+  if(d==0){
+    NumericVector B2(X.n_cols, NA_REAL);
+    return B2;
+  } else{
+    arma::mat XtX_inv= inv(XtX);
+    NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt *
+Y)));
+    return B;
+  }}")
+
+X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+                  100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+
+
+X2<- X
+
+X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+
+Y<- matrix(1:6, ncol=1)
+
+#Determinant of XtX in R is 0 for both
+det(t(X) %*% X) ==0 #TRUE
+det(t(X2) %*% X2) ==0 #TRUE
+
+C_OLS(X,Y) #Determinant is 0 in C++ and correctly returns a vector of NA's
+#0[1] NA NA NA
+
+C_OLS(X2,Y) #Determinant is not 0 in C++ so the if statement is not
+triggered but the matrix is still uninvertible
+# 4.57764e-05
+# error: inv(): matrix is singular
+# Error in C_OLS(X2, Y) : inv(): matrix is singular
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220128/05ebe0b5/attachment.html>
+
+From nfultz at gmail.com  Fri Jan 28 18:16:16 2022
+From: nfultz at gmail.com (Neal Fultz)
+Date: Fri, 28 Jan 2022 09:16:16 -0800
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+Message-ID: <CAL9B2vdTvPC+yXCwOHsxbRig4wXynC=rLDT8n=o=j3=v1m==Yg@mail.gmail.com>
+
+There's an R object that has the machine precision, which could be a
+reasonable threshold.
+
+.Machine$double.eps
+
+I believe there is a similar constant in the C++ standard library.
+
+You might also try checking the condition of the matrix instead of the
+determinant, but you might take a performance hit. EG:
+https://www.quora.com/Why-is-a-condition-number-more-useful-than-a-determinant-for-spotting-problems-with-the-solution-to-ax-b
+
+- Neal
+
+On Fri, Jan 28, 2022 at 8:54 AM Alex Ilich <alexilich93 at gmail.com> wrote:
+
+> Hi, I have some code I've written to calculate regression parameters using
+> ordinarily least squares using RcppArmadillo. This is meant to be performed
+> iteratively over many small subsets (sliding window over spatial raster
+> data) so I'd like to automatically detect when the regression can't be
+> performed and just return a vector of NA's. Currently I check to see if the
+> determinant is 0 in order to see if the XtX matrix can be inverted and it
+> seems to work in the vast majority of cases but I did run into a case where
+> a small amount of precision error was introduced and for some reason this
+> causes the determinant to be non-zero in C++ however, the matrix still is
+> considered singular (uninvertible) leading to an error. I was wondering if
+> anyone had any suggestions? Maybe there's a minimum value non-zero value
+> where it's considered essentially singular that I could use instead of 0,
+> or maybe there's a way to return a vector of NAs if an error is detected
+> rather than stopping execution and printing an error message. I've also
+> seen that pinv can be used, but from some tests I ran it's substantially
+> slower, so I'd like to avoid using that. I've included some example code
+> below. Any suggestions would be greatly appreciated.
+>
+> Thanks,
+> Alex
+>
+> library(Rcpp)
+> cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+> arma::mat Y){
+>   arma::mat Xt = trans(X);
+>   arma::mat XtX = Xt * X;
+>   double d = det(XtX);
+>   Rcout << d; //print determinant
+>   if(d==0){
+>     NumericVector B2(X.n_cols, NA_REAL);
+>     return B2;
+>   } else{
+>     arma::mat XtX_inv= inv(XtX);
+>     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt *
+> Y)));
+>     return B;
+>   }}")
+>
+> X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+>                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+>
+>
+> X2<- X
+>
+> X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+>
+> Y<- matrix(1:6, ncol=1)
+>
+> #Determinant of XtX in R is 0 for both
+> det(t(X) %*% X) ==0 #TRUE
+> det(t(X2) %*% X2) ==0 #TRUE
+>
+> C_OLS(X,Y) #Determinant is 0 in C++ and correctly returns a vector of NA's
+> #0[1] NA NA NA
+>
+> C_OLS(X2,Y) #Determinant is not 0 in C++ so the if statement is not
+> triggered but the matrix is still uninvertible
+> # 4.57764e-05
+> # error: inv(): matrix is singular
+> # Error in C_OLS(X2, Y) : inv(): matrix is singular
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220128/6a25fefe/attachment.html>
+
+From edd at debian.org  Fri Jan 28 18:30:57 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 28 Jan 2022 11:30:57 -0600
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAL9B2vdTvPC+yXCwOHsxbRig4wXynC=rLDT8n=o=j3=v1m==Yg@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAL9B2vdTvPC+yXCwOHsxbRig4wXynC=rLDT8n=o=j3=v1m==Yg@mail.gmail.com>
+Message-ID: <25076.10321.138393.480492@rob.eddelbuettel.com>
+
+
+On 28 January 2022 at 09:16, Neal Fultz wrote:
+| There's an R object that has the machine precision, which could be a
+| reasonable threshold.
+| 
+| .Machine$double.eps
+| 
+| I believe there is a similar constant in the C++ standard library.
+| 
+| You might also try checking the condition of the matrix instead of the
+| determinant, but you might take a performance hit. EG:
+| https://www.quora.com/Why-is-a-condition-number-more-useful-than-a-determinant-for-spotting-problems-with-the-solution-to-ax-b
+
+Exactly -- here is an old SO answer of mine featuring the condition
+number and kappa (its inverse):
+
+https://stackoverflow.com/questions/3042117/screening-multicollinearity-in-a-regression-model/3042262#3042262
+
+I don't have an implementation of either 'from C++ / Armadillo basics' handy
+but it is likely not hard, and possibly a nice exercise.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From alexilich93 at gmail.com  Fri Jan 28 19:25:21 2022
+From: alexilich93 at gmail.com (Alex Ilich)
+Date: Fri, 28 Jan 2022 13:25:21 -0500
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+Message-ID: <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+
+Thank you Neal and Dirk. Based on these comments I think using arma::rcond
+to get the reciprocal of the condition factor, and checking if that is zero
+rather than the determinant may be the route to go. At least for this
+example that works.
+
+library(Rcpp)
+
+cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+arma::mat Y){
+  arma::mat Xt = trans(X);
+  arma::mat XtX = Xt * X;
+  double rcf = rcond(XtX);
+  Rcout << rcf; //print reciprocal of condition factor
+  if(rcf==0){
+    NumericVector B2(X.n_cols, NA_REAL);
+    return B2;
+  } else{
+    arma::mat XtX_inv= inv(XtX);
+    NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt *
+Y)));
+    return B;
+  }}")
+
+X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+                  100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+
+
+X2<- X
+
+X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+
+Y<- matrix(1:6, ncol=1)
+
+C_OLS(X,Y)
+# 0[1] NA NA NA
+
+C_OLS(X2,Y)
+# 0[1] NA NA NA
+
+
+
+On Fri, Jan 28, 2022 at 11:53 AM Alex Ilich <alexilich93 at gmail.com> wrote:
+
+> Hi, I have some code I've written to calculate regression parameters using
+> ordinarily least squares using RcppArmadillo. This is meant to be performed
+> iteratively over many small subsets (sliding window over spatial raster
+> data) so I'd like to automatically detect when the regression can't be
+> performed and just return a vector of NA's. Currently I check to see if the
+> determinant is 0 in order to see if the XtX matrix can be inverted and it
+> seems to work in the vast majority of cases but I did run into a case where
+> a small amount of precision error was introduced and for some reason this
+> causes the determinant to be non-zero in C++ however, the matrix still is
+> considered singular (uninvertible) leading to an error. I was wondering if
+> anyone had any suggestions? Maybe there's a minimum value non-zero value
+> where it's considered essentially singular that I could use instead of 0,
+> or maybe there's a way to return a vector of NAs if an error is detected
+> rather than stopping execution and printing an error message. I've also
+> seen that pinv can be used, but from some tests I ran it's substantially
+> slower, so I'd like to avoid using that. I've included some example code
+> below. Any suggestions would be greatly appreciated.
+>
+> Thanks,
+> Alex
+>
+> library(Rcpp)
+> cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+> arma::mat Y){
+>   arma::mat Xt = trans(X);
+>   arma::mat XtX = Xt * X;
+>   double d = det(XtX);
+>   Rcout << d; //print determinant
+>   if(d==0){
+>     NumericVector B2(X.n_cols, NA_REAL);
+>     return B2;
+>   } else{
+>     arma::mat XtX_inv= inv(XtX);
+>     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt *
+> Y)));
+>     return B;
+>   }}")
+>
+> X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+>                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+>
+>
+> X2<- X
+>
+> X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+>
+> Y<- matrix(1:6, ncol=1)
+>
+> #Determinant of XtX in R is 0 for both
+> det(t(X) %*% X) ==0 #TRUE
+> det(t(X2) %*% X2) ==0 #TRUE
+>
+> C_OLS(X,Y) #Determinant is 0 in C++ and correctly returns a vector of NA's
+> #0[1] NA NA NA
+>
+> C_OLS(X2,Y) #Determinant is not 0 in C++ so the if statement is not
+> triggered but the matrix is still uninvertible
+> # 4.57764e-05
+> # error: inv(): matrix is singular
+> # Error in C_OLS(X2, Y) : inv(): matrix is singular
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220128/73e370be/attachment-0001.html>
+
+From edd at debian.org  Sat Jan 29 01:32:26 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Fri, 28 Jan 2022 18:32:26 -0600
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+Message-ID: <25076.35610.352219.570187@rob.eddelbuettel.com>
+
+
+On 28 January 2022 at 13:25, Alex Ilich wrote:
+| Thank you Neal and Dirk. Based on these comments I think using arma::rcond
+
+Ah, yes, of course. Should have remembered arma::rcond.
+
+| to get the reciprocal of the condition factor, and checking if that is zero
+| rather than the determinant may be the route to go. At least for this
+| example that works.
+| 
+| library(Rcpp)
+| 
+| cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+| arma::mat Y){
+|   arma::mat Xt = trans(X);
+|   arma::mat XtX = Xt * X;
+|   double rcf = rcond(XtX);
+|   Rcout << rcf; //print reciprocal of condition factor
+|   if(rcf==0){
+
+Re-read Neal's first email.  You probably do not want zero (apart from all
+the R FAQ 7.31 reasons to not compare a double with equality :wink: )
+
+Dirk
+
+|     NumericVector B2(X.n_cols, NA_REAL);
+|     return B2;
+|   } else{
+|     arma::mat XtX_inv= inv(XtX);
+|     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt *
+| Y)));
+|     return B;
+|   }}")
+| 
+| X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+|                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+| 
+| 
+| X2<- X
+| 
+| X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+| 
+| Y<- matrix(1:6, ncol=1)
+| 
+| C_OLS(X,Y)
+| # 0[1] NA NA NA
+| 
+| C_OLS(X2,Y)
+| # 0[1] NA NA NA
+| 
+| 
+| 
+| On Fri, Jan 28, 2022 at 11:53 AM Alex Ilich <alexilich93 at gmail.com> wrote:
+| 
+| > Hi, I have some code I've written to calculate regression parameters using
+| > ordinarily least squares using RcppArmadillo. This is meant to be performed
+| > iteratively over many small subsets (sliding window over spatial raster
+| > data) so I'd like to automatically detect when the regression can't be
+| > performed and just return a vector of NA's. Currently I check to see if the
+| > determinant is 0 in order to see if the XtX matrix can be inverted and it
+| > seems to work in the vast majority of cases but I did run into a case where
+| > a small amount of precision error was introduced and for some reason this
+| > causes the determinant to be non-zero in C++ however, the matrix still is
+| > considered singular (uninvertible) leading to an error. I was wondering if
+| > anyone had any suggestions? Maybe there's a minimum value non-zero value
+| > where it's considered essentially singular that I could use instead of 0,
+| > or maybe there's a way to return a vector of NAs if an error is detected
+| > rather than stopping execution and printing an error message. I've also
+| > seen that pinv can be used, but from some tests I ran it's substantially
+| > slower, so I'd like to avoid using that. I've included some example code
+| > below. Any suggestions would be greatly appreciated.
+| >
+| > Thanks,
+| > Alex
+| >
+| > library(Rcpp)
+| > cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+| > arma::mat Y){
+| >   arma::mat Xt = trans(X);
+| >   arma::mat XtX = Xt * X;
+| >   double d = det(XtX);
+| >   Rcout << d; //print determinant
+| >   if(d==0){
+| >     NumericVector B2(X.n_cols, NA_REAL);
+| >     return B2;
+| >   } else{
+| >     arma::mat XtX_inv= inv(XtX);
+| >     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt *
+| > Y)));
+| >     return B;
+| >   }}")
+| >
+| > X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+| >                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+| >
+| >
+| > X2<- X
+| >
+| > X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+| >
+| > Y<- matrix(1:6, ncol=1)
+| >
+| > #Determinant of XtX in R is 0 for both
+| > det(t(X) %*% X) ==0 #TRUE
+| > det(t(X2) %*% X2) ==0 #TRUE
+| >
+| > C_OLS(X,Y) #Determinant is 0 in C++ and correctly returns a vector of NA's
+| > #0[1] NA NA NA
+| >
+| > C_OLS(X2,Y) #Determinant is not 0 in C++ so the if statement is not
+| > triggered but the matrix is still uninvertible
+| > # 4.57764e-05
+| > # error: inv(): matrix is singular
+| > # Error in C_OLS(X2, Y) : inv(): matrix is singular
+| >
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From alexilich93 at gmail.com  Sat Jan 29 01:55:39 2022
+From: alexilich93 at gmail.com (Alex Ilich)
+Date: Fri, 28 Jan 2022 19:55:39 -0500
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <25076.35610.352219.570187@rob.eddelbuettel.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+ <25076.35610.352219.570187@rob.eddelbuettel.com>
+Message-ID: <CAPguYh=5Zf69ugPgxtU4ZP1bW096XgAQd1ksJyPzx3YmCma+dQ@mail.gmail.com>
+
+Thanks! I'll use if(rcf <= std::numeric_limits<double>::epsilon()) instead
+of rcf==0.
+
+On Fri, Jan 28, 2022 at 7:32 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 28 January 2022 at 13:25, Alex Ilich wrote:
+> | Thank you Neal and Dirk. Based on these comments I think using
+> arma::rcond
+>
+> Ah, yes, of course. Should have remembered arma::rcond.
+>
+> | to get the reciprocal of the condition factor, and checking if that is
+> zero
+> | rather than the determinant may be the route to go. At least for this
+> | example that works.
+> |
+> | library(Rcpp)
+> |
+> | cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+> | arma::mat Y){
+> |   arma::mat Xt = trans(X);
+> |   arma::mat XtX = Xt * X;
+> |   double rcf = rcond(XtX);
+> |   Rcout << rcf; //print reciprocal of condition factor
+> |   if(rcf==0){
+>
+> Re-read Neal's first email.  You probably do not want zero (apart from all
+> the R FAQ 7.31 reasons to not compare a double with equality :wink: )
+>
+> Dirk
+>
+> |     NumericVector B2(X.n_cols, NA_REAL);
+> |     return B2;
+> |   } else{
+> |     arma::mat XtX_inv= inv(XtX);
+> |     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt *
+> | Y)));
+> |     return B;
+> |   }}")
+> |
+> | X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+> |                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+> |
+> |
+> | X2<- X
+> |
+> | X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+> |
+> | Y<- matrix(1:6, ncol=1)
+> |
+> | C_OLS(X,Y)
+> | # 0[1] NA NA NA
+> |
+> | C_OLS(X2,Y)
+> | # 0[1] NA NA NA
+> |
+> |
+> |
+> | On Fri, Jan 28, 2022 at 11:53 AM Alex Ilich <alexilich93 at gmail.com>
+> wrote:
+> |
+> | > Hi, I have some code I've written to calculate regression parameters
+> using
+> | > ordinarily least squares using RcppArmadillo. This is meant to be
+> performed
+> | > iteratively over many small subsets (sliding window over spatial raster
+> | > data) so I'd like to automatically detect when the regression can't be
+> | > performed and just return a vector of NA's. Currently I check to see
+> if the
+> | > determinant is 0 in order to see if the XtX matrix can be inverted and
+> it
+> | > seems to work in the vast majority of cases but I did run into a case
+> where
+> | > a small amount of precision error was introduced and for some reason
+> this
+> | > causes the determinant to be non-zero in C++ however, the matrix still
+> is
+> | > considered singular (uninvertible) leading to an error. I was
+> wondering if
+> | > anyone had any suggestions? Maybe there's a minimum value non-zero
+> value
+> | > where it's considered essentially singular that I could use instead of
+> 0,
+> | > or maybe there's a way to return a vector of NAs if an error is
+> detected
+> | > rather than stopping execution and printing an error message. I've also
+> | > seen that pinv can be used, but from some tests I ran it's
+> substantially
+> | > slower, so I'd like to avoid using that. I've included some example
+> code
+> | > below. Any suggestions would be greatly appreciated.
+> | >
+> | > Thanks,
+> | > Alex
+> | >
+> | > library(Rcpp)
+> | > cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+> | > arma::mat Y){
+> | >   arma::mat Xt = trans(X);
+> | >   arma::mat XtX = Xt * X;
+> | >   double d = det(XtX);
+> | >   Rcout << d; //print determinant
+> | >   if(d==0){
+> | >     NumericVector B2(X.n_cols, NA_REAL);
+> | >     return B2;
+> | >   } else{
+> | >     arma::mat XtX_inv= inv(XtX);
+> | >     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt
+> *
+> | > Y)));
+> | >     return B;
+> | >   }}")
+> | >
+> | > X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+> | >                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+> | >
+> | >
+> | > X2<- X
+> | >
+> | > X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+> | >
+> | > Y<- matrix(1:6, ncol=1)
+> | >
+> | > #Determinant of XtX in R is 0 for both
+> | > det(t(X) %*% X) ==0 #TRUE
+> | > det(t(X2) %*% X2) ==0 #TRUE
+> | >
+> | > C_OLS(X,Y) #Determinant is 0 in C++ and correctly returns a vector of
+> NA's
+> | > #0[1] NA NA NA
+> | >
+> | > C_OLS(X2,Y) #Determinant is not 0 in C++ so the if statement is not
+> | > triggered but the matrix is still uninvertible
+> | > # 4.57764e-05
+> | > # error: inv(): matrix is singular
+> | > # Error in C_OLS(X2, Y) : inv(): matrix is singular
+> | >
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220128/db411ea1/attachment.html>
+
+From alexilich93 at gmail.com  Sun Jan 30 17:11:31 2022
+From: alexilich93 at gmail.com (Alex Ilich)
+Date: Sun, 30 Jan 2022 11:11:31 -0500
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAO7JsnT_mYMar0DyLT8h-KUe6Q7hb6Zp9=iXJkJ2zReTJSPfpw@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+ <25076.35610.352219.570187@rob.eddelbuettel.com>
+ <191817_1643417764_0R6G05DT759FZK40_CAPguYh=5Zf69ugPgxtU4ZP1bW096XgAQd1ksJyPzx3YmCma+dQ@mail.gmail.com>
+ <CAO7JsnT_mYMar0DyLT8h-KUe6Q7hb6Zp9=iXJkJ2zReTJSPfpw@mail.gmail.com>
+Message-ID: <CAPguYhnAC3+QqA9cy=0pbANqVD62OmR2KwsdsY6N3EXWgLOetA@mail.gmail.com>
+
+ Thanks for the advice Douglas. Just using B = solve(X,Y) works and it
+outputs a warning that an approximate solution is attempted when the matrix
+is nearly singular. To suppress the warning I've just included #define
+ARMA_WARN_LEVEL 1 at the top of my cpp code. Also, no longer getting some
+odd outliers that I was previously! For documentation purposes, would it
+still be accurate to say "parameters are fit using ordinary least squares"?
+
+Thanks,
+Alex
+
+On Sat, Jan 29, 2022 at 12:05 PM Douglas Bates <dmbates at gmail.com> wrote:
+
+> If you are concerned about singularity it would be better to use a QR or
+> singular value decomposition of X because the condition number of X'X is
+> the square of the condition number of X. Just the act of forming X'X from X
+> makes the conditioning much worse.
+>
+> I believe that arma::solve, as used by
+> https://github.com/RcppCore/RcppArmadillo/blob/master/src/fastLm.cpp,
+> uses a QR decomposition.
+>
+> In general it is much more stable to work with a decomposition of X than
+> to form X'X and work with it.
+>
+>  Also, even if the formula for a calculation involves the inverse of a
+> matrix, it is rarely a good idea to evaluate the full inverse.  Most of the
+> time, evaluating the inverse is much more work than is required to solve a
+> single linear system of equations.  It is like saying that evaluating a
+> scalar quotient like a/b requires that you first evaluate the inverse of b,
+> 1/b, then form the product a * (1/b).  In fact, it is worse because
+> evaluating the inverse of an n by n matrix A takes roughly the same amount
+> of work as solving n systems of equations of the form Ax = b.
+>
+> On Fri, Jan 28, 2022 at 6:56 PM <alexilich93 at gmail.com> wrote:
+>
+>> Thanks! I'll use if(rcf <= std::numeric_limits<double>::epsilon())
+>> instead of rcf==0.
+>>
+>> On Fri, Jan 28, 2022 at 7:32 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>>
+>>>
+>>> On 28 January 2022 at 13:25, Alex Ilich wrote:
+>>> | Thank you Neal and Dirk. Based on these comments I think using
+>>> arma::rcond
+>>>
+>>> Ah, yes, of course. Should have remembered arma::rcond.
+>>>
+>>> | to get the reciprocal of the condition factor, and checking if that is
+>>> zero
+>>> | rather than the determinant may be the route to go. At least for this
+>>> | example that works.
+>>> |
+>>> | library(Rcpp)
+>>> |
+>>> | cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+>>> | arma::mat Y){
+>>> |   arma::mat Xt = trans(X);
+>>> |   arma::mat XtX = Xt * X;
+>>> |   double rcf = rcond(XtX);
+>>> |   Rcout << rcf; //print reciprocal of condition factor
+>>> |   if(rcf==0){
+>>>
+>>> Re-read Neal's first email.  You probably do not want zero (apart from
+>>> all
+>>> the R FAQ 7.31 reasons to not compare a double with equality :wink: )
+>>>
+>>> Dirk
+>>>
+>>> |     NumericVector B2(X.n_cols, NA_REAL);
+>>> |     return B2;
+>>> |   } else{
+>>> |     arma::mat XtX_inv= inv(XtX);
+>>> |     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv * (Xt
+>>> *
+>>> | Y)));
+>>> |     return B;
+>>> |   }}")
+>>> |
+>>> | X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+>>> |                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+>>> |
+>>> |
+>>> | X2<- X
+>>> |
+>>> | X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+>>> |
+>>> | Y<- matrix(1:6, ncol=1)
+>>> |
+>>> | C_OLS(X,Y)
+>>> | # 0[1] NA NA NA
+>>> |
+>>> | C_OLS(X2,Y)
+>>> | # 0[1] NA NA NA
+>>> |
+>>> |
+>>> |
+>>> | On Fri, Jan 28, 2022 at 11:53 AM Alex Ilich <alexilich93 at gmail.com>
+>>> wrote:
+>>> |
+>>> | > Hi, I have some code I've written to calculate regression parameters
+>>> using
+>>> | > ordinarily least squares using RcppArmadillo. This is meant to be
+>>> performed
+>>> | > iteratively over many small subsets (sliding window over spatial
+>>> raster
+>>> | > data) so I'd like to automatically detect when the regression can't
+>>> be
+>>> | > performed and just return a vector of NA's. Currently I check to see
+>>> if the
+>>> | > determinant is 0 in order to see if the XtX matrix can be inverted
+>>> and it
+>>> | > seems to work in the vast majority of cases but I did run into a
+>>> case where
+>>> | > a small amount of precision error was introduced and for some reason
+>>> this
+>>> | > causes the determinant to be non-zero in C++ however, the matrix
+>>> still is
+>>> | > considered singular (uninvertible) leading to an error. I was
+>>> wondering if
+>>> | > anyone had any suggestions? Maybe there's a minimum value non-zero
+>>> value
+>>> | > where it's considered essentially singular that I could use instead
+>>> of 0,
+>>> | > or maybe there's a way to return a vector of NAs if an error is
+>>> detected
+>>> | > rather than stopping execution and printing an error message. I've
+>>> also
+>>> | > seen that pinv can be used, but from some tests I ran it's
+>>> substantially
+>>> | > slower, so I'd like to avoid using that. I've included some example
+>>> code
+>>> | > below. Any suggestions would be greatly appreciated.
+>>> | >
+>>> | > Thanks,
+>>> | > Alex
+>>> | >
+>>> | > library(Rcpp)
+>>> | > cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat
+>>> X,
+>>> | > arma::mat Y){
+>>> | >   arma::mat Xt = trans(X);
+>>> | >   arma::mat XtX = Xt * X;
+>>> | >   double d = det(XtX);
+>>> | >   Rcout << d; //print determinant
+>>> | >   if(d==0){
+>>> | >     NumericVector B2(X.n_cols, NA_REAL);
+>>> | >     return B2;
+>>> | >   } else{
+>>> | >     arma::mat XtX_inv= inv(XtX);
+>>> | >     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv *
+>>> (Xt *
+>>> | > Y)));
+>>> | >     return B;
+>>> | >   }}")
+>>> | >
+>>> | > X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+>>> | >                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+>>> | >
+>>> | >
+>>> | > X2<- X
+>>> | >
+>>> | > X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+>>> | >
+>>> | > Y<- matrix(1:6, ncol=1)
+>>> | >
+>>> | > #Determinant of XtX in R is 0 for both
+>>> | > det(t(X) %*% X) ==0 #TRUE
+>>> | > det(t(X2) %*% X2) ==0 #TRUE
+>>> | >
+>>> | > C_OLS(X,Y) #Determinant is 0 in C++ and correctly returns a vector
+>>> of NA's
+>>> | > #0[1] NA NA NA
+>>> | >
+>>> | > C_OLS(X2,Y) #Determinant is not 0 in C++ so the if statement is not
+>>> | > triggered but the matrix is still uninvertible
+>>> | > # 4.57764e-05
+>>> | > # error: inv(): matrix is singular
+>>> | > # Error in C_OLS(X2, Y) : inv(): matrix is singular
+>>> | >
+>>> | _______________________________________________
+>>> | Rcpp-devel mailing list
+>>> | Rcpp-devel at lists.r-forge.r-project.org
+>>> |
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>> --
+>>> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>
+>> _______________________________________________
+>> Rcpp-devel mailing list
+>> Rcpp-devel at lists.r-forge.r-project.org
+>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220130/9b5e7e43/attachment.html>
+
+From jvmirca at gmail.com  Mon Jan 31 02:13:15 2022
+From: jvmirca at gmail.com (=?UTF-8?B?WsOpIFZpbsOtY2l1cw==?=)
+Date: Mon, 31 Jan 2022 09:13:15 +0800
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAPguYhnAC3+QqA9cy=0pbANqVD62OmR2KwsdsY6N3EXWgLOetA@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+ <25076.35610.352219.570187@rob.eddelbuettel.com>
+ <191817_1643417764_0R6G05DT759FZK40_CAPguYh=5Zf69ugPgxtU4ZP1bW096XgAQd1ksJyPzx3YmCma+dQ@mail.gmail.com>
+ <CAO7JsnT_mYMar0DyLT8h-KUe6Q7hb6Zp9=iXJkJ2zReTJSPfpw@mail.gmail.com>
+ <CAPguYhnAC3+QqA9cy=0pbANqVD62OmR2KwsdsY6N3EXWgLOetA@mail.gmail.com>
+Message-ID: <CAB6kXFxo-=D8pD1Jp7hD4AAw9d+-SvcOs0SxX_4ne7yxkkk5rQ@mail.gmail.com>
+
+Yes, quoting the paper on which ‘solve’ is based on (
+http://arma.sourceforge.net/armadillo_solver_2020.pdf):
+
+“The SVD-based solver uses the xGELSD set of functions, which find a
+minimum-norm solution to a linear least squares problem.”
+
+On Mon, Jan 31, 2022 at 12:12 AM Alex Ilich <alexilich93 at gmail.com> wrote:
+
+> Thanks for the advice Douglas. Just using B = solve(X,Y) works and it
+> outputs a warning that an approximate solution is attempted when the matrix
+> is nearly singular. To suppress the warning I've just included #define
+> ARMA_WARN_LEVEL 1 at the top of my cpp code. Also, no longer getting some
+> odd outliers that I was previously! For documentation purposes, would it
+> still be accurate to say "parameters are fit using ordinary least squares"?
+>
+> Thanks,
+> Alex
+>
+> On Sat, Jan 29, 2022 at 12:05 PM Douglas Bates <dmbates at gmail.com> wrote:
+>
+>> If you are concerned about singularity it would be better to use a QR or
+>> singular value decomposition of X because the condition number of X'X is
+>> the square of the condition number of X. Just the act of forming X'X from X
+>> makes the conditioning much worse.
+>>
+>> I believe that arma::solve, as used by
+>> https://github.com/RcppCore/RcppArmadillo/blob/master/src/fastLm.cpp,
+>> uses a QR decomposition.
+>>
+>> In general it is much more stable to work with a decomposition of X than
+>> to form X'X and work with it.
+>>
+>>  Also, even if the formula for a calculation involves the inverse of a
+>> matrix, it is rarely a good idea to evaluate the full inverse.  Most of the
+>> time, evaluating the inverse is much more work than is required to solve a
+>> single linear system of equations.  It is like saying that evaluating a
+>> scalar quotient like a/b requires that you first evaluate the inverse of b,
+>> 1/b, then form the product a * (1/b).  In fact, it is worse because
+>> evaluating the inverse of an n by n matrix A takes roughly the same amount
+>> of work as solving n systems of equations of the form Ax = b.
+>>
+>> On Fri, Jan 28, 2022 at 6:56 PM <alexilich93 at gmail.com> wrote:
+>>
+>>> Thanks! I'll use if(rcf <= std::numeric_limits<double>::epsilon())
+>>> instead of rcf==0.
+>>>
+>>> On Fri, Jan 28, 2022 at 7:32 PM Dirk Eddelbuettel <edd at debian.org>
+>>> wrote:
+>>>
+>>>>
+>>>> On 28 January 2022 at 13:25, Alex Ilich wrote:
+>>>> | Thank you Neal and Dirk. Based on these comments I think using
+>>>> arma::rcond
+>>>>
+>>>> Ah, yes, of course. Should have remembered arma::rcond.
+>>>>
+>>>> | to get the reciprocal of the condition factor, and checking if that
+>>>> is zero
+>>>> | rather than the determinant may be the route to go. At least for this
+>>>> | example that works.
+>>>> |
+>>>> | library(Rcpp)
+>>>> |
+>>>> | cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat X,
+>>>> | arma::mat Y){
+>>>> |   arma::mat Xt = trans(X);
+>>>> |   arma::mat XtX = Xt * X;
+>>>> |   double rcf = rcond(XtX);
+>>>> |   Rcout << rcf; //print reciprocal of condition factor
+>>>> |   if(rcf==0){
+>>>>
+>>>> Re-read Neal's first email.  You probably do not want zero (apart from
+>>>> all
+>>>> the R FAQ 7.31 reasons to not compare a double with equality :wink: )
+>>>>
+>>>> Dirk
+>>>>
+>>>> |     NumericVector B2(X.n_cols, NA_REAL);
+>>>> |     return B2;
+>>>> |   } else{
+>>>> |     arma::mat XtX_inv= inv(XtX);
+>>>> |     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv *
+>>>> (Xt *
+>>>> | Y)));
+>>>> |     return B;
+>>>> |   }}")
+>>>> |
+>>>> | X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+>>>> |                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+>>>> |
+>>>> |
+>>>> | X2<- X
+>>>> |
+>>>> | X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision issue
+>>>> |
+>>>> | Y<- matrix(1:6, ncol=1)
+>>>> |
+>>>> | C_OLS(X,Y)
+>>>> | # 0[1] NA NA NA
+>>>> |
+>>>> | C_OLS(X2,Y)
+>>>> | # 0[1] NA NA NA
+>>>> |
+>>>> |
+>>>> |
+>>>> | On Fri, Jan 28, 2022 at 11:53 AM Alex Ilich <alexilich93 at gmail.com>
+>>>> wrote:
+>>>> |
+>>>> | > Hi, I have some code I've written to calculate regression
+>>>> parameters using
+>>>> | > ordinarily least squares using RcppArmadillo. This is meant to be
+>>>> performed
+>>>> | > iteratively over many small subsets (sliding window over spatial
+>>>> raster
+>>>> | > data) so I'd like to automatically detect when the regression can't
+>>>> be
+>>>> | > performed and just return a vector of NA's. Currently I check to
+>>>> see if the
+>>>> | > determinant is 0 in order to see if the XtX matrix can be inverted
+>>>> and it
+>>>> | > seems to work in the vast majority of cases but I did run into a
+>>>> case where
+>>>> | > a small amount of precision error was introduced and for some
+>>>> reason this
+>>>> | > causes the determinant to be non-zero in C++ however, the matrix
+>>>> still is
+>>>> | > considered singular (uninvertible) leading to an error. I was
+>>>> wondering if
+>>>> | > anyone had any suggestions? Maybe there's a minimum value non-zero
+>>>> value
+>>>> | > where it's considered essentially singular that I could use instead
+>>>> of 0,
+>>>> | > or maybe there's a way to return a vector of NAs if an error is
+>>>> detected
+>>>> | > rather than stopping execution and printing an error message. I've
+>>>> also
+>>>> | > seen that pinv can be used, but from some tests I ran it's
+>>>> substantially
+>>>> | > slower, so I'd like to avoid using that. I've included some example
+>>>> code
+>>>> | > below. Any suggestions would be greatly appreciated.
+>>>> | >
+>>>> | > Thanks,
+>>>> | > Alex
+>>>> | >
+>>>> | > library(Rcpp)
+>>>> | > cppFunction(depends="RcppArmadillo", "NumericVector C_OLS(arma::mat
+>>>> X,
+>>>> | > arma::mat Y){
+>>>> | >   arma::mat Xt = trans(X);
+>>>> | >   arma::mat XtX = Xt * X;
+>>>> | >   double d = det(XtX);
+>>>> | >   Rcout << d; //print determinant
+>>>> | >   if(d==0){
+>>>> | >     NumericVector B2(X.n_cols, NA_REAL);
+>>>> | >     return B2;
+>>>> | >   } else{
+>>>> | >     arma::mat XtX_inv= inv(XtX);
+>>>> | >     NumericVector B = Rcpp::as<Rcpp::NumericVector>(wrap(XtX_inv *
+>>>> (Xt *
+>>>> | > Y)));
+>>>> | >     return B;
+>>>> | >   }}")
+>>>> | >
+>>>> | > X<- matrix(data=c(-250, -250, -250, -250, -250, -250, 250, 200, 150,
+>>>> | >                   100, 50, 0, 1, 1, 1, 1, 1, 1), ncol=3, nrow=6)
+>>>> | >
+>>>> | >
+>>>> | > X2<- X
+>>>> | >
+>>>> | > X2[1,2]<- X[1,2] + 5.684342e-14 #Add a slight numeric precision
+>>>> issue
+>>>> | >
+>>>> | > Y<- matrix(1:6, ncol=1)
+>>>> | >
+>>>> | > #Determinant of XtX in R is 0 for both
+>>>> | > det(t(X) %*% X) ==0 #TRUE
+>>>> | > det(t(X2) %*% X2) ==0 #TRUE
+>>>> | >
+>>>> | > C_OLS(X,Y) #Determinant is 0 in C++ and correctly returns a vector
+>>>> of NA's
+>>>> | > #0[1] NA NA NA
+>>>> | >
+>>>> | > C_OLS(X2,Y) #Determinant is not 0 in C++ so the if statement is not
+>>>> | > triggered but the matrix is still uninvertible
+>>>> | > # 4.57764e-05
+>>>> | > # error: inv(): matrix is singular
+>>>> | > # Error in C_OLS(X2, Y) : inv(): matrix is singular
+>>>> | >
+>>>> | _______________________________________________
+>>>> | Rcpp-devel mailing list
+>>>> | Rcpp-devel at lists.r-forge.r-project.org
+>>>> |
+>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>>> --
+>>>> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>>>
+>>> _______________________________________________
+>>> Rcpp-devel mailing list
+>>> Rcpp-devel at lists.r-forge.r-project.org
+>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>>
+>> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+Zé Vinícius
+https://mirca.github.io
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220131/f2635253/attachment-0001.html>
+
+From edd at debian.org  Mon Jan 31 05:18:40 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Sun, 30 Jan 2022 22:18:40 -0600
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAB6kXFxo-=D8pD1Jp7hD4AAw9d+-SvcOs0SxX_4ne7yxkkk5rQ@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+ <25076.35610.352219.570187@rob.eddelbuettel.com>
+ <191817_1643417764_0R6G05DT759FZK40_CAPguYh=5Zf69ugPgxtU4ZP1bW096XgAQd1ksJyPzx3YmCma+dQ@mail.gmail.com>
+ <CAO7JsnT_mYMar0DyLT8h-KUe6Q7hb6Zp9=iXJkJ2zReTJSPfpw@mail.gmail.com>
+ <CAPguYhnAC3+QqA9cy=0pbANqVD62OmR2KwsdsY6N3EXWgLOetA@mail.gmail.com>
+ <CAB6kXFxo-=D8pD1Jp7hD4AAw9d+-SvcOs0SxX_4ne7yxkkk5rQ@mail.gmail.com>
+Message-ID: <25079.25376.154621.193290@rob.eddelbuettel.com>
+
+
+On 31 January 2022 at 09:13, Zé Vinícius wrote:
+| Yes, quoting the paper on which ‘solve’ is based on (
+| http://arma.sourceforge.net/armadillo_solver_2020.pdf):
+| 
+| “The SVD-based solver uses the xGELSD set of functions, which find a
+| minimum-norm solution to a linear least squares problem.”
+
+Yes. A longer story though on how this is not what may matter. I should start
+by saying that I never found really decent documentation describing this
+'split' in the world view as this problem is, in essence, seen differently by
+numerical analysis specialists (as for example the LAPACK authors of the
+*GELSD functions) and the statistical users which differs in what they focus
+on. Which is why R uses a modified version of LINPACK (as I recall going back
+to by Ross Ihaka) when computing lm(). And not the LAPACK routines.
+
+Doug was always adamant about this when I wrote the different simple fastLm()
+approaches (in RcppGSL, RcppArmadillo, ...) which do _not_ properly account
+for rank-deficiency (as R's lm() would) -- Doug also wrote the nicest fastLm
+example in RcppEigen.
+
+There is a little bit more in the help pages for the various lmFast()
+versions as well as an explicit example (also due to Doug).
+
+Now, I should add that whenever I tried to construct an example on a more
+real-world-alike regression problem, I could not come anywhere close to
+actually seeing the rank deficiency. But it is unmistakenly there is the
+appropriately created case. So buyer beware.
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From jvmirca at gmail.com  Mon Jan 31 05:25:55 2022
+From: jvmirca at gmail.com (=?UTF-8?B?WsOpIFZpbsOtY2l1cw==?=)
+Date: Mon, 31 Jan 2022 12:25:55 +0800
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <25079.25376.154621.193290@rob.eddelbuettel.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+ <25076.35610.352219.570187@rob.eddelbuettel.com>
+ <191817_1643417764_0R6G05DT759FZK40_CAPguYh=5Zf69ugPgxtU4ZP1bW096XgAQd1ksJyPzx3YmCma+dQ@mail.gmail.com>
+ <CAO7JsnT_mYMar0DyLT8h-KUe6Q7hb6Zp9=iXJkJ2zReTJSPfpw@mail.gmail.com>
+ <CAPguYhnAC3+QqA9cy=0pbANqVD62OmR2KwsdsY6N3EXWgLOetA@mail.gmail.com>
+ <CAB6kXFxo-=D8pD1Jp7hD4AAw9d+-SvcOs0SxX_4ne7yxkkk5rQ@mail.gmail.com>
+ <25079.25376.154621.193290@rob.eddelbuettel.com>
+Message-ID: <CAB6kXFy4AN7ACmyQNKozVnp3vsvS-+WDTq6_MZEZfa7siRdbOQ@mail.gmail.com>
+
+Very interesting, Dirk. Thanks!
+
+On Mon, Jan 31, 2022 at 12:18 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+
+>
+> On 31 January 2022 at 09:13, Zé Vinícius wrote:
+> | Yes, quoting the paper on which ‘solve’ is based on (
+> | http://arma.sourceforge.net/armadillo_solver_2020.pdf):
+> |
+> | “The SVD-based solver uses the xGELSD set of functions, which find a
+> | minimum-norm solution to a linear least squares problem.”
+>
+> Yes. A longer story though on how this is not what may matter. I should
+> start
+> by saying that I never found really decent documentation describing this
+> 'split' in the world view as this problem is, in essence, seen differently
+> by
+> numerical analysis specialists (as for example the LAPACK authors of the
+> *GELSD functions) and the statistical users which differs in what they
+> focus
+> on. Which is why R uses a modified version of LINPACK (as I recall going
+> back
+> to by Ross Ihaka) when computing lm(). And not the LAPACK routines.
+>
+> Doug was always adamant about this when I wrote the different simple
+> fastLm()
+> approaches (in RcppGSL, RcppArmadillo, ...) which do _not_ properly account
+> for rank-deficiency (as R's lm() would) -- Doug also wrote the nicest
+> fastLm
+> example in RcppEigen.
+>
+> There is a little bit more in the help pages for the various lmFast()
+> versions as well as an explicit example (also due to Doug).
+>
+> Now, I should add that whenever I tried to construct an example on a more
+> real-world-alike regression problem, I could not come anywhere close to
+> actually seeing the rank deficiency. But it is unmistakenly there is the
+> appropriately created case. So buyer beware.
+>
+> Dirk
+>
+> --
+> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>
+-- 
+Zé Vinícius
+https://mirca.github.io
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220131/e9657cc5/attachment.html>
+
+From alexilich93 at gmail.com  Mon Jan 31 17:25:53 2022
+From: alexilich93 at gmail.com (Alex Ilich)
+Date: Mon, 31 Jan 2022 11:25:53 -0500
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAB6kXFy4AN7ACmyQNKozVnp3vsvS-+WDTq6_MZEZfa7siRdbOQ@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+ <25076.35610.352219.570187@rob.eddelbuettel.com>
+ <191817_1643417764_0R6G05DT759FZK40_CAPguYh=5Zf69ugPgxtU4ZP1bW096XgAQd1ksJyPzx3YmCma+dQ@mail.gmail.com>
+ <CAO7JsnT_mYMar0DyLT8h-KUe6Q7hb6Zp9=iXJkJ2zReTJSPfpw@mail.gmail.com>
+ <CAPguYhnAC3+QqA9cy=0pbANqVD62OmR2KwsdsY6N3EXWgLOetA@mail.gmail.com>
+ <CAB6kXFxo-=D8pD1Jp7hD4AAw9d+-SvcOs0SxX_4ne7yxkkk5rQ@mail.gmail.com>
+ <25079.25376.154621.193290@rob.eddelbuettel.com>
+ <CAB6kXFy4AN7ACmyQNKozVnp3vsvS-+WDTq6_MZEZfa7siRdbOQ@mail.gmail.com>
+Message-ID: <CAPguYh=yf0DfzcvhHQQ5yX-hQv48TjaMxNPRhy2_WPsJvt-j4w@mail.gmail.com>
+
+Thank you Zé and Dirk! That helped clarify exactly what solve is doing
+which I was having trouble tracking down in just the standard docs page.
+
+On Sun, Jan 30, 2022 at 11:26 PM Zé Vinícius <jvmirca at gmail.com> wrote:
+
+> Very interesting, Dirk. Thanks!
+>
+> On Mon, Jan 31, 2022 at 12:18 PM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>>
+>> On 31 January 2022 at 09:13, Zé Vinícius wrote:
+>> | Yes, quoting the paper on which ‘solve’ is based on (
+>> | http://arma.sourceforge.net/armadillo_solver_2020.pdf):
+>> |
+>> | “The SVD-based solver uses the xGELSD set of functions, which find a
+>> | minimum-norm solution to a linear least squares problem.”
+>>
+>> Yes. A longer story though on how this is not what may matter. I should
+>> start
+>> by saying that I never found really decent documentation describing this
+>> 'split' in the world view as this problem is, in essence, seen
+>> differently by
+>> numerical analysis specialists (as for example the LAPACK authors of the
+>> *GELSD functions) and the statistical users which differs in what they
+>> focus
+>> on. Which is why R uses a modified version of LINPACK (as I recall going
+>> back
+>> to by Ross Ihaka) when computing lm(). And not the LAPACK routines.
+>>
+>> Doug was always adamant about this when I wrote the different simple
+>> fastLm()
+>> approaches (in RcppGSL, RcppArmadillo, ...) which do _not_ properly
+>> account
+>> for rank-deficiency (as R's lm() would) -- Doug also wrote the nicest
+>> fastLm
+>> example in RcppEigen.
+>>
+>> There is a little bit more in the help pages for the various lmFast()
+>> versions as well as an explicit example (also due to Doug).
+>>
+>> Now, I should add that whenever I tried to construct an example on a more
+>> real-world-alike regression problem, I could not come anywhere close to
+>> actually seeing the rank deficiency. But it is unmistakenly there is the
+>> appropriately created case. So buyer beware.
+>>
+>> Dirk
+>>
+>> --
+>> https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+>>
+> --
+> Zé Vinícius
+> https://mirca.github.io
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220131/0db2be22/attachment.html>
+
+From edd at debian.org  Mon Jan 31 17:51:09 2022
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Mon, 31 Jan 2022 10:51:09 -0600
+Subject: [Rcpp-devel] Detecting Singular Matrices in RcppArmadillo
+In-Reply-To: <CAPguYh=yf0DfzcvhHQQ5yX-hQv48TjaMxNPRhy2_WPsJvt-j4w@mail.gmail.com>
+References: <CAPguYhkQ1gTWtxeKkgKmqW+hzcuNWEswpGD8rxLXeoawGprOBA@mail.gmail.com>
+ <CAPguYh=+G7_qy+Bss3cRwPykLNbe0YXkf7d-LVHNsa+0P440Ow@mail.gmail.com>
+ <25076.35610.352219.570187@rob.eddelbuettel.com>
+ <191817_1643417764_0R6G05DT759FZK40_CAPguYh=5Zf69ugPgxtU4ZP1bW096XgAQd1ksJyPzx3YmCma+dQ@mail.gmail.com>
+ <CAO7JsnT_mYMar0DyLT8h-KUe6Q7hb6Zp9=iXJkJ2zReTJSPfpw@mail.gmail.com>
+ <CAPguYhnAC3+QqA9cy=0pbANqVD62OmR2KwsdsY6N3EXWgLOetA@mail.gmail.com>
+ <CAB6kXFxo-=D8pD1Jp7hD4AAw9d+-SvcOs0SxX_4ne7yxkkk5rQ@mail.gmail.com>
+ <25079.25376.154621.193290@rob.eddelbuettel.com>
+ <CAB6kXFy4AN7ACmyQNKozVnp3vsvS-+WDTq6_MZEZfa7siRdbOQ@mail.gmail.com>
+ <CAPguYh=yf0DfzcvhHQQ5yX-hQv48TjaMxNPRhy2_WPsJvt-j4w@mail.gmail.com>
+Message-ID: <25080.4989.13585.310803@rob.eddelbuettel.com>
+
+
+On 31 January 2022 at 11:25, Alex Ilich wrote:
+| Thank you Zé and Dirk! That helped clarify exactly what solve is doing
+| which I was having trouble tracking down in just the standard docs page.
+
+The `solve()` function in Armadillo does exactly what it sets out to do.
+
+Yet what Prof Bates has been hammering home for years is that how we use it
+(and related functions) to fit linear models may have issues. See his code
+here for alternatives:
+  https://github.com/RcppCore/RcppEigen/blob/master/src/fastLm.h
+  https://github.com/RcppCore/RcppEigen/blob/master/src/fastLm.cpp
+
+Now, as I said, in practice you may get by if you're reasonably
+careful. Double precision is hard to trick. But hey, it may happend, and we
+all warned you :)
+
+Dirk
+
+-- 
+https://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From iucar at fedoraproject.org  Mon Jan 31 22:41:49 2022
+From: iucar at fedoraproject.org (=?UTF-8?Q?I=C3=B1aki_Ucar?=)
+Date: Mon, 31 Jan 2022 22:41:49 +0100
+Subject: [Rcpp-devel] RCPP_USE_UNWIND_PROTECT by default
+Message-ID: <CALEXWq2=z+CZizytYv6cPJQLUqffgy-NPrVYPRPOTxRV2D3C9g@mail.gmail.com>
+
+Hi Lionel,
+
+I've been setting this for years in my own packages, and particularly
+in a simulator that greatly benefits from this due to its heavy usage
+of R calls from the C++ simulation loop. Now, we're looking into
+setting this feature on by default in the next release of Rcpp to
+improve the performance of other packages, such as httpuv [1], as
+well.
+
+Dirk has run a full revdep check that looks very promising, with just
+one new failure (the V8 package), and it would be great if you could
+take a look when you have time. It seems that the UNWIND_PROTECT
+mechanism somehow collides with v8's exception handling:
+
+> test_check("V8")
+  terminate called after throwing an instance of 'Rcpp::LongjumpException'
+  Aborted
+
+V8 sees this exception, doesn't know what to do with it, and then the
+program is aborted. This is kind of a Russian Doll, and probably an
+extreme case, but we are wondering whether we can do something on the
+Rcpp side to support v8's engine. V8 can always undefine
+UNWIND_PROTECT if we ship this by default, but this is clearly one of
+those packages that could benefit from the improved performance that
+this feature enables.
+
+So far, I found that Rcpp::LongjumpException is the only exception in
+Rcpp that doesn't inherit from std::exception (which is what V8
+expects). Is this intended/required? I checked that, if
+LongjumpException inherits from std::exception, V8 doesn't crash there
+(the exception is recognized), but then two errors are shown in the R
+console, which is not ideal either:
+
+> ctx <- V8::v8()
+> ctx$eval("console.r.eval('doesnotexists')")
+Error in eval(ei, envir) : object 'doesnotexists' not found
+Error: std::exception
+> x <- try(ctx$eval("console.r.eval('doesnotexists')"))
+Error : std::exception
+> x
+[1] "Error : std::exception\n"
+attr(,"class")
+[1] "try-error"
+attr(,"condition")
+<std::runtime_error: std::exception>
+
+Please let us know if you have some time for this. Any help would be
+appreciated.
+
+Cheers,
+Iñaki
+
+[1] https://github.com/rstudio/httpuv/issues/244
+
+-- 
+Iñaki Úcar
+
