@@ -1,0 +1,133 @@
+From mskb01 at gmail.com  Wed Dec 11 16:40:27 2024
+From: mskb01 at gmail.com (Kumar MS)
+Date: Wed, 11 Dec 2024 10:40:27 -0500
+Subject: [Rcpp-devel] Operating on sparse matrices in a list.
+Message-ID: <CAFbaAiA1ZuvpPgd3ciN+rR56E7ZnHE-+hpd2kG=WhioknQuvyg@mail.gmail.com>
+
+Hello Rcpp developers,
+
+The following simple code attempts to instantiate every sparse matrix in a
+given R list of sparse matrices ("dgCMatrix"). The code compiles OK, but
+crashes at runtime with a segmentation fault.
+
+I followed the as<> approach outlined in
+https://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/ ,
+although in that post, we are not dealing with a list of sparse matrices,
+but with just one sparse matrix.
+
+Thank you, SK.
+
+library(Rcpp)library(Matrix)
+
+# -- The function in question --cppFunction(
+  "arma::mat accessEntries(Rcpp::List x){
+     for(int i=0; i<x.size(); i++){
+     arma::sp_mat ar=Rcpp::as<arma::sp_mat>(x[i]); //similar to :
+https://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/
+     }
+  }",
+depends=c("RcppArmadillo", "Rcpp"),
+plugins = "cpp11"
+)
+
+# -- Construct a list of sparse matrices and call the above function --
+X <- as(cbind( c(1,2,3), c(3,4,5), c(5, 6, 7) ), "dgCMatrix")
+spList <- list( X, X )accessEntries(spList)
+
+# -- Output --
+# *** caught segfault ***#address 0x0, cause 'unknown'
+
+#Traceback:
+# 1: .Call(<pointer: 0x10df0eba0>, x)
+# 2: accessEntries(spList)
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241211/7fa693e6/attachment.htm>
+
+From edd at debian.org  Wed Dec 11 17:21:13 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 11 Dec 2024 10:21:13 -0600
+Subject: [Rcpp-devel] Operating on sparse matrices in a list.
+In-Reply-To: <CAFbaAiA1ZuvpPgd3ciN+rR56E7ZnHE-+hpd2kG=WhioknQuvyg@mail.gmail.com>
+References: <CAFbaAiA1ZuvpPgd3ciN+rR56E7ZnHE-+hpd2kG=WhioknQuvyg@mail.gmail.com>
+Message-ID: <26457.48121.406492.818176@rob.eddelbuettel.com>
+
+
+On 11 December 2024 at 10:40, Kumar MS wrote:
+| # -- The function in question --
+| cppFunction(
+|   "arma::mat accessEntries(Rcpp::List x){
+|      for(int i=0; i<x.size(); i++){
+|      arma::sp_mat ar=Rcpp::as<arma::sp_mat>(x[i]); //similar to : https://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/
+|      }
+|   }",
+
+You say you return an arma::mat but you have no return value. That can lead
+to the type of run-time surprises you saw. 
+
+Below are both a minimal C++ file (I prefer to embed the R code in the C++
+file), and its output.  I hope you find it helpful.
+
+Now, if I may, you also posted and deleted a series of questions at
+StackOverflow which, and please take this is as constructive criticism,
+exhibited a bit of confusion about how R and Rcpp work with extensions,
+extending to RcppArmadillo.
+
+Briefly, *EVERYTHING* goes in and out as SEXP so you have no chance to detect
+'a dense matrix'. You see a REALSXP as that is all there is -- every REAL aka
+'double' is a vector, if it happens to have a two element dimension it is a
+matrix.  For R, there is no difference between Rcpp::NumericMatrix and
+arma::mat as they all come in in the one form possible: REALSXP. Ditto for a
+sp_mat: It is S4, and you get to test the class attribute.  The Rcpp Gallery
+examples show you how to do this. (And my favourite trick is to also study
+the unit tests in RcppArmadillo which also have small, self-contained *and
+working* examples.)
+
+So please do a bit more reading, and if I were you, work on small examples to
+convince yourself you have it right. If you don't it is not necessarily the
+fault of RcppArmadillo though bugs on our side are always possible.
+
+Regards,  Dirk
+
+
+#### Code
+
+// [[Rcpp::depends(RcppArmadillo)]]
+#include <RcppArmadillo/Light>
+
+// [[Rcpp::export]]
+void accessEntries(Rcpp::List x){
+    for(int i=0; i<x.size(); i++){
+        arma::sp_mat ar = Rcpp::as<arma::sp_mat>(x[i]); //similar to : https://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/
+    }
+}
+
+/*** R
+library(Matrix)
+X <- as(cbind( c(1,2,3), c(3,4,5), c(5, 6, 7) ), "dgCMatrix")
+spList <- list( X, X )
+accessEntries(spList)
+cat("All good\n")
+*/
+
+#### Output (with the extra lines we always get)
+
+> Rcpp::sourceCpp("sparse_list_question.cpp")
+
+> library(Matrix)
+
+> X <- as(cbind( c(1,2,3), c(3,4,5), c(5, 6, 7) ), "dgCMatrix")
+
+> spList <- list( X, X )
+
+> accessEntries(spList)
+
+> cat("All good\n")
+All good
+> 
+
+
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+

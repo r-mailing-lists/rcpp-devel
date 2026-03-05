@@ -1,0 +1,286 @@
+From cheval at zaclys.net  Wed Sep  4 21:37:24 2024
+From: cheval at zaclys.net (Denis Haine)
+Date: Wed, 04 Sep 2024 15:37:24 -0400
+Subject: [Rcpp-devel] Using formula
+Message-ID: <21b7c4f776c60750f1795d42445d78f2@zaclys.net>
+
+
+
+Hi,
+
+Sorry for a beginner's question. I'm trying to call an R function 
+(glm()) inside my cpp code. The code compiles with no problem, but when 
+I'm running it, it cannot find the second element of the formula, i.e. 
+the x in y~x. The error message is: Error in eval (predvars; data, env) 
+: object 'e' not found.
+
+However, if I return 'e', it is correctly calculated. I guess the 
+formula is not correctly evaluated, but I haven't found any examples 
+that could point me in one direction or another.
+
+#include <Rcpp.h>
+using namespace Rcpp;
+// [[Rcpp::export]]
+NumericVector misclass(NumericMatrix obs_mat) {
+   // Obtain environment containing function
+   Rcpp::Environment base("package:stats");
+
+   // Picking up glm() and summary() function from base stats
+   Rcpp::Function glm_r = base["glm"];
+   Rcpp::Function sum_r = base["summary.glm"];
+
+   Rcpp::NumericVector d = obs_mat(_, 1);
+   Rcpp::NumericVector e = no_init(n);
+   Rcpp::NumericVector mod_coef = no_init(n);
+   // e is calculated in other section of the code
+   e = as<IntegerVector>(e);
+   Rcpp::List mod_pois = glm_r(_["formula"] = "d ~ e",
+                     _["family"] = "poisson");
+   Rcpp::List mod_sum = sum_r(mod_pois);
+   Rcpp::NumericMatrix M_coef = mod_sum[12];
+   mod_coef = M_coef(2, 1);
+
+   return mod_coef;
+}
+
+I also tried providing the formula in the call, i.e. NumericVector 
+misclass(NumericMatrix obs_mat, Formula f) and using it in glm_r, i.e. 
+glm_r(_["formula"] = f, etc. but with the same outcome.
+
+Thanks,
+
+Denis
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240904/c070c94f/attachment.htm>
+
+From edd at debian.org  Wed Sep  4 22:24:48 2024
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 4 Sep 2024 15:24:48 -0500
+Subject: [Rcpp-devel] Using formula
+In-Reply-To: <21b7c4f776c60750f1795d42445d78f2@zaclys.net>
+References: <21b7c4f776c60750f1795d42445d78f2@zaclys.net>
+Message-ID: <26328.49680.260143.986103@rob.eddelbuettel.com>
+
+
+On 4 September 2024 at 15:37, Denis Haine wrote:
+| Hi,
+| 
+| Sorry for a beginner's question. I'm trying to call an R function (glm())
+| inside my cpp code. The code compiles with no problem, but when I'm running it,
+| it cannot find the second element of the formula, i.e. the x in y~x. The error
+| message is: Error in eval (predvars; data, env) : object 'e' not found.
+| 
+| However, if I return 'e', it is correctly calculated. I guess the formula is
+| not correctly evaluated, but I haven't found any examples that could point me
+| in one direction or another.
+| 
+| #include <Rcpp.h>
+| using namespace Rcpp;
+| // [[Rcpp::export]]
+| NumericVector misclass(NumericMatrix obs_mat) {
+|   // Obtain environment containing function
+|   Rcpp::Environment base("package:stats");
+| 
+|   // Picking up glm() and summary() function from base stats
+|   Rcpp::Function glm_r = base["glm"];
+|   Rcpp::Function sum_r = base["summary.glm"];
+
+You are running glm() from base here. At the speed of glm() from base.
+
+That you call it from C++ does not make it faster, sadly, it just creates
+more work for you. Sorry to be a bearer of bad news.
+ 
+|   Rcpp::NumericVector d = obs_mat(_, 1);
+|   Rcpp::NumericVector e = no_init(n);
+|   Rcpp::NumericVector mod_coef = no_init(n);
+|   // e is calculated in other section of the code
+|   e = as<IntegerVector>(e);
+|   Rcpp::List mod_pois = glm_r(_["formula"] = "d ~ e",
+|                     _["family"] = "poisson");
+
+You need to 'work out' (ie expand) the formula on the R side. I have done
+that for the lm() case of model matrices and whatnot in the fastLm()
+example(s) inside eg RcppArmadillo.  Once you have done the R-level unpacking
+you can call the C++ function to fit.
+
+Big takeaway from that exercise there: the time you spent dealing with the
+(convenient) formula dominates the gain from using a different, simpler,
+slightly faster 'fitter' by many orders of magnitude.
+
+[ I think there are some packages dealing with glm() fits using Rcpp and
+friends among the by now over 2800 CRAN packages using Rcpp -- but I can't
+right now recall their names. You may find some help in those if you find
+them, and if my recollection was correct in the first place ... ]
+
+Dirk
+
+|   Rcpp::List mod_sum = sum_r(mod_pois);
+|   Rcpp::NumericMatrix M_coef = mod_sum[12];
+|   mod_coef = M_coef(2, 1);
+| 
+|   return mod_coef;
+| }
+| 
+| 
+| I also tried providing the formula in the call, i.e. NumericVector misclass
+| (NumericMatrix obs_mat, Formula f) and using it in glm_r, i.e. glm_r(_
+| ["formula"] = f, etc. but with the same outcome.
+| 
+| Thanks,
+| 
+| Denis
+| 
+| _______________________________________________
+| Rcpp-devel mailing list
+| Rcpp-devel at lists.r-forge.r-project.org
+| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+-- 
+dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org
+
+From cheval at zaclys.net  Thu Sep 26 16:35:49 2024
+From: cheval at zaclys.net (Denis Haine)
+Date: Thu, 26 Sep 2024 10:35:49 -0400
+Subject: [Rcpp-devel] Using formula
+In-Reply-To: <26328.49680.260143.986103@rob.eddelbuettel.com>
+References: <21b7c4f776c60750f1795d42445d78f2@zaclys.net>
+ <26328.49680.260143.986103@rob.eddelbuettel.com>
+Message-ID: <16ef2c101afa028fa5ad29eb84446864@zaclys.net>
+
+
+
+Hi,
+
+Quick follow-up and additional question.
+
+I got it working with fastglm:
+
+#include <Rcpp.h>
+  using namespace Rcpp;
+  // [[Rcpp::export]]
+  NumericVector misclass(NumericMatrix obs_mat) {
+    // Obtain environment containing function
+    Rcpp::Environment base("package:stats");
+   // Obtaining namespace of fastglm package
+   Environment pkg = Environment::namespace_env("fastglm");
+   Function f = pkg["fastglm"];
+  ...
+  mod_log = f(Named("x", ematrix), Named("y", d), Named("family", 
+"binomial"));
+
+which works fine, but I cannot figure out how to get another link than 
+the default 'logit' (here for binomial()). I tried:
+
+Named("family", "binomial(link = \"log\")")
+
+Named("family", "binomial(link = log)")
+
+Both gave me this error: "object of node 'function' not found.
+
+Named("link", "log")
+
+Named("make.link", "log")
+
+These last two do not cause an error, but they give the default logit 
+link (as if the Named was not evaluated?).
+
+Thanks,
+
+Denis
+
+Le 2024-09-04 16:24, Dirk Eddelbuettel a ?crit :
+
+> On 4 September 2024 at 15:37, Denis Haine wrote:
+> | Hi,
+> |
+> | Sorry for a beginner's question. I'm trying to call an R function 
+> (glm())
+> | inside my cpp code. The code compiles with no problem, but when I'm 
+> running it,
+> | it cannot find the second element of the formula, i.e. the x in y~x. 
+> The error
+> | message is: Error in eval (predvars; data, env) : object 'e' not 
+> found.
+> |
+> | However, if I return 'e', it is correctly calculated. I guess the 
+> formula is
+> | not correctly evaluated, but I haven't found any examples that could 
+> point me
+> | in one direction or another.
+> |
+> | #include <Rcpp.h>
+> | using namespace Rcpp;
+> | // [[Rcpp::export]]
+> | NumericVector misclass(NumericMatrix obs_mat) {
+> |   // Obtain environment containing function
+> |   Rcpp::Environment base("package:stats");
+> |
+> |   // Picking up glm() and summary() function from base stats
+> |   Rcpp::Function glm_r = base["glm"];
+> |   Rcpp::Function sum_r = base["summary.glm"];
+> 
+> You are running glm() from base here. At the speed of glm() from base.
+> 
+> That you call it from C++ does not make it faster, sadly, it just 
+> creates
+> more work for you. Sorry to be a bearer of bad news.
+> 
+> |   Rcpp::NumericVector d = obs_mat(_, 1);
+> |   Rcpp::NumericVector e = no_init(n);
+> |   Rcpp::NumericVector mod_coef = no_init(n);
+> |   // e is calculated in other section of the code
+> |   e = as<IntegerVector>(e);
+> |   Rcpp::List mod_pois = glm_r(_["formula"] = "d ~ e",
+> |                     _["family"] = "poisson");
+> 
+> You need to 'work out' (ie expand) the formula on the R side. I have 
+> done
+> that for the lm() case of model matrices and whatnot in the fastLm()
+> example(s) inside eg RcppArmadillo.  Once you have done the R-level 
+> unpacking
+> you can call the C++ function to fit.
+> 
+> Big takeaway from that exercise there: the time you spent dealing with 
+> the
+> (convenient) formula dominates the gain from using a different, 
+> simpler,
+> slightly faster 'fitter' by many orders of magnitude.
+> 
+> [ I think there are some packages dealing with glm() fits using Rcpp 
+> and
+> friends among the by now over 2800 CRAN packages using Rcpp -- but I 
+> can't
+> right now recall their names. You may find some help in those if you 
+> find
+> them, and if my recollection was correct in the first place ... ]
+> 
+> Dirk
+> 
+> |   Rcpp::List mod_sum = sum_r(mod_pois);
+> |   Rcpp::NumericMatrix M_coef = mod_sum[12];
+> |   mod_coef = M_coef(2, 1);
+> |
+> |   return mod_coef;
+> | }
+> |
+> |
+> | I also tried providing the formula in the call, i.e. NumericVector 
+> misclass
+> | (NumericMatrix obs_mat, Formula f) and using it in glm_r, i.e. 
+> glm_r(_
+> | ["formula"] = f, etc. but with the same outcome.
+> |
+> | Thanks,
+> |
+> | Denis
+> |
+> | _______________________________________________
+> | Rcpp-devel mailing list
+> | Rcpp-devel at lists.r-forge.r-project.org
+> | 
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240926/1f748e20/attachment.htm>
+

@@ -1,0 +1,55 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2024-12",
+  "messages": [
+    {
+      "id": "msg-6587da41eab5",
+      "message_id": "<CAFbaAiA1ZuvpPgd3ciN+rR56E7ZnHE-+hpd2kG=WhioknQuvyg@mail.gmail.com>",
+      "from_name": "Kumar MS",
+      "from_email_hash": "243c9e0f0983da04bfad3637ee03cbc73da8d1717b50df09d8d977d1a65fa0a9",
+      "date": "2024-12-11T10:40:27-05:00",
+      "subject": "[Rcpp-devel] Operating on sparse matrices in a list.",
+      "subject_clean": "[Rcpp-devel] Operating on sparse matrices in a list.",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hello Rcpp developers,\n\nThe following simple code attempts to instantiate every sparse matrix in a\ngiven R list of sparse matrices (\"dgCMatrix\"). The code compiles OK, but\ncrashes at runtime with a segmentation fault.\n\nI followed the as<> approach outlined in\nhttps://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/ ,\nalthough in that post, we are not dealing with a list of sparse matrices,\nbut with just one sparse matrix.\n\nThank you, SK.\n\nlibrary(Rcpp)library(Matrix)\n\n# -- The function in question --cppFunction(\n  \"arma::mat accessEntries(Rcpp::List x){\n     for(int i=0; i<x.size(); i++){\n     arma::sp_mat ar=Rcpp::as<arma::sp_mat>(x[i]); //similar to :\nhttps://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/\n     }\n  }\",\ndepends=c(\"RcppArmadillo\", \"Rcpp\"),\nplugins = \"cpp11\"\n)\n\n# -- Construct a list of sparse matrices and call the above function --\nX <- as(cbind( c(1,2,3), c(3,4,5), c(5, 6, 7) ), \"dgCMatrix\")\nspList <- list( X, X )accessEntries(spList)\n\n# -- Output --\n# *** caught segfault ***#address 0x0, cause 'unknown'\n\n#Traceback:\n# 1: .Call(<pointer: 0x10df0eba0>, x)\n# 2: accessEntries(spList)\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20241211/7fa693e6/attachment.htm>",
+      "body_snippet": "Hello Rcpp developers,\n\nThe following simple code attempts to instantiate every sparse matrix in a\ngiven R list of sparse matrices (\"dgCMatrix\"). The code compiles OK, but\ncrashes at runtime with a se",
+      "thread_id": "thread-6587da41eab5",
+      "thread_depth": 0,
+      "month": "2024-12"
+    },
+    {
+      "id": "msg-fda343638137",
+      "message_id": "<26457.48121.406492.818176@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2024-12-11T10:21:13-06:00",
+      "subject": "[Rcpp-devel] Operating on sparse matrices in a list.",
+      "subject_clean": "[Rcpp-devel] Operating on sparse matrices in a list.",
+      "in_reply_to": "<CAFbaAiA1ZuvpPgd3ciN+rR56E7ZnHE-+hpd2kG=WhioknQuvyg@mail.gmail.com>",
+      "references": [
+        "<CAFbaAiA1ZuvpPgd3ciN+rR56E7ZnHE-+hpd2kG=WhioknQuvyg@mail.gmail.com>"
+      ],
+      "body_plain": "On 11 December 2024 at 10:40, Kumar MS wrote:\n| # -- The function in question --\n| cppFunction(\n|   \"arma::mat accessEntries(Rcpp::List x){\n|      for(int i=0; i<x.size(); i++){\n|      arma::sp_mat ar=Rcpp::as<arma::sp_mat>(x[i]); //similar to : https://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/\n|      }\n|   }\",\n\nYou say you return an arma::mat but you have no return value. That can lead\nto the type of run-time surprises you saw. \n\nBelow are both a minimal C++ file (I prefer to embed the R code in the C++\nfile), and its output.  I hope you find it helpful.\n\nNow, if I may, you also posted and deleted a series of questions at\nStackOverflow which, and please take this is as constructive criticism,\nexhibited a bit of confusion about how R and Rcpp work with extensions,\nextending to RcppArmadillo.\n\nBriefly, *EVERYTHING* goes in and out as SEXP so you have no chance to detect\n'a dense matrix'. You see a REALSXP as that is all there is -- every REAL aka\n'double' is a vector, if it happens to have a two element dimension it is a\nmatrix.  For R, there is no difference between Rcpp::NumericMatrix and\narma::mat as they all come in in the one form possible: REALSXP. Ditto for a\nsp_mat: It is S4, and you get to test the class attribute.  The Rcpp Gallery\nexamples show you how to do this. (And my favourite trick is to also study\nthe unit tests in RcppArmadillo which also have small, self-contained *and\nworking* examples.)\n\nSo please do a bit more reading, and if I were you, work on small examples to\nconvince yourself you have it right. If you don't it is not necessarily the\nfault of RcppArmadillo though bugs on our side are always possible.\n\nRegards,  Dirk\n\n\n#### Code\n\n// [[Rcpp::depends(RcppArmadillo)]]\n#include <RcppArmadillo/Light>\n\n// [[Rcpp::export]]\nvoid accessEntries(Rcpp::List x){\n    for(int i=0; i<x.size(); i++){\n        arma::sp_mat ar = Rcpp::as<arma::sp_mat>(x[i]); //similar to : https://gallery.rcpp.org/articles/dynamic-dispatch-for-sparse-matrices/\n    }\n}\n\n/*** R\nlibrary(Matrix)\nX <- as(cbind( c(1,2,3), c(3,4,5), c(5, 6, 7) ), \"dgCMatrix\")\nspList <- list( X, X )\naccessEntries(spList)\ncat(\"All good\\n\")\n*/\n\n#### Output (with the extra lines we always get)\n\n> Rcpp::sourceCpp(\"sparse_list_question.cpp\")\n\n> library(Matrix)\n\n> X <- as(cbind( c(1,2,3), c(3,4,5), c(5, 6, 7) ), \"dgCMatrix\")\n\n> spList <- list( X, X )\n\n> accessEntries(spList)\n\n> cat(\"All good\\n\")\nAll good\n> \n\n\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 11 December 2024 at 10:40, Kumar MS wrote:\n| # -- The function in question --\n| cppFunction(\n|   \"arma::mat accessEntries(Rcpp::List x){\n|      for(int i=0; i<x.size(); i++){\n|      arma::sp_mat ar",
+      "thread_id": "thread-6587da41eab5",
+      "thread_depth": 1,
+      "month": "2024-12"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-6587da41eab5",
+      "subject": "[Rcpp-devel] Operating on sparse matrices in a list.",
+      "message_count": 2,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Kumar MS"
+      ],
+      "started": "2024-12-11T10:40:27-05:00",
+      "last_reply": "2024-12-11T10:21:13-06:00",
+      "root_message_id": "msg-6587da41eab5"
+    }
+  ]
+}

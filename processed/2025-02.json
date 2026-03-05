@@ -1,0 +1,222 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2025-02",
+  "messages": [
+    {
+      "id": "msg-82568a0d9d81",
+      "message_id": "<CAFbaAiDMbxNgsScwUOHCofsS6H7TxbhJ6gzQvYt2m4QH19uEdQ@mail.gmail.com>",
+      "from_name": "Kumar MS",
+      "from_email_hash": "243c9e0f0983da04bfad3637ee03cbc73da8d1717b50df09d8d977d1a65fa0a9",
+      "date": "2025-02-07T13:04:45-05:00",
+      "subject": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "subject_clean": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hello Rcpp developers,\n\nThe following R/Rcpp code attempts to take in a data frame, a model formula\n(passed as string),  and uses Rcpp::Function to call R's model matrix\nfunction to create model matrices B times in parallel. Each time a model\nmatrix is created, it is formed after permuting a given column in the data\nframe.\n\nTo avoid multi-threaded access to R, I had used the \"locking\" idea from the\nBoost example from RInside to use a scoped lock on a mutex, and use a\nsingle set of Rcpp::Function reference variables initialized ones.\nUnfortunately, the code compiles fine, but when I run the code, I get a :\n\nError: C stack usage close to the limit.\n\nI would greatly appreciate any advice !\n\nThank you, SK.\n\n#### ---- C++ CODE ---------------########\n\n// [[Rcpp::depends(RcppParallel)]]\n// [[Rcpp::depends(RcppArmadillo)]]\n#include <RcppArmadillo.h>\n#include <RcppParallel.h>\n#include <tbb/tbb.h>\n\nusing namespace arma;\nusing namespace Rcpp;\nusing namespace RcppParallel;\ntypedef tbb::spin_mutex FreeListMutexType;\n\nclass testParallelCallingR : public Worker {\nprivate:\n  Rcpp::String col2perm;\n  Rcpp::String formulaStr;\n  Rcpp::DataFrame& df0;\n  arma::vec& results;\n\n  Rcpp::Environment& stats, base;\n  Rcpp::Function& formula, modelMatrix, subset ;\n  SEXP& formulaObj;\n\n  FreeListMutexType FreeListMutex;\n\npublic:\n  explicit testParallelCallingR( Rcpp::String col2perm1,\n                                 Rcpp::String formulaStr1,\n                                 Rcpp::DataFrame& df0, arma::vec& res,\n                                 Rcpp::Environment& stats,\nRcpp::Environment& base,\n                                 Rcpp::Function& formula, Rcpp::Function&\nmodelMatrix, Rcpp::Function& subset, SEXP& formulaObj\n                                 ): df0(df0), results(res), stats(stats),\nbase(base),\n                                 formula(formula),\nmodelMatrix(modelMatrix), subset(subset), formulaObj(formulaObj) {\n    col2perm=col2perm1;\n    formulaStr=formulaStr1;\n  }\n\n  arma::mat getModelMat(){\n\n    //lock\n    FreeListMutexType::scoped_lock lock(FreeListMutex);\n\n    //permute the column col2perm\n    std::string timestr(col2perm);\n    Rcpp::DataFrame dfw = Rcpp::clone(df0);\n    Rcpp::NumericVector timevals = df0[timestr]; std::random_shuffle(\ntimevals.begin(), timevals.end() );\n    dfw[timestr]=timevals;\n\n    //construct model mat with the dataframe with the permuted column\n    SEXP modelMatw=modelMatrix( formulaObj, dfw );\n    arma::mat Z = Rcpp::as<arma::mat>( modelMatw );\n    return Z;\n\n  }\n\n\n  void operator()( std::size_t begin, std::size_t end ) {\n    for( std::size_t j=begin; j < end; j++   ){\n      arma::mat Z=getModelMat();\n      results(j)=Z(0,0); //just as an example result, store the first index\nsay\n    }\n  }\n};\n\n\n// [[Rcpp::export]]\narma::vec permDf( int B, Rcpp::String col2perm, Rcpp::String formulaStr,\nRcpp::DataFrame df0  ){\n\n  Rcpp::Environment stats(\"package:stats\");\n  Rcpp::Environment base(\"package:base\");\n  Rcpp::Function formula = stats[\"formula\"];\n  Rcpp::Function modelMatrix=stats[\"model.matrix\"];\n  Rcpp::Function subset(\"[.data.frame\");\n  SEXP formulaObj = formula(formulaStr);\n  arma::vec results( B, arma::fill::zeros );\n  testParallelCallingR tpc( col2perm, formulaStr, df0, results,\n                            stats, base,\n                            formula, modelMatrix, subset,\n                            formulaObj\n                            );\n  parallelFor( 0, B, tpc);\n  return results;\n}\n\n\n# -- Call function from R side --\n\n#      Create B permutatations of the column Sepal.Width, and form model matrice\n\npermDf( B=10,\n\n        col2perm = \"Sepal.Width\",\n\n        formulaStr = \"~Sepal.Width + Sepal.Length\",\n\n        df0=iris\n\n          )\n\n# -- Output --\n\nError: C stack usage  17587445176704 is too close to the limit\n\nError: C stack usage  17587449383296 is too close to the limit\n\nError: C stack usage  17587419937152 is too close to the limit\n\nError: C stack usage  17587432556928 is too close to the limit\n\nError: C stack usage  17587436763520 is too close to the limit\n\nError: C stack usage  17587440970112 is too close to the limit\n\nError: C stack usage  17587428350336 is too close to the limit\n\nError: C stack usage  17587424143744 is too close to the limit\n\nError: C stack usage  17587453589888 is too close to the limit\n\nExecution halted\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20250207/d6f02238/attachment.htm>",
+      "body_snippet": "Hello Rcpp developers,\n\nThe following R/Rcpp code attempts to take in a data frame, a model formula\n(passed as string),  and uses Rcpp::Function to call R's model matrix\nfunction to create model matri",
+      "thread_id": "thread-82568a0d9d81",
+      "thread_depth": 0,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-bb854862db72",
+      "message_id": "<26534.21472.198824.909549@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2025-02-07T12:41:36-06:00",
+      "subject": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "subject_clean": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "in_reply_to": "<CAFbaAiDMbxNgsScwUOHCofsS6H7TxbhJ6gzQvYt2m4QH19uEdQ@mail.gmail.com>",
+      "references": [
+        "<CAFbaAiDMbxNgsScwUOHCofsS6H7TxbhJ6gzQvYt2m4QH19uEdQ@mail.gmail.com>"
+      ],
+      "body_plain": "Hi Kumar,\n\n>From a quick look you borrow the 'Worker' object from RcppParallel. But where\n(as far as I recall) all posted examples of RcppParallel do _not_ put any R\nobjects inside a Worker instance, you put some there. That violates the\nrecommendation in Writing R Extensions. So I think the outcome you observe is\nas expected. \n\nBest, Dirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Hi Kumar,\n\n>From a quick look you borrow the 'Worker' object from RcppParallel. But where\n(as far as I recall) all posted examples of RcppParallel do _not_ put any R\nobjects inside a Worker instance, ",
+      "thread_id": "thread-82568a0d9d81",
+      "thread_depth": 1,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-973c8644bc7d",
+      "message_id": "<CAFbaAiCuSOHXJ1Er7=PvJjEVLwzgpsZLuzk-=7MmO8okWqaV-Q@mail.gmail.com>",
+      "from_name": "Kumar MS",
+      "from_email_hash": "243c9e0f0983da04bfad3637ee03cbc73da8d1717b50df09d8d977d1a65fa0a9",
+      "date": "2025-02-07T14:01:51-05:00",
+      "subject": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "subject_clean": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "in_reply_to": "<26534.21472.198824.909549@rob.eddelbuettel.com>",
+      "references": [
+        "<CAFbaAiDMbxNgsScwUOHCofsS6H7TxbhJ6gzQvYt2m4QH19uEdQ@mail.gmail.com>",
+        "<26534.21472.198824.909549@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Thank you Dirk. Your observation is correct. I am left with two questions.\nAs always, I appreciate your answers.\n\n1. Except for this single step of calling an R function (model matrix-like\nobjects that are being created by an external library in R), all my other\ncomputations are now implemented in C++ & thread friendly. Does this mean I\nwould have no other option but to go serial if I need to call R an\nfunction? Do you have any alternative recommendations? I would really love\nto take advantage of RcppParallel/TBB here, as I have heavily exploited\nRcppParallel to parallelize everything else.\n2. Your RInside calculations in the Boost thread example are\nmulti-threaded, with a locking interface to RInside instance too. I wonder\nwhat makes that work well without R reporting issues, while the\nTBB/rcppParallel implementation taking a similar approach has trouble.\n\nSincerely,\nKumar\n\nOn Fri, Feb 7, 2025 at 1:41?PM Dirk Eddelbuettel <edd at debian.org> wrote:\n\n>\n> Hi Kumar,\n>\n> From a quick look you borrow the 'Worker' object from RcppParallel. But\n> where\n> (as far as I recall) all posted examples of RcppParallel do _not_ put any R\n> objects inside a Worker instance, you put some there. That violates the\n> recommendation in Writing R Extensions. So I think the outcome you observe\n> is\n> as expected.\n>\n> Best, Dirk\n>\n> --\n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20250207/c324f142/attachment-0001.htm>",
+      "body_snippet": "Thank you Dirk. Your observation is correct. I am left with two questions.\nAs always, I appreciate your answers.\n\n1. Except for this single step of calling an R function (model matrix-like\nobjects tha",
+      "thread_id": "thread-82568a0d9d81",
+      "thread_depth": 2,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-0906e1177a77",
+      "message_id": "<26535.40857.41252.546637@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2025-02-08T12:16:57-06:00",
+      "subject": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "subject_clean": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "in_reply_to": "<CAFbaAiCuSOHXJ1Er7=PvJjEVLwzgpsZLuzk-=7MmO8okWqaV-Q@mail.gmail.com>",
+      "references": [
+        "<CAFbaAiDMbxNgsScwUOHCofsS6H7TxbhJ6gzQvYt2m4QH19uEdQ@mail.gmail.com>",
+        "<26534.21472.198824.909549@rob.eddelbuettel.com>",
+        "<CAFbaAiCuSOHXJ1Er7=PvJjEVLwzgpsZLuzk-=7MmO8okWqaV-Q@mail.gmail.com>"
+      ],
+      "body_plain": "On 7 February 2025 at 14:01, Kumar MS wrote:\n| Thank you Dirk. Your observation is correct. I am left with two questions. As\n| always, I appreciate your answers.\n| \n| 1. Except for this single step of calling an R function (model matrix-like\n| objects that are being created by an external library in R), all my other\n| computations are now implemented in C++ & thread friendly. Does this mean I\n| would have no other option but to go serial if I need to call R an function? Do\n| you have any alternative recommendations? I would really love to take advantage\n| of RcppParallel/TBB here, as I have heavily exploited RcppParallel to\n| parallelize everything else.?\n\nNot to ruin your day (again) as I believe we have been over this a few times\nbetween here and your StackOverflow questions: Nomatter how much you want it\nto be possible you still cannot call back to R from the parallel code.\n\n| 2. Your RInside calculations in the Boost thread example are multi-threaded,\n| with a locking interface to RInside instance too. I wonder what makes that work\n| well without R reporting issues, while the TBB/rcppParallel implementation\n| taking a similar approach has trouble.?\n\nRInside is not really a relevant example as it operates the other way around\nwhere you have a `main()` function and want to embed R.  What we do with Rcpp\nis typically a running R process from which we call extensions. Not the same.\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 7 February 2025 at 14:01, Kumar MS wrote:\n| Thank you Dirk. Your observation is correct. I am left with two questions. As\n| always, I appreciate your answers.\n| \n| 1. Except for this single step of",
+      "thread_id": "thread-82568a0d9d81",
+      "thread_depth": 3,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-8eab2119b5c3",
+      "message_id": "<CAFbaAiDOqSQy_q3cbcOOR2J6LD-E7h2AmAOdWiwW+W3hhrtM_Q@mail.gmail.com>",
+      "from_name": "Kumar MS",
+      "from_email_hash": "243c9e0f0983da04bfad3637ee03cbc73da8d1717b50df09d8d977d1a65fa0a9",
+      "date": "2025-02-10T07:46:30-05:00",
+      "subject": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "subject_clean": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "in_reply_to": "<26535.40857.41252.546637@rob.eddelbuettel.com>",
+      "references": [
+        "<CAFbaAiDMbxNgsScwUOHCofsS6H7TxbhJ6gzQvYt2m4QH19uEdQ@mail.gmail.com>",
+        "<26534.21472.198824.909549@rob.eddelbuettel.com>",
+        "<CAFbaAiCuSOHXJ1Er7=PvJjEVLwzgpsZLuzk-=7MmO8okWqaV-Q@mail.gmail.com>",
+        "<26535.40857.41252.546637@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Thank you very much for the clear answers, Dirk! They greatly help!\n\nCheers,\nKumar\n\n\nOn Sat, Feb 8, 2025 at 1:17 PM Dirk Eddelbuettel <edd at debian.org> wrote:\n\n>\n> On 7 February 2025 at 14:01, Kumar MS wrote:\n> | Thank you Dirk. Your observation is correct. I am left with two\n> questions. As\n> | always, I appreciate your answers.\n> |\n> | 1. Except for this single step of calling an R function (model\n> matrix-like\n> | objects that are being created by an external library in R), all my other\n> | computations are now implemented in C++ & thread friendly. Does this\n> mean I\n> | would have no other option but to go serial if I need to call R an\n> function? Do\n> | you have any alternative recommendations? I would really love to take\n> advantage\n> | of RcppParallel/TBB here, as I have heavily exploited RcppParallel to\n> | parallelize everything else.\n>\n> Not to ruin your day (again) as I believe we have been over this a few\n> times\n> between here and your StackOverflow questions: Nomatter how much you want\n> it\n> to be possible you still cannot call back to R from the parallel code.\n>\n> | 2. Your RInside calculations in the Boost thread example are\n> multi-threaded,\n> | with a locking interface to RInside instance too. I wonder what makes\n> that work\n> | well without R reporting issues, while the TBB/rcppParallel\n> implementation\n> | taking a similar approach has trouble.\n>\n> RInside is not really a relevant example as it operates the other way\n> around\n> where you have a `main()` function and want to embed R.  What we do with\n> Rcpp\n> is typically a running R process from which we call extensions. Not the\n> same.\n>\n> Dirk\n>\n> --\n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20250210/bf56b1d2/attachment.htm>",
+      "body_snippet": "Thank you very much for the clear answers, Dirk! They greatly help!\n\nCheers,\nKumar\n\n\nOn Sat, Feb 8, 2025 at 1:17 PM Dirk Eddelbuettel <edd at debian.org> wrote:\n\n>\n> On 7 February 2025 at 14:01, Kumar",
+      "thread_id": "thread-82568a0d9d81",
+      "thread_depth": 4,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-78e1a75272ea",
+      "message_id": "<CAF0e1n_gTVLwc9bHg5OahOsAgWTM8ETs+BORyyebdTM5DW0CAQ@mail.gmail.com>",
+      "from_name": "John Clarke",
+      "from_email_hash": "772cfb5bcf886baaa0ab0365ad573595f7ba4dfbe3eda61780ad68928fa100dc",
+      "date": "2025-02-13T15:17:48+01:00",
+      "subject": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "subject_clean": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hey folks,\n\nI've been developing an Rcpp package on my Mac and testing on Mac and\nWindows. I also have been testing on linux-latest with the standard Github\naction which runs the CMD check. These passed without any problem until I\nimplemented a test suite (testthat) and increased the test coverage to\ninclude additional calls. It turns out that the two main functions (and\nmaybe others) that I wrote cause a segfault on Ubuntu builds. Several\nversions on Linux are tested and all fail.\n\nIt appears to be related to Rcpp so I'm wondering if you've encountered\nthis before and how I might go about finding a solution. I can reproduce\nthe error on a local docker image consistently, but... I don't have the\ndebugging tools I\"m used to on MacOS via VS Code to help me step through\nwhen the error occurs. And I suspect it has to do with a mismatched library\nversion because the tests pass fine on Windows and MacOS. So not sure if\ndebugging would help much.\n\nIs there a known configuration/compiling issue/fix that I could try? Apart\nfrom installing a full fledged instance of Ubuntu with VS Code and\ndebugger, is there a way I can get closer to finding out what the issue is?\n\nClip from the failed R error messages when I call\nshg$runSimFromFixedValues(N, 0, 0, 1940):\n\n *** caught segfault ***\naddress (nil), cause 'memory not mapped'\n\nTraceback:\n 1: .External(list(name = \"CppMethod__invoke_notvoid\", address = <pointer:\n0x55efab6ef710>,     dll = list(name = \"Rcpp\", path =\n\"/usr/local/lib/R/site-library/Rcpp/libs/Rcpp.so\",         dynamicLookup =\nTRUE, handle = <pointer: 0x55efa9b64b30>,         info = <pointer:\n0x55efaa89aaa0>, forceSymbols = FALSE),     numParameters = -1L), <pointer:\n0x55efae9ae1f0>, <pointer: 0x55efaf2399d0>,     .pointer, ...)\n 2: shg$runSimFromFixedValues(N, 0, 0, 1940)\n\nThanks,\n\n-John\n\nJohn Clarke | Senior Technical Advisor |\nCornerstone Systems Northwest | john.clarke at cornerstonenw.com\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20250213/ae8f45a9/attachment.htm>",
+      "body_snippet": "Hey folks,\n\nI've been developing an Rcpp package on my Mac and testing on Mac and\nWindows. I also have been testing on linux-latest with the standard Github\naction which runs the CMD check. These pass",
+      "thread_id": "thread-78e1a75272ea",
+      "thread_depth": 0,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-7402ab732b90",
+      "message_id": "<ab6ec0ba-dc72-4342-8b5c-4241c9f77f30@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2025-02-13T16:23:12+01:00",
+      "subject": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "subject_clean": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "in_reply_to": "<CAF0e1n_gTVLwc9bHg5OahOsAgWTM8ETs+BORyyebdTM5DW0CAQ@mail.gmail.com>",
+      "references": [
+        "<CAF0e1n_gTVLwc9bHg5OahOsAgWTM8ETs+BORyyebdTM5DW0CAQ@mail.gmail.com>"
+      ],
+      "body_plain": "Hi John,\n\nLe 13/02/2025 ? 15:17, John Clarke a ?crit?:\n> Hey folks,\n> \n> I've been developing an Rcpp package on my Mac and testing on Mac and \n> Windows. I also have been testing on linux-latest with the standard \n> Github action which runs the CMD check. These passed without any problem \n> until I implemented?a test suite (testthat) and increased the test \n> coverage to include additional calls. It turns out that the two main \n> functions (and maybe others) that I wrote cause a segfault on Ubuntu \n> builds. Several versions on Linux are tested and all fail.\n> \n> It appears to be related to Rcpp so I'm wondering if you've encountered \n> this before and how I might go about finding a solution. I can reproduce \n> the error on a local docker image consistently, but... I don't have the \n> debugging tools I\"m used to on MacOS via VS Code to help me step through \n> when the error occurs. And I suspect it has to do with a mismatched \n> library version because the tests pass fine on Windows and MacOS. So not \n> sure if debugging would help much.\n> \n> Is there a known configuration/compiling issue/fix that I could try? \nYou can see some techniques e.g. here \nhttps://github.com/wch/r-debug/blob/master/debugging-r.md\nIn short, if you already have a docker image, you can compile you code \nthere with \"-g -O0\" options and run it in:\n\nR -d gdb\n(gdb) run\n<run your R/Rcpp (test)code. An error will bring you back to gdb where \nyou can check relevant frames, parameters, cals and so on.>\n\nHoping it helps,\nBest,\nSerguei.\n\n\n> Apart from installing a full fledged instance of Ubuntu with VS Code and \n> debugger, is there a way I can get closer to finding out what the issue is?\n> \n> Clip from the failed R error messages when I call  \n> shg$runSimFromFixedValues(N, 0, 0, 1940):\n> \n>  ?*** caught segfault ***\n> address (nil), cause 'memory not mapped'\n> \n> Traceback:\n>  ?1: .External(list(name = \"CppMethod__invoke_notvoid\", address = \n> <pointer: 0x55efab6ef710>, ? ? dll = list(name = \"Rcpp\", path = \"/usr/ \n> local/lib/R/site-library/Rcpp/libs/Rcpp.so\", ? ? ? ? dynamicLookup = \n> TRUE, handle = <pointer: 0x55efa9b64b30>, ? ? ? ? info = <pointer: \n> 0x55efaa89aaa0>, forceSymbols = FALSE), ? ? numParameters = -1L), \n> <pointer: 0x55efae9ae1f0>, <pointer: 0x55efaf2399d0>, ? ? .pointer, ...)\n>  ?2: shg$runSimFromFixedValues(N, 0, 0, 1940)\n> \n> Thanks,\n> \n> -John\n> \n> John Clarke | Senior Technical Advisor |\n> Cornerstone Systems Northwest | john.clarke at cornerstonenw.com \n> <mailto:john.clarke at cornerstonenw.com>\n> \n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "Hi John,\n\nLe 13/02/2025 ? 15:17, John Clarke a ?crit?:\n> Hey folks,\n> \n> I've been developing an Rcpp package on my Mac and testing on Mac and \n> Windows. I also have been testing on linux-latest with",
+      "thread_id": "thread-78e1a75272ea",
+      "thread_depth": 1,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-0a2ae4e93809",
+      "message_id": "<CAF0e1n_GVVu0ax--8bKXtmUHYH_d_5JAwsEu=JgwiCJ0S9WQUg@mail.gmail.com>",
+      "from_name": "John Clarke",
+      "from_email_hash": "772cfb5bcf886baaa0ab0365ad573595f7ba4dfbe3eda61780ad68928fa100dc",
+      "date": "2025-02-14T15:09:41+01:00",
+      "subject": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "subject_clean": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "in_reply_to": "<ab6ec0ba-dc72-4342-8b5c-4241c9f77f30@gmail.com>",
+      "references": [
+        "<CAF0e1n_gTVLwc9bHg5OahOsAgWTM8ETs+BORyyebdTM5DW0CAQ@mail.gmail.com>",
+        "<ab6ec0ba-dc72-4342-8b5c-4241c9f77f30@gmail.com>"
+      ],
+      "body_plain": "Hi Serguei,\n\nThank you! This didn't directly solve my problem, but it got me looking in\nthe right direction. I ended up connecting to a docker container through VS\nCode on my host machine (Windows). I didn't wire up the debugger UI (which\nis really convenient in VS Code) but was able to identify the issue through\nthe VS Code interface which is a lot easier to use than a bare terminal.\n\nFor the record the issue was a call to *fclose(pOutStream)* where\npOutStream was Null. On Windows and MacOS this didn't seem to cause a\nproblem, but in Ubuntu it failed. Sadly the traceback information was not\nprecise enough to identify the offending line of code, so I had to find it\niteratively.\n\n-John\n\nOn Thu, Feb 13, 2025 at 4:23?PM Serguei Sokol <serguei.sokol at gmail.com>\nwrote:\n\n> Hi John,\n>\n> Le 13/02/2025 ? 15:17, John Clarke a ?crit :\n> > Hey folks,\n> >\n> > I've been developing an Rcpp package on my Mac and testing on Mac and\n> > Windows. I also have been testing on linux-latest with the standard\n> > Github action which runs the CMD check. These passed without any problem\n> > until I implemented a test suite (testthat) and increased the test\n> > coverage to include additional calls. It turns out that the two main\n> > functions (and maybe others) that I wrote cause a segfault on Ubuntu\n> > builds. Several versions on Linux are tested and all fail.\n> >\n> > It appears to be related to Rcpp so I'm wondering if you've encountered\n> > this before and how I might go about finding a solution. I can reproduce\n> > the error on a local docker image consistently, but... I don't have the\n> > debugging tools I\"m used to on MacOS via VS Code to help me step through\n> > when the error occurs. And I suspect it has to do with a mismatched\n> > library version because the tests pass fine on Windows and MacOS. So not\n> > sure if debugging would help much.\n> >\n> > Is there a known configuration/compiling issue/fix that I could try?\n> You can see some techniques e.g. here\n> https://github.com/wch/r-debug/blob/master/debugging-r.md\n> In short, if you already have a docker image, you can compile you code\n> there with \"-g -O0\" options and run it in:\n>\n> R -d gdb\n> (gdb) run\n> <run your R/Rcpp (test)code. An error will bring you back to gdb where\n> you can check relevant frames, parameters, cals and so on.>\n>\n> Hoping it helps,\n> Best,\n> Serguei.\n>\n>\n> > Apart from installing a full fledged instance of Ubuntu with VS Code and\n> > debugger, is there a way I can get closer to finding out what the issue\n> is?\n> >\n> > Clip from the failed R error messages when I call\n> > shg$runSimFromFixedValues(N, 0, 0, 1940):\n> >\n> >   *** caught segfault ***\n> > address (nil), cause 'memory not mapped'\n> >\n> > Traceback:\n> >   1: .External(list(name = \"CppMethod__invoke_notvoid\", address =\n> > <pointer: 0x55efab6ef710>,     dll = list(name = \"Rcpp\", path = \"/usr/\n> > local/lib/R/site-library/Rcpp/libs/Rcpp.so\",         dynamicLookup =\n> > TRUE, handle = <pointer: 0x55efa9b64b30>,         info = <pointer:\n> > 0x55efaa89aaa0>, forceSymbols = FALSE),     numParameters = -1L),\n> > <pointer: 0x55efae9ae1f0>, <pointer: 0x55efaf2399d0>,     .pointer, ...)\n> >   2: shg$runSimFromFixedValues(N, 0, 0, 1940)\n> >\n> > Thanks,\n> >\n> > -John\n> >\n> > John Clarke | Senior Technical Advisor |\n> > Cornerstone Systems Northwest | john.clarke at cornerstonenw.com\n> > <mailto:john.clarke at cornerstonenw.com>\n> >\n> > _______________________________________________\n> > Rcpp-devel mailing list\n> > Rcpp-devel at lists.r-forge.r-project.org\n> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20250214/fca50534/attachment.htm>",
+      "body_snippet": "Hi Serguei,\n\nThank you! This didn't directly solve my problem, but it got me looking in\nthe right direction. I ended up connecting to a docker container through VS\nCode on my host machine (Windows). I",
+      "thread_id": "thread-78e1a75272ea",
+      "thread_depth": 2,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-e5c03629a5e6",
+      "message_id": "<26543.21650.270347.560400@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2025-02-14T08:34:58-06:00",
+      "subject": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "subject_clean": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "in_reply_to": "<CAF0e1n_GVVu0ax--8bKXtmUHYH_d_5JAwsEu=JgwiCJ0S9WQUg@mail.gmail.com>",
+      "references": [
+        "<CAF0e1n_gTVLwc9bHg5OahOsAgWTM8ETs+BORyyebdTM5DW0CAQ@mail.gmail.com>",
+        "<ab6ec0ba-dc72-4342-8b5c-4241c9f77f30@gmail.com>",
+        "<CAF0e1n_GVVu0ax--8bKXtmUHYH_d_5JAwsEu=JgwiCJ0S9WQUg@mail.gmail.com>"
+      ],
+      "body_plain": "On 14 February 2025 at 15:09, John Clarke wrote:\n| Thank you! This didn't directly solve my problem, but it got me looking in\n| the?right direction. I ended up connecting to a docker container through VS\n| Code on my host machine (Windows). I didn't wire up the debugger UI (which is\n| really convenient in VS Code) but was able to identify the issue through the VS\n| Code interface which is a lot easier to use than a bare terminal.\n\nGlad you have it sorted!\n\nBy the way, many of us use a sophisticated technology called \"adding printf\nstatements\". It would have allowed you to narrow it down in a running Ubuntu\nsession, be it local (and WSL2 is said to be good on Windows), or GitHub\nActions or container use as you did or ...\n \n| For the record the issue was a call to fclose(pOutStream) where pOutStream was\n| Null. On Windows and MacOS this didn't seem to cause a problem, but in Ubuntu\n| it failed. Sadly the traceback information was not precise enough to identify\n| the offending line of code, so I had to find it iteratively.\n\nBuilding, and maintaining, on different OSs is helpful for finding corner\nconditions.  While you initially suspected the toolchain (see your Subject:\nline), experience (and about 5 bazillion printf calls) taught a few us that a\nlook in the mirror often is a shortcut to the real driver of bug in our code.\n\nCheers, Dirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 14 February 2025 at 15:09, John Clarke wrote:\n| Thank you! This didn't directly solve my problem, but it got me looking in\n| the?right direction. I ended up connecting to a docker container through",
+      "thread_id": "thread-78e1a75272ea",
+      "thread_depth": 3,
+      "month": "2025-02"
+    },
+    {
+      "id": "msg-2a40e86c9c8b",
+      "message_id": "<CAF0e1n8T_T_crWCrNcrh525+n0PuRpb5jt0x9j0f5ah=V-0dgw@mail.gmail.com>",
+      "from_name": "John Clarke",
+      "from_email_hash": "772cfb5bcf886baaa0ab0365ad573595f7ba4dfbe3eda61780ad68928fa100dc",
+      "date": "2025-02-14T20:39:41+01:00",
+      "subject": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "subject_clean": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "in_reply_to": "<26543.21650.270347.560400@rob.eddelbuettel.com>",
+      "references": [
+        "<CAF0e1n_gTVLwc9bHg5OahOsAgWTM8ETs+BORyyebdTM5DW0CAQ@mail.gmail.com>",
+        "<ab6ec0ba-dc72-4342-8b5c-4241c9f77f30@gmail.com>",
+        "<CAF0e1n_GVVu0ax--8bKXtmUHYH_d_5JAwsEu=JgwiCJ0S9WQUg@mail.gmail.com>",
+        "<26543.21650.270347.560400@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Thanks Dirk -- my apologies -- I see now that the subject line does kind of\nimply the toolchain. That was not my intention -- I think I was just trying\nto give people context -- the error happened in the context of an\nRcpp-dependent app with the last useful message mentioning Rcpp, so I guess\nI thought that would help. I had no doubt that the problem was somewhere in\nmy own code ;).\n\nGood point on the \"sophisticated\" printf tech. I thought I was the only one\nwho still used that. I have found, though, that VS Code can be super\nhelpful once the debugger is wired correctly. In this case, I used\nRcpp::rcout which worked well because I was running the devtools:test() in\na remote R session.\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20250214/8ad5cdee/attachment.htm>",
+      "body_snippet": "Thanks Dirk -- my apologies -- I see now that the subject line does kind of\nimply the toolchain. That was not my intention -- I think I was just trying\nto give people context -- the error happened in ",
+      "thread_id": "thread-78e1a75272ea",
+      "thread_depth": 4,
+      "month": "2025-02"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-82568a0d9d81",
+      "subject": "[Rcpp-devel] Using Rcpp::Function in parallel with TBB mutex lock & a reference.",
+      "message_count": 5,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Kumar MS"
+      ],
+      "started": "2025-02-07T13:04:45-05:00",
+      "last_reply": "2025-02-10T07:46:30-05:00",
+      "root_message_id": "msg-82568a0d9d81"
+    },
+    {
+      "id": "thread-78e1a75272ea",
+      "subject": "[Rcpp-devel] memory not mapped with Rcpp on Ubuntu",
+      "message_count": 5,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "John Clarke",
+        "Serguei Sokol"
+      ],
+      "started": "2025-02-13T15:17:48+01:00",
+      "last_reply": "2025-02-14T20:39:41+01:00",
+      "root_message_id": "msg-78e1a75272ea"
+    }
+  ]
+}
