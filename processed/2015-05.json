@@ -2391,6 +2391,46 @@
       "thread_id": "thread-f76db4940d39",
       "thread_depth": 1,
       "month": "2015-05"
+    },
+    {
+      "id": "msg-f86fe6533cb7",
+      "message_id": "<21867.34676.551356.880856@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2015-05-31T17:13:08-05:00",
+      "subject": "[Rcpp-devel] RcppArmadillo, solve always requires zgels?",
+      "subject_clean": "[Rcpp-devel] RcppArmadillo, solve always requires zgels?",
+      "in_reply_to": "<CANLFJPr5_tnJ02c_1Om_y0=u4Mwit6zOC7NhF+M3vrv6EMXO_Q@mail.gmail.com>",
+      "references": [
+        "<CANLFJPomkp9as5h_cTCvrtHL6-xRb_4DSVt0s_jN2pHoJJfrWg@mail.gmail.com>",
+        "<21867.2242.801512.541835@max.nulle.part>",
+        "<CANLFJPr5_tnJ02c_1Om_y0=u4Mwit6zOC7NhF+M3vrv6EMXO_Q@mail.gmail.com>"
+      ],
+      "body_plain": "On 1 June 2015 at 09:06, Baptiste Auguie wrote:\n| Hi,\n| \n| Thanks Dirk for your suggestions. Let me try to clarify a few things below.\n| Basically,\n| \n| - zgels should not be needed (probably, and if I was doing things correctly)\n| \n| - I believe the template mechanism is simply unaware of the square format of my\n| matrix, and defaults to the nrow < ncol case for lack of better knowledge. I do\n\nPer this line\n\n  https://github.com/RcppCore/RcppArmadillo/blob/master/inst/include/armadillo_bits/glue_solve_meat.hpp#L26\n\nI somehow have my doubts.\n\n| not know how to specify that the matrix is square, it's passed on from another\n| function, i.e.\n| \n| https://github.com/baptiste/cda/blob/master/src/cd.cpp#L49?\n| is using A from\n| https://github.com/baptiste/cda/blob/master/src/cda.cpp#L129\n| \n| The way I picture it, I need to give a hint of the square size, and armadillo\n| will pick the right function/template/glue (I don't know the mechanism at\n| play).\n\nCan you minimize the problem?  \"Minimally reproducible example\" which still\ngets to zgels when maybe it shouldn't?\n\nDirk\n\n| \n| On 1 June 2015 at 01:12, Dirk Eddelbuettel <edd at debian.org> wrote:\n| \n| \n|     Hi Baptiste,\n|    \n|     On 31 May 2015 at 20:47, Baptiste Auguie wrote:\n|     | Dear list,\n|     |\n|     | My cda package (https://github.com/baptiste/cda) solves a linear system\n|     Ax=b\n|     | with Armadillo; win-builder and CRAN complain about a missing \"zgels_\"\n|     when\n|     | trying to build on windows or mac, as it's not part of the subset of\n|     LAPACK\n|     | provided by R libraries (I asked about this in 2011). I have included a\n|     copy of\n| \n|     Right. When no system lapack/blas is found, R uses its own. Which is a\n|     subset.? We were bitten that once and now check in configure for\n|     availability\n|     of zgesdd.? I suppose this case is similar.\n| \n|     Look at the logic in\n| \n|     ? https://github.com/RcppCore/RcppArmadillo/blob/master/configure\n| \n|     You may need to do something similar for zgels.? So this part of the\n|     problem\n|     (\"do we have zgels ?\") really may be part of \"which type of R installation\n|     do\n|     we have\".\n| \n|     Worst case we need new branching / #ifdef logic --- but right now I think\n|     maybe more at the level of your package then at RcppArmadillo.\n|    \n| \n| \n| The easiest workaround, I find, is to include zgels.f, as I've been doing since\n| 2011. Now, my premise here is that this function is not needed in my package.\n| ?\n| \n|     | this file (zgels.f) from Netlib for the past few years just to make the\n|     problem\n|     | go away, but I've recently realised that zgels is not supposed to be\n|     called! It\n|     | builds fine on Linux, or any machine with a full LAPACK installed, but\n|     I'm now\n|     | wondering if solve() always calls zgels (that would be inefficient for my\n|     | use-case).?\n| \n|     From the top-level, when I just use ag (a fantastic and much faster grep\n|     alternative; and mail will drop the ansi code for colour highlihting from\n|     the\n|     console)\n| \n| \n| Yes, I've tried to look at where zgels is called in the original Armadillo;\n| it's not crystal clear (for me) with the templates and glue etc. ?\n| \n| \n|     edd at max:~/git/rcpparmadillo(master)$ ag zgels\n|     inst/include/armadillo_bits/lapack_bones.hpp\n|     97:? #define arma_zgels? zgels\n|     205:? #define arma_zgels? ZGELS\n|     340:? void arma_fortran(arma_zgels)(char* trans, blas_int* m, blas_int* n,\n|     blas_int* nrhs, void*? ?a, blas_int* lda, void*? ?b, blas_int* ldb, void*?\n|     ?work, blas_int* lwork, blas_int* info);\n| \n|     inst/include/armadillo_bits/lapack_wrapper.hpp\n|     689:? ? ? arma_fortran(arma_zgels)(trans, m, n, nrhs, (T*)a, lda, (T*)b,\n|     ldb, (T*)work, lwork, info);\n|     edd at max:~/git/rcpparmadillo(master)$\n| \n|     I think you should discuss the merits of what gets called with Conrad.\n| \n| \n| Looking at the code and docs, the intent for square matrices is probably not to\n| use zgels. I believe my code is simply failing to give enough hints for the\n| templates to work out which case is actually being required.\n| \n|    \n|     | The matrix A is square: the system is not under/overdetermined, and I\n|     believe\n|     | Armadillo should select LU factorisation rather than (slower) QR. Here's\n|     the\n| \n|     It is hard to answer this in full generality --- and even harder to change\n|     an\n|     existing API.\n| \n|     If Armadillo has been using QR here for years, we cannot really change this\n|     now on the request of a single package.?\n| \n|    \n|     | error I get from win-builder when I remove zgels.f from my cda package,\n|     |\n|     | cd.o:cd.cpp:\n|     |\n|     (.text$_ZN4arma6auxlib8solve_udISt7complexIdENS_3MatIS3_EEEEbRNS4_IT_EES8_RKNS_4BaseIS6_T0_EE\n|     | [bool arma::auxlib::solve_ud<std::complex<double>, arma::Mat<std::complex\n|     | <double> > >(arma::Mat<std::complex<double> >&, arma::Mat<std::complex\n|     <double>\n|     | >&, arma::Base<std::complex<double>, arma::Mat<std::complex<double> > >\n|     const\n|     | &)]+0x3a5): undefined reference to `zgels_'\n|     |\n|     | So it thinks it should call solve_ud, which is meant for under-determined\n|     | systems. Why would that be??\n|     | I tried to find the relevant piece in the template code, this looks\n|     relevant\n|     | but I don't understand it: https://github.com/RcppCore/RcppArmadillo/blob\n|     /\n|     | master/inst/include/armadillo_bits/glue_solve_meat.hpp#L26\n| \n|     Well that seems to be the call in the 'rows < cols' case.\n| \n| \n| I linked to the case which is returned in the win-builder log; the case of a\n| square matrix would be a few lines earlier (note that the solve_ud case is the\n| default, if previous conditions fail to apply).\n| ?\n| \n| \n|     But if there is a function solve_ud, can you not just call solve_ud\n|     from your package?\n| \n| \n| That would be?auxlib::solve(out, A, X, slow); Yes, it's probably an option,\n| although if I were to bypass the high-level solve() interface, I'd probably\n| feel more comfortable with an explicit call to lu() instead.?\n| \n| \n|     I haven't had coffee yet so I may not need the full picture.?\n| \n|     Cheers, Dirk\n| \n| ?\n| Thanks!\n| \n| baptiste?\n| \n| \n| \n| \n|     |\n|     | Best regards,\n|     |\n|     | baptiste\n|     | _______________________________________________\n|     | Rcpp-devel mailing list\n|     | Rcpp-devel at lists.r-forge.r-project.org\n|     | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n|    \n|     --\n|     http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n| \n| \n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 1 June 2015 at 09:06, Baptiste Auguie wrote:\n| Hi,\n| \n| Thanks Dirk for your suggestions. Let me try to clarify a few things below.\n| Basically,\n| \n| - zgels should not be needed (probably, and if ",
+      "thread_id": "thread-f86fe6533cb7",
+      "thread_depth": 0,
+      "month": "2015-05"
+    },
+    {
+      "id": "msg-5f9536af4677",
+      "message_id": "<5C591F8C0073E544A1330AA751BA3E6913B5A489@chimbx4.ad.uillinois.edu>",
+      "from_name": "Balamuta, James Joseph",
+      "from_email_hash": "8f243e58be1e290c1d2f5c6d16b8f004df4464a2f0fc0abeddb4f48a10a82e91",
+      "date": "2015-05-31T23:42:01Z",
+      "subject": "[Rcpp-devel] OpenMP and Parallel BLAS",
+      "subject_clean": "[Rcpp-devel] OpenMP and Parallel BLAS",
+      "in_reply_to": "<CACskXR=83FNJy+XKR491cJmFWVu3rAFGfaCKrBpJWwV5EB2MYg@mail.gmail.com>",
+      "references": [
+        "<CACskXRnF_iCqvUrs6z+47id5ve4fecxoCRtcrjHOtc=jV++sGg@mail.gmail.com>",
+        "<5C591F8C0073E544A1330AA751BA3E6913B46DA2@chimbx4.ad.uillinois.edu>",
+        "<CACskXR=83FNJy+XKR491cJmFWVu3rAFGfaCKrBpJWwV5EB2MYg@mail.gmail.com>"
+      ],
+      "body_plain": "Greetings and Salutations,\n\nThe answer is yes, multiple processes can concurrently modify different parts of the object. So, the object is not ?locked.?\n\nIn this case, it?s important to note the scope of the object being ?shared? and not ?private.?\n\nAlso, the object is not being used in any computations that could introduce a race condition.\n\nTo confirm, here is a simple test using cores = 1:5 and a matrix of 100 x 100 dimensions:\n\nUnit: milliseconds\nexpr                 min            lq               mean      median        uq            max         neval\nreg              149.16828 150.57064 151.50028 151.14911 151.77306 167.89586   100\nomp_1core 148.61683 150.38602 150.97419 150.92021 151.42784 153.87262   100\nomp_2core  76.87057  77.67058  78.72599  78.07599  78.75143  88.49076   100\nomp_3core  52.86078  53.41599  55.48897  53.81420  56.09687  66.68860   100\nomp_4core  40.09745  42.64505  46.52619  44.09979  49.99153  63.37927   100\nomp_5core  39.23680  44.04410  46.22926  45.22581  48.45514  51.05932   100\n\n> all.equal(updateImplicitX(test,test,test,test,5),updateImplicitX_p(test,test,test,test,5,3))\n[1] TRUE\n\nSo, there is ~2x ? 3.4x speed up vs. the non-parallel version.\n\nParallel version using my suggestions and benchmarking?\n\nhttps://gist.github.com/coatless/5c4f95c69f7a1b61b2a5\n\n\nSincerely,\n\nJJB\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150531/88c33a0b/attachment.html>",
+      "body_snippet": "Greetings and Salutations,\n\nThe answer is yes, multiple processes can concurrently modify different parts of the object. So, the object is not ?locked.?\n\nIn this case, it?s important to note the scope",
+      "thread_id": "thread-41a545cd3eaa",
+      "thread_depth": 3,
+      "month": "2015-05"
     }
   ],
   "threads": [
@@ -2631,15 +2671,26 @@
     {
       "id": "thread-41a545cd3eaa",
       "subject": "[Rcpp-devel] OpenMP and Parallel BLAS",
-      "message_count": 4,
+      "message_count": 5,
       "participants": [
         "Balamuta, James Joseph",
         "Dirk Eddelbuettel",
         "Saurabh B"
       ],
       "started": "2015-05-26T17:53:04-04:00",
-      "last_reply": "2015-05-27T11:16:47-04:00",
+      "last_reply": "2015-05-31T23:42:01+00:00",
       "root_message_id": "msg-41a545cd3eaa"
+    },
+    {
+      "id": "thread-f86fe6533cb7",
+      "subject": "[Rcpp-devel] RcppArmadillo, solve always requires zgels?",
+      "message_count": 1,
+      "participants": [
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2015-05-31T17:13:08-05:00",
+      "last_reply": "2015-05-31T17:13:08-05:00",
+      "root_message_id": "msg-f86fe6533cb7"
     },
     {
       "id": "thread-f76db4940d39",
