@@ -1,0 +1,703 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2016-08",
+  "messages": [
+    {
+      "id": "msg-5fcf730ea940",
+      "message_id": "<22431.15192.41783.282034@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-01T07:06:48-05:00",
+      "subject": "[Rcpp-devel] Templates and Debugging Symbols",
+      "subject_clean": "[Rcpp-devel] Templates and Debugging Symbols",
+      "in_reply_to": "<CAEWw9xXx3Wsk=y0tqESR4Gw+D42R=WGYkGcL6eFV9vaZgOUtQw@mail.gmail.com>",
+      "references": [
+        "<CAEWw9xXx3Wsk=y0tqESR4Gw+D42R=WGYkGcL6eFV9vaZgOUtQw@mail.gmail.com>"
+      ],
+      "body_plain": "On 31 July 2016 at 10:42, Dan Dillon wrote:\n| I am writing a package that makes heavy use of templates.? Since all R packages\n| are compiled with the -g flag (for g++ and clang++ anyhow), this ends up\n\n[ If and only if R itself had been configure with that flag during its\nbuild. And using that flag is a prescribed default for Debian (and hence\nUbuntu) (as we, for just about every binary, very cleverly strip away debug\nsymbol into a addon-package foo-dbg for each foo). ]\n\n| putting debugging symbols in the resulting library (.so).? The problem is, that\n| the size of these symbols bloats the shared library to a ridiculous extent\n| (13.0MB with, 54K without).\n| \n| I am looking for a portable way to suppress the creation of debugging symbols\n| within the libraries.? For gcc/clang it is simple: add -Wl,-S to your PKG_LIBS\n| variable, but this is not portable.? Furthermore, since my package is really\n| just a set of headers to be used within Rcpp, any user of my package would need\n| to be able to easily specify to strip debugging symbols in any file that\n| includes my headers.\n| \n| My thoughts are these:\n| \n| 1) if a portable way of making sure debugging symbols are stripped from the\n| shared libraries is available, turn it into an Rcpp plugin (e.g. //\n| [[Rcpp::plugins(strip)]]\n| 2) conceive of a way to do it portably and expose it.\n\n1) is pretty clever. We should do that.\n\n2) seems pretty hard. I never found a way to override values already set in\n/etc/R/Makeconf (or whereever your R stores its Makeconf).  That has been\ndiscussed before (on r-devel, as I recall) without a solution.\n \n| I'm looking for any advice or help with this issue.\n\nI'd say let's do the plugin.  That is a good idea.\n\nIt would be an equally good idea to dedicate a new DESCRIPTION field (and/or\nR CMD ... option) to this, and propose a patch to R Core to strip upon R CMD\nINSTALL.  This is a more general issue, and it would useful to trim down all\nshared libraries as we don't generally call the debugger on them.  Save those\nprecious bytes!\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 31 July 2016 at 10:42, Dan Dillon wrote:\n| I am writing a package that makes heavy use of templates.? Since all R packages\n| are compiled with the -g flag (for g++ and clang++ anyhow), this ends up",
+      "thread_id": "thread-5fcf730ea940",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-6b26d2dee14b",
+      "message_id": "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>",
+      "from_name": "George Vega Yon",
+      "from_email_hash": "edae9fce24743142989114d1e7ee4aea5716adfbeaaedf579206b4e101ca484c",
+      "date": "2016-08-03T10:50:27-07:00",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "subject_clean": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hey there,\n\nLooking at some old R code that I have I found this C++ function that\nallows evaluating R-written functions within C++ using Rcpp. While this is\nno news, the neat thing of it is that it seems to be faster than\nRcpp::Function. Using microbenchmark I compared using Rcpp::function vs my\nimplementation vs calling the function from R itself and this is what I got\n\nUnit: relative\n                expr min  lq     mean median  uq max neval\n  cppFuncall(x, fun) 1.3 1.3 1.39    1.3 1.4  83 10000\n RcppFuncall(x, fun) 7.2 7.1 7.13    6.9 6.8  89 10000\n              fun(x) 1.0 1.0 1.00    1.0 1.0   1 10000\n\nSo, on average, while Rcpp::Function took ~7 times the R call took, my\nimplementation took ~1.3 times. To be sure I was not breaking anything I\nran the example using valgrind and there is no memory leak. The source code\nfor the test follows:\n\n-------- example_calling_r_functions.cpp ----\n\n#include <Rinternals.h>\n#include <Rcpp.h>\n\n// [[Rcpp::export]]\nSEXP cppFuncall(SEXP par, SEXP fn)\n{\n  SEXP R_fcall, ans;\n\n  if(!isFunction(fn)) error(\"'fn' must be a function\");\n  R_fcall = PROTECT(lang2(fn, R_NilValue));\n\n  SETCADR(R_fcall, par);\n  ans=eval(R_fcall, R_GlobalEnv);\n  UNPROTECT(1);\n  return ans;\n}\n\nusing namespace Rcpp;\n\n// [[Rcpp::export]]\nSEXP RcppFuncall(NumericVector par, Function fn)\n{\n  return fn(par);\n}\n\n\n\n/*** R\n# R function to be called\nfun <- function(x) {\n  -cos(x[1])*cos(x[2])*exp(-((x[1] - pi)^2 + (x[2] - pi)^2))\n}\n\n# Input data\nset.seed(3331)\nx <- runif(1e3)\n\n# Benchmarking\nlibrary(microbenchmark)\nmicrobenchmark(\n  cppFuncall(x, fun), RcppFuncall(x,fun), fun(x), times=1e4,\n  unit=\"relative\", control = list(warmup=100)\n)\n*/\n\n-------- example_calling_r_functions.cpp ----\n\nI've asked around about how to make things faster for function calls in\nRcpp but, from what I've been told it is difficult since the implementation\nof Rcpp::Function actually has to go back to R to work (or something like\nthat :P). Now, this implementation, -cppFuncall-, has no problem when it\ncomes to passing wrong arguments, e.g. if you pass a character vector to it\nR will complain but there won't be any system crash. One big difference is\nthat here I'm relying on passing all the function's arguments in a single\nobject while Rcpp::Function does not. Either way, if this is OK this could\nbe a nice extra feature for Rcpp, I'm thinking of optimization routines (or\nother kinds of algorithms) that rely on calling R functions multiple times.\n\nThe thing is that I'm still learning C++  and  I'm not Rinternals expert at\nall! So I would love to get some feedback from you guys. Does this\nfunction, -cppFuncall-, looks OK? in other words, am I doing/getting\nsomething wrong here?\n\nThanks,\n\nGeorge G. Vega Yon\n+1 (626) 381 8171\nhttp://www.its.caltech.edu/~gvegayon/\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160803/d8814ddc/attachment.html>",
+      "body_snippet": "Hey there,\n\nLooking at some old R code that I have I found this C++ function that\nallows evaluating R-written functions within C++ using Rcpp. While this is\nno news, the neat thing of it is that it se",
+      "thread_id": "thread-6b26d2dee14b",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-d998c14bc0e9",
+      "message_id": "<CAJXgQP1=KuH9+WiBSaoOOJkSTDPBZrnMGA8nOHT5EG1rSFPVtw@mail.gmail.com>",
+      "from_name": "Kevin Ushey",
+      "from_email_hash": "fd1e8dc06c8e4652d61a44d70d6e99b3b7fb556bac7ad471ff6447d5a6e491ec",
+      "date": "2016-08-03T11:28:50-07:00",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "subject_clean": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "in_reply_to": "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>",
+      "references": [
+        "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>"
+      ],
+      "body_plain": "The problem with your implementation is what happens if R throws an\nerror. The R longjmp will cause any C++ objects on the stack to leak,\ntheir destructors not to run, and you'll essentially be in a bad place\nif you evaluate any R code that might return an error. (For example,\nsuppose you had a file handle open, and then evaluated your R function\nusing 'eval', but an R error was produced. That file handle would\n'leak' and you wouldn't be able to recover it)\n\nYou can instead use the `Rf_tryEval` or `Rf_tryEvalSilent` routines,\nbut those don't respect active handlers (e.g. warning, message\nhandlers) and so aren't sufficient for general use.\n\nRcpp basically handles this by enclosing any expression to be\nevaluated in an R 'tryCatch' call, with error + interrupt handlers\nattached. This is, of course, slower since a lot more R code is being\nevaluated, but right now it's the only way to safely execute an R\nfunction in a C++ context while respecting all other active handlers.\n\nIn short, the Rcpp::Function implementation is designed to be as safe\n+ correct as possible, with the downside being that it's slower.\nHowever, we generally advise that you shouldn't call back to R too\nfrequently from a C++ context, so that overhead should in most cases\nbe not too bad.\n\nBest,\nKevin\n\nOn Wed, Aug 3, 2016 at 10:50 AM, George Vega Yon <g.vegayon at gmail.com> wrote:\n> Hey there,\n>\n> Looking at some old R code that I have I found this C++ function that allows\n> evaluating R-written functions within C++ using Rcpp. While this is no news,\n> the neat thing of it is that it seems to be faster than Rcpp::Function.\n> Using microbenchmark I compared using Rcpp::function vs my implementation vs\n> calling the function from R itself and this is what I got\n>\n> Unit: relative\n>                 expr min  lq     mean median  uq max neval\n>   cppFuncall(x, fun) 1.3 1.3 1.39    1.3 1.4  83 10000\n>  RcppFuncall(x, fun) 7.2 7.1 7.13    6.9 6.8  89 10000\n>               fun(x) 1.0 1.0 1.00    1.0 1.0   1 10000\n>\n> So, on average, while Rcpp::Function took ~7 times the R call took, my\n> implementation took ~1.3 times. To be sure I was not breaking anything I ran\n> the example using valgrind and there is no memory leak. The source code for\n> the test follows:\n>\n> -------- example_calling_r_functions.cpp ----\n>\n> #include <Rinternals.h>\n> #include <Rcpp.h>\n>\n> // [[Rcpp::export]]\n> SEXP cppFuncall(SEXP par, SEXP fn)\n> {\n>   SEXP R_fcall, ans;\n>\n>   if(!isFunction(fn)) error(\"'fn' must be a function\");\n>   R_fcall = PROTECT(lang2(fn, R_NilValue));\n>\n>   SETCADR(R_fcall, par);\n>   ans=eval(R_fcall, R_GlobalEnv);\n>   UNPROTECT(1);\n>   return ans;\n> }\n>\n> using namespace Rcpp;\n>\n> // [[Rcpp::export]]\n> SEXP RcppFuncall(NumericVector par, Function fn)\n> {\n>   return fn(par);\n> }\n>\n>\n>\n> /*** R\n> # R function to be called\n> fun <- function(x) {\n>   -cos(x[1])*cos(x[2])*exp(-((x[1] - pi)^2 + (x[2] - pi)^2))\n> }\n>\n> # Input data\n> set.seed(3331)\n> x <- runif(1e3)\n>\n> # Benchmarking\n> library(microbenchmark)\n> microbenchmark(\n>   cppFuncall(x, fun), RcppFuncall(x,fun), fun(x), times=1e4,\n>   unit=\"relative\", control = list(warmup=100)\n> )\n> */\n>\n> -------- example_calling_r_functions.cpp ----\n>\n> I've asked around about how to make things faster for function calls in Rcpp\n> but, from what I've been told it is difficult since the implementation of\n> Rcpp::Function actually has to go back to R to work (or something like that\n> :P). Now, this implementation, -cppFuncall-, has no problem when it comes to\n> passing wrong arguments, e.g. if you pass a character vector to it R will\n> complain but there won't be any system crash. One big difference is that\n> here I'm relying on passing all the function's arguments in a single object\n> while Rcpp::Function does not. Either way, if this is OK this could be a\n> nice extra feature for Rcpp, I'm thinking of optimization routines (or other\n> kinds of algorithms) that rely on calling R functions multiple times.\n>\n> The thing is that I'm still learning C++  and  I'm not Rinternals expert at\n> all! So I would love to get some feedback from you guys. Does this function,\n> -cppFuncall-, looks OK? in other words, am I doing/getting something wrong\n> here?\n>\n> Thanks,\n>\n> George G. Vega Yon\n> +1 (626) 381 8171\n> http://www.its.caltech.edu/~gvegayon/\n>\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "The problem with your implementation is what happens if R throws an\nerror. The R longjmp will cause any C++ objects on the stack to leak,\ntheir destructors not to run, and you'll essentially be in a b",
+      "thread_id": "thread-6b26d2dee14b",
+      "thread_depth": 1,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-c3bb05614b14",
+      "message_id": "<CAJXgQP15=04-qbG4VoCr=McVOuW3bbLXJL0vyaPzh00ZF0BTdg@mail.gmail.com>",
+      "from_name": "Kevin Ushey",
+      "from_email_hash": "fd1e8dc06c8e4652d61a44d70d6e99b3b7fb556bac7ad471ff6447d5a6e491ec",
+      "date": "2016-08-03T11:29:37-07:00",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "subject_clean": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "in_reply_to": "<CAJXgQP1=KuH9+WiBSaoOOJkSTDPBZrnMGA8nOHT5EG1rSFPVtw@mail.gmail.com>",
+      "references": [
+        "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>",
+        "<CAJXgQP1=KuH9+WiBSaoOOJkSTDPBZrnMGA8nOHT5EG1rSFPVtw@mail.gmail.com>"
+      ],
+      "body_plain": "Also note that you definitely don't want to call `Rf_error` from a C++\ncontext in general, as it will bypass any active C++ try-catch blocks,\nbypass destructors, and so on. You should call `Rcpp::stop` explicitly\nand use Rcpp attributes to ensure the try-catch block is automagically\nset up for you.\n\nOn Wed, Aug 3, 2016 at 11:28 AM, Kevin Ushey <kevinushey at gmail.com> wrote:\n> The problem with your implementation is what happens if R throws an\n> error. The R longjmp will cause any C++ objects on the stack to leak,\n> their destructors not to run, and you'll essentially be in a bad place\n> if you evaluate any R code that might return an error. (For example,\n> suppose you had a file handle open, and then evaluated your R function\n> using 'eval', but an R error was produced. That file handle would\n> 'leak' and you wouldn't be able to recover it)\n>\n> You can instead use the `Rf_tryEval` or `Rf_tryEvalSilent` routines,\n> but those don't respect active handlers (e.g. warning, message\n> handlers) and so aren't sufficient for general use.\n>\n> Rcpp basically handles this by enclosing any expression to be\n> evaluated in an R 'tryCatch' call, with error + interrupt handlers\n> attached. This is, of course, slower since a lot more R code is being\n> evaluated, but right now it's the only way to safely execute an R\n> function in a C++ context while respecting all other active handlers.\n>\n> In short, the Rcpp::Function implementation is designed to be as safe\n> + correct as possible, with the downside being that it's slower.\n> However, we generally advise that you shouldn't call back to R too\n> frequently from a C++ context, so that overhead should in most cases\n> be not too bad.\n>\n> Best,\n> Kevin\n>\n> On Wed, Aug 3, 2016 at 10:50 AM, George Vega Yon <g.vegayon at gmail.com> wrote:\n>> Hey there,\n>>\n>> Looking at some old R code that I have I found this C++ function that allows\n>> evaluating R-written functions within C++ using Rcpp. While this is no news,\n>> the neat thing of it is that it seems to be faster than Rcpp::Function.\n>> Using microbenchmark I compared using Rcpp::function vs my implementation vs\n>> calling the function from R itself and this is what I got\n>>\n>> Unit: relative\n>>                 expr min  lq     mean median  uq max neval\n>>   cppFuncall(x, fun) 1.3 1.3 1.39    1.3 1.4  83 10000\n>>  RcppFuncall(x, fun) 7.2 7.1 7.13    6.9 6.8  89 10000\n>>               fun(x) 1.0 1.0 1.00    1.0 1.0   1 10000\n>>\n>> So, on average, while Rcpp::Function took ~7 times the R call took, my\n>> implementation took ~1.3 times. To be sure I was not breaking anything I ran\n>> the example using valgrind and there is no memory leak. The source code for\n>> the test follows:\n>>\n>> -------- example_calling_r_functions.cpp ----\n>>\n>> #include <Rinternals.h>\n>> #include <Rcpp.h>\n>>\n>> // [[Rcpp::export]]\n>> SEXP cppFuncall(SEXP par, SEXP fn)\n>> {\n>>   SEXP R_fcall, ans;\n>>\n>>   if(!isFunction(fn)) error(\"'fn' must be a function\");\n>>   R_fcall = PROTECT(lang2(fn, R_NilValue));\n>>\n>>   SETCADR(R_fcall, par);\n>>   ans=eval(R_fcall, R_GlobalEnv);\n>>   UNPROTECT(1);\n>>   return ans;\n>> }\n>>\n>> using namespace Rcpp;\n>>\n>> // [[Rcpp::export]]\n>> SEXP RcppFuncall(NumericVector par, Function fn)\n>> {\n>>   return fn(par);\n>> }\n>>\n>>\n>>\n>> /*** R\n>> # R function to be called\n>> fun <- function(x) {\n>>   -cos(x[1])*cos(x[2])*exp(-((x[1] - pi)^2 + (x[2] - pi)^2))\n>> }\n>>\n>> # Input data\n>> set.seed(3331)\n>> x <- runif(1e3)\n>>\n>> # Benchmarking\n>> library(microbenchmark)\n>> microbenchmark(\n>>   cppFuncall(x, fun), RcppFuncall(x,fun), fun(x), times=1e4,\n>>   unit=\"relative\", control = list(warmup=100)\n>> )\n>> */\n>>\n>> -------- example_calling_r_functions.cpp ----\n>>\n>> I've asked around about how to make things faster for function calls in Rcpp\n>> but, from what I've been told it is difficult since the implementation of\n>> Rcpp::Function actually has to go back to R to work (or something like that\n>> :P). Now, this implementation, -cppFuncall-, has no problem when it comes to\n>> passing wrong arguments, e.g. if you pass a character vector to it R will\n>> complain but there won't be any system crash. One big difference is that\n>> here I'm relying on passing all the function's arguments in a single object\n>> while Rcpp::Function does not. Either way, if this is OK this could be a\n>> nice extra feature for Rcpp, I'm thinking of optimization routines (or other\n>> kinds of algorithms) that rely on calling R functions multiple times.\n>>\n>> The thing is that I'm still learning C++  and  I'm not Rinternals expert at\n>> all! So I would love to get some feedback from you guys. Does this function,\n>> -cppFuncall-, looks OK? in other words, am I doing/getting something wrong\n>> here?\n>>\n>> Thanks,\n>>\n>> George G. Vega Yon\n>> +1 (626) 381 8171\n>> http://www.its.caltech.edu/~gvegayon/\n>>\n>> _______________________________________________\n>> Rcpp-devel mailing list\n>> Rcpp-devel at lists.r-forge.r-project.org\n>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "Also note that you definitely don't want to call `Rf_error` from a C++\ncontext in general, as it will bypass any active C++ try-catch blocks,\nbypass destructors, and so on. You should call `Rcpp::stop",
+      "thread_id": "thread-6b26d2dee14b",
+      "thread_depth": 2,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-3a72c18dfe80",
+      "message_id": "<CAPJUxXVic3+K1muEwSxd1G5VLVso4sMi5eELhRJH6DvKc5P0CA@mail.gmail.com>",
+      "from_name": "George Vega Yon",
+      "from_email_hash": "edae9fce24743142989114d1e7ee4aea5716adfbeaaedf579206b4e101ca484c",
+      "date": "2016-08-03T11:38:49-07:00",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "subject_clean": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "in_reply_to": "<CAJXgQP15=04-qbG4VoCr=McVOuW3bbLXJL0vyaPzh00ZF0BTdg@mail.gmail.com>",
+      "references": [
+        "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>",
+        "<CAJXgQP1=KuH9+WiBSaoOOJkSTDPBZrnMGA8nOHT5EG1rSFPVtw@mail.gmail.com>",
+        "<CAJXgQP15=04-qbG4VoCr=McVOuW3bbLXJL0vyaPzh00ZF0BTdg@mail.gmail.com>"
+      ],
+      "body_plain": "Thanks for the quick reply! What kind of errors are we talking about? I a\nnew run I explicitly caused an error by passing a character vector, and had\nno memory leak (using Valgrind):\n\ncppFuncall(letters, fun)\nError in cos(x[1]) : non-numeric argument to mathematical function\n\nIf its not too much to ask, could you give an explicit example in which\nthat happens (memory leak)? Just trying to learn here!\n\nThanks,\n\n\nGeorge G. Vega Yon\n+1 (626) 381 8171\nhttp://www.its.caltech.edu/~gvegayon/\n\nOn Wed, Aug 3, 2016 at 11:29 AM, Kevin Ushey <kevinushey at gmail.com> wrote:\n\n> Also note that you definitely don't want to call `Rf_error` from a C++\n> context in general, as it will bypass any active C++ try-catch blocks,\n> bypass destructors, and so on. You should call `Rcpp::stop` explicitly\n> and use Rcpp attributes to ensure the try-catch block is automagically\n> set up for you.\n>\n> On Wed, Aug 3, 2016 at 11:28 AM, Kevin Ushey <kevinushey at gmail.com> wrote:\n> > The problem with your implementation is what happens if R throws an\n> > error. The R longjmp will cause any C++ objects on the stack to leak,\n> > their destructors not to run, and you'll essentially be in a bad place\n> > if you evaluate any R code that might return an error. (For example,\n> > suppose you had a file handle open, and then evaluated your R function\n> > using 'eval', but an R error was produced. That file handle would\n> > 'leak' and you wouldn't be able to recover it)\n> >\n> > You can instead use the `Rf_tryEval` or `Rf_tryEvalSilent` routines,\n> > but those don't respect active handlers (e.g. warning, message\n> > handlers) and so aren't sufficient for general use.\n> >\n> > Rcpp basically handles this by enclosing any expression to be\n> > evaluated in an R 'tryCatch' call, with error + interrupt handlers\n> > attached. This is, of course, slower since a lot more R code is being\n> > evaluated, but right now it's the only way to safely execute an R\n> > function in a C++ context while respecting all other active handlers.\n> >\n> > In short, the Rcpp::Function implementation is designed to be as safe\n> > + correct as possible, with the downside being that it's slower.\n> > However, we generally advise that you shouldn't call back to R too\n> > frequently from a C++ context, so that overhead should in most cases\n> > be not too bad.\n> >\n> > Best,\n> > Kevin\n> >\n> > On Wed, Aug 3, 2016 at 10:50 AM, George Vega Yon <g.vegayon at gmail.com>\n> wrote:\n> >> Hey there,\n> >>\n> >> Looking at some old R code that I have I found this C++ function that\n> allows\n> >> evaluating R-written functions within C++ using Rcpp. While this is no\n> news,\n> >> the neat thing of it is that it seems to be faster than Rcpp::Function.\n> >> Using microbenchmark I compared using Rcpp::function vs my\n> implementation vs\n> >> calling the function from R itself and this is what I got\n> >>\n> >> Unit: relative\n> >>                 expr min  lq     mean median  uq max neval\n> >>   cppFuncall(x, fun) 1.3 1.3 1.39    1.3 1.4  83 10000\n> >>  RcppFuncall(x, fun) 7.2 7.1 7.13    6.9 6.8  89 10000\n> >>               fun(x) 1.0 1.0 1.00    1.0 1.0   1 10000\n> >>\n> >> So, on average, while Rcpp::Function took ~7 times the R call took, my\n> >> implementation took ~1.3 times. To be sure I was not breaking anything\n> I ran\n> >> the example using valgrind and there is no memory leak. The source code\n> for\n> >> the test follows:\n> >>\n> >> -------- example_calling_r_functions.cpp ----\n> >>\n> >> #include <Rinternals.h>\n> >> #include <Rcpp.h>\n> >>\n> >> // [[Rcpp::export]]\n> >> SEXP cppFuncall(SEXP par, SEXP fn)\n> >> {\n> >>   SEXP R_fcall, ans;\n> >>\n> >>   if(!isFunction(fn)) error(\"'fn' must be a function\");\n> >>   R_fcall = PROTECT(lang2(fn, R_NilValue));\n> >>\n> >>   SETCADR(R_fcall, par);\n> >>   ans=eval(R_fcall, R_GlobalEnv);\n> >>   UNPROTECT(1);\n> >>   return ans;\n> >> }\n> >>\n> >> using namespace Rcpp;\n> >>\n> >> // [[Rcpp::export]]\n> >> SEXP RcppFuncall(NumericVector par, Function fn)\n> >> {\n> >>   return fn(par);\n> >> }\n> >>\n> >>\n> >>\n> >> /*** R\n> >> # R function to be called\n> >> fun <- function(x) {\n> >>   -cos(x[1])*cos(x[2])*exp(-((x[1] - pi)^2 + (x[2] - pi)^2))\n> >> }\n> >>\n> >> # Input data\n> >> set.seed(3331)\n> >> x <- runif(1e3)\n> >>\n> >> # Benchmarking\n> >> library(microbenchmark)\n> >> microbenchmark(\n> >>   cppFuncall(x, fun), RcppFuncall(x,fun), fun(x), times=1e4,\n> >>   unit=\"relative\", control = list(warmup=100)\n> >> )\n> >> */\n> >>\n> >> -------- example_calling_r_functions.cpp ----\n> >>\n> >> I've asked around about how to make things faster for function calls in\n> Rcpp\n> >> but, from what I've been told it is difficult since the implementation\n> of\n> >> Rcpp::Function actually has to go back to R to work (or something like\n> that\n> >> :P). Now, this implementation, -cppFuncall-, has no problem when it\n> comes to\n> >> passing wrong arguments, e.g. if you pass a character vector to it R\n> will\n> >> complain but there won't be any system crash. One big difference is that\n> >> here I'm relying on passing all the function's arguments in a single\n> object\n> >> while Rcpp::Function does not. Either way, if this is OK this could be a\n> >> nice extra feature for Rcpp, I'm thinking of optimization routines (or\n> other\n> >> kinds of algorithms) that rely on calling R functions multiple times.\n> >>\n> >> The thing is that I'm still learning C++  and  I'm not Rinternals\n> expert at\n> >> all! So I would love to get some feedback from you guys. Does this\n> function,\n> >> -cppFuncall-, looks OK? in other words, am I doing/getting something\n> wrong\n> >> here?\n> >>\n> >> Thanks,\n> >>\n> >> George G. Vega Yon\n> >> +1 (626) 381 8171\n> >> http://www.its.caltech.edu/~gvegayon/\n> >>\n> >> _______________________________________________\n> >> Rcpp-devel mailing list\n> >> Rcpp-devel at lists.r-forge.r-project.org\n> >> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160803/45c11724/attachment-0001.html>",
+      "body_snippet": "Thanks for the quick reply! What kind of errors are we talking about? I a\nnew run I explicitly caused an error by passing a character vector, and had\nno memory leak (using Valgrind):\n\ncppFuncall(lette",
+      "thread_id": "thread-6b26d2dee14b",
+      "thread_depth": 3,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-66a58845873f",
+      "message_id": "<22434.17544.266152.67909@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-03T14:22:48-05:00",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "subject_clean": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "in_reply_to": "<CAPJUxXVic3+K1muEwSxd1G5VLVso4sMi5eELhRJH6DvKc5P0CA@mail.gmail.com>",
+      "references": [
+        "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>",
+        "<CAJXgQP1=KuH9+WiBSaoOOJkSTDPBZrnMGA8nOHT5EG1rSFPVtw@mail.gmail.com>",
+        "<CAJXgQP15=04-qbG4VoCr=McVOuW3bbLXJL0vyaPzh00ZF0BTdg@mail.gmail.com>",
+        "<CAPJUxXVic3+K1muEwSxd1G5VLVso4sMi5eELhRJH6DvKc5P0CA@mail.gmail.com>"
+      ],
+      "body_plain": "On 3 August 2016 at 11:38, George Vega Yon wrote:\n| Thanks for the quick reply! What kind of errors are we talking about? I a new\n| run I explicitly caused an error by passing a character vector, and had no\n| memory leak (using Valgrind):\n| \n| cppFuncall(letters, fun)\n| Error in cos(x[1]) : non-numeric argument to mathematical function\n| \n| If its not too much to ask, could you give an explicit example in which that\n| happens (memory leak)? Just trying to learn here!\n\nYou are misreading what Kevin said.  You short ten-line example runs fine.\nWe are not saying it has an error.\n\nWhat Kevin explained to you is that in the context of larger programs,\npossibly with inputs you don't know yet, some errors may occur. And both\nRcpp:Function() and Rcpp::stop() can recover from that.\n\nYour example cannot.  So by all means use it as a small (local) script if the\nfew milliseconds matter to you.  But think twice about using it in a larger\ncontext, or about promoting it as a general solution, and understand why we\ncan't put it into Rcpp as is.\n\nHth, Dirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 3 August 2016 at 11:38, George Vega Yon wrote:\n| Thanks for the quick reply! What kind of errors are we talking about? I a new\n| run I explicitly caused an error by passing a character vector, and ",
+      "thread_id": "thread-6b26d2dee14b",
+      "thread_depth": 4,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-9115631d91f6",
+      "message_id": "<CAJXgQP2tPrjXcFN5yKOXiZTt9GYPe0jQhksVfpDsiM5BSz9RTA@mail.gmail.com>",
+      "from_name": "Kevin Ushey",
+      "from_email_hash": "fd1e8dc06c8e4652d61a44d70d6e99b3b7fb556bac7ad471ff6447d5a6e491ec",
+      "date": "2016-08-03T12:34:08-07:00",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "subject_clean": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "in_reply_to": "<22434.17544.266152.67909@max.nulle.part>",
+      "references": [
+        "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>",
+        "<CAJXgQP1=KuH9+WiBSaoOOJkSTDPBZrnMGA8nOHT5EG1rSFPVtw@mail.gmail.com>",
+        "<CAJXgQP15=04-qbG4VoCr=McVOuW3bbLXJL0vyaPzh00ZF0BTdg@mail.gmail.com>",
+        "<CAPJUxXVic3+K1muEwSxd1G5VLVso4sMi5eELhRJH6DvKc5P0CA@mail.gmail.com>",
+        "<22434.17544.266152.67909@max.nulle.part>"
+      ],
+      "body_plain": "The simplest demonstrating example I can think of:\n\n---\n\n#include <Rcpp.h>\nusing namespace Rcpp;\n\nstruct A { ~A() { Rprintf(\"~A()\"); } };\n\n// [[Rcpp::export]]\nvoid ouch() {\n  A a;\n  Rf_error(\"ouch!\");\n}\n\n/*** R\nouch()\n*/\n\n---\n\nCall 'Rcpp::sourceCpp()' on that and you'll see:\n\n> Rcpp::sourceCpp('~/Desktop/Untitled.cpp')\n> ouch()\n Error in ouch() : ouch!\n\nNote that the destructor was not called. Replace `Rf_error` with\n`Rcpp::stop` and you will see the destructor is called.\n\nIt's possible that you won't have a memory leak per-se (if the memory\nis all allocated on the stack, maybe the runtime still knows to just\nclear the entire stack after something like this) but not running\ndestructors is definitely a big problem.\n\nCheers,\nKevin\n\nOn Wed, Aug 3, 2016 at 12:22 PM, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n> On 3 August 2016 at 11:38, George Vega Yon wrote:\n> | Thanks for the quick reply! What kind of errors are we talking about? I a new\n> | run I explicitly caused an error by passing a character vector, and had no\n> | memory leak (using Valgrind):\n> |\n> | cppFuncall(letters, fun)\n> | Error in cos(x[1]) : non-numeric argument to mathematical function\n> |\n> | If its not too much to ask, could you give an explicit example in which that\n> | happens (memory leak)? Just trying to learn here!\n>\n> You are misreading what Kevin said.  You short ten-line example runs fine.\n> We are not saying it has an error.\n>\n> What Kevin explained to you is that in the context of larger programs,\n> possibly with inputs you don't know yet, some errors may occur. And both\n> Rcpp:Function() and Rcpp::stop() can recover from that.\n>\n> Your example cannot.  So by all means use it as a small (local) script if the\n> few milliseconds matter to you.  But think twice about using it in a larger\n> context, or about promoting it as a general solution, and understand why we\n> can't put it into Rcpp as is.\n>\n> Hth, Dirk\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "The simplest demonstrating example I can think of:\n\n---\n\n#include <Rcpp.h>\nusing namespace Rcpp;\n\nstruct A { ~A() { Rprintf(\"~A()\"); } };\n\n// [[Rcpp::export]]\nvoid ouch() {\n  A a;\n  Rf_error(\"ouch!\");",
+      "thread_id": "thread-6b26d2dee14b",
+      "thread_depth": 5,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-ece733c30b27",
+      "message_id": "<CAPJUxXWfpuX4-PWEB2rF9XPB4C-9z-es-ckDAM32bBNRkKLMzg@mail.gmail.com>",
+      "from_name": "George Vega Yon",
+      "from_email_hash": "edae9fce24743142989114d1e7ee4aea5716adfbeaaedf579206b4e101ca484c",
+      "date": "2016-08-03T13:09:04-07:00",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "subject_clean": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "in_reply_to": "<CAJXgQP2tPrjXcFN5yKOXiZTt9GYPe0jQhksVfpDsiM5BSz9RTA@mail.gmail.com>",
+      "references": [
+        "<CAPJUxXXMhu54tdbvdb45w8DuqkL5MA0-gtNfuj7BPp3Z6Sz4Mg@mail.gmail.com>",
+        "<CAJXgQP1=KuH9+WiBSaoOOJkSTDPBZrnMGA8nOHT5EG1rSFPVtw@mail.gmail.com>",
+        "<CAJXgQP15=04-qbG4VoCr=McVOuW3bbLXJL0vyaPzh00ZF0BTdg@mail.gmail.com>",
+        "<CAPJUxXVic3+K1muEwSxd1G5VLVso4sMi5eELhRJH6DvKc5P0CA@mail.gmail.com>",
+        "<22434.17544.266152.67909@max.nulle.part>",
+        "<CAJXgQP2tPrjXcFN5yKOXiZTt9GYPe0jQhksVfpDsiM5BSz9RTA@mail.gmail.com>"
+      ],
+      "body_plain": "Dirk, good point. This is a very simple function and if I add complexity at\nthe end there's no significant difference between calling -fun-,\n-cppFuncall- and -RcppFuncall-. Just to make this thread more complete, if\nI modify -fun- from\n\nfun <- function(x) {\n  -cos(x[1])*cos(x[2])*exp(-((x[1] - pi)^2 + (x[2] - pi)^2))\n}\n\nto\n\nfun <- function(x) {\n  w<-sapply(1:1e3,function(x) -cos(x[1])*cos(x[2])*exp(-((x[1] - pi)^2 +\n(x[2] - pi)^2)))\n  1\n}\n\nRunning the benchmark I get\n\nUnit: relative\n                expr min lq     mean median uq max neval\n  cppFuncall(x, fun)   1  1 1.044215      1  1 6.1  1000\n RcppFuncall(x, fun)   1  1 1.018957      1  1 2.7  1000\n              fun(x)   1  1 1.000000      1  1 1.0  1000\n\nWhich is way more reasonable from what I was getting at first. No\nsignificant difference overall.\n\nKevin, thanks for the example, now I get why isn't a good idea! This has\nbeen very useful to me.\n\nBest,\n\nGeorge G. Vega Yon\n+1 (626) 381 8171\nhttp://www.its.caltech.edu/~gvegayon/\n\nOn Wed, Aug 3, 2016 at 12:34 PM, Kevin Ushey <kevinushey at gmail.com> wrote:\n\n> The simplest demonstrating example I can think of:\n>\n> ---\n>\n> #include <Rcpp.h>\n> using namespace Rcpp;\n>\n> struct A { ~A() { Rprintf(\"~A()\"); } };\n>\n> // [[Rcpp::export]]\n> void ouch() {\n>   A a;\n>   Rf_error(\"ouch!\");\n> }\n>\n> /*** R\n> ouch()\n> */\n>\n> ---\n>\n> Call 'Rcpp::sourceCpp()' on that and you'll see:\n>\n> > Rcpp::sourceCpp('~/Desktop/Untitled.cpp')\n> > ouch()\n>  Error in ouch() : ouch!\n>\n> Note that the destructor was not called. Replace `Rf_error` with\n> `Rcpp::stop` and you will see the destructor is called.\n>\n> It's possible that you won't have a memory leak per-se (if the memory\n> is all allocated on the stack, maybe the runtime still knows to just\n> clear the entire stack after something like this) but not running\n> destructors is definitely a big problem.\n>\n> Cheers,\n> Kevin\n>\n> On Wed, Aug 3, 2016 at 12:22 PM, Dirk Eddelbuettel <edd at debian.org> wrote:\n> >\n> > On 3 August 2016 at 11:38, George Vega Yon wrote:\n> > | Thanks for the quick reply! What kind of errors are we talking about?\n> I a new\n> > | run I explicitly caused an error by passing a character vector, and\n> had no\n> > | memory leak (using Valgrind):\n> > |\n> > | cppFuncall(letters, fun)\n> > | Error in cos(x[1]) : non-numeric argument to mathematical function\n> > |\n> > | If its not too much to ask, could you give an explicit example in\n> which that\n> > | happens (memory leak)? Just trying to learn here!\n> >\n> > You are misreading what Kevin said.  You short ten-line example runs\n> fine.\n> > We are not saying it has an error.\n> >\n> > What Kevin explained to you is that in the context of larger programs,\n> > possibly with inputs you don't know yet, some errors may occur. And both\n> > Rcpp:Function() and Rcpp::stop() can recover from that.\n> >\n> > Your example cannot.  So by all means use it as a small (local) script\n> if the\n> > few milliseconds matter to you.  But think twice about using it in a\n> larger\n> > context, or about promoting it as a general solution, and understand why\n> we\n> > can't put it into Rcpp as is.\n> >\n> > Hth, Dirk\n> >\n> > --\n> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160803/c9144d9a/attachment.html>",
+      "body_snippet": "Dirk, good point. This is a very simple function and if I add complexity at\nthe end there's no significant difference between calling -fun-,\n-cppFuncall- and -RcppFuncall-. Just to make this thread mo",
+      "thread_id": "thread-6b26d2dee14b",
+      "thread_depth": 6,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-e8ae85da76d1",
+      "message_id": "<CADpnMoWqYKn7_CktfY+ZyMQ52t6+vStWvQQxAAxOeRsnCUszYg@mail.gmail.com>",
+      "from_name": "Kaspar Märtens",
+      "from_email_hash": "ed2d400386cdeb08e028c8c883f861c1dc96f8a682d15bd0edf30e8dfd41db89",
+      "date": "2016-08-07T12:00:27+01:00",
+      "subject": "[Rcpp-devel] type mismatch between NumericMatrix and IntegerMatrix",
+      "subject_clean": "[Rcpp-devel] type mismatch between NumericMatrix and IntegerMatrix",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi,\n\nWhen experimenting with the following toy function,\n\n// [[Rcpp::export]]\nvoid modify_matrix(NumericMatrix A){\n  A(0, 0) = 5;\n}\n\nand applying this on matrices defined in R, I occasionally noticed\nunexpected behaviour (as it turns out, on integer matrices).\n\n### Example 1 (works as expected)\n\nA = matrix(0, 2, 2)\nmodify_matrix(A)\nA\n\n##      [,1] [,2]\n## [1,]    5    0\n## [2,]    0    0\n\n### Example 2 (does not modify the matrix)\n\nA = matrix(1:4, 2, 2)\nmodify_matrix(A)\nA\n\n##      [,1] [,2]\n## [1,]    1    3\n## [2,]    2    4\n\nI realised that in the latter case, A consists of integers, so I guess I\nshould be using an IntegerMatrix version of my function instead. However,\nshouldn't Rcpp detect the type mismatch between NumericMatrix and\nIntegerMatrix?\n\nBest,\nKaspar\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160807/5d3ce18c/attachment.html>",
+      "body_snippet": "Hi,\n\nWhen experimenting with the following toy function,\n\n// [[Rcpp::export]]\nvoid modify_matrix(NumericMatrix A){\n  A(0, 0) = 5;\n}\n\nand applying this on matrices defined in R, I occasionally noticed\n",
+      "thread_id": "thread-e8ae85da76d1",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-12594bc5a5ba",
+      "message_id": "<CAKw=oCyK22cnsfcTCodG1KeJdJyQ3dQMOg26if2dtHPAGMN4Ng@mail.gmail.com>",
+      "from_name": "JJ Allaire",
+      "from_email_hash": "a9c305e04711922728c52959da2daecf82e361748cb52e6ee571e18c898a3343",
+      "date": "2016-08-07T07:17:24-04:00",
+      "subject": "[Rcpp-devel] type mismatch between NumericMatrix and IntegerMatrix",
+      "subject_clean": "[Rcpp-devel] type mismatch between NumericMatrix and IntegerMatrix",
+      "in_reply_to": "<CADpnMoWqYKn7_CktfY+ZyMQ52t6+vStWvQQxAAxOeRsnCUszYg@mail.gmail.com>",
+      "references": [
+        "<CADpnMoWqYKn7_CktfY+ZyMQ52t6+vStWvQQxAAxOeRsnCUszYg@mail.gmail.com>"
+      ],
+      "body_plain": "In the latter case the integer matrix is \"converted\" to a numeric matrix\nvia a copy which is why your modification doesn't work.\n\nThat said, modifying an object in place violates R's language semantics and\ncould lead to incorrect computations (i.e. users expect that objects are\nimmutable and this is part of what ensures the integrity of computations)\nso this is strongly discouraged.\n\nOn Sun, Aug 7, 2016 at 7:00 AM, Kaspar M?rtens <kaspar.martens at gmail.com>\nwrote:\n\n> Hi,\n>\n> When experimenting with the following toy function,\n>\n> // [[Rcpp::export]]\n> void modify_matrix(NumericMatrix A){\n>   A(0, 0) = 5;\n> }\n>\n> and applying this on matrices defined in R, I occasionally noticed\n> unexpected behaviour (as it turns out, on integer matrices).\n>\n> ### Example 1 (works as expected)\n>\n> A = matrix(0, 2, 2)\n> modify_matrix(A)\n> A\n>\n> ##      [,1] [,2]\n> ## [1,]    5    0\n> ## [2,]    0    0\n>\n> ### Example 2 (does not modify the matrix)\n>\n> A = matrix(1:4, 2, 2)\n> modify_matrix(A)\n> A\n>\n> ##      [,1] [,2]\n> ## [1,]    1    3\n> ## [2,]    2    4\n>\n> I realised that in the latter case, A consists of integers, so I guess I\n> should be using an IntegerMatrix version of my function instead. However,\n> shouldn't Rcpp detect the type mismatch between NumericMatrix and\n> IntegerMatrix?\n>\n> Best,\n> Kaspar\n>\n>\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160807/44d0d180/attachment.html>",
+      "body_snippet": "In the latter case the integer matrix is \"converted\" to a numeric matrix\nvia a copy which is why your modification doesn't work.\n\nThat said, modifying an object in place violates R's language semantic",
+      "thread_id": "thread-e8ae85da76d1",
+      "thread_depth": 1,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-4f3db4e53bfa",
+      "message_id": "<22439.12234.432953.628614@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-07T07:55:38-05:00",
+      "subject": "[Rcpp-devel] type mismatch between NumericMatrix and\tIntegerMatrix",
+      "subject_clean": "[Rcpp-devel] type mismatch between NumericMatrix and\tIntegerMatrix",
+      "in_reply_to": "<CAKw=oCyK22cnsfcTCodG1KeJdJyQ3dQMOg26if2dtHPAGMN4Ng@mail.gmail.com>",
+      "references": [
+        "<CADpnMoWqYKn7_CktfY+ZyMQ52t6+vStWvQQxAAxOeRsnCUszYg@mail.gmail.com>",
+        "<CAKw=oCyK22cnsfcTCodG1KeJdJyQ3dQMOg26if2dtHPAGMN4Ng@mail.gmail.com>"
+      ],
+      "body_plain": "On 7 August 2016 at 07:17, JJ Allaire wrote:\n| In the latter case the integer matrix is \"converted\" to a numeric matrix via a\n| copy which is why your modification doesn't work.\n\n\"What he said...\"\n\nThis is a known issue which we presented many times in talks. Something from\nthe most recent one is below.\n \n| That said, modifying an object in place violates R's language semantics and\n| could lead to incorrect computations (i.e. users expect that objects are\n| immutable and this is part of what ensures the integrity of computations) so\n| this is strongly discouraged.\n\n\"What he said...\"\n\nBut this is something we cannot enforce from the Rcpp\nside, nor can we enforce it as you had hope for. C/C++ just don't work that way.\n\n\nThe promised example is here. Run the two examples to the output, and study\nthe difference:\n\n-----------------------------------------------------------------------------\n## NumericVector: A Second Example\n\nA second example alters a numeric vector:\n\n```cpp\n#include <Rcpp.h>\n\n// [[Rcpp::export]]\nNumericVector f(NumericVector m) {\n    m(0) = 0;\n    return m;\n}\n```        \n\n\n## NumericVector: A Second Example\n\nCalling the last example with an integer vector:\n\n\\small\n\n```{r numVecEx3-a}\nRcpp::sourceCpp(\"code/numVecEx3.cpp\")\n\nx <- 1:3        # same as c(1L, 2L, 3L)\nprint(data.frame(x=x, fx=f(x)), row.names=FALSE)\n```\n\n## NumericVector: A Second Example\n\nCalling the last example with a numeric vector:\n\n```{r numVecEx3-b}\nx <- c(1.0, 2.0, 3.0)\nprint(data.frame(x=x, fx=f(x)), row.names=FALSE)\n```\n\nWe pass `x` as a `SEXP` which is a pointer.  \nUse `Rcpp::clone()` for deep copy.\n-----------------------------------------------------------------------------\n\nFor what it is worth that is on slides 74 to 76 of\nhttp://dirk.eddelbuettel.com/papers/jsm2016_rcpp_course.pdf\n\n\nHth,  Dirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 7 August 2016 at 07:17, JJ Allaire wrote:\n| In the latter case the integer matrix is \"converted\" to a numeric matrix via a\n| copy which is why your modification doesn't work.\n\n\"What he said...\"\n\nTh",
+      "thread_id": "thread-e8ae85da76d1",
+      "thread_depth": 2,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-1f6e1c496016",
+      "message_id": "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+      "from_name": "Rajen Shah",
+      "from_email_hash": "f0d579a7ca49cba6f786d249ff724de9e0692dc5a7879b8ca35026cfb2cdad0f",
+      "date": "2016-08-11T06:28:56-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hello,\n\nI am having trouble debugging a package that appears to work fine on Mac\noperating systems but crashes on Unix and Windows.\n\nI have found the following example that crashes on my Windows setup\n(session info copied below)\n\nIntegerVector runif_int2() {\n  return wrap(floor(runif(1000000)));\n}\n\nWhen this is called about 5-10 times in succession R crashes (e.g. with\nset.seed(1), but this doesn't seem to matter).\n\nAny ideas about why this crashes would be much appreciated. To be clear, I\nam not looking for an alternative to the above code (which simply produces\na vector of zeroes), but would like to know what aspects of this cause a\ncrash so I know what code structures may be causing problems in the package\nI am creating. The code does not appear to crash on Mac and I have yet to\ntry it on Unix.\n\nMany thanks in advance,\n\nRajen\n\nSession info:\n\nR version 3.3.1 (2016-06-21)\nPlatform: x86_64-w64-mingw32/x64 (64-bit)\nRunning under: Windows >= 8 x64 (build 9200)\n\nlocale:\n[1] LC_COLLATE=English_United States.1252  LC_CTYPE=English_United\nStates.1252    LC_MONETARY=English_United States.1252\n[4] LC_NUMERIC=C                           LC_TIME=English_United\nStates.1252\n\nattached base packages:\n[1] stats     graphics  grDevices utils     datasets  methods   base\n\nloaded via a namespace (and not attached):\n[1] tools_3.3.1\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160811/6cdb8ac5/attachment.html>",
+      "body_snippet": "Hello,\n\nI am having trouble debugging a package that appears to work fine on Mac\noperating systems but crashes on Unix and Windows.\n\nI have found the following example that crashes on my Windows setup",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-c7ad31497411",
+      "message_id": "<22444.29442.985100.781265@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-11T07:43:46-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>"
+      ],
+      "body_plain": "On 11 August 2016 at 06:28, Rajen Shah wrote:\n| Hello,\n| \n| I am having trouble debugging a package that appears to work fine on Mac\n| operating systems but crashes on Unix and Windows.\n| \n| I have found the following example that crashes on my Windows setup (session\n| info copied below)\n| \n| IntegerVector runif_int2() {\n| ? return wrap(floor(runif(1000000)));\n| }\n| \n| When this is called about 5-10 times in succession R crashes (e.g. with\n| set.seed(1), but this doesn't seem to matter).\n| \n| Any ideas about why this crashes would be much appreciated. To be clear, I am\n| not looking for an alternative to the above code (which simply produces a\n| vector of zeroes), but would like to know what aspects of this cause a crash so\n| I know what code structures may be causing problems in the package I am\n| creating. The code does not appear to crash on Mac and I have yet to try it on\n| Unix.\n\ni)  On my box it doesn't run (which is probably a bug)\n\nR> library(Rcpp)\nR> cppFunction(\"IntegerVector runif_int2() { return wrap(floor(runif(1000000))); }\")\nR> set.seed(1)\nR> replicate(100, runif_int2())   ## should probably use loop here...\nError in runif_int2() : unimplemented type 'integer' in 'coerceToInteger'\nR> \n\nii) Your code is still \"wrong\" or less than ideal. You really are working\nwith doubles there, even after the floor() around runif.  So maybe return a\ndouble vector?  Else assign explictly via a cast.\n\nDirk\n\n\n\n\n| \n| Many thanks in advance,\n| \n| Rajen\n| \n| Session info:\n| \n| R version 3.3.1 (2016-06-21)\n| Platform: x86_64-w64-mingw32/x64 (64-bit)\n| Running under: Windows >= 8 x64 (build 9200)\n| \n| locale:\n| [1] LC_COLLATE=English_United States.1252 ?LC_CTYPE=English_United States.1252\n| ? ?LC_MONETARY=English_United States.1252\n| [4] LC_NUMERIC=C ? ? ? ? ? ? ? ? ? ? ? ? ? LC_TIME=English_United States.1252 ?\n| ?\n| \n| attached base packages:\n| [1] stats ? ? graphics ?grDevices utils ? ? datasets ?methods ? base ? ??\n| \n| loaded via a namespace (and not attached):\n| [1] tools_3.3.1\n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 11 August 2016 at 06:28, Rajen Shah wrote:\n| Hello,\n| \n| I am having trouble debugging a package that appears to work fine on Mac\n| operating systems but crashes on Unix and Windows.\n| \n| I have fo",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 1,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-9f5588e77148",
+      "message_id": "<CAFu5mM7VXrb63zJrk17W20mQ47jUzgCDZOBbJwbUuxBx21fRXg@mail.gmail.com>",
+      "from_name": "Rajen Shah",
+      "from_email_hash": "f0d579a7ca49cba6f786d249ff724de9e0692dc5a7879b8ca35026cfb2cdad0f",
+      "date": "2016-08-11T08:05:42-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<22444.29442.985100.781265@max.nulle.part>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+        "<22444.29442.985100.781265@max.nulle.part>"
+      ],
+      "body_plain": "Dear Dirk,\n\nMany thanks. So I'm concluding that wrap is not meant to do casting in this\nsense but rather converts non-SEXP to SEXP, and so crashing is not\nunexpected.\n\nBest,\n\nRajen\n\nOn 11 August 2016 at 07:43, Dirk Eddelbuettel <edd at debian.org> wrote:\n\n>\n> On 11 August 2016 at 06:28, Rajen Shah wrote:\n> | Hello,\n> |\n> | I am having trouble debugging a package that appears to work fine on Mac\n> | operating systems but crashes on Unix and Windows.\n> |\n> | I have found the following example that crashes on my Windows setup\n> (session\n> | info copied below)\n> |\n> | IntegerVector runif_int2() {\n> |   return wrap(floor(runif(1000000)));\n> | }\n> |\n> | When this is called about 5-10 times in succession R crashes (e.g. with\n> | set.seed(1), but this doesn't seem to matter).\n> |\n> | Any ideas about why this crashes would be much appreciated. To be clear,\n> I am\n> | not looking for an alternative to the above code (which simply produces a\n> | vector of zeroes), but would like to know what aspects of this cause a\n> crash so\n> | I know what code structures may be causing problems in the package I am\n> | creating. The code does not appear to crash on Mac and I have yet to try\n> it on\n> | Unix.\n>\n> i)  On my box it doesn't run (which is probably a bug)\n>\n> R> library(Rcpp)\n> R> cppFunction(\"IntegerVector runif_int2() { return\n> wrap(floor(runif(1000000))); }\")\n> R> set.seed(1)\n> R> replicate(100, runif_int2())   ## should probably use loop here...\n> Error in runif_int2() : unimplemented type 'integer' in 'coerceToInteger'\n> R>\n>\n> ii) Your code is still \"wrong\" or less than ideal. You really are working\n> with doubles there, even after the floor() around runif.  So maybe return a\n> double vector?  Else assign explictly via a cast.\n>\n> Dirk\n>\n>\n>\n>\n> |\n> | Many thanks in advance,\n> |\n> | Rajen\n> |\n> | Session info:\n> |\n> | R version 3.3.1 (2016-06-21)\n> | Platform: x86_64-w64-mingw32/x64 (64-bit)\n> | Running under: Windows >= 8 x64 (build 9200)\n> |\n> | locale:\n> | [1] LC_COLLATE=English_United States.1252  LC_CTYPE=English_United\n> States.1252\n> |    LC_MONETARY=English_United States.1252\n> | [4] LC_NUMERIC=C                           LC_TIME=English_United\n> States.1252\n> |\n> |\n> | attached base packages:\n> | [1] stats     graphics  grDevices utils     datasets  methods   base\n> |\n> | loaded via a namespace (and not attached):\n> | [1] tools_3.3.1\n> | _______________________________________________\n> | Rcpp-devel mailing list\n> | Rcpp-devel at lists.r-forge.r-project.org\n> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160811/d4129a74/attachment.html>",
+      "body_snippet": "Dear Dirk,\n\nMany thanks. So I'm concluding that wrap is not meant to do casting in this\nsense but rather converts non-SEXP to SEXP, and so crashing is not\nunexpected.\n\nBest,\n\nRajen\n\nOn 11 August 2016 ",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 2,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-e75745112f17",
+      "message_id": "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>",
+      "from_name": "William Dunlap",
+      "from_email_hash": "f2d7c86f8973847ec833317a92c6bf21dfd137e5fc779a0e1153dd49b8b69516",
+      "date": "2016-08-11T07:40:08-07:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>"
+      ],
+      "body_plain": "Using 'valgrind', along with gctorture(TRUE) can help track down these\nbugs. E.g.\n\n% R --debugger valgrind\n==8445== Memcheck, a memory error detector\n==8445== Copyright (C) 2002-2011, and GNU GPL'd, by Julian Seward et al.\n==8445== Using Valgrind-3.7.0 and LibVEX; rerun with -h for copyright info\n==8445== Command: /home/R/R-3.3.1/lib/R/bin/exec/R\n... bunch of warnings from dl-load, etc., at startup ...\n> library(Rcpp)\n> cppFunction(\"IntegerVector runif_int2() { return\nwrap(floor(runif(1000000))); }\")\n> set.seed(1)\n> gctorture(TRUE)\n> z <- runif_int2()\n> z <- runif_int2()\n==8445== Invalid read of size 8\n==8445==    at 0x4ED9465: Rf_coerceVector (coerce.c:495)\n==8445==    by 0x100A3191: SEXPREC*\nRcpp::internal::basic_cast<13>(SEXPREC*) (r_cast.h:58)\n==8445==    by 0x100A1AD7: runif_int2() (r_cast.h:67)\n==8445==    by 0x100A1F85: sourceCpp_1_runif_int2 (file20fd25662b99.cpp:16)\n==8445==    by 0x4F0BD17: do_dotcall (dotcode.c:1251)\n==8445==    by 0x4F4C2BA: Rf_eval (eval.c:713)\n==8445==    by 0x4F4D646: Rf_applyClosure (eval.c:1134)\n==8445==    by 0x4F4BE9E: Rf_eval (eval.c:732)\n==8445==    by 0x4F4F68D: do_set (eval.c:2196)\n==8445==    by 0x4F4C0C2: Rf_eval (eval.c:685)\n==8445==    by 0x4F730E1: Rf_ReplIteration (main.c:258)\n==8445==    by 0x4F73430: R_ReplConsole (main.c:308)\n==8445==  Address 0x115ea048 is not stack'd, malloc'd or (recently) free'd\n==8445==\n\n *** caught segfault ***\naddress 0x115ea048, cause 'memory not mapped'\n\nTraceback:\n 1: .Primitive(\".Call\")(<pointer: 0x100a1f40>)\n 2: runif_int2()\n\nPossible actions:\n1: abort (with core dump, if enabled)\n2: normal R exit\n3: exit R without saving workspace\n4: exit R saving workspace\nSelection: 3\n==8445==\n==8445== HEAP SUMMARY:\n==8445==     in use at exit: 48,075,889 bytes in 14,975 blocks\n==8445==   total heap usage: 64,852 allocs, 49,877 frees, 107,416,930 bytes\nallocated\n==8445==\n==8445== LEAK SUMMARY:\n==8445==    definitely lost: 0 bytes in 0 blocks\n==8445==    indirectly lost: 0 bytes in 0 blocks\n==8445==      possibly lost: 0 bytes in 0 blocks\n==8445==    still reachable: 48,075,889 bytes in 14,975 blocks\n==8445==         suppressed: 0 bytes in 0 blocks\n==8445== Rerun with --leak-check=full to see details of leaked memory\n\n\n\nBill Dunlap\nTIBCO Software\nwdunlap tibco.com\n\nOn Thu, Aug 11, 2016 at 4:28 AM, Rajen Shah <rds37 at cam.ac.uk> wrote:\n\n> Hello,\n>\n> I am having trouble debugging a package that appears to work fine on Mac\n> operating systems but crashes on Unix and Windows.\n>\n> I have found the following example that crashes on my Windows setup\n> (session info copied below)\n>\n> IntegerVector runif_int2() {\n>   return wrap(floor(runif(1000000)));\n> }\n>\n> When this is called about 5-10 times in succession R crashes (e.g. with\n> set.seed(1), but this doesn't seem to matter).\n>\n> Any ideas about why this crashes would be much appreciated. To be clear, I\n> am not looking for an alternative to the above code (which simply produces\n> a vector of zeroes), but would like to know what aspects of this cause a\n> crash so I know what code structures may be causing problems in the package\n> I am creating. The code does not appear to crash on Mac and I have yet to\n> try it on Unix.\n>\n> Many thanks in advance,\n>\n> Rajen\n>\n> Session info:\n>\n> R version 3.3.1 (2016-06-21)\n> Platform: x86_64-w64-mingw32/x64 (64-bit)\n> Running under: Windows >= 8 x64 (build 9200)\n>\n> locale:\n> [1] LC_COLLATE=English_United States.1252  LC_CTYPE=English_United\n> States.1252    LC_MONETARY=English_United States.1252\n> [4] LC_NUMERIC=C                           LC_TIME=English_United\n> States.1252\n>\n> attached base packages:\n> [1] stats     graphics  grDevices utils     datasets  methods   base\n>\n> loaded via a namespace (and not attached):\n> [1] tools_3.3.1\n>\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160811/a407467b/attachment-0001.html>",
+      "body_snippet": "Using 'valgrind', along with gctorture(TRUE) can help track down these\nbugs. E.g.\n\n% R --debugger valgrind\n==8445== Memcheck, a memory error detector\n==8445== Copyright (C) 2002-2011, and GNU GPL'd, b",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 1,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-d183e589b7ed",
+      "message_id": "<22444.38755.578102.327016@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-11T10:18:59-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+        "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>"
+      ],
+      "body_plain": "To follow-up, if we avoid the cast this works just find as you'd expect:\n\nR> cppFunction(\"NumericVector myrunif() { return floor(runif(1000000)); }\")\nR> for (i in 1:100) ignoreme <- myrunif()\nR> \n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "To follow-up, if we avoid the cast this works just find as you'd expect:\n\nR> cppFunction(\"NumericVector myrunif() { return floor(runif(1000000)); }\")\nR> for (i in 1:100) ignoreme <- myrunif()\nR> \n\nDir",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 2,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-06491b5db70c",
+      "message_id": "<CAFu5mM7JNR10ntpKu52GzKKz+FJzEdajfQV=jGoMdmrn5rU6=w@mail.gmail.com>",
+      "from_name": "Rajen Shah",
+      "from_email_hash": "f0d579a7ca49cba6f786d249ff724de9e0692dc5a7879b8ca35026cfb2cdad0f",
+      "date": "2016-08-11T10:28:46-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<22444.38755.578102.327016@max.nulle.part>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+        "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>",
+        "<22444.38755.578102.327016@max.nulle.part>"
+      ],
+      "body_plain": "Many thanks Bill and Dirk.\n\nI'm now explicitly casting each element and this works fine. I was just\nsurprised that this inappropriate use of wrap would cause a memory leak on\ncertain OS's and run without problems on others.\n\nBest wishes,\n\nRajen\n\nOn 11 August 2016 at 10:18, Dirk Eddelbuettel <edd at debian.org> wrote:\n\n>\n> To follow-up, if we avoid the cast this works just find as you'd expect:\n>\n> R> cppFunction(\"NumericVector myrunif() { return floor(runif(1000000)); }\")\n> R> for (i in 1:100) ignoreme <- myrunif()\n> R>\n>\n> Dirk\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160811/2178a94c/attachment.html>",
+      "body_snippet": "Many thanks Bill and Dirk.\n\nI'm now explicitly casting each element and this works fine. I was just\nsurprised that this inappropriate use of wrap would cause a memory leak on\ncertain OS's and run with",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 3,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-245ebce2868f",
+      "message_id": "<CAF8bMcabz34ib9uQi+hsG-7S4r-7kf_XULe_kCnxsxwVO6BvqA@mail.gmail.com>",
+      "from_name": "William Dunlap",
+      "from_email_hash": "f2d7c86f8973847ec833317a92c6bf21dfd137e5fc779a0e1153dd49b8b69516",
+      "date": "2016-08-11T08:33:29-07:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<CAFu5mM7JNR10ntpKu52GzKKz+FJzEdajfQV=jGoMdmrn5rU6=w@mail.gmail.com>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+        "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>",
+        "<22444.38755.578102.327016@max.nulle.part>",
+        "<CAFu5mM7JNR10ntpKu52GzKKz+FJzEdajfQV=jGoMdmrn5rU6=w@mail.gmail.com>"
+      ],
+      "body_plain": "Have you tried running your code on the Mac after setting gctorture(TRUE)?\n\nBy the way, valgrind showed the opposite of a memory leak - the code was\nusing memory that it had declared free.  A leak is when the code does not\nfree memory that it can no longer use.\n\nBill Dunlap\nTIBCO Software\nwdunlap tibco.com\n\nOn Thu, Aug 11, 2016 at 8:28 AM, Rajen Shah <rds37 at cam.ac.uk> wrote:\n\n> Many thanks Bill and Dirk.\n>\n> I'm now explicitly casting each element and this works fine. I was just\n> surprised that this inappropriate use of wrap would cause a memory leak on\n> certain OS's and run without problems on others.\n>\n> Best wishes,\n>\n> Rajen\n>\n> On 11 August 2016 at 10:18, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n>>\n>> To follow-up, if we avoid the cast this works just find as you'd expect:\n>>\n>> R> cppFunction(\"NumericVector myrunif() { return floor(runif(1000000));\n>> }\")\n>> R> for (i in 1:100) ignoreme <- myrunif()\n>> R>\n>>\n>> Dirk\n>>\n>> --\n>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>>\n>\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160811/dca101dd/attachment.html>",
+      "body_snippet": "Have you tried running your code on the Mac after setting gctorture(TRUE)?\n\nBy the way, valgrind showed the opposite of a memory leak - the code was\nusing memory that it had declared free.  A leak is ",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 4,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-975bc237323c",
+      "message_id": "<CAFu5mM79QrfZAeHkE1mcU69C-1Q7wQbnK-o6bOQWP1F_VVdfqg@mail.gmail.com>",
+      "from_name": "Rajen Shah",
+      "from_email_hash": "f0d579a7ca49cba6f786d249ff724de9e0692dc5a7879b8ca35026cfb2cdad0f",
+      "date": "2016-08-11T10:45:55-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<CAF8bMcabz34ib9uQi+hsG-7S4r-7kf_XULe_kCnxsxwVO6BvqA@mail.gmail.com>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+        "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>",
+        "<22444.38755.578102.327016@max.nulle.part>",
+        "<CAFu5mM7JNR10ntpKu52GzKKz+FJzEdajfQV=jGoMdmrn5rU6=w@mail.gmail.com>",
+        "<CAF8bMcabz34ib9uQi+hsG-7S4r-7kf_XULe_kCnxsxwVO6BvqA@mail.gmail.com>"
+      ],
+      "body_plain": "> Have you tried running your code on the Mac after setting gctorture(TRUE)?\n\nNo I have not tried this (and no longer have the Mac available\nunfortunately). I have a very limited understanding of memory management,\nbut I guess you're suggesting setting this to TRUE would make sure that\nfreed memory really is free, and so would help uncover an issue where the\ncode tries to use memory that it has declared free?\n\n> By the way, valgrind showed the opposite of a memory leak - the code was\nusing memory that it had declared free.  A leak is when the code does not\nfree memory that it can no longer use.\n\nI am unfamiliar with how to interpret valgrid output, but are you deducing\nthis from \"allocs > frees\"?\n\nThanks: a useful way of finding the most horrible memory issue bugs it\nseems.\n\nRajen\n\nOn 11 August 2016 at 10:33, William Dunlap <wdunlap at tibco.com> wrote:\n\n> Have you tried running your code on the Mac after setting gctorture(TRUE)?\n>\n> By the way, valgrind showed the opposite of a memory leak - the code was\n> using memory that it had declared free.  A leak is when the code does not\n> free memory that it can no longer use.\n>\n> Bill Dunlap\n> TIBCO Software\n> wdunlap tibco.com\n>\n> On Thu, Aug 11, 2016 at 8:28 AM, Rajen Shah <rds37 at cam.ac.uk> wrote:\n>\n>> Many thanks Bill and Dirk.\n>>\n>> I'm now explicitly casting each element and this works fine. I was just\n>> surprised that this inappropriate use of wrap would cause a memory leak on\n>> certain OS's and run without problems on others.\n>>\n>> Best wishes,\n>>\n>> Rajen\n>>\n>> On 11 August 2016 at 10:18, Dirk Eddelbuettel <edd at debian.org> wrote:\n>>\n>>>\n>>> To follow-up, if we avoid the cast this works just find as you'd expect:\n>>>\n>>> R> cppFunction(\"NumericVector myrunif() { return floor(runif(1000000));\n>>> }\")\n>>> R> for (i in 1:100) ignoreme <- myrunif()\n>>> R>\n>>>\n>>> Dirk\n>>>\n>>> --\n>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>>>\n>>\n>>\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160811/7f4b6fb5/attachment.html>",
+      "body_snippet": "> Have you tried running your code on the Mac after setting gctorture(TRUE)?\n\nNo I have not tried this (and no longer have the Mac available\nunfortunately). I have a very limited understanding of memo",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 5,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-2f9e5622c40c",
+      "message_id": "<CAFu5mM5BxOoVGNpUicz6iQ5UowL-aG1E8EHfTLqN6UeJFJeQUA@mail.gmail.com>",
+      "from_name": "Rajen Shah",
+      "from_email_hash": "f0d579a7ca49cba6f786d249ff724de9e0692dc5a7879b8ca35026cfb2cdad0f",
+      "date": "2016-08-11T11:05:50-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<CAFu5mM79QrfZAeHkE1mcU69C-1Q7wQbnK-o6bOQWP1F_VVdfqg@mail.gmail.com>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+        "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>",
+        "<22444.38755.578102.327016@max.nulle.part>",
+        "<CAFu5mM7JNR10ntpKu52GzKKz+FJzEdajfQV=jGoMdmrn5rU6=w@mail.gmail.com>",
+        "<CAF8bMcabz34ib9uQi+hsG-7S4r-7kf_XULe_kCnxsxwVO6BvqA@mail.gmail.com>",
+        "<CAFu5mM79QrfZAeHkE1mcU69C-1Q7wQbnK-o6bOQWP1F_VVdfqg@mail.gmail.com>"
+      ],
+      "body_plain": "I realise there is a helpful section on this in\n\nhttps://cran.r-project.org/doc/manuals/r-release/R-exts.html#Checking-memory-access\n\nwhich I'm now reading.\n\nThanks for your help.\n\nBest,\n\nRajen\n\nOn 11 August 2016 at 10:45, Rajen Shah <rds37 at cam.ac.uk> wrote:\n\n> > Have you tried running your code on the Mac after setting\n> gctorture(TRUE)?\n>\n> No I have not tried this (and no longer have the Mac available\n> unfortunately). I have a very limited understanding of memory management,\n> but I guess you're suggesting setting this to TRUE would make sure that\n> freed memory really is free, and so would help uncover an issue where the\n> code tries to use memory that it has declared free?\n>\n> > By the way, valgrind showed the opposite of a memory leak - the code\n> was using memory that it had declared free.  A leak is when the code does\n> not free memory that it can no longer use.\n>\n> I am unfamiliar with how to interpret valgrid output, but are you deducing\n> this from \"allocs > frees\"?\n>\n> Thanks: a useful way of finding the most horrible memory issue bugs it\n> seems.\n>\n> Rajen\n>\n> On 11 August 2016 at 10:33, William Dunlap <wdunlap at tibco.com> wrote:\n>\n>> Have you tried running your code on the Mac after setting gctorture(TRUE)?\n>>\n>> By the way, valgrind showed the opposite of a memory leak - the code was\n>> using memory that it had declared free.  A leak is when the code does not\n>> free memory that it can no longer use.\n>>\n>> Bill Dunlap\n>> TIBCO Software\n>> wdunlap tibco.com\n>>\n>> On Thu, Aug 11, 2016 at 8:28 AM, Rajen Shah <rds37 at cam.ac.uk> wrote:\n>>\n>>> Many thanks Bill and Dirk.\n>>>\n>>> I'm now explicitly casting each element and this works fine. I was just\n>>> surprised that this inappropriate use of wrap would cause a memory leak on\n>>> certain OS's and run without problems on others.\n>>>\n>>> Best wishes,\n>>>\n>>> Rajen\n>>>\n>>> On 11 August 2016 at 10:18, Dirk Eddelbuettel <edd at debian.org> wrote:\n>>>\n>>>>\n>>>> To follow-up, if we avoid the cast this works just find as you'd expect:\n>>>>\n>>>> R> cppFunction(\"NumericVector myrunif() { return floor(runif(1000000));\n>>>> }\")\n>>>> R> for (i in 1:100) ignoreme <- myrunif()\n>>>> R>\n>>>>\n>>>> Dirk\n>>>>\n>>>> --\n>>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>>>>\n>>>\n>>>\n>>\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160811/e2fbdcab/attachment-0001.html>",
+      "body_snippet": "I realise there is a helpful section on this in\n\nhttps://cran.r-project.org/doc/manuals/r-release/R-exts.html#Checking-memory-access\n\nwhich I'm now reading.\n\nThanks for your help.\n\nBest,\n\nRajen\n\nOn 11",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 6,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-8599a1f64ab2",
+      "message_id": "<22444.42954.800221.135492@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-11T11:28:58-05:00",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "subject_clean": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "in_reply_to": "<CAFu5mM5BxOoVGNpUicz6iQ5UowL-aG1E8EHfTLqN6UeJFJeQUA@mail.gmail.com>",
+      "references": [
+        "<CAFu5mM4mhXqS6p1A0GBbtm0YFqr1rcT4XtjYswUMW3BaVEzeSw@mail.gmail.com>",
+        "<CAF8bMcaX+5F4BwvpoSga+9yP4nWbBGVtoKxvFs6rY1dsJnFPrQ@mail.gmail.com>",
+        "<22444.38755.578102.327016@max.nulle.part>",
+        "<CAFu5mM7JNR10ntpKu52GzKKz+FJzEdajfQV=jGoMdmrn5rU6=w@mail.gmail.com>",
+        "<CAF8bMcabz34ib9uQi+hsG-7S4r-7kf_XULe_kCnxsxwVO6BvqA@mail.gmail.com>",
+        "<CAFu5mM79QrfZAeHkE1mcU69C-1Q7wQbnK-o6bOQWP1F_VVdfqg@mail.gmail.com>",
+        "<CAFu5mM5BxOoVGNpUicz6iQ5UowL-aG1E8EHfTLqN6UeJFJeQUA@mail.gmail.com>"
+      ],
+      "body_plain": "On 11 August 2016 at 11:05, Rajen Shah wrote:\n| I realise there is a helpful section on this in\n| \n| https://cran.r-project.org/doc/manuals/r-release/R-exts.html#\n| Checking-memory-access\n| \n| which I'm now reading.\n\nWe generally shield you from this.  That is, you create objects without\nhaving to worry about.  But a) casts (particularly implicit ones) and b) the\nwrap() return business are really complicated.\n\nIf you err on the side of caution everything works:\n\nR> cppFunction(\"IntegerVector myrunif() { NumericVector x = floor(runif(1000000)); return as<IntegerVector>(x); }\")\nR> for (i in 1:100) ignoreme <- myrunif()\nR> \n\nHere we start with the numeric vector, then cast to an integer vector which\nis what is returned.\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 11 August 2016 at 11:05, Rajen Shah wrote:\n| I realise there is a helpful section on this in\n| \n| https://cran.r-project.org/doc/manuals/r-release/R-exts.html#\n| Checking-memory-access\n| \n| which I",
+      "thread_id": "thread-1f6e1c496016",
+      "thread_depth": 7,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-30904433ce35",
+      "message_id": "<CAKxd1KNyvr+asKJDBFss1usYVNyQHi7xYk4ZS6nTcuO6kcEFqg@mail.gmail.com>",
+      "from_name": "Charles Determan",
+      "from_email_hash": "fcc9a1e7c21371cee92703630056a3d910de1afb77217895dfe5b4bc47c007e1",
+      "date": "2016-08-15T08:16:28-05:00",
+      "subject": "[Rcpp-devel] C++ class methods exported via Interfaces Attribute?",
+      "subject_clean": "[Rcpp-devel] C++ class methods exported via Interfaces Attribute?",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Greetings,\n\nI am trying to integrate some packages of mine so they can share some of\nthe same C++ functions (not exposed to the R front-end user).  Here is my\nbasic structure of the package I wish to export functions.\n\nClass defined in header (foo.h) complete with all public and private\nmembers.\n\nMembers defined in cpp file (foo.cpp).\nThis is also where I thought I could use the Rcpp::interfaces(cpp) function\ngenerate the header file automatically (as I am not aware of a nice linking\noperation between multiple package .so files).  So each method is prefixed\nwith //[[Rcpp::export]] for the package building.\n\nI liked this approach because I wouldn't have to rewrite all my methods to\nthe header file manually.  However, this doesn't appear to be working.  I\nam getting errors on the first method (I have tried only exporting one\nmethod and I get the same error).\n\n\nIn file included from ../inst/include/gpuR.h:7:0,\n                 from RcppExports.cpp:4:\n../inst/include/gpuR_RcppExports.h:28:20: error: expected unqualified-id\nbefore ?<? token\n     inline template<typename T> dynEigenMat<T>::dynEigenMat(SEXP A_) {\n                    ^\nRcppExports.cpp:3313:1: error: expected ?;? at end of input\n }\n ^\nRcppExports.cpp:3313:1: error: expected ?}? at end of input\n\n\nAny insight would be appreciated.  Not sure if it is a problem with using\nthe template methods or if this means I simply have a typo somewhere (I\ndon't think so given that the code works without using the Rcpp interfaces\nattribute.\n\nRegards,\nCharles\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160815/6358856a/attachment.html>",
+      "body_snippet": "Greetings,\n\nI am trying to integrate some packages of mine so they can share some of\nthe same C++ functions (not exposed to the R front-end user).  Here is my\nbasic structure of the package I wish to ",
+      "thread_id": "thread-30904433ce35",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-7bf70fc56842",
+      "message_id": "<CAKw=oCwnGoz=bcucVK43YnbKEgKwHK=DpVumBDE6aE7vNUodUw@mail.gmail.com>",
+      "from_name": "JJ Allaire",
+      "from_email_hash": "a9c305e04711922728c52959da2daecf82e361748cb52e6ee571e18c898a3343",
+      "date": "2016-08-15T13:20:05Z",
+      "subject": "[Rcpp-devel] C++ class methods exported via Interfaces Attribute?",
+      "subject_clean": "[Rcpp-devel] C++ class methods exported via Interfaces Attribute?",
+      "in_reply_to": "<CAKxd1KNyvr+asKJDBFss1usYVNyQHi7xYk4ZS6nTcuO6kcEFqg@mail.gmail.com>",
+      "references": [
+        "<CAKxd1KNyvr+asKJDBFss1usYVNyQHi7xYk4ZS6nTcuO6kcEFqg@mail.gmail.com>"
+      ],
+      "body_plain": "Rcpp attributes only work for global/free functions rather than class\nmembers. If you want to share clashes between packages the only good way to\ndo it is header-only classes that you put in inst/include.\n\nOn Mon, Aug 15, 2016 at 6:17 AM Charles Determan <cdetermanjr at gmail.com>\nwrote:\n\n> Greetings,\n>\n> I am trying to integrate some packages of mine so they can share some of\n> the same C++ functions (not exposed to the R front-end user).  Here is my\n> basic structure of the package I wish to export functions.\n>\n> Class defined in header (foo.h) complete with all public and private\n> members.\n>\n> Members defined in cpp file (foo.cpp).\n> This is also where I thought I could use the Rcpp::interfaces(cpp)\n> function generate the header file automatically (as I am not aware of a\n> nice linking operation between multiple package .so files).  So each method\n> is prefixed with //[[Rcpp::export]] for the package building.\n>\n> I liked this approach because I wouldn't have to rewrite all my methods to\n> the header file manually.  However, this doesn't appear to be working.  I\n> am getting errors on the first method (I have tried only exporting one\n> method and I get the same error).\n>\n>\n> In file included from ../inst/include/gpuR.h:7:0,\n>                  from RcppExports.cpp:4:\n> ../inst/include/gpuR_RcppExports.h:28:20: error: expected unqualified-id\n> before ?<? token\n>      inline template<typename T> dynEigenMat<T>::dynEigenMat(SEXP A_) {\n>                     ^\n> RcppExports.cpp:3313:1: error: expected ?;? at end of input\n>  }\n>  ^\n> RcppExports.cpp:3313:1: error: expected ?}? at end of input\n>\n>\n> Any insight would be appreciated.  Not sure if it is a problem with using\n> the template methods or if this means I simply have a typo somewhere (I\n> don't think so given that the code works without using the Rcpp interfaces\n> attribute.\n>\n> Regards,\n> Charles\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160815/096603f5/attachment.html>",
+      "body_snippet": "Rcpp attributes only work for global/free functions rather than class\nmembers. If you want to share clashes between packages the only good way to\ndo it is header-only classes that you put in inst/incl",
+      "thread_id": "thread-30904433ce35",
+      "thread_depth": 1,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-4de35522a1c6",
+      "message_id": "<CAKxd1KO55DD7B7yoYQpjF639dhfVJqUm+UQ=pQQbRvybs8qWRA@mail.gmail.com>",
+      "from_name": "Charles Determan",
+      "from_email_hash": "fcc9a1e7c21371cee92703630056a3d910de1afb77217895dfe5b4bc47c007e1",
+      "date": "2016-08-15T08:21:06-05:00",
+      "subject": "[Rcpp-devel] C++ class methods exported via Interfaces Attribute?",
+      "subject_clean": "[Rcpp-devel] C++ class methods exported via Interfaces Attribute?",
+      "in_reply_to": "<CAKw=oCwnGoz=bcucVK43YnbKEgKwHK=DpVumBDE6aE7vNUodUw@mail.gmail.com>",
+      "references": [
+        "<CAKxd1KNyvr+asKJDBFss1usYVNyQHi7xYk4ZS6nTcuO6kcEFqg@mail.gmail.com>",
+        "<CAKw=oCwnGoz=bcucVK43YnbKEgKwHK=DpVumBDE6aE7vNUodUw@mail.gmail.com>"
+      ],
+      "body_plain": "Thanks JJ, this is actually the answer I was expecting but I wanted to make\nsure.\n\nRegards,\nCharles\n\nOn Mon, Aug 15, 2016 at 8:20 AM, JJ Allaire <jj.allaire at gmail.com> wrote:\n\n> Rcpp attributes only work for global/free functions rather than class\n> members. If you want to share clashes between packages the only good way to\n> do it is header-only classes that you put in inst/include.\n>\n> On Mon, Aug 15, 2016 at 6:17 AM Charles Determan <cdetermanjr at gmail.com>\n> wrote:\n>\n>> Greetings,\n>>\n>> I am trying to integrate some packages of mine so they can share some of\n>> the same C++ functions (not exposed to the R front-end user).  Here is my\n>> basic structure of the package I wish to export functions.\n>>\n>> Class defined in header (foo.h) complete with all public and private\n>> members.\n>>\n>> Members defined in cpp file (foo.cpp).\n>> This is also where I thought I could use the Rcpp::interfaces(cpp)\n>> function generate the header file automatically (as I am not aware of a\n>> nice linking operation between multiple package .so files).  So each method\n>> is prefixed with //[[Rcpp::export]] for the package building.\n>>\n>> I liked this approach because I wouldn't have to rewrite all my methods\n>> to the header file manually.  However, this doesn't appear to be working.\n>> I am getting errors on the first method (I have tried only exporting one\n>> method and I get the same error).\n>>\n>>\n>> In file included from ../inst/include/gpuR.h:7:0,\n>>                  from RcppExports.cpp:4:\n>> ../inst/include/gpuR_RcppExports.h:28:20: error: expected unqualified-id\n>> before ?<? token\n>>      inline template<typename T> dynEigenMat<T>::dynEigenMat(SEXP A_) {\n>>                     ^\n>> RcppExports.cpp:3313:1: error: expected ?;? at end of input\n>>  }\n>>  ^\n>> RcppExports.cpp:3313:1: error: expected ?}? at end of input\n>>\n>>\n>> Any insight would be appreciated.  Not sure if it is a problem with using\n>> the template methods or if this means I simply have a typo somewhere (I\n>> don't think so given that the code works without using the Rcpp interfaces\n>> attribute.\n>>\n>> Regards,\n>> Charles\n>> _______________________________________________\n>> Rcpp-devel mailing list\n>> Rcpp-devel at lists.r-forge.r-project.org\n>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160815/fc1f3d08/attachment.html>",
+      "body_snippet": "Thanks JJ, this is actually the answer I was expecting but I wanted to make\nsure.\n\nRegards,\nCharles\n\nOn Mon, Aug 15, 2016 at 8:20 AM, JJ Allaire <jj.allaire at gmail.com> wrote:\n\n> Rcpp attributes onl",
+      "thread_id": "thread-30904433ce35",
+      "thread_depth": 2,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-ec418f357979",
+      "message_id": "<FC4854E1-9C9D-4011-A123-CFCC955E41B8@gmail.com>",
+      "from_name": "Masaki Tsuda",
+      "from_email_hash": "68d9ce88d659fc420b54dc15e3d7884dc2d28c1f83c28c40c21cfa844051acd2",
+      "date": "2016-08-24T22:51:16+09:00",
+      "subject": "[Rcpp-devel] seq(from, to, by) for Rcpp::sugar",
+      "subject_clean": "[Rcpp-devel] seq(from, to, by) for Rcpp::sugar",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Dear Rcpp developers,\n\nI wrote seq(from, to, by) function for Rcpp::sugar.\nIt worked for me to generate numerical sequence in ascending/descending order and absolute value of the common difference is smaller than 1\n\nIt is great pleasure if you consider the function is correct and it could be integrated into Rcpp package.\n\nBest regards,\n\nMasaki Tsuda\n\n\n========\n\nnamespace Rcpp{\nnamespace sugar{\n\nclass Seq : public VectorBase< REALSXP,false,Seq > {\npublic:\n    Seq( double from_, double to_ , double by_ = 1.0) : from(from_), by(by_), len(((to_-from_)/by_)+1) {\n        if(from_ <= to_){\n            if(by_ < 0.0) stop(\"'by' shuld be positive when 'to' is greater than 'from'.\");\n        } else {\n            if(by_ == 1.0) by = -1.0;\n            else if(by_ > 0.0) stop(\"'by' shuld be negative when 'from' is greater than 'to'.\");\n            len = (((to_-from_)/by_)+1);\n        }\n    }\n    inline double operator[]( R_xlen_t i ) const {\n        return from + i*by ;\n    }\n    inline R_xlen_t size() const { return len ; }\n    \nprivate:\n    double from ;\n    double by ;\n    R_xlen_t len ;\n} ;\n\n} // sugar\n\ninline sugar::Seq seq( const double from, const double to , const double by){\n    return sugar::Seq( from, to, by ) ;\n}\n\n} // Rcpp\n\n========\n\n\n\n\n\n\n\n\n\n\\\n\n\n\n\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160824/8562596a/attachment.html>",
+      "body_snippet": "Dear Rcpp developers,\n\nI wrote seq(from, to, by) function for Rcpp::sugar.\nIt worked for me to generate numerical sequence in ascending/descending order and absolute value of the common difference is ",
+      "thread_id": "thread-ec418f357979",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-ae607e3df4b5",
+      "message_id": "<22463.46077.278624.407402@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-25T22:14:05-05:00",
+      "subject": "[Rcpp-devel] [ANN] RcppArmadillo 0.7.400.2.0",
+      "subject_clean": "[Rcpp-devel] [ANN] RcppArmadillo 0.7.400.2.0",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Quick post to say that a new RcppArmadillo release is on CRAN, following\nmultiple rounds on internal testings as well as interm release by Conrad. I\nwill now try to space these out to not release to CRAN more than once a\nmonth, give or take, but will make updates to the GitHub. Follow that if you\nwant to know about more frequent updates.  We may also use the drat repos --\nlet me know off-list if you have preferences either way.\n\nAs always, thanks to Conrad for giving a very fine library so vibrant and active.\n\nThe text (without links) of the blog post is below.\n\nThanks,  Dirk\n\n  RcppArmadillo 0.7.400.2.0\n\n   armadillo image\n\n   Another Armadillo 7.* release -- now at 7.400. We skipped the 7.300.* serie release\n   as it came too soon after our most recent CRAN release. Releasing RcppArmadillo\n   0.7.400.2.0 now keeps us at the (roughly monthly) cadence which works as a good\n   compromise between getting updates out at Conrad's sometimes frantic pace, while\n   keeping CRAN (and Debian) uploads to about once per month.\n\n   So we may continue the pattern of helping Conrad with thorough regression tests by\n   building against all (by now 253 (!!)) CRAN dependencies, but keeping release at the\n   GitHub repo and only uploading to CRAN at most once a month.\n\n   Armadillo is a powerful and expressive C++ template library for linear algebra\n   aiming towards a good balance between speed and ease of use with a syntax\n   deliberately close to a Matlab.\n\n   The new upstream release adds new more helper functions. Detailed changes in this\n   release relative to the previous CRAN release are as follows:\n\n    Changes in RcppArmadillo version 0.7.400.2.0 (2016-08-24)\n\n       * Upgraded to Armadillo release 7.400.2 (Feral Winter Deluxe)\n\n            * added expmat_sym(), logmat_sympd(), sqrtmat_sympd()\n\n            * added .replace()\n\n    Changes in RcppArmadillo version 0.7.300.1.0 (2016-07-30)\n\n       * Upgraded to Armadillo release 7.300.1\n\n            * added index_min() and index_max() standalone functions\n\n            * expanded .subvec() to accept size() arguments\n\n            * more robust handling of non-square matrices by lu()\n\n   Courtesy of CRANberries, there is a diffstat report. More detailed information is on\n   the RcppArmadillo page. Questions, comments etc should go to the rcpp-devel mailing\n   list off the R-Forge page.\n\n\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Quick post to say that a new RcppArmadillo release is on CRAN, following\nmultiple rounds on internal testings as well as interm release by Conrad. I\nwill now try to space these out to not release to C",
+      "thread_id": "thread-ae607e3df4b5",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-786bfa966c37",
+      "message_id": "<CAA1a2UmOPYOZy9tk-QRGfM5NOKJDOaT6gU_wb7BE8Er9NgnhSQ@mail.gmail.com>",
+      "from_name": "Fatima Batool",
+      "from_email_hash": "6463a8f6fa83a2f1a98bfd024dcb4862ecdedd37656184497f0ec4bea18ca4c7",
+      "date": "2016-08-28T13:53:52+01:00",
+      "subject": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "subject_clean": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi all,\n\nWant to ask two basic things. I have a pointer in a macro. How should I\ncall it in R? Also, in my fun I have a for loop involving pointers to\naddress of object. I am not sure can I simply put NumericVector here or\nthere is some other things to take care of? Below is the code.\n\n\n#include <Rcpp.h>\n\nusing namespace Rcpp;\n\n#define initilizer(filler, fillee, length) \\\n\ndo { int counter; \\\n\nfor(counter = 0; counter < (length); *((fillee)+ counter++)=(filler)); \\\n\n} \\\n\nwhile(0);\n\nusing namespace Rcpp;\n\nvoid fun(int n, NumericVector array_1, double *object){\n\n    int i;\n\n    initilizer(1.1, array_1, n);\n\n    for (i = 0, *object = 0.; i < n; *object += array_1[i++]);\n\n}\n\n\nR code:\n\ninstall.packages(\"Rcpp\")\n\nlibrary(Rcpp)\n\nsourceCpp(\"stackflow.cpp\")\n\n\nErrors are:\n\n\n##########################################################\n\n\nclang++ -I/Library/Frameworks/R.framework/Resources/include -DNDEBUG  -I/usr\n/local/include -I/usr/local/include/freetype2 -I/opt/X11/include  -I\n\"/Library/Frameworks/R.framework/Versions/3.3/Resources/library/Rcpp/\ninclude\" -I\"/Users/fatimabatool/Documents/New/R codes\"    -fPIC  -Wall -\nmtune=core2 -g -O2  -c stackflow.cpp -o stackflow.o\n\nError in sourceCpp(\"stackflow.cpp\") :\n\n  Error 1 occurred building shared library.\n\nstackflow.cpp:18:5: error: indirection requires pointer operand ('typename\ntraits::enable_if<traits::is_convertible<typename\ntraits::remove_const_and_reference<int>::type,\ntypename traits::storage_type<14>::type>::value, typename\nsugar::Plus_Vector_Primitive<14, true, Vector<14, PreserveStorage> >\n>::type' (aka 'Rcpp::sugar::Plus_Vector_Primitive<14, true,\nRcpp::Vector<14, PreserveStorage> >') invalid)\n\n    initilizer(1.1, array_1, n);\n\n    ^~~~~~~~~~~~~~~~~~~~~~~~~~~\n\nstackflow.cpp:12:38: note: expanded from macro 'initilizer'\n\nfor(counter = 0; counter < (length); *((fillee)+ counter++)=(filler)); \\\n\n                                     ^~~~~~~~~~~~~~~~~~~~~~\n\n1 error generated.\n\nmake: *** [stackflow.o] Error 1\n\n#############################################################\n\n\n Below is the C++ code.\n\n\n#include <iostream>\n\nusing namespace std;\n\n#define initilizer(filler, fillee, length) \\\n\ndo { int counter; \\\n\nfor(counter = 0; counter < (length); *((fillee)+ counter++)=(filler)); \\\n\n} \\\n\nwhile(0);\n\n\nvoid fun(int n, double *array_1, double *object){\n\n    int i;\n\n    initilizer(1.1, array_1, n);\n\n    for (i = 0, *object = 0.; i < n; *object += array_1[i++]);\n\n    return;\n\n}\n\n\nint main()\n\n{\n\n    int n = 5;\n\n    double *array_1;\n\n    double object;\n\n    array_1 = (double*)calloc(n, sizeof(double));\n\n    fun(n, array_1, &object);\n\n\n\n    for(int i = 0; i < n; i++){\n\n        cout << \"array_1[\" << i << \"]=\" << array_1[i] << endl;\n\n    }\n\n    cout << \"object = \" << object << endl;\n\n\n\n}\n\n\n\nThe output is:\n\n\narray_1[0]=1.1\n\narray_1[1]=1.1\n\narray_1[2]=1.1\n\narray_1[3]=1.1\n\narray_1[4]=1.1\n\nobject = 5.5\n\n\nMany Thanks\n\nKindest Regards\n\nFatima\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160828/98120ce8/attachment-0001.html>",
+      "body_snippet": "Hi all,\n\nWant to ask two basic things. I have a pointer in a macro. How should I\ncall it in R? Also, in my fun I have a for loop involving pointers to\naddress of object. I am not sure can I simply put",
+      "thread_id": "thread-786bfa966c37",
+      "thread_depth": 0,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-4f07691054ac",
+      "message_id": "<22466.60181.651504.191769@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-28T08:45:57-05:00",
+      "subject": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "subject_clean": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "in_reply_to": "<CAA1a2UmOPYOZy9tk-QRGfM5NOKJDOaT6gU_wb7BE8Er9NgnhSQ@mail.gmail.com>",
+      "references": [
+        "<CAA1a2UmOPYOZy9tk-QRGfM5NOKJDOaT6gU_wb7BE8Er9NgnhSQ@mail.gmail.com>"
+      ],
+      "body_plain": "Fatima,\n\nYou are writing very much like a C programmer. While C and C++ pretty much\nget along, we have conflicts here over the macro use --- we make extensive\nuse of templates, and the cost of that is that some structures (which may be\nvalid, but really are no longer recommended style) conflict.\n\nThat happens here. Let me offer two different solutions.\n\nThe first simply splits your macro off into an initializer function and calls\nit.  We have\n\n-----------------------------------------------------------------------------\n#include <Rcpp.h>\n\nusing namespace Rcpp;\n\nNumericVector fillVector(NumericVector v, double amount) {\n    for (int i=0; i<v.size(); i++)\n        v(i) = amount;\n    return v;\n}\n\n// [[Rcpp::export]]\ndouble fun(double fillamount, NumericVector array1) {\n    array1 = fillVector(array1, 1.1);\n    double object = 0.0;\n    for (int i=0; i<array1.size(); i++)\n        object += array1(i);\n    return object;\n}\n-----------------------------------------------------------------------------\n\nVery straightforward: we pass a vector and an amount, and set the amount in\neach element. (But see below.)\n\nWe then use that in function fun() to initialize the vector, after which we\nloop over it and summarize.\n\nBut there is more.\n\nInitializing a vector with a constant in each element is so common that we\nhave constructor just for that.  And summing each element is so common that\nthe sugar function sum() does just that.  So now it all is just this\ntwo-liner:\n\n-----------------------------------------------------------------------------\n// [[Rcpp::export]]\ndouble simplerfun(double fillamount, int n) {\n    NumericVector arr(n, fillamount);\n    return sum(arr);\n}\n-----------------------------------------------------------------------------\n\nWhen I run this I get:\n\n\n-----------------------------------------------------------------------------\n\nR> sourceCpp(\"/tmp/rcppdevel20160828.cpp\")\n\nR> fun(1.1, 1:5)\n[1] 5.5\n\nR> simplerfun(1.1, 5)\n[1] 5.5\nR>\n\n-----------------------------------------------------------------------------\n\nAs expected.  Hope this helps.  I re-include the whole file below.\n\nDirk\n\n\n-----------------------------------------------------------------------------\n\n#include <Rcpp.h>\n\nusing namespace Rcpp;\n\nNumericVector fillVector(NumericVector v, double amount) {\n    for (int i=0; i<v.size(); i++)\n        v(i) = amount;\n    return v;\n}\n\n// [[Rcpp::export]]\ndouble fun(double fillamount, NumericVector array1) {\n    array1 = fillVector(array1, 1.1);\n    double object = 0.0;\n    for (int i=0; i<array1.size(); i++)\n        object += array1(i);\n    return object;\n}\n\n\n/*** R\nfun(1.1, 1:5)\n*/\n\n\n\n// [[Rcpp::export]]\ndouble simplerfun(double fillamount, int n) {\n    NumericVector arr(n, fillamount);\n    return sum(arr);\n}\n\n/*** R\nsimplerfun(1.1, 5)\n*/\n\n-----------------------------------------------------------------------------\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Fatima,\n\nYou are writing very much like a C programmer. While C and C++ pretty much\nget along, we have conflicts here over the macro use --- we make extensive\nuse of templates, and the cost of that is",
+      "thread_id": "thread-786bfa966c37",
+      "thread_depth": 1,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-4381d9ac85e2",
+      "message_id": "<22466.60946.899249.432040@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2016-08-28T08:58:42-05:00",
+      "subject": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "subject_clean": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "in_reply_to": "<22466.60181.651504.191769@max.nulle.part>",
+      "references": [
+        "<CAA1a2UmOPYOZy9tk-QRGfM5NOKJDOaT6gU_wb7BE8Er9NgnhSQ@mail.gmail.com>",
+        "<22466.60181.651504.191769@max.nulle.part>"
+      ],
+      "body_plain": "Fatima,\n\nOh, and just to clarify:  Macros are still possible.  In fact, if you study\nthe Rcpp source code you will find _extensive_ use of them.  But as a matter\nof programming style I would recommend avoiding them in top-level user-facing\ncode. \n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Fatima,\n\nOh, and just to clarify:  Macros are still possible.  In fact, if you study\nthe Rcpp source code you will find _extensive_ use of them.  But as a matter\nof programming style I would recommend",
+      "thread_id": "thread-786bfa966c37",
+      "thread_depth": 2,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-87697fe43b90",
+      "message_id": "<29A23146-8D5C-480C-935A-A8C3C24A94C0@mindspring.com>",
+      "from_name": "Dale Smith",
+      "from_email_hash": "f801feda5e12780ddb7398dcf47e71f088525886d73f7daca63949bc959e7b68",
+      "date": "2016-08-28T13:46:02-04:00",
+      "subject": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "subject_clean": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "in_reply_to": "<22466.60946.899249.432040@max.nulle.part>",
+      "references": [
+        "<CAA1a2UmOPYOZy9tk-QRGfM5NOKJDOaT6gU_wb7BE8Er9NgnhSQ@mail.gmail.com>",
+        "<22466.60181.651504.191769@max.nulle.part>",
+        "<22466.60946.899249.432040@max.nulle.part>"
+      ],
+      "body_plain": "Agree about macros.\n\nSent from my iPad\n\n> On Aug 28, 2016, at 9:58 AM, Dirk Eddelbuettel <edd at debian.org> wrote:\n> \n> \n> Fatima,\n> \n> Oh, and just to clarify:  Macros are still possible.  In fact, if you study\n> the Rcpp source code you will find _extensive_ use of them.  But as a matter\n> of programming style I would recommend avoiding them in top-level user-facing\n> code. \n> \n> Dirk\n> \n> -- \n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "Agree about macros.\n\nSent from my iPad\n\n> On Aug 28, 2016, at 9:58 AM, Dirk Eddelbuettel <edd at debian.org> wrote:\n> \n> \n> Fatima,\n> \n> Oh, and just to clarify:  Macros are still possible.  In fact, ",
+      "thread_id": "thread-786bfa966c37",
+      "thread_depth": 3,
+      "month": "2016-08"
+    },
+    {
+      "id": "msg-aed29e9684d7",
+      "message_id": "<CAA1a2Um=0ea_cNd-8n5VrdWS2kjAo6OiyqsvUbq3C6faC1m-LQ@mail.gmail.com>",
+      "from_name": "Fatima Batool",
+      "from_email_hash": "6463a8f6fa83a2f1a98bfd024dcb4862ecdedd37656184497f0ec4bea18ca4c7",
+      "date": "2016-08-29T17:42:21+01:00",
+      "subject": "[Rcpp-devel] Rcpp-devel Digest, Vol 82, Issue 13",
+      "subject_clean": "[Rcpp-devel] Rcpp-devel Digest, Vol 82, Issue 13",
+      "in_reply_to": "<mailman.1.1472464801.27319.rcpp-devel@lists.r-forge.r-project.org>",
+      "references": [
+        "<mailman.1.1472464801.27319.rcpp-devel@lists.r-forge.r-project.org>"
+      ],
+      "body_plain": "replacing macros with functions has make the task completion quite simple\nand easy. Thank you! and I think its still a good idea to have a look some\nwhere for calling C++ macros in R for learning. One small think I want to\nask here is\n\nI want too keep \"object\" as a function formal parameter while keeping fun\ntype as void and do not want to return it as return object. Because in my\nfunction there are other returning values and from this function pass its\noutput to some other function. Therefore, now If I try this\n\n#include <Rcpp.h>\n\n\nusing namespace Rcpp;\n\n\nNumericVector fillVector(NumericVector v, double amount) {\n\n    for (int i=0; i<v.size(); i++)\n\n        v(i) = amount;\n\n    return v;\n\n}\n\n\n// [[Rcpp::export]]\n\nvoid fun(double fillamount, NumericVector array1, double object) {\n\n    array1 = fillVector(array1, 1.1);\n\n    for (int i=0; i<array1.size(); i++)\n\n        object += array1(i);\n\n    return;\n\n}\n\n\n/***R\nfun(1.1, 1:5, 0.0)\n*/\nI'm getting nothing as output.\n\nRegards\nFatima\n\nOn Mon, Aug 29, 2016 at 11:00 AM, <\nrcpp-devel-request at lists.r-forge.r-project.org> wrote:\n\n> Send Rcpp-devel mailing list submissions to\n>         rcpp-devel at lists.r-forge.r-project.org\n>\n> To subscribe or unsubscribe via the World Wide Web, visit\n>         https://lists.r-forge.r-project.org/cgi-bin/mailman/\n> listinfo/rcpp-devel\n>\n> or, via email, send a message with subject or body 'help' to\n>         rcpp-devel-request at lists.r-forge.r-project.org\n>\n> You can reach the person managing the list at\n>         rcpp-devel-owner at lists.r-forge.r-project.org\n>\n> When replying, please edit your Subject line so it is more specific\n> than \"Re: Contents of Rcpp-devel digest...\"\n>\n>\n> Today's Topics:\n>\n>    1. Re: Calling C++ Macros in R using Rcpp (Dirk Eddelbuettel)\n>    2. Re: Calling C++ Macros in R using Rcpp (Dirk Eddelbuettel)\n>    3. Re: Calling C++ Macros in R using Rcpp (Dale Smith)\n>\n>\n> ----------------------------------------------------------------------\n>\n> Message: 1\n> Date: Sun, 28 Aug 2016 08:45:57 -0500\n> From: Dirk Eddelbuettel <edd at debian.org>\n> To: Fatima Batool <gbatoolfatima at gmail.com>\n> Cc: rcpp-devel at lists.r-forge.r-project.org\n> Subject: Re: [Rcpp-devel] Calling C++ Macros in R using Rcpp\n> Message-ID: <22466.60181.651504.191769 at max.nulle.part>\n> Content-Type: text/plain; charset=us-ascii\n>\n>\n> Fatima,\n>\n> You are writing very much like a C programmer. While C and C++ pretty much\n> get along, we have conflicts here over the macro use --- we make extensive\n> use of templates, and the cost of that is that some structures (which may\n> be\n> valid, but really are no longer recommended style) conflict.\n>\n> That happens here. Let me offer two different solutions.\n>\n> The first simply splits your macro off into an initializer function and\n> calls\n> it.  We have\n>\n> ------------------------------------------------------------\n> -----------------\n> #include <Rcpp.h>\n>\n> using namespace Rcpp;\n>\n> NumericVector fillVector(NumericVector v, double amount) {\n>     for (int i=0; i<v.size(); i++)\n>         v(i) = amount;\n>     return v;\n> }\n>\n> // [[Rcpp::export]]\n> double fun(double fillamount, NumericVector array1) {\n>     array1 = fillVector(array1, 1.1);\n>     double object = 0.0;\n>     for (int i=0; i<array1.size(); i++)\n>         object += array1(i);\n>     return object;\n> }\n> ------------------------------------------------------------\n> -----------------\n>\n> Very straightforward: we pass a vector and an amount, and set the amount in\n> each element. (But see below.)\n>\n> We then use that in function fun() to initialize the vector, after which we\n> loop over it and summarize.\n>\n> But there is more.\n>\n> Initializing a vector with a constant in each element is so common that we\n> have constructor just for that.  And summing each element is so common that\n> the sugar function sum() does just that.  So now it all is just this\n> two-liner:\n>\n> ------------------------------------------------------------\n> -----------------\n> // [[Rcpp::export]]\n> double simplerfun(double fillamount, int n) {\n>     NumericVector arr(n, fillamount);\n>     return sum(arr);\n> }\n> ------------------------------------------------------------\n> -----------------\n>\n> When I run this I get:\n>\n>\n> ------------------------------------------------------------\n> -----------------\n>\n> R> sourceCpp(\"/tmp/rcppdevel20160828.cpp\")\n>\n> R> fun(1.1, 1:5)\n> [1] 5.5\n>\n> R> simplerfun(1.1, 5)\n> [1] 5.5\n> R>\n>\n> ------------------------------------------------------------\n> -----------------\n>\n> As expected.  Hope this helps.  I re-include the whole file below.\n>\n> Dirk\n>\n>\n> ------------------------------------------------------------\n> -----------------\n>\n> #include <Rcpp.h>\n>\n> using namespace Rcpp;\n>\n> NumericVector fillVector(NumericVector v, double amount) {\n>     for (int i=0; i<v.size(); i++)\n>         v(i) = amount;\n>     return v;\n> }\n>\n> // [[Rcpp::export]]\n> double fun(double fillamount, NumericVector array1) {\n>     array1 = fillVector(array1, 1.1);\n>     double object = 0.0;\n>     for (int i=0; i<array1.size(); i++)\n>         object += array1(i);\n>     return object;\n> }\n>\n>\n> /*** R\n> fun(1.1, 1:5)\n> */\n>\n>\n>\n> // [[Rcpp::export]]\n> double simplerfun(double fillamount, int n) {\n>     NumericVector arr(n, fillamount);\n>     return sum(arr);\n> }\n>\n> /*** R\n> simplerfun(1.1, 5)\n> */\n>\n> ------------------------------------------------------------\n> -----------------\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n>\n> ------------------------------\n>\n> Message: 2\n> Date: Sun, 28 Aug 2016 08:58:42 -0500\n> From: Dirk Eddelbuettel <edd at debian.org>\n> To: Dirk Eddelbuettel <edd at debian.org>\n> Cc: rcpp-devel at lists.r-forge.r-project.org, Fatima Batool\n>         <gbatoolfatima at gmail.com>\n> Subject: Re: [Rcpp-devel] Calling C++ Macros in R using Rcpp\n> Message-ID: <22466.60946.899249.432040 at max.nulle.part>\n> Content-Type: text/plain; charset=us-ascii\n>\n>\n> Fatima,\n>\n> Oh, and just to clarify:  Macros are still possible.  In fact, if you study\n> the Rcpp source code you will find _extensive_ use of them.  But as a\n> matter\n> of programming style I would recommend avoiding them in top-level\n> user-facing\n> code.\n>\n> Dirk\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n>\n> ------------------------------\n>\n> Message: 3\n> Date: Sun, 28 Aug 2016 13:46:02 -0400\n> From: Dale Smith <dtsmith at mindspring.com>\n> To: Dirk Eddelbuettel <edd at debian.org>\n> Cc: rcpp-devel at lists.r-forge.r-project.org, Fatima Batool\n>         <gbatoolfatima at gmail.com>\n> Subject: Re: [Rcpp-devel] Calling C++ Macros in R using Rcpp\n> Message-ID: <29A23146-8D5C-480C-935A-A8C3C24A94C0 at mindspring.com>\n> Content-Type: text/plain;       charset=us-ascii\n>\n> Agree about macros.\n>\n> Sent from my iPad\n>\n> > On Aug 28, 2016, at 9:58 AM, Dirk Eddelbuettel <edd at debian.org> wrote:\n> >\n> >\n> > Fatima,\n> >\n> > Oh, and just to clarify:  Macros are still possible.  In fact, if you\n> study\n> > the Rcpp source code you will find _extensive_ use of them.  But as a\n> matter\n> > of programming style I would recommend avoiding them in top-level\n> user-facing\n> > code.\n> >\n> > Dirk\n> >\n> > --\n> > http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> > _______________________________________________\n> > Rcpp-devel mailing list\n> > Rcpp-devel at lists.r-forge.r-project.org\n> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n>\n>\n> ------------------------------\n>\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n> End of Rcpp-devel Digest, Vol 82, Issue 13\n> ******************************************\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20160829/730ef5e0/attachment.html>",
+      "body_snippet": "replacing macros with functions has make the task completion quite simple\nand easy. Thank you! and I think its still a good idea to have a look some\nwhere for calling C++ macros in R for learning. One",
+      "thread_id": "thread-aed29e9684d7",
+      "thread_depth": 0,
+      "month": "2016-08"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-5fcf730ea940",
+      "subject": "[Rcpp-devel] Templates and Debugging Symbols",
+      "message_count": 1,
+      "participants": [
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2016-08-01T07:06:48-05:00",
+      "last_reply": "2016-08-01T07:06:48-05:00",
+      "root_message_id": "msg-5fcf730ea940"
+    },
+    {
+      "id": "thread-6b26d2dee14b",
+      "subject": "[Rcpp-devel] Alternative way of calling R functions within C++",
+      "message_count": 7,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "George Vega Yon",
+        "Kevin Ushey"
+      ],
+      "started": "2016-08-03T10:50:27-07:00",
+      "last_reply": "2016-08-03T13:09:04-07:00",
+      "root_message_id": "msg-6b26d2dee14b"
+    },
+    {
+      "id": "thread-e8ae85da76d1",
+      "subject": "[Rcpp-devel] type mismatch between NumericMatrix and IntegerMatrix",
+      "message_count": 3,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "JJ Allaire",
+        "Kaspar Märtens"
+      ],
+      "started": "2016-08-07T12:00:27+01:00",
+      "last_reply": "2016-08-07T07:55:38-05:00",
+      "root_message_id": "msg-e8ae85da76d1"
+    },
+    {
+      "id": "thread-1f6e1c496016",
+      "subject": "[Rcpp-devel] Rcpp example that crashes on 64 bit Windows",
+      "message_count": 10,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Rajen Shah",
+        "William Dunlap"
+      ],
+      "started": "2016-08-11T06:28:56-05:00",
+      "last_reply": "2016-08-11T11:28:58-05:00",
+      "root_message_id": "msg-1f6e1c496016"
+    },
+    {
+      "id": "thread-30904433ce35",
+      "subject": "[Rcpp-devel] C++ class methods exported via Interfaces Attribute?",
+      "message_count": 3,
+      "participants": [
+        "Charles Determan",
+        "JJ Allaire"
+      ],
+      "started": "2016-08-15T08:16:28-05:00",
+      "last_reply": "2016-08-15T08:21:06-05:00",
+      "root_message_id": "msg-30904433ce35"
+    },
+    {
+      "id": "thread-ec418f357979",
+      "subject": "[Rcpp-devel] seq(from, to, by) for Rcpp::sugar",
+      "message_count": 1,
+      "participants": [
+        "Masaki Tsuda"
+      ],
+      "started": "2016-08-24T22:51:16+09:00",
+      "last_reply": "2016-08-24T22:51:16+09:00",
+      "root_message_id": "msg-ec418f357979"
+    },
+    {
+      "id": "thread-ae607e3df4b5",
+      "subject": "[Rcpp-devel] [ANN] RcppArmadillo 0.7.400.2.0",
+      "message_count": 1,
+      "participants": [
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2016-08-25T22:14:05-05:00",
+      "last_reply": "2016-08-25T22:14:05-05:00",
+      "root_message_id": "msg-ae607e3df4b5"
+    },
+    {
+      "id": "thread-786bfa966c37",
+      "subject": "[Rcpp-devel] Calling C++ Macros in R using Rcpp",
+      "message_count": 4,
+      "participants": [
+        "Dale Smith",
+        "Dirk Eddelbuettel",
+        "Fatima Batool"
+      ],
+      "started": "2016-08-28T13:53:52+01:00",
+      "last_reply": "2016-08-28T13:46:02-04:00",
+      "root_message_id": "msg-786bfa966c37"
+    },
+    {
+      "id": "thread-aed29e9684d7",
+      "subject": "[Rcpp-devel] Rcpp-devel Digest, Vol 82, Issue 13",
+      "message_count": 1,
+      "participants": [
+        "Fatima Batool"
+      ],
+      "started": "2016-08-29T17:42:21+01:00",
+      "last_reply": "2016-08-29T17:42:21+01:00",
+      "root_message_id": "msg-aed29e9684d7"
+    }
+  ]
+}

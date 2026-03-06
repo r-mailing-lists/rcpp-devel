@@ -1,0 +1,216 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2024-03",
+  "messages": [
+    {
+      "id": "msg-9750970e9c4a",
+      "message_id": "<CAL3fuh=i9oyiyurytj=JY2QwM7McxAr__M9pxi3JrUR4hbfzVg@mail.gmail.com>",
+      "from_name": "Nikhil Garg",
+      "from_email_hash": "74d335c4a5fe062fbca0e529b7b2203dbea31a6bb968bda2b9d6bfb0e0c1dbfe",
+      "date": "2024-03-02T18:51:47+11:00",
+      "subject": "[Rcpp-devel] Segfault in wrapping code in Rcpp",
+      "subject_clean": "[Rcpp-devel] Segfault in wrapping code in Rcpp",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi,\n\nI am currently working on wrapping some code from a C++ library. I am using\nRCPP for this work. I have managed to get the wrapping code compiled but I\nget segfault when I try to use some of the functionality.\n\nHere is an example of how I have gone about it, though I think I am quite\nsure I am missing something. Note, I have left out methods in the\nRCPP_MODULE wrappings. I am happy to share that if needed to get more\ninformation.\n\nIn the code below, *RasterBase* is an abstract class that derives from\n*PropertyMap.* I have used Romain Francis's suggestion (\nhttps://stackoverflow.com/questions/24317910/rcpp-module-for-inheritance-class?rq=3)\non how to work with derived class and Ralf Stubner's suggestion (\nhttps://stackoverflow.com/questions/54469409/how-to-expose-a-pointer-of-an-abstract-class-using-rcpp)\non how to work with an abstract class and got most stuff working.\n\ntypedef std::reference_wrapper<RasterBaseFloat> RasterBaseRef;\ntypedef std::vector<RasterBaseRef> RasterBaseRefs;\n\nRasterBaseFloat *newRasterBase() {\nreturn new RasterFloat();\n}\n\nvoid sortColumns(RasterFloat& r) {\nGeostack::sortColumns(r);\n}\n\nRasterBaseFloat& get_raster_ref_from_vec(RasterBaseRefs &v,\nstd::size_t i)\n{\nreturn v[i].get();\n}\n\nvoid add_ref_to_vec(RasterBaseRefs &v, RasterBaseFloat &rf)\n{\nv.emplace_back(std::ref(rf));\n}\n\nvoid runScriptNoOut(std::string script, SEXP r_list, std::size_t param) {\nRcpp::List raster_base_list(r_list);\nint n = raster_base_list.size();\n\nRasterBaseRefs raster_list;\nraster_list.reserve(n);\nRcpp::Rcout << raster_list.size() << std::endl;\n\nfor (int i = 0; i < n; i++) {\nRasterFloat r = raster_base_list[i];\nadd_ref_to_vec(raster_list, r);\n}\n\nRcpp::Rcout << raster_list.size() << std::endl;\n\nGeostack::runScriptNoOut(script, raster_list, param);\n}\n\nRCPP_MODULE(GS_Raster) {\nclass_<PropertyMap>(\"PropertyMap\")\n.constructor(\"Instantiate property map object\")\n\nclass_<RasterBaseFloat>(\"RasterBase\")\n.derives<PropertyMap>(\"PropertyMap\")\n.factory(&newRasterBase)\n\nclass_<RasterFloat>(\"Raster\")\n.derives<RasterBaseFloat>(\"RasterBase\")\n\nHere is how I have tested the wrappings in R.\n\nlibrary(devtools)\nsetwd(\"/home/gar305/Documents/geostack/r_binding/RcppGeostack\")\ndevtools::load_all()\nlibrary(Rcpp)\n\ntestA <- new(Raster, \"testRaster\")\ntestA$init(256, 256, 4, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0)\ntestA$setAllCellValues(0.0)\ntestA$getCellValue(10, 10, 0)\n\ndims <- testA$getRasterDimensions()\ndims\n\nprojParams <- fromEPSG(\"4326\")\n\ntestA$setProjectionParameters(projParams)\n\nproj2 <- testA$getProjectionParameters()\nproj2\n\ntestA$getProperty_String(\"name\")\n\nr_list <- list(testA)\nrunScriptNoOut(\"testRaster = randomNormal(0, 1);\", r_list, 0)\ntestA$getCellValue(10, 10, 0)\n\n\nand here is what I get when I run the above R code\n\n[image: image.png]\n\nAny help or suggestions on ways to rectify this issue would be great.\n\nRegards,\nNikhil\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240302/e23ce863/attachment-0001.htm>\n-------------- next part --------------\nA non-text attachment was scrubbed...\nName: image.png\nType: image/png\nSize: 45541 bytes\nDesc: not available\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240302/e23ce863/attachment-0001.png>",
+      "body_snippet": "Hi,\n\nI am currently working on wrapping some code from a C++ library. I am using\nRCPP for this work. I have managed to get the wrapping code compiled but I\nget segfault when I try to use some of the f",
+      "thread_id": "thread-9750970e9c4a",
+      "thread_depth": 0,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-114d4f427f0d",
+      "message_id": "<CADjxTxjWDwu+ZeD_ikeT6LYmPPH4oTTPFetGZi_VrOQ8Wn=X3g@mail.gmail.com>",
+      "from_name": "Robin Liu",
+      "from_email_hash": "b2ab118fe936cd82b579d6d09b43c8e9164c033fe48fd5b6f908451f3767ec29",
+      "date": "2024-03-02T16:34:34-08:00",
+      "subject": "[Rcpp-devel] RcppArmadillo with -fopenmp: Not using all available cores",
+      "subject_clean": "[Rcpp-devel] RcppArmadillo with -fopenmp: Not using all available cores",
+      "in_reply_to": "<26074.9393.286011.638526@rob.eddelbuettel.com>",
+      "references": [
+        "<CADjxTxj_OHbE1pP34Uh8Qs_SDcpWJFqagBEDzGVm2Y25fvtLTg@mail.gmail.com>",
+        "<26072.56236.197904.821826@rob.eddelbuettel.com>",
+        "<CADjxTxivEv9dg18vAzhxb8TSzxZXmVhvr5Yjuk5bSXcr7cKgog@mail.gmail.com>",
+        "<26074.9393.286011.638526@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Hi Dirk,\n\nsessionInfo() was the right clue. Indeed the version of R on machine B was\nnot linked to OpenBLAS. Switching to a version with OpenBLAS allows the\ntest code to use all cores.\n\nA clear way to check which library is linked is to run the following:\n\n> extSoftVersion()[\"BLAS\"]\n\nThanks for your help!\n\nOn Sat, Feb 24, 2024 at 9:17?AM Dirk Eddelbuettel <edd at debian.org> wrote:\n\n>\n> On 24 February 2024 at 11:44, Robin Liu wrote:\n> | Thank you Dirk for the response.\n> |\n> | I called RcppArmadillo::armadillo_get_number_of_omp_threads() on both\n> machines\n> | and correctly see that machine A and B have 20 and 40 cores,\n> respectively. I\n> | also see that calling the setter changes this value.\n> |\n> | However, calling the setter does not seem to change the number of cores\n> used on\n> | either machine A or B. I have updated my code example as below: the\n> execution\n> | uses 20 cores on machine A and 1 core on machine B as before, despite my\n> | setting the number of omp threads to 5. Do you have any further hints?\n>\n> I fear you need to debug that on the machine 'B' in question. It's all open\n> source.  I do not think either Conrad or myself put code in to constrain\n> you\n> to one core on 'B' (and then doesn't as you see on 'A').\n>\n> You can grep around both the RcppArmadillo wrapper code and the include\n> Armadillo code, I suggest making a local copy and peppering in some print\n> statements.\n>\n> Also keep in mind that (Rcpp)Armadillo hands off to computation to the\n> actual\n> LAPACK / BLAS implementation on that machine. Lots of things can go wrong\n> there: maybe R was compiled with its own embedded BLAS/LAPACK sources\n> (preventing a call out to OpenBLAS even when the machine has it). Or maybe\n> R\n> was compiled correctly but a single-threaded set of libraries is on the\n> machine.\n>\n> You have not supplied any of that information. Many bug report suggestions\n> hint that showing `sessionInfo()` helps -- and it does show the BLAS/LAPACK\n> libraries. You are not forced to show us this, but by not showing us you\n> prevent us from being more focussed on suggestions.  So maybe start at your\n> end by glancing at sessionInfo() on A and B?\n>\n> Dirk\n>\n>\n> | library(RcppArmadillo)\n> | library(Rcpp)\n> |\n> | RcppArmadillo::armadillo_set_number_of_omp_threads(5)\n> | print(sprintf(\"There are %d threads\",\n> |       RcppArmadillo::armadillo_get_number_of_omp_threads()))\n> |\n> | src <-\n> | r\"(#include <RcppArmadillo.h>\n> |\n> | // [[Rcpp::depends(RcppArmadillo)]]\n> |\n> | // [[Rcpp::export]]\n> | arma::vec getEigenValues(arma::mat M) {\n> |   return arma::eig_sym(M);\n> | })\"\n> |\n> | size <- 10000\n> | m <- matrix(rnorm(size^2), size, size)\n> | m <- m * t(m)\n> |\n> | # This line compiles the above code with the -fopenmp flag.\n> | sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)\n> | result <- getEigenValues(m)\n> | print(result[1:10])\n> |\n> | On Fri, Feb 23, 2024 at 12:53?PM Dirk Eddelbuettel <edd at debian.org>\n> wrote:\n> |\n> |\n> |     On 23 February 2024 at 09:35, Robin Liu wrote:\n> |     | Hi all,\n> |     |\n> |     | Here is an R script that uses Armadillo to decompose a large\n> matrix and\n> |     print\n> |     | the first 10 eigenvalues.\n> |     |\n> |     | library(RcppArmadillo)\n> |     | library(Rcpp)\n> |     |\n> |     | src <-\n> |     | r\"(#include <RcppArmadillo.h>\n> |     |\n> |     | // [[Rcpp::depends(RcppArmadillo)]]\n> |     |\n> |     | // [[Rcpp::export]]\n> |     | arma::vec getEigenValues(arma::mat M) {\n> |     |   return arma::eig_sym(M);\n> |     | })\"\n> |     |\n> |     | size <- 10000\n> |     | m <- matrix(rnorm(size^2), size, size)\n> |     | m <- m * t(m)\n> |     |\n> |     | # This line compiles the above code with the -fopenmp flag.\n> |     | sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)\n> |     | result <- getEigenValues(m)\n> |     | print(result[1:10])\n> |     |\n> |     | When I run this code on server A, I see that arma can implicitly\n> leverage\n> |     all\n> |     | available cores by running top -H. However, on server B it can\n> only use\n> |     one\n> |     | core despite multiple being available: there is just one process\n> entry in\n> |     top\n> |     | -H. Both processes successfully exit and return an answer. The\n> process on\n> |     | server B is of course much slower.\n> |\n> |     It is documented in the package how this is applied and the policy\n> is to\n> |     NOT\n> |     blindly enforce one use case (say all cores, or half, or a magically\n> chosen\n> |     value of N for whatever value of N) but to follow the local admin\n> setting\n> |     and\n> |     respecting standard environment variables.\n> |\n> |     So I suspect that your machine 'B' differs from machine 'A' in this\n> |     regards.\n> |\n> |     Not that this is a _run-time_ and not _compile-time_ behavior. As it\n> is for\n> |     multicore-enabled LAPACK and BLAS libraries, the OpenMP library and\n> |     basically\n> |     most software of this type.\n> |\n> |     You can override it, see\n> |       RcppArmadillo::armadillo_set_number_of_omp_threads\n> |       RcppArmadillo::armadillo_get_number_of_omp_threads\n> |\n> |     Can you try and see if these help you?\n> |\n> |     Dirk\n> |\n> |     | Here is the compilation on server A:\n> |     | /usr/local/lib/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'\n> |     | 'file197c21cbec564.cpp'\n> |     | g++ -std=gnu++11 -I\"/usr/local/lib/R/include\" -DNDEBUG\n> -I../inst/include\n> |     | -fopenmp  -I\"/usr/local/lib/R/site-library/Rcpp/include\"\n> -I\"/usr/local/\n> |     lib/R/\n> |     | site-library/RcppArmadillo/include\" -I\"/tmp/RtmpwhGRi3/\n> |     | sourceCpp-x86_64-pc-linux-gnu-1.0.9\" -I/usr/local/include   -fpic\n>  -g -O2\n> |     | -fstack-protector-strong -Wformat -Werror=format-security\n> -Wdate-time\n> |     | -D_FORTIFY_SOURCE=2 -g  -c file197c21cbec564.cpp -o\n> file197c21cbec564.o\n> |     | g++ -std=gnu++11 -shared -L/usr/local/lib/R/lib -L/usr/local/lib -o\n> |     | sourceCpp_2.so file197c21cbec564.o -fopenmp -llapack -lblas\n> -lgfortran\n> |     -lm\n> |     | -lquadmath -L/usr/local/lib/R/lib -lR\n> |     |\n> |     | and here it is for server B:\n> |     | /sw/R/R-4.2.3/lib64/R/bin/R CMD SHLIB --preclean -o\n> 'sourceCpp_2.so'\n> |     | 'file158165b9c4ae1.cpp'\n> |     | g++ -std=gnu++11 -I\"/sw/R/R-4.2.3/lib64/R/include\" -DNDEBUG\n> -I../inst/\n> |     include\n> |     | -fopenmp  -I\"/home/my_username/.R/library/Rcpp/include\" -I\"/home/\n> |      my_username\n> |     | /.R/library/RcppArmadillo/include\" -I\"/tmp/RtmpvfPt4l/\n> |     | sourceCpp-x86_64-pc-linux-gnu-1.0.10\" -I/usr/local/include   -fpic\n>  -g\n> |     -O2  -c\n> |     | file158165b9c4ae1.cpp -o file158165b9c4ae1.o\n> |     | g++ -std=gnu++11 -shared -L/sw/R/R-4.2.3/lib64/R/lib\n> -L/usr/local/lib64\n> |     -o\n> |     | sourceCpp_2.so file158165b9c4ae1.o -fopenmp -llapack -lblas\n> -lgfortran\n> |     -lm\n> |     | -lquadmath -L/sw/R/R-4.2.3/lib64/R/lib -lR\n> |     |\n> |     | I thought that the -fopenmp flag should let arma implicitly\n> parallelize\n> |     matrix\n> |     | computations. Any hints as to why this may not work on server B?\n> |     |\n> |     | The actual code I'm running is an R package that includes\n> RcppArmadillo\n> |     and\n> |     | RcppEnsmallen. Server B is the login node to an hpc cluster, but\n> the code\n> |     does\n> |     | not use all cores on the compute nodes either.\n> |     |\n> |     | Best,\n> |     | Robin\n> |     | _______________________________________________\n> |     | Rcpp-devel mailing list\n> |     | Rcpp-devel at lists.r-forge.r-project.org\n> |     |\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n> |\n> |     --\n> |     dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> |\n>\n> --\n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20240302/ebcb5427/attachment.htm>",
+      "body_snippet": "Hi Dirk,\n\nsessionInfo() was the right clue. Indeed the version of R on machine B was\nnot linked to OpenBLAS. Switching to a version with OpenBLAS allows the\ntest code to use all cores.\n\nA clear way to",
+      "thread_id": "thread-114d4f427f0d",
+      "thread_depth": 0,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-4c572722b471",
+      "message_id": "<26083.52201.279451.907928@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2024-03-02T19:01:29-06:00",
+      "subject": "[Rcpp-devel] Segfault in wrapping code in Rcpp",
+      "subject_clean": "[Rcpp-devel] Segfault in wrapping code in Rcpp",
+      "in_reply_to": "<CAL3fuh=i9oyiyurytj=JY2QwM7McxAr__M9pxi3JrUR4hbfzVg@mail.gmail.com>",
+      "references": [
+        "<CAL3fuh=i9oyiyurytj=JY2QwM7McxAr__M9pxi3JrUR4hbfzVg@mail.gmail.com>"
+      ],
+      "body_plain": "Hi Nikhil,\n\nDon't post images. I read in a text-based reader. The mailing list software\nalso scrubs html (I think).\n\nI would simplify. Start with the simplest Rcpp Modules setup. Then add. Check\nchecking. Eventually on your way towards what you are doing now you may spot\nthe error.\n\nHope this helps,  Dirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Hi Nikhil,\n\nDon't post images. I read in a text-based reader. The mailing list software\nalso scrubs html (I think).\n\nI would simplify. Start with the simplest Rcpp Modules setup. Then add. Check\ncheck",
+      "thread_id": "thread-9750970e9c4a",
+      "thread_depth": 1,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-f28018b57d72",
+      "message_id": "<26083.52279.622810.496447@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2024-03-02T19:02:47-06:00",
+      "subject": "[Rcpp-devel] RcppArmadillo with -fopenmp: Not using all available cores",
+      "subject_clean": "[Rcpp-devel] RcppArmadillo with -fopenmp: Not using all available cores",
+      "in_reply_to": "<CADjxTxjWDwu+ZeD_ikeT6LYmPPH4oTTPFetGZi_VrOQ8Wn=X3g@mail.gmail.com>",
+      "references": [
+        "<CADjxTxj_OHbE1pP34Uh8Qs_SDcpWJFqagBEDzGVm2Y25fvtLTg@mail.gmail.com>",
+        "<26072.56236.197904.821826@rob.eddelbuettel.com>",
+        "<CADjxTxivEv9dg18vAzhxb8TSzxZXmVhvr5Yjuk5bSXcr7cKgog@mail.gmail.com>",
+        "<26074.9393.286011.638526@rob.eddelbuettel.com>",
+        "<CADjxTxjWDwu+ZeD_ikeT6LYmPPH4oTTPFetGZi_VrOQ8Wn=X3g@mail.gmail.com>"
+      ],
+      "body_plain": "Hi Robin,\n\nOn 2 March 2024 at 16:34, Robin Liu wrote:\n| sessionInfo() was the right clue. Indeed the version of R on machine B was not\n| linked to OpenBLAS. Switching to a version with OpenBLAS allows the test code\n| to use all cores.\n| \n| A clear way to check which library is linked is to run the following:\n| \n| > extSoftVersion()[\"BLAS\"]\n\nAh yes -- I keep forgetting about that one. Good reminder!\n \n| Thanks for your help!\n\nAlways a pleasure. Glad you are all set.\n\nDirk\n\n \n| On Sat, Feb 24, 2024 at 9:17?AM Dirk Eddelbuettel <edd at debian.org> wrote:\n| \n| \n|     On 24 February 2024 at 11:44, Robin Liu wrote:\n|     | Thank you Dirk for the response.\n|     |\n|     | I called RcppArmadillo::armadillo_get_number_of_omp_threads() on both\n|     machines\n|     | and correctly see that machine A and B have 20 and 40 cores,\n|     respectively. I\n|     | also see that calling the setter changes this value.\n|     |\n|     | However, calling the setter does not seem to change the number of cores\n|     used on\n|     | either machine A or B. I have updated my code example as below: the\n|     execution\n|     | uses 20 cores on machine A and 1 core on machine B as before, despite my\n|     | setting the number of omp threads to 5. Do you have any further hints?\n| \n|     I fear you need to debug that on the machine 'B' in question. It's all open\n|     source.? I do not think either Conrad or myself put code in to constrain\n|     you\n|     to one core on 'B' (and then doesn't as you see on 'A').\n| \n|     You can grep around both the RcppArmadillo wrapper code and the include\n|     Armadillo code, I suggest making a local copy and peppering in some print\n|     statements.\n| \n|     Also keep in mind that (Rcpp)Armadillo hands off to computation to the\n|     actual\n|     LAPACK / BLAS implementation on that machine. Lots of things can go wrong\n|     there: maybe R was compiled with its own embedded BLAS/LAPACK sources\n|     (preventing a call out to OpenBLAS even when the machine has it). Or maybe\n|     R\n|     was compiled correctly but a single-threaded set of libraries is on the\n|     machine.\n| \n|     You have not supplied any of that information. Many bug report suggestions\n|     hint that showing `sessionInfo()` helps -- and it does show the BLAS/LAPACK\n|     libraries. You are not forced to show us this, but by not showing us you\n|     prevent us from being more focussed on suggestions.? So maybe start at your\n|     end by glancing at sessionInfo() on A and B?\n| \n|     Dirk\n| \n| \n|     | library(RcppArmadillo)\n|     | library(Rcpp)\n|     |\n|     | RcppArmadillo::armadillo_set_number_of_omp_threads(5)\n|     | print(sprintf(\"There are %d threads\",\n|     | ? ? ? RcppArmadillo::armadillo_get_number_of_omp_threads()))\n|     |\n|     | src <-\n|     | r\"(#include <RcppArmadillo.h>\n|     |\n|     | // [[Rcpp::depends(RcppArmadillo)]]\n|     |\n|     | // [[Rcpp::export]]\n|     | arma::vec getEigenValues(arma::mat M) {\n|     | ? return arma::eig_sym(M);\n|     | })\"\n|     |\n|     | size <- 10000\n|     | m <- matrix(rnorm(size^2), size, size)\n|     | m <- m * t(m)\n|     |\n|     | # This line compiles the above code with the -fopenmp flag.\n|     | sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)\n|     | result <- getEigenValues(m)\n|     | print(result[1:10])\n|     |\n|     | On Fri, Feb 23, 2024 at 12:53?PM Dirk Eddelbuettel <edd at debian.org>\n|     wrote:\n|     |\n|     |\n|     |? ? ?On 23 February 2024 at 09:35, Robin Liu wrote:\n|     |? ? ?| Hi all,\n|     |? ? ?|\n|     |? ? ?| Here is an R script that uses Armadillo to decompose a large matrix\n|     and\n|     |? ? ?print\n|     |? ? ?| the first 10 eigenvalues.\n|     |? ? ?|\n|     |? ? ?| library(RcppArmadillo)\n|     |? ? ?| library(Rcpp)\n|     |? ? ?|\n|     |? ? ?| src <-\n|     |? ? ?| r\"(#include <RcppArmadillo.h>\n|     |? ? ?|\n|     |? ? ?| // [[Rcpp::depends(RcppArmadillo)]]\n|     |? ? ?|\n|     |? ? ?| // [[Rcpp::export]]\n|     |? ? ?| arma::vec getEigenValues(arma::mat M) {\n|     |? ? ?| ? return arma::eig_sym(M);\n|     |? ? ?| })\"\n|     |? ? ?|\n|     |? ? ?| size <- 10000\n|     |? ? ?| m <- matrix(rnorm(size^2), size, size)\n|     |? ? ?| m <- m * t(m)\n|     |? ? ?|\n|     |? ? ?| # This line compiles the above code with the -fopenmp flag.\n|     |? ? ?| sourceCpp(code = src, verbose = TRUE, rebuild = TRUE)\n|     |? ? ?| result <- getEigenValues(m)\n|     |? ? ?| print(result[1:10])\n|     |? ? ?|\n|     |? ? ?| When I run this code on server A, I see that arma can implicitly\n|     leverage\n|     |? ? ?all\n|     |? ? ?| available cores by running top -H. However, on server B it can only\n|     use\n|     |? ? ?one\n|     |? ? ?| core despite multiple being available: there is just one process\n|     entry in\n|     |? ? ?top\n|     |? ? ?| -H. Both processes successfully exit and return an answer. The\n|     process on\n|     |? ? ?| server B is of course much slower.\n|     |\n|     |? ? ?It is documented in the package how this is applied and the policy is\n|     to\n|     |? ? ?NOT\n|     |? ? ?blindly enforce one use case (say all cores, or half, or a magically\n|     chosen\n|     |? ? ?value of N for whatever value of N) but to follow the local admin\n|     setting\n|     |? ? ?and\n|     |? ? ?respecting standard environment variables.\n|     |\n|     |? ? ?So I suspect that your machine 'B' differs from machine 'A' in this\n|     |? ? ?regards.\n|     |\n|     |? ? ?Not that this is a _run-time_ and not _compile-time_ behavior. As it\n|     is for\n|     |? ? ?multicore-enabled LAPACK and BLAS libraries, the OpenMP library and\n|     |? ? ?basically\n|     |? ? ?most software of this type.\n|     |\n|     |? ? ?You can override it, see\n|     |? ? ?? RcppArmadillo::armadillo_set_number_of_omp_threads\n|     |? ? ?? RcppArmadillo::armadillo_get_number_of_omp_threads\n|     |\n|     |? ? ?Can you try and see if these help you?\n|     |\n|     |? ? ?Dirk\n|     |\n|     |? ? ?| Here is the compilation on server A:\n|     |? ? ?| /usr/local/lib/R/bin/R CMD SHLIB --preclean -o 'sourceCpp_2.so'\n|     |? ? ?| 'file197c21cbec564.cpp'\n|     |? ? ?| g++ -std=gnu++11 -I\"/usr/local/lib/R/include\" -DNDEBUG -I../inst/\n|     include\n|     |? ? ?| -fopenmp ?-I\"/usr/local/lib/R/site-library/Rcpp/include\" -I\"/usr/\n|     local/\n|     |? ? ?lib/R/\n|     |? ? ?| site-library/RcppArmadillo/include\" -I\"/tmp/RtmpwhGRi3/\n|     |? ? ?| sourceCpp-x86_64-pc-linux-gnu-1.0.9\" -I/usr/local/include ? -fpic\n|     ?-g -O2\n|     |? ? ?| -fstack-protector-strong -Wformat -Werror=format-security\n|     -Wdate-time\n|     |? ? ?| -D_FORTIFY_SOURCE=2 -g ?-c file197c21cbec564.cpp -o\n|     file197c21cbec564.o\n|     |? ? ?| g++ -std=gnu++11 -shared -L/usr/local/lib/R/lib -L/usr/local/lib -o\n|     |? ? ?| sourceCpp_2.so file197c21cbec564.o -fopenmp -llapack -lblas\n|     -lgfortran\n|     |? ? ?-lm\n|     |? ? ?| -lquadmath -L/usr/local/lib/R/lib -lR\n|     |? ? ?|\n|     |? ? ?| and here it is for server B:\n|     |? ? ?| /sw/R/R-4.2.3/lib64/R/bin/R CMD SHLIB --preclean -o\n|     'sourceCpp_2.so'\n|     |? ? ?| 'file158165b9c4ae1.cpp'\n|     |? ? ?| g++ -std=gnu++11 -I\"/sw/R/R-4.2.3/lib64/R/include\" -DNDEBUG -I../\n|     inst/\n|     |? ? ?include\n|     |? ? ?| -fopenmp ?-I\"/home/my_username/.R/library/Rcpp/include\" -I\"/home/\n|     |? ? ??my_username\n|     |? ? ?| /.R/library/RcppArmadillo/include\" -I\"/tmp/RtmpvfPt4l/\n|     |? ? ?| sourceCpp-x86_64-pc-linux-gnu-1.0.10\" -I/usr/local/include ? -fpic\n|     ?-g\n|     |? ? ?-O2 ?-c\n|     |? ? ?| file158165b9c4ae1.cpp -o file158165b9c4ae1.o\n|     |? ? ?| g++ -std=gnu++11 -shared -L/sw/R/R-4.2.3/lib64/R/lib -L/usr/local/\n|     lib64\n|     |? ? ?-o\n|     |? ? ?| sourceCpp_2.so file158165b9c4ae1.o -fopenmp -llapack -lblas\n|     -lgfortran\n|     |? ? ?-lm\n|     |? ? ?| -lquadmath -L/sw/R/R-4.2.3/lib64/R/lib -lR\n|     |? ? ?|\n|     |? ? ?| I thought that the -fopenmp flag should let arma implicitly\n|     parallelize\n|     |? ? ?matrix\n|     |? ? ?| computations. Any hints as to why this may not work on server B?\n|     |? ? ?|\n|     |? ? ?| The actual code I'm running is an R package that includes\n|     RcppArmadillo\n|     |? ? ?and\n|     |? ? ?| RcppEnsmallen. Server B is the login node to an hpc cluster, but\n|     the code\n|     |? ? ?does\n|     |? ? ?| not use all cores on the compute nodes either.\n|     |? ? ?|\n|     |? ? ?| Best,\n|     |? ? ?| Robin\n|     |? ? ?| _______________________________________________\n|     |? ? ?| Rcpp-devel mailing list\n|     |? ? ?| Rcpp-devel at lists.r-forge.r-project.org\n|     |? ? ?| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/\n|     rcpp-devel\n|     |\n|     |? ? ?--\n|     |? ? ?dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n|     |\n| \n|     --\n|     dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n| \n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Hi Robin,\n\nOn 2 March 2024 at 16:34, Robin Liu wrote:\n| sessionInfo() was the right clue. Indeed the version of R on machine B was not\n| linked to OpenBLAS. Switching to a version with OpenBLAS allows",
+      "thread_id": "thread-114d4f427f0d",
+      "thread_depth": 1,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-5cfc5e92d33e",
+      "message_id": "<CAMWmeHaLdP8WdoykrN+HiwjyJOH27SacJNz+Ru3Eg6SEMd-NYQ@mail.gmail.com>",
+      "from_name": "Murray Efford",
+      "from_email_hash": "6e17cab55b7b7b0052cc2a95f4108fc423780e0783b512032770df658d201d5d",
+      "date": "2024-03-03T20:47:02+13:00",
+      "subject": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "subject_clean": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi\n\nA couple of days ago I posted on R-package-devel about a mysterious\nsegfault from R CMD checks of my package secrdesign (see\nhttps://CRAN.R-project.org/package=secrdesign, and\nhttps://github.com/MurrayEfford/secrdesign) The issue rises only on\nCRAN and only with the Intel(R) oneAPI DPC++/C++ Compiler:\n\n *** caught segfault ***\naddress (nil), cause 'unknown'\n\nAs noted by Ivan Krylov and Uwe Ligges, the fault happens at the end\nof the R session (as it quits()). The package passes when checked on\nIntel(R) oneAPI DPC++/C++ Compiler 2023.2.0 (2023.2.0.20230721) with\nrhub2 .\n\nNow, CRAN via Uwe Ligges has accepted a new version of secrdesign\ndespite the continuing error. My reason for raising it here is that\n(i) it is likely to raise its head next time I update,\n(ii) my experience may not be unique,\n(iii) my use of Rcpp, RcppArmadillo and BH in this package is very\nlimited (https://github.com/MurrayEfford/secrdesign/tree/main/src),\nand it may therefore be provide clues to an Rcpp pro.\n(iv) I have just noticed a similar 'Additional issue' for\nhttps://CRAN.R-project.org/package=ipsecr that also uses Rcpp,\nRcppArmadillo and BH.\nAny advice would be welcome. I have no experience with docker, so\nanswers in words of one or few syllables, please.\nMurray",
+      "body_snippet": "Hi\n\nA couple of days ago I posted on R-package-devel about a mysterious\nsegfault from R CMD checks of my package secrdesign (see\nhttps://CRAN.R-project.org/package=secrdesign, and\nhttps://github.com/M",
+      "thread_id": "thread-5cfc5e92d33e",
+      "thread_depth": 0,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-fd982c4703f5",
+      "message_id": "<26084.28903.858511.345385@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2024-03-03T06:45:27-06:00",
+      "subject": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "subject_clean": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "in_reply_to": "<CAMWmeHaLdP8WdoykrN+HiwjyJOH27SacJNz+Ru3Eg6SEMd-NYQ@mail.gmail.com>",
+      "references": [
+        "<CAMWmeHaLdP8WdoykrN+HiwjyJOH27SacJNz+Ru3Eg6SEMd-NYQ@mail.gmail.com>"
+      ],
+      "body_plain": "On 3 March 2024 at 20:47, Murray Efford wrote:\n| A couple of days ago I posted on R-package-devel about a mysterious\n| segfault from R CMD checks of my package secrdesign (see\n| https://CRAN.R-project.org/package=secrdesign, and\n| https://github.com/MurrayEfford/secrdesign) The issue rises only on\n| CRAN and only with the Intel(R) oneAPI DPC++/C++ Compiler:\n| \n|  *** caught segfault ***\n| address (nil), cause 'unknown'\n| \n| As noted by Ivan Krylov and Uwe Ligges, the fault happens at the end\n| of the R session (as it quits()). The package passes when checked on\n| Intel(R) oneAPI DPC++/C++ Compiler 2023.2.0 (2023.2.0.20230721) with\n| rhub2 .\n| \n| Now, CRAN via Uwe Ligges has accepted a new version of secrdesign\n| despite the continuing error. My reason for raising it here is that\n| (i) it is likely to raise its head next time I update,\n| (ii) my experience may not be unique,\n| (iii) my use of Rcpp, RcppArmadillo and BH in this package is very\n| limited (https://github.com/MurrayEfford/secrdesign/tree/main/src),\n| and it may therefore be provide clues to an Rcpp pro.\n| (iv) I have just noticed a similar 'Additional issue' for\n| https://CRAN.R-project.org/package=ipsecr that also uses Rcpp,\n| RcppArmadillo and BH.\n| Any advice would be welcome. I have no experience with docker, so\n| answers in words of one or few syllables, please.\n\nI was about to suggest to run with 'valgrind' and/or 'asan'/'ubsan' as many\nfolks do when chasing 'spurious' bugs related to memory -- but then CRAN\nalready does that for you and found nothing!\n\nSo it is hard to say anything. It could be a bug on your end, it could be a\nbug in the compiler (!!), it could be a bug in the libraries.  Now, Boost and\nArmadillo are fairly mature and widely used so that is not likely either.\nGiven that you spotted another package in the same intersection it could be\nan interaction.\n\nBut I am afraid you may need to work towards creating a 'workbench' where you\ncan chip away at this.  Some of us can eyeball, and some are truly excellent\nat this, but that may not be a reliable (or scalable) way forward.\n\n[ goes looking ]\n\nSo I eyeballed your code. One thing I might do is keep the return object\nsimpler. Instead of (on-the fly) creation of Rcpp::List with Rcpp::Named that\ncontain scalars, maybe consider returning a Rcpp::NumericVector(2) and set\nthe two elements.  You can still set 'names' on that too. A super-pedestrian\nversion is\n\n> Rcpp::cppFunction('NumericVector myvec() { NumericVector v(2); v[0] = 1.23; v[1] = 2.34; CharacterVector nm(2); nm[0] = \"foo\"; nm[1] = \"bar\"; v.attr(\"names\") = nm; return v; }')\n> myvec()\n foo  bar \n1.23 2.34 \n> \n\nand a fancier brace-initialization way is\n\n> Rcpp::cppFunction('NumericVector myvec() { NumericVector v{1.23, 2.34}; CharacterVector nm{\"foo\", \"bar\"}; v.attr(\"names\") = nm; return v; }')\n> myvec()\n foo  bar \n1.23 2.34 \n>\n\nEither works and avoids creation of temporaries at return which the (less\nwidely used !!) Intel compiler may resolve differently from g++ and clang++.\nSo it could be us, and defensive programming is always good but with repros\nit so hard to say anything...\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 3 March 2024 at 20:47, Murray Efford wrote:\n| A couple of days ago I posted on R-package-devel about a mysterious\n| segfault from R CMD checks of my package secrdesign (see\n| https://CRAN.R-project",
+      "thread_id": "thread-5cfc5e92d33e",
+      "thread_depth": 1,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-5050273ce4d1",
+      "message_id": "<26084.29677.746430.795161@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2024-03-03T06:58:21-06:00",
+      "subject": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "subject_clean": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "in_reply_to": "<26084.28903.858511.345385@rob.eddelbuettel.com>",
+      "references": [
+        "<CAMWmeHaLdP8WdoykrN+HiwjyJOH27SacJNz+Ru3Eg6SEMd-NYQ@mail.gmail.com>",
+        "<26084.28903.858511.345385@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "And \"beauty\" (ahem) of discussion scattered over two mailing lists: I now see\nyou have a testbed via rhub2 (good) even though it does not reproduce (hm...).\n\nSo you could still try the suggested simplication.\n\nCheers, Dirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "And \"beauty\" (ahem) of discussion scattered over two mailing lists: I now see\nyou have a testbed via rhub2 (good) even though it does not reproduce (hm...).\n\nSo you could still try the suggested simpl",
+      "thread_id": "thread-5cfc5e92d33e",
+      "thread_depth": 2,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-9276220f886a",
+      "message_id": "<CAMWmeHbXT4qaqRHKEMf9gskFOWs3F3yRMq3acyqsmdfLL6J53A@mail.gmail.com>",
+      "from_name": "Murray Efford",
+      "from_email_hash": "6e17cab55b7b7b0052cc2a95f4108fc423780e0783b512032770df658d201d5d",
+      "date": "2024-03-04T07:03:04+13:00",
+      "subject": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "subject_clean": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "in_reply_to": "<26084.29677.746430.795161@rob.eddelbuettel.com>",
+      "references": [
+        "<CAMWmeHaLdP8WdoykrN+HiwjyJOH27SacJNz+Ru3Eg6SEMd-NYQ@mail.gmail.com>",
+        "<26084.28903.858511.345385@rob.eddelbuettel.com>",
+        "<26084.29677.746430.795161@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Dirk\nThanks for a very helpful reply. I'll simplify my return values.\n\nI mentioned Intel with rhub2 in my earlier post here, but I'm sorry\nthat was somewhat buried. Debugging is somewhere between painful and\nimpossible when my only check is submitting to CRAN!\n\nAlso, I had tried valgrind, but that got stuck in Linux on what I\nassumed was an unrelated \"unhandled instruction\" error wrt OpenBLAS.\nThat appeared unrelated, but maybe we need to factor it in as a\npossible interaction with RcppArmadillo. Strangely valgrind sticks on\nthis --\n==2242833== valgrind: Unrecognised instruction at address 0x57d3650.\n==2242833==    at 0x57D3650: dot_compute (in\n/opt/OpenBLAS/lib/libopenblas_skylakexp-r0.3.23.dev.so)\n-- even after I have set options(matprod=\"internal\") in R, so\nsomething else (RcppArmadillo?) must be trying to use OpenBLAS.\n\nMurray\n\nOn Mon, Mar 4, 2024 at 1:58?AM Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n>\n> And \"beauty\" (ahem) of discussion scattered over two mailing lists: I now see\n> you have a testbed via rhub2 (good) even though it does not reproduce (hm...).\n>\n> So you could still try the suggested simplication.\n>\n> Cheers, Dirk\n>\n> --\n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Dirk\nThanks for a very helpful reply. I'll simplify my return values.\n\nI mentioned Intel with rhub2 in my earlier post here, but I'm sorry\nthat was somewhat buried. Debugging is somewhere between pain",
+      "thread_id": "thread-5cfc5e92d33e",
+      "thread_depth": 3,
+      "month": "2024-03"
+    },
+    {
+      "id": "msg-e282afc3a692",
+      "message_id": "<26084.50415.907005.754345@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2024-03-03T12:43:59-06:00",
+      "subject": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "subject_clean": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "in_reply_to": "<CAMWmeHbXT4qaqRHKEMf9gskFOWs3F3yRMq3acyqsmdfLL6J53A@mail.gmail.com>",
+      "references": [
+        "<CAMWmeHaLdP8WdoykrN+HiwjyJOH27SacJNz+Ru3Eg6SEMd-NYQ@mail.gmail.com>",
+        "<26084.28903.858511.345385@rob.eddelbuettel.com>",
+        "<26084.29677.746430.795161@rob.eddelbuettel.com>",
+        "<CAMWmeHbXT4qaqRHKEMf9gskFOWs3F3yRMq3acyqsmdfLL6J53A@mail.gmail.com>"
+      ],
+      "body_plain": "Hi Murray,\n\nOn 4 March 2024 at 07:03, Murray Efford wrote:\n| Dirk\n| Thanks for a very helpful reply. I'll simplify my return values.\n| \n| I mentioned Intel with rhub2 in my earlier post here, but I'm sorry\n| that was somewhat buried. Debugging is somewhere between painful and\n| impossible when my only check is submitting to CRAN!\n\nIt would be *really* helpful to have a path not involving CRAN.\n\n| Also, I had tried valgrind, but that got stuck in Linux on what I\n| assumed was an unrelated \"unhandled instruction\" error wrt OpenBLAS.\n| That appeared unrelated, but maybe we need to factor it in as a\n| possible interaction with RcppArmadillo. Strangely valgrind sticks on\n| this --\n| ==2242833== valgrind: Unrecognised instruction at address 0x57d3650.\n| ==2242833==    at 0x57D3650: dot_compute (in\n| /opt/OpenBLAS/lib/libopenblas_skylakexp-r0.3.23.dev.so)\n| -- even after I have set options(matprod=\"internal\") in R, so\n| something else (RcppArmadillo?) must be trying to use OpenBLAS.\n\nThat seems local to your system. I can just do 'R -d valgrind' as expected.\n\nedd at rob:~$ R -q -d valgrind -e 'v <- integer(10)'\n==2219911== Memcheck, a memory error detector\n==2219911== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.\n==2219911== Using Valgrind-3.21.0 and LibVEX; rerun with -h for copyright info\n==2219911== Command: /usr/lib/R/bin/exec/R -q -e v~+~\\<-~+~integer(10)\n==2219911== \n> v <- integer(10)\n> \n> \n==2219911== \n==2219911== HEAP SUMMARY:\n==2219911==     in use at exit: 51,025,490 bytes in 11,017 blocks\n==2219911==   total heap usage: 26,520 allocs, 15,503 frees, 78,392,784 bytes allocated\n==2219911== \n==2219911== LEAK SUMMARY:\n==2219911==    definitely lost: 0 bytes in 0 blocks\n==2219911==    indirectly lost: 0 bytes in 0 blocks\n==2219911==      possibly lost: 0 bytes in 0 blocks\n==2219911==    still reachable: 51,025,490 bytes in 11,017 blocks\n==2219911==                       of which reachable via heuristic:\n==2219911==                         newarray           : 4,264 bytes in 1 blocks\n==2219911==         suppressed: 0 bytes in 0 blocks\n==2219911== Reachable blocks (those to which a pointer was found) are not shown.\n==2219911== To see them, rerun with: --leak-check=full --show-leak-kinds=all\n==2219911== \n==2219911== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)\nedd at rob:~$ \n\nvalgrind is pretty good and useful. I also enjoy the fact that eg tinytest\ntestfiles are script so we can test them in the aggregate, or in isolation,\nor via their helper function.\n\nedd at rob:~/git/rcpparmadillo/inst/tinytest(master)$ R -q -d valgrind -e 'tinytest::run_test_file(\"test_fastLm.R\")'\n==2243731== Memcheck, a memory error detector\n==2243731== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.\n==2243731== Using Valgrind-3.21.0 and LibVEX; rerun with -h for copyright info\n==2243731== Command: /usr/lib/R/bin/exec/R -q -e tinytest::run_test_file(\"test_fastLm.R\")\n==2243731== \n> tinytest::run_test_file(\"test_fastLm.R\")\ntest_fastLm.R.................   30 tests OK 4.3s\nAll ok, 30 results (4.3s)\n> \n> \n==2243731== \n==2243731== HEAP SUMMARY:\n==2243731==     in use at exit: 58,200,576 bytes in 11,419 blocks\n==2243731==   total heap usage: 38,070 allocs, 26,651 frees, 141,466,157 bytes allocated\n==2243731== \n==2243731== LEAK SUMMARY:\n==2243731==    definitely lost: 0 bytes in 0 blocks\n==2243731==    indirectly lost: 0 bytes in 0 blocks\n==2243731==      possibly lost: 0 bytes in 0 blocks\n==2243731==    still reachable: 58,200,576 bytes in 11,419 blocks\n==2243731==                       of which reachable via heuristic:\n==2243731==                         newarray           : 4,264 bytes in 1 blocks\n==2243731==         suppressed: 0 bytes in 0 blocks\n==2243731== Reachable blocks (those to which a pointer was found) are not shown.\n==2243731== To see them, rerun with: --leak-check=full --show-leak-kinds=all\n==2243731== \n==2243731== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)\nedd at rob:~/git/rcpparmadillo/inst/tinytest(master)$ \n\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Hi Murray,\n\nOn 4 March 2024 at 07:03, Murray Efford wrote:\n| Dirk\n| Thanks for a very helpful reply. I'll simplify my return values.\n| \n| I mentioned Intel with rhub2 in my earlier post here, but I'm ",
+      "thread_id": "thread-5cfc5e92d33e",
+      "thread_depth": 4,
+      "month": "2024-03"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-114d4f427f0d",
+      "subject": "[Rcpp-devel] RcppArmadillo with -fopenmp: Not using all available cores",
+      "message_count": 2,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Robin Liu"
+      ],
+      "started": "2024-03-02T16:34:34-08:00",
+      "last_reply": "2024-03-02T19:02:47-06:00",
+      "root_message_id": "msg-114d4f427f0d"
+    },
+    {
+      "id": "thread-9750970e9c4a",
+      "subject": "[Rcpp-devel] Segfault in wrapping code in Rcpp",
+      "message_count": 2,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Nikhil Garg"
+      ],
+      "started": "2024-03-02T18:51:47+11:00",
+      "last_reply": "2024-03-02T19:01:29-06:00",
+      "root_message_id": "msg-9750970e9c4a"
+    },
+    {
+      "id": "thread-5cfc5e92d33e",
+      "subject": "[Rcpp-devel] segfault on exit CRAN+Intel only",
+      "message_count": 5,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Murray Efford"
+      ],
+      "started": "2024-03-03T20:47:02+13:00",
+      "last_reply": "2024-03-03T12:43:59-06:00",
+      "root_message_id": "msg-5cfc5e92d33e"
+    }
+  ]
+}

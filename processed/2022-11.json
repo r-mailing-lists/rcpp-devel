@@ -1,0 +1,135 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2022-11",
+  "messages": [
+    {
+      "id": "msg-5aebce68de8b",
+      "message_id": "<CALEXWq1B7xe2GQkbM8uG9xp-yJfyzj+DXyOrTEWVH3nm=WCZ5w@mail.gmail.com>",
+      "from_name": "Iñaki Ucar",
+      "from_email_hash": "8e930e9d3254a7fa7e786bc5a69418a943c040e7679d642aaceaf002d44403e6",
+      "date": "2022-11-01T12:17:16+01:00",
+      "subject": "[Rcpp-devel] Something strange with the package check and calls to C abort",
+      "subject_clean": "[Rcpp-devel] Something strange with the package check and calls to C abort",
+      "in_reply_to": "<25440.35652.755378.331070@rob.eddelbuettel.com>",
+      "references": [
+        "<632b20d3-16fe-61c2-587c-db89fb979f2f@uv.es>",
+        "<25437.30689.555832.652269@rob.eddelbuettel.com>",
+        "<8242d74c-98f6-d893-e90a-4cb5b258975b@uv.es>",
+        "<CAJXgQP1Gdm6m8hz7f=At5PQD5ywKBkgw+gnSQRj4XEJ_kiutUg@mail.gmail.com>",
+        "<25440.35652.755378.331070@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Oh, I receive emails from the list again. Nice.\n\nOn Tue, 1 Nov 2022 at 03:58, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n> On 31 October 2022 at 11:01, Kevin Ushey wrote:\n> | For posterity, what machine are you compiling the package on? If you're\n> | using a modern Linux system, it's possible the default compilation flags\n> | are including stack protection code during compilation that might call\n> | abort on error. See e.g.\n> |\n> | https://developers.redhat.com/articles/2022/06/02/use-compiler-flags-stack-protection-gcc-and-clang\n>\n> Not to get into distro wars ... but over here where I build I had the benefit\n> of kernel and compiler savvy people setting up defaults for many years now.\n>\n> Without ever creating a single issue for my (rather frequent) R package\n> checking. All this is just to say that Debian and Ubuntu have treated me well.\n\nNo offense taken. :) Debian has a pretty good policy on hardening\nflags [1], and, in fact, there are only two differences between Debian\nand Fedora flags, because both have stack protection and so on:\n\n1. Debian specifies -D_FORTIFY_SOURCE=2, while Fedora specifies\n-Wp,-D_FORTIFY_SOURCE=2. I don't understand what's the difference\nbetween them, but R seems to dislike the second one. However, there\nare some gcc maintainers among the people that define these flags in\nFedora, so I suppose it's fine. I think it's just that R flags any\n-W... option, no matter what.\n\n2. Fedora adds -Wp,-D_GLIBCXX_ASSERTIONS, which enables run-time\nbounds checking for STL containers. I've seen numerous upstream bugs\nuncovered by this flag (and upstream maintainers responding \"just\ndon't use that flag\" to the bug report... which of course is not a\nsolution). So I think it's a cheap, nice thing to have.\n\nIf Debian/Ubuntu are quieter than Fedora about those flags is due to\n[2]. ;-) I'm however reluctant to set this by default, because if a\npackage adds one of these flags (maybe unlikely, but who knows), the\nchecks would pass locally but would raise a NOTE on CRAN. So I'm more\ninclined to document this and let the user decide whether to set this\nor modify the check flags with a R_MAKEVARS_USER as described in a\nprevious posting.\n\nIÃ±aki\n\n[1] https://wiki.debian.org/Hardening\n[2] https://salsa.debian.org/edd/r-base/-/blob/master/debian/Renviron.site#L37\n\n> | It might be useful if you could share your package / the code used when\n> | compiling the C++ code in your package.\n>\n> Indeed. It generally never hurts to let other people have a peek.\n>\n> Dirk\n>\n> --\n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n\n\n-- \nIÃ±aki Ãšcar",
+      "body_snippet": "Oh, I receive emails from the list again. Nice.\n\nOn Tue, 1 Nov 2022 at 03:58, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n> On 31 October 2022 at 11:01, Kevin Ushey wrote:\n> | For posterity, what m",
+      "thread_id": "thread-5aebce68de8b",
+      "thread_depth": 0,
+      "month": "2022-11"
+    },
+    {
+      "id": "msg-87d805d5b88b",
+      "message_id": "<66a3569c-9c2a-8eaa-d7ed-f313e2e9e4fa@uv.es>",
+      "from_name": "Juan Domingo Esteve",
+      "from_email_hash": "d3bb0ba354d08307bcf31767af119745ba4e73a8413f53407916057705e9f829",
+      "date": "2022-11-26T21:07:40+01:00",
+      "subject": "[Rcpp-devel] Report of CRAN compilation problem and solution with architecture arm64",
+      "subject_clean": "[Rcpp-devel] Report of CRAN compilation problem and solution with architecture arm64",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Keywords: compiler warning, package check, arm64 architectures\n\nThis is the first of two reports with CRAN check problems that I found in my package and\nthat affect only some particular architectures (in this case, arm64)\n\nProblem description:\n\n  When compiling a package with C++ source code using Rcpp in a Linux system,\n  kernel 5.19.16-100, distribution Fedora 35, the generated package passed\n  R CMD check --as-cran test, giving no compilation warnings.\n\n  Nevertheless, the compilation in the CRAN server provoked a warning exclusively\n  for the arm64 architecture (found mostly in recent Apple Macs):\n\n  jmatrix.cpp:50:8: runtime error: load of misaligned address 0x7ffdb159b8c2 for type 'indextype', which requires 4 byte alignment\n0x7ffdb159b8c2: note: pointer points here\n  00 00  00 fa 06 00 00 00 08 00  00 00 07 00 00 00 00 00  00 00 00 00 00 00 00 00  00 00 00 00 00 00\n\n  This seems to be a particularity of the compiler used by the CRAN sever for this architecture, which does not like\n  to have 4-byte variables (indextype is a typedef I use for unsigned long) aligned to non-multiple of 4 addresses.\n\n  The original code which provoked this error was:\n\n  // header was a pointer to unsigned char and header+2 points to safely allocated memory\n  indextype *t;\n  t=(indextype *)(header+2);\n\nThe solution was:\n\n  Assuming that in all platforms the compiler will align properly simple variable declarations,\n  we will use a variable instead of a pointer:\n\n  indextype t=0;              // This should be aligned, I hope..\n  unsigned char *t1;\n  t1=header+2;\n  memcpy((void *)&t,(void *)t1,size_t(sizeof(indextype)));\n\n  Another possible solution would have involved the use of the libc function posix_memalign, but after\n  a web search it seems that it is not widely available in Windows and OSX.\n\n  Even this is a really rare situation, I have preferred to document it, just in case anyone else may benefit of the information.\n\n     Juan\n\n-- \n________________________________________________________________\nJuan Domingo Esteve\nDept. of Informatics, School of Engineering\nUniversity of Valencia\nAvda. de la Universidad, s/n.\n         46100-Burjasot (Valencia)\n            SPAIN\n\nTelephone:      +34-963543572\nFax:            +34-963543550\nemail:  Juan.Domingo at uv.es\n________________________________________________________________",
+      "body_snippet": "Keywords: compiler warning, package check, arm64 architectures\n\nThis is the first of two reports with CRAN check problems that I found in my package and\nthat affect only some particular architectures ",
+      "thread_id": "thread-87d805d5b88b",
+      "thread_depth": 0,
+      "month": "2022-11"
+    },
+    {
+      "id": "msg-343984521498",
+      "message_id": "<9b15c334-9966-83d6-45f0-63d7f900e964@uv.es>",
+      "from_name": "Juan Domingo Esteve",
+      "from_email_hash": "d3bb0ba354d08307bcf31767af119745ba4e73a8413f53407916057705e9f829",
+      "date": "2022-11-26T21:10:30+01:00",
+      "subject": "[Rcpp-devel] Report of CRAN compilation problem and solution with architecture x86_32",
+      "subject_clean": "[Rcpp-devel] Report of CRAN compilation problem and solution with architecture x86_32",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Keywords: runtime error, package check, 32 bit architectures, large files\n\nThis is the second of two reports with CRAN check problems that I found in my package and\nthat affect only some particular architectures (in this case, x86_32)\n\nProblem description:\n\n  When compiling a package with C++ source code using Rcpp in a Linux system,\n  kernel 5.19.16-100, distribution Fedora 35, the generated package passed\n  R CMD check --as-cran test, giving no compilation warnings and no execution errors.\n\n  Nevertheless, the runtime tests in the CRAN server provoked an error exclusively\n  for the x86_32 architecture (found mostly in old PCs).\n\n  Let's suppose you have stored a variable of unsigned long long type at the end\n  of a binary file. You think you can read it with:\n\n  unsigned long long endofbindata;\n  std::string fname=\"yourfilename\";\n\n  std::ifstream f(fname.c_str());\n  f.seekg(-sizeof(unsigned long long),std::ios::end);\n  f.read((char *)&endofbindata,sizeof(unsigned long long));\n\n  and indeed you can, but ONLY in 64-bit architectures. The function seekg does not\n  work as expected in 32-bit architectures since the first parameter (offset)\n  is of type streamoff which does not seem to be defined equally by g++ for 32 and\n  64 bit architectures. In 32 bit provokes over/underflow and absurd results\n  on execution EVEN IF THE FILE is smaller than 2^32 bytes (in compilation, even in\n  a 32-bit computer, no error or warning is raised so you don't notice the problem).\n\nMy solution has been:\n\n  Make a more portable function to get the size of a file using the stat system call, like:\n\n  unsigned long long GetFileSize(std::string fname)\n  {\n         struct stat stat_buf;\n         int rc = stat(fname.c_str(), &stat_buf);\n         if (rc != 0)\n         {\n          std::string err=\"Cannot obtain information (with stat system call) of file \"+fname+\"\\n\";\n          err += \"This is probably because you are running this in a 32-bit architecture and the file is bigger than 4 GB.\\n\";\n          err += \"Unfortunately, we have not found yet a solution for that and, if you need to manage so big files,\\n\";\n          err += \"probably you should consider using a 64-bit architecture.\\n\";\n          Rcpp::stop(err);\n          // NOTE: may be definition of __USE_FILE_OFFSET64 could solve this but it might provoke other problems...\n         }\n         else\n          return ((unsigned long long)stat_buf.st_size);\n  }\n\n  According to the stat manual, stat returns this error:\n\n    EOVERFLOW\n         pathname or fd refers to a file whose size, inode number, or number of blocks cannot be represented in, respectively, the  types\n         off_t,  ino_t,  or  blkcnt_t.   This  error  can  occur  when, for example, an application compiled on a 32-bit platform without\n         -D_FILE_OFFSET_BITS=64 calls stat() on a file whose size exceeds (1<<31)-1 bytes.\n\n  Done that, use the returned number (if it has succeeded) to go there (or there, less an offset) with a f.seekg call.\n\n  As you see, I have not found a real solution, but at least this warns the user about the problem of using large files\n  in 32-bit architectures.\n\n  This should be now infrequent in practice, since every day less 32-bit computers remain in use,\n  but since CRAN still checks with them I have preferred to document it, just in case anyone else may\n  benefit of the information.\n\n     Juan\n\n-- \n________________________________________________________________\nJuan Domingo Esteve\nDept. of Informatics, School of Engineering\nUniversity of Valencia\nAvda. de la Universidad, s/n.\n         46100-Burjasot (Valencia)\n            SPAIN\n\nTelephone:      +34-963543572\nFax:            +34-963543550\nemail:  Juan.Domingo at uv.es\n________________________________________________________________",
+      "body_snippet": "Keywords: runtime error, package check, 32 bit architectures, large files\n\nThis is the second of two reports with CRAN check problems that I found in my package and\nthat affect only some particular ar",
+      "thread_id": "thread-343984521498",
+      "thread_depth": 0,
+      "month": "2022-11"
+    },
+    {
+      "id": "msg-75e6c4d51f02",
+      "message_id": "<2E92C3ED-E1CC-4FE6-A48A-87F2A83CF8CD@R-project.org>",
+      "from_name": "Simon Urbanek",
+      "from_email_hash": "705f3de0e3c2b9f04cdf5bffe2a443ba65faf9835e4db2d3a43af10255d82925",
+      "date": "2022-11-27T12:36:32+13:00",
+      "subject": "[Rcpp-devel] Unaligned access [Was: Report of CRAN compilation problem and solution with architecture arm64]",
+      "subject_clean": "[Rcpp-devel] Unaligned access [Was: Report of CRAN compilation problem and solution with architecture arm64]",
+      "in_reply_to": "<66a3569c-9c2a-8eaa-d7ed-f313e2e9e4fa@uv.es>",
+      "references": [
+        "<66a3569c-9c2a-8eaa-d7ed-f313e2e9e4fa@uv.es>"
+      ],
+      "body_plain": "Juan,\n\nyou should never use byte pointer arithmetic in C to create pointers to non-byte types since they cause unaligned memory access as you found out. In most architecture unaligned access is a fatal error (arm64 is just one of many), in some architectures (e.g. x86_64) it will succeed with a performance penalty. The alignment requirements are architecture-specific so it's not portable to do it in your code. You should use structs to access typed members since they guarantee alignment. If you need to access values from arbitrarily packed bytes, you have to copy the contents into a variable of the desired type (as you did in the example).\n\nCheers,\nSimon\n\n* - some compilers have extensions that allow the use of packed structs which will create temporary copies on access, but they are not part of the C standard so should not be used in R packages.\n\n\n> On Nov 27, 2022, at 9:07 AM, Juan Domingo Esteve <Juan.Domingo at uv.es> wrote:\n> \n> Keywords: compiler warning, package check, arm64 architectures\n> \n> This is the first of two reports with CRAN check problems that I found in my package and\n> that affect only some particular architectures (in this case, arm64)\n> \n> Problem description:\n> \n> When compiling a package with C++ source code using Rcpp in a Linux system,\n> kernel 5.19.16-100, distribution Fedora 35, the generated package passed\n> R CMD check --as-cran test, giving no compilation warnings.\n> \n> Nevertheless, the compilation in the CRAN server provoked a warning exclusively\n> for the arm64 architecture (found mostly in recent Apple Macs):\n> \n> jmatrix.cpp:50:8: runtime error: load of misaligned address 0x7ffdb159b8c2 for type 'indextype', which requires 4 byte alignment\n> 0x7ffdb159b8c2: note: pointer points here\n> 00 00  00 fa 06 00 00 00 08 00  00 00 07 00 00 00 00 00  00 00 00 00 00 00 00 00  00 00 00 00 00 00\n> \n> This seems to be a particularity of the compiler used by the CRAN sever for this architecture, which does not like\n> to have 4-byte variables (indextype is a typedef I use for unsigned long) aligned to non-multiple of 4 addresses.\n> \n> The original code which provoked this error was:\n> \n> // header was a pointer to unsigned char and header+2 points to safely allocated memory\n> indextype *t;\n> t=(indextype *)(header+2);\n> \n> The solution was:\n> \n> Assuming that in all platforms the compiler will align properly simple variable declarations,\n> we will use a variable instead of a pointer:\n> \n> indextype t=0;              // This should be aligned, I hope..\n> unsigned char *t1;\n> t1=header+2;\n> memcpy((void *)&t,(void *)t1,size_t(sizeof(indextype)));\n> \n> Another possible solution would have involved the use of the libc function posix_memalign, but after\n> a web search it seems that it is not widely available in Windows and OSX.\n> \n> Even this is a really rare situation, I have preferred to document it, just in case anyone else may benefit of the information.\n> \n>    Juan\n> \n> -- \n> ________________________________________________________________\n> Juan Domingo Esteve\n> Dept. of Informatics, School of Engineering\n> University of Valencia\n> Avda. de la Universidad, s/n.\n>        46100-Burjasot (Valencia)\n>           SPAIN\n> \n> Telephone:      +34-963543572\n> Fax:            +34-963543550\n> email:  Juan.Domingo at uv.es\n> ________________________________________________________________\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "Juan,\n\nyou should never use byte pointer arithmetic in C to create pointers to non-byte types since they cause unaligned memory access as you found out. In most architecture unaligned access is a fata",
+      "thread_id": "thread-87d805d5b88b",
+      "thread_depth": 1,
+      "month": "2022-11"
+    },
+    {
+      "id": "msg-b1f354a8097b",
+      "message_id": "<25475.33158.529537.429343@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-11-27T09:25:58-06:00",
+      "subject": "[Rcpp-devel] Unaligned access [Was: Report of CRAN compilation problem and solution with architecture arm64]",
+      "subject_clean": "[Rcpp-devel] Unaligned access [Was: Report of CRAN compilation problem and solution with architecture arm64]",
+      "in_reply_to": "<2E92C3ED-E1CC-4FE6-A48A-87F2A83CF8CD@R-project.org>",
+      "references": [
+        "<66a3569c-9c2a-8eaa-d7ed-f313e2e9e4fa@uv.es>",
+        "<2E92C3ED-E1CC-4FE6-A48A-87F2A83CF8CD@R-project.org>"
+      ],
+      "body_plain": "Juan,\n\nFurther to Simon's comment, why is this on the rcpp-devel list?  We have\nexactly zero choice over compiler and architecture use at CRAN.\n\nMaybe try r-devel and/or CRAN and/or R Core, but as Simon hinted that may be\nan uphill battle too.\n\nBest, Dirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Juan,\n\nFurther to Simon's comment, why is this on the rcpp-devel list?  We have\nexactly zero choice over compiler and architecture use at CRAN.\n\nMaybe try r-devel and/or CRAN and/or R Core, but as Sim",
+      "thread_id": "thread-87d805d5b88b",
+      "thread_depth": 2,
+      "month": "2022-11"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-5aebce68de8b",
+      "subject": "[Rcpp-devel] Something strange with the package check and calls to C abort",
+      "message_count": 1,
+      "participants": [
+        "Iñaki Ucar"
+      ],
+      "started": "2022-11-01T12:17:16+01:00",
+      "last_reply": "2022-11-01T12:17:16+01:00",
+      "root_message_id": "msg-5aebce68de8b"
+    },
+    {
+      "id": "thread-87d805d5b88b",
+      "subject": "[Rcpp-devel] Report of CRAN compilation problem and solution with architecture arm64",
+      "message_count": 3,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Juan Domingo Esteve",
+        "Simon Urbanek"
+      ],
+      "started": "2022-11-26T21:07:40+01:00",
+      "last_reply": "2022-11-27T09:25:58-06:00",
+      "root_message_id": "msg-87d805d5b88b"
+    },
+    {
+      "id": "thread-343984521498",
+      "subject": "[Rcpp-devel] Report of CRAN compilation problem and solution with architecture x86_32",
+      "message_count": 1,
+      "participants": [
+        "Juan Domingo Esteve"
+      ],
+      "started": "2022-11-26T21:10:30+01:00",
+      "last_reply": "2022-11-26T21:10:30+01:00",
+      "root_message_id": "msg-343984521498"
+    }
+  ]
+}

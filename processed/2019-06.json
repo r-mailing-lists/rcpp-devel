@@ -1,0 +1,36 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2019-06",
+  "messages": [
+    {
+      "id": "msg-fbe65ce11cd1",
+      "message_id": "<041241d8-b6d8-b4f2-7ac3-c34695bae202@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2019-06-04T18:35:22+02:00",
+      "subject": "[Rcpp-devel] lack of protection in Nullable operator=(SEXP) ?",
+      "subject_clean": "[Rcpp-devel] lack of protection in Nullable operator=(SEXP) ?",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi,\n\nI came across a case when under gctorture, a nullable variable set to an \ninteger changed unwillingly behind the stage to a character. It looks \nlike the previously set integer value was not protected so was free-ed \nby gc() and received a newly created character value.\nHere is a small reproducible example. Potential culprit of lacking \nprotection is the line 'x=wrap(10);' The error shows up at 'as<int>(x)'.\n\n// file nullable.cpp\n#include <Rcpp.h>\nusing namespace Rcpp;\n\n// [[Rcpp::export]]\nint add1(int x) {\n Â  return x+1;\n}\n// [[Rcpp::export]]\nSEXP add1_nullable(Nullable<int> x) {\n Â  if (x.isNull())\n Â Â Â  x=wrap(10);\n Â  // create few r objects to make gctorture() to show up\n Â  List l=List::create(_(\"a\")=\"aha\", _(\"o\")=\"oho\", _(\"b\")=\"boo\");\n Â  return wrap(add1(as<int>(x)));\n}\n/*** R\ngctorture(on=TRUE)\nx=2\nadd1(x)\nadd1_nullable(x)\nadd1_nullable(NULL)\ngctorture(on=FALSE)\n*/\n// end of file nullable.cpp\n\nIn R:\n\nlibrary(Rcpp)\nsourceCpp(\"nullable.cpp\")\n\n# output that I have:\n\n > gctorture(on=TRUE)\n\n > x=2\n\n > add1(x)\n[1] 3\n\n > add1_nullable(x)\n[1] 3\n\n > add1_nullable(NULL)\nError in add1_nullable(NULL) :\n Â  Not compatible with requested type: [type=character; target=integer].\n\nAm I doing something wrong or Nullable operator=(SEXP) should be corrected?\n\nBest,\nSerguei.\n\nLinux\nR version 3.6.0\n > packageVersion(\"Rcpp\")\n[1] â€˜1.0.1â€™",
+      "body_snippet": "Hi,\n\nI came across a case when under gctorture, a nullable variable set to an \ninteger changed unwillingly behind the stage to a character. It looks \nlike the previously set integer value was not prot",
+      "thread_id": "thread-fbe65ce11cd1",
+      "thread_depth": 0,
+      "month": "2019-06"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-fbe65ce11cd1",
+      "subject": "[Rcpp-devel] lack of protection in Nullable operator=(SEXP) ?",
+      "message_count": 1,
+      "participants": [
+        "Serguei Sokol"
+      ],
+      "started": "2019-06-04T18:35:22+02:00",
+      "last_reply": "2019-06-04T18:35:22+02:00",
+      "root_message_id": "msg-fbe65ce11cd1"
+    }
+  ]
+}

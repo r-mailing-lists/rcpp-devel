@@ -1,0 +1,74 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2024-01",
+  "messages": [
+    {
+      "id": "msg-30e7550d5c1c",
+      "message_id": "<EB0DBEFB-B444-4E1C-B860-C7098A3F9885@oist.jp>",
+      "from_name": "Rafael Ayala Hernandez",
+      "from_email_hash": "e7a26ad97077a52f6dbb5ff533ad0dbd5c88d2d848cf9498bb0f8b42cf25b0d6",
+      "date": "2024-01-10T09:52:03Z",
+      "subject": "[Rcpp-devel] Numerical precision in rotations with Eigen",
+      "subject_clean": "[Rcpp-devel] Numerical precision in rotations with Eigen",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi,\n\nI have implemented a function to rotate a 3D vector a given angle around a given axis (basically wrapping the functionality provided by Eigen::AngleAxis) as an Rcpp function.\nBelow is an extract from the source file:\n\n#include <Rcpp.h>\n#include <RcppEigen.h>\n#include <Eigen/Eigen>\n#include <Eigen/Geometry>\nusing namespace Rcpp;\nusing Rcpp::as;\nusing Eigen::Map;\nusing Eigen::VectorXd;\nusing Eigen::Vector3d;\nusing Eigen::Matrix;\nusing Eigen::MatrixXd;\nusing Eigen::Matrix3d;\nusing Eigen::Dynamic;\nusing Eigen::AngleAxisd;\n\n// [[Rcpp::plugins(\"cpp11\")]]\n// [[Rcpp::export]]\nNumericVector rotate3DVectorAngleAxis(NumericVector x, NumericVector axis, double angle) {\n    // Note: x should be 1 single vector to rotate\n    Map<VectorXd> xEigen(as<Map<VectorXd> >(x));\n    Map<VectorXd> axisEigen(as<Map<VectorXd> >(axis));\n    Matrix3d rotation;\n    rotation = AngleAxisd(angle, axisEigen.normalized());\n    Vector3d rotatedVector;\n    rotatedVector = rotation.matrix() * xEigen;\n    return wrap(rotatedVector);\n}\n\n\nThe function executes with no problems and gives the expected output.\n\nHowever, I have noticed that there is times where a value of 0 would be expected for some vector components, but instead a very small value is returned. For example, executing the following on my machine:\n\nrotate3DVectorAngleAxis(c(0,0,1), c(1,0,0), pi/2)\n\nWhich represents a rotation of 90 degrees around the X axis, and therefore the expected output value would be c(0,1,0)\n\nHowever, it instead results in an output vector of c(0.000000e+00, -1.000000e+00,  6.123234e-17)\n\nI.e., the value for the Z component is 6.123234e-17. \n\nI guess this is somehow related to machine precision, but is there an exact cause that could be possibly fixed?\nAdditionally, why does the deviation from 0 only seem to happen for the Z component, and not for the X component?\nVarying the amount of rotation also seems to lead to a cumulative error on the same component. E.g., rotating by 4001 times pi/2 (i.e., 1000 complete 360 degrees rotations plus a 90 degree rotation):\n\nrotate3DVectorAngleAxis(c(0,0,1), c(1,0,0), 14401*pi/2)\n\nresults in c(0.000000e+00, -1.000000e+00, 4.776933e-13)\n\nWhich seems again to be accumulating in the same Z component.\n\nIs there anything I could improve in my implementation to avoid these numerical errors?\n\nFor reference, .Machine$double.eps on my machine is 2.220446e-16\n\nThanks a lot in advance\n\nBest wishes,\n\nRafa",
+      "body_snippet": "Hi,\n\nI have implemented a function to rotate a 3D vector a given angle around a given axis (basically wrapping the functionality provided by Eigen::AngleAxis) as an Rcpp function.\nBelow is an extract ",
+      "thread_id": "thread-30e7550d5c1c",
+      "thread_depth": 0,
+      "month": "2024-01"
+    },
+    {
+      "id": "msg-019d52c6433d",
+      "message_id": "<26014.35853.690780.315294@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2024-01-10T06:22:37-06:00",
+      "subject": "[Rcpp-devel] Numerical precision in rotations with Eigen",
+      "subject_clean": "[Rcpp-devel] Numerical precision in rotations with Eigen",
+      "in_reply_to": "<EB0DBEFB-B444-4E1C-B860-C7098A3F9885@oist.jp>",
+      "references": [
+        "<EB0DBEFB-B444-4E1C-B860-C7098A3F9885@oist.jp>"
+      ],
+      "body_plain": "On 10 January 2024 at 09:52, Rafael Ayala Hernandez wrote:\n| Hi,\n| \n| I have implemented a function to rotate a 3D vector a given angle around a given axis (basically wrapping the functionality provided by Eigen::AngleAxis) as an Rcpp function.\n| Below is an extract from the source file:\n| \n| #include <Rcpp.h>\n| #include <RcppEigen.h>\n| #include <Eigen/Eigen>\n| #include <Eigen/Geometry>\n| using namespace Rcpp;\n| using Rcpp::as;\n| using Eigen::Map;\n| using Eigen::VectorXd;\n| using Eigen::Vector3d;\n| using Eigen::Matrix;\n| using Eigen::MatrixXd;\n| using Eigen::Matrix3d;\n| using Eigen::Dynamic;\n| using Eigen::AngleAxisd;\n| \n| // [[Rcpp::plugins(\"cpp11\")]]\n| // [[Rcpp::export]]\n| NumericVector rotate3DVectorAngleAxis(NumericVector x, NumericVector axis, double angle) {\n|     // Note: x should be 1 single vector to rotate\n|     Map<VectorXd> xEigen(as<Map<VectorXd> >(x));\n|     Map<VectorXd> axisEigen(as<Map<VectorXd> >(axis));\n|     Matrix3d rotation;\n|     rotation = AngleAxisd(angle, axisEigen.normalized());\n|     Vector3d rotatedVector;\n|     rotatedVector = rotation.matrix() * xEigen;\n|     return wrap(rotatedVector);\n| }\n| \n| \n| The function executes with no problems and gives the expected output.\n| \n| However, I have noticed that there is times where a value of 0 would be expected for some vector components, but instead a very small value is returned. For example, executing the following on my machine:\n| \n| rotate3DVectorAngleAxis(c(0,0,1), c(1,0,0), pi/2)\n| \n| Which represents a rotation of 90 degrees around the X axis, and therefore the expected output value would be c(0,1,0)\n| \n| However, it instead results in an output vector of c(0.000000e+00, -1.000000e+00,  6.123234e-17)\n| \n| I.e., the value for the Z component is 6.123234e-17. \n| \n| I guess this is somehow related to machine precision, but is there an exact cause that could be possibly fixed?\n| Additionally, why does the deviation from 0 only seem to happen for the Z component, and not for the X component?\n| Varying the amount of rotation also seems to lead to a cumulative error on the same component. E.g., rotating by 4001 times pi/2 (i.e., 1000 complete 360 degrees rotations plus a 90 degree rotation):\n| \n| rotate3DVectorAngleAxis(c(0,0,1), c(1,0,0), 14401*pi/2)\n| \n| results in c(0.000000e+00, -1.000000e+00, 4.776933e-13)\n| \n| Which seems again to be accumulating in the same Z component.\n| \n| Is there anything I could improve in my implementation to avoid these numerical errors?\n| \n| For reference, .Machine$double.eps on my machine is 2.220446e-16\n\n>From the looks it seems like an instance of R FAQ 7.31:\n\n   https://cran.r-project.org/doc/FAQ/R-FAQ.html#Why-doesn_0027t-R-think-these-numbers-are-equal_003f\n\nand the 'classic' referenced therein\n\n   https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html\n\nIt is probably your responsibility to identify such values and explicitly\nround or set them to zero.  I know nothing about the rotation here but in\nother field (esp with iterations) a common rule of thumb is 'less than\nsqrt(eps) is zero' meaning 1e-8.  Of course that is too general and may be\ntoo broad as \"it always depends\".\n\nHope this helps a little. Maybe contact some field experts too.\n\nCheers, Dirk\n\n| Thanks a lot in advance\n| \n| Best wishes,\n| \n| Rafa\n| \n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 10 January 2024 at 09:52, Rafael Ayala Hernandez wrote:\n| Hi,\n| \n| I have implemented a function to rotate a 3D vector a given angle around a given axis (basically wrapping the functionality provid",
+      "thread_id": "thread-30e7550d5c1c",
+      "thread_depth": 1,
+      "month": "2024-01"
+    },
+    {
+      "id": "msg-c4904811d91b",
+      "message_id": "<687F8E99-E7F0-4CDA-8954-6998F8975DA7@oist.jp>",
+      "from_name": "Rafael Ayala Hernandez",
+      "from_email_hash": "e7a26ad97077a52f6dbb5ff533ad0dbd5c88d2d848cf9498bb0f8b42cf25b0d6",
+      "date": "2024-01-11T07:00:37Z",
+      "subject": "[Rcpp-devel] Numerical precision in rotations with Eigen",
+      "subject_clean": "[Rcpp-devel] Numerical precision in rotations with Eigen",
+      "in_reply_to": "<26014.35853.690780.315294@rob.eddelbuettel.com>",
+      "references": [
+        "<EB0DBEFB-B444-4E1C-B860-C7098A3F9885@oist.jp>",
+        "<26014.35853.690780.315294@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Dear Dirk,\n\nThanks a lot. This has indeed been quite insightful, and the link to the classic you provided makes me realize how little I knew about machine precision issues.\n\nThe link to the R FAQ you provided made me wonder if the numerical error was arising at the level of R or already from the output of Eigen functions. So I implemented the same function directly in C++, and I am still getting exactly the same numerical errors.\n\nFor future reference, one of my main concerns was that the error would grow larger when the input vector to be rotated had larger values in its components. And this is indeed the case with the implementation mentioned previously.\nHowever, by applying the following renormalizations to the rotation matrix, surprisingly the absolute error is kept constant more or less even when giving input vectors with components of much larger magnitude\n\n    rotation = AngleAxisd(reducedAngle, axisEigen.normalized()).toRotationMatrix().householderQr().householderQ();\n\nFor completion, I also tried to apply the rotation in quaternion form, but it leads to the exact same numerical errors.\nBut as you said, at this point I think it is probably more relevant to follow up with some people familiar with rotations with Eigen.\n\nBest wishes,\n\nRafa\n\nEl 10 ene 2024, a las 21:22, Dirk Eddelbuettel <edd at debian.org> escribi?:\n\n\nOn 10 January 2024 at 09:52, Rafael Ayala Hernandez wrote:\n| Hi,\n|\n| I have implemented a function to rotate a 3D vector a given angle around a given axis (basically wrapping the functionality provided by Eigen::AngleAxis) as an Rcpp function.\n| Below is an extract from the source file:\n|\n| #include <Rcpp.h>\n| #include <RcppEigen.h>\n| #include <Eigen/Eigen>\n| #include <Eigen/Geometry>\n| using namespace Rcpp;\n| using Rcpp::as;\n| using Eigen::Map;\n| using Eigen::VectorXd;\n| using Eigen::Vector3d;\n| using Eigen::Matrix;\n| using Eigen::MatrixXd;\n| using Eigen::Matrix3d;\n| using Eigen::Dynamic;\n| using Eigen::AngleAxisd;\n|\n| // [[Rcpp::plugins(\"cpp11\")]]\n| // [[Rcpp::export]]\n| NumericVector rotate3DVectorAngleAxis(NumericVector x, NumericVector axis, double angle) {\n|     // Note: x should be 1 single vector to rotate\n|     Map<VectorXd> xEigen(as<Map<VectorXd> >(x));\n|     Map<VectorXd> axisEigen(as<Map<VectorXd> >(axis));\n|     Matrix3d rotation;\n|     rotation = AngleAxisd(angle, axisEigen.normalized());\n|     Vector3d rotatedVector;\n|     rotatedVector = rotation.matrix() * xEigen;\n|     return wrap(rotatedVector);\n| }\n|\n|\n| The function executes with no problems and gives the expected output.\n|\n| However, I have noticed that there is times where a value of 0 would be expected for some vector components, but instead a very small value is returned. For example, executing the following on my machine:\n|\n| rotate3DVectorAngleAxis(c(0,0,1), c(1,0,0), pi/2)\n|\n| Which represents a rotation of 90 degrees around the X axis, and therefore the expected output value would be c(0,1,0)\n|\n| However, it instead results in an output vector of c(0.000000e+00, -1.000000e+00,  6.123234e-17)\n|\n| I.e., the value for the Z component is 6.123234e-17.\n|\n| I guess this is somehow related to machine precision, but is there an exact cause that could be possibly fixed?\n| Additionally, why does the deviation from 0 only seem to happen for the Z component, and not for the X component?\n| Varying the amount of rotation also seems to lead to a cumulative error on the same component. E.g., rotating by 4001 times pi/2 (i.e., 1000 complete 360 degrees rotations plus a 90 degree rotation):\n|\n| rotate3DVectorAngleAxis(c(0,0,1), c(1,0,0), 14401*pi/2)\n|\n| results in c(0.000000e+00, -1.000000e+00, 4.776933e-13)\n|\n| Which seems again to be accumulating in the same Z component.\n|\n| Is there anything I could improve in my implementation to avoid these numerical errors?\n|\n| For reference, .Machine$double.eps on my machine is 2.220446e-16",
+      "body_snippet": "Dear Dirk,\n\nThanks a lot. This has indeed been quite insightful, and the link to the classic you provided makes me realize how little I knew about machine precision issues.\n\nThe link to the R FAQ you ",
+      "thread_id": "thread-30e7550d5c1c",
+      "thread_depth": 2,
+      "month": "2024-01"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-30e7550d5c1c",
+      "subject": "[Rcpp-devel] Numerical precision in rotations with Eigen",
+      "message_count": 3,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Rafael Ayala Hernandez"
+      ],
+      "started": "2024-01-10T09:52:03+00:00",
+      "last_reply": "2024-01-11T07:00:37+00:00",
+      "root_message_id": "msg-30e7550d5c1c"
+    }
+  ]
+}

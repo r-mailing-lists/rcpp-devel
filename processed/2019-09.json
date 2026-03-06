@@ -1,0 +1,74 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2019-09",
+  "messages": [
+    {
+      "id": "msg-c6e7c38f742a",
+      "message_id": "<CAHqROV6AJvczAR_shyy-rCprFd7wGBPbxsmOYuGe_e6k95XDWA@mail.gmail.com>",
+      "from_name": "Vladimir Morozov",
+      "from_email_hash": "32e461267caa7baaefe464424f7a42563322d2f0820db0f5426ef2aadc168b5d",
+      "date": "2019-09-04T13:13:14+09:00",
+      "subject": "[Rcpp-devel] accelerate XTS manipulations with Rcpp",
+      "subject_clean": "[Rcpp-devel] accelerate XTS manipulations with Rcpp",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Dear Rcpp experts.\nI'm absolutely new to Rcpp and RcppXts.\n\nI want to speed up my R function that generates and rbinds a few new rows\nto an XTS object. This function us called often and I think it takes a\nlot of time.\n\nCould you please tell me in general if the following switch to Rcpp will\nspeed-up my work (currently all my work is in R).\n\nI have a function  function_R(time T, value X) in R that takes a\nPosixCT time and integer value X, performs some time-consuming manipulations,\nthen modifies global objects XTS series1 through XTS seriesN. Specifically,\nI rbind some new rows to each of series1 through seriesN in global\nenvironment.\nTo avoid copying XTS series between the function and the global enviroment,\nthe function attempts to modify the seriesX in the global environment, and\nnot return XTS on function return (due to how R works maybe it's a moot\npoint, as Dirk already alluded...)\n\nThis function is rather slow.\n\nTo accelerate it I want to write fuction_RCPP(time T, value X) in C++.\nI think it will perform internal manipulations of time T and value X a little\nfaster.\n\nI want to achieve the biggest speed-up by doing rbind in C++ using package\nRcppXts.\nI plan to use the following function in RcppXts package:\n    function(\"xtsRbind\",\n             &xtsRbind,\n             List::create(Named(\"x\"), Named(\"y\"), Named(\"dup\")),\n             \"Combine two xts objects row-wise\");\n\nThen I want to use Rcpp function assign( name, x ) to assign the created\nobject back to GlobalEnvironment.\n\nThis way my other tasks in R can access these XTS series1 through seriesN.\n\nDo you think the above way is a good way to grow dynamical XTS series inside\nRcpp?\nDo you think it will provide significant acceleration compared to pure R ?\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20190904/7ef99fb0/attachment.html>",
+      "body_snippet": "Dear Rcpp experts.\nI'm absolutely new to Rcpp and RcppXts.\n\nI want to speed up my R function that generates and rbinds a few new rows\nto an XTS object. This function us called often and I think it tak",
+      "thread_id": "thread-c6e7c38f742a",
+      "thread_depth": 0,
+      "month": "2019-09"
+    },
+    {
+      "id": "msg-d06516e07711",
+      "message_id": "<23928.57252.297240.104391@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2019-09-11T06:51:00-05:00",
+      "subject": "[Rcpp-devel] accelerate XTS manipulations with Rcpp",
+      "subject_clean": "[Rcpp-devel] accelerate XTS manipulations with Rcpp",
+      "in_reply_to": "<CAHqROV6AJvczAR_shyy-rCprFd7wGBPbxsmOYuGe_e6k95XDWA@mail.gmail.com>",
+      "references": [
+        "<CAHqROV6AJvczAR_shyy-rCprFd7wGBPbxsmOYuGe_e6k95XDWA@mail.gmail.com>"
+      ],
+      "body_plain": "Sorry, forgot about replying here for a few days.\n\nOn 4 September 2019 at 13:13, Vladimir Morozov wrote:\n| Dear Rcpp experts.\n| I'm absolutely new to Rcpp and RcppXts.\n| \n| I want to speed up my R function that generates and rbinds a few new rows\n| to an XTS object. This function us called often and I think it takes a\n| lot of time.\n| \n| Could you please tell me in general if the following switch to Rcpp will\n| speed-up my work (currently all my work is in R).\n| \n| I have a function  function_R(time T, value X) in R that takes a\n| PosixCT time and integer value X, performs some time-consuming manipulations,\n| then modifies global objects XTS series1 through XTS seriesN. Specifically,\n| I rbind some new rows to each of series1 through seriesN in global\n| environment.\n| To avoid copying XTS series between the function and the global enviroment,\n| the function attempts to modify the seriesX in the global environment, and\n| not return XTS on function return (due to how R works maybe it's a moot\n| point, as Dirk already alluded...)\n| \n| This function is rather slow.\n| \n| To accelerate it I want to write fuction_RCPP(time T, value X) in C++.\n| I think it will perform internal manipulations of time T and value X a little\n| faster.\n| \n| I want to achieve the biggest speed-up by doing rbind in C++ using package\n| RcppXts.\n| I plan to use the following function in RcppXts package:\n|     function(\"xtsRbind\",\n|              &xtsRbind,\n|              List::create(Named(\"x\"), Named(\"y\"), Named(\"dup\")),\n|              \"Combine two xts objects row-wise\");\n| \n| Then I want to use Rcpp function assign( name, x ) to assign the created\n| object back to GlobalEnvironment.\n| \n| This way my other tasks in R can access these XTS series1 through seriesN.\n| \n| Do you think the above way is a good way to grow dynamical XTS series inside\n| Rcpp?\n| Do you think it will provide significant acceleration compared to pure R ?\n\nI sense that you have the same correct intuitive feeling here: the \"growing\"\nis the bottleneck.\n\nR is fantastic at what it does, and uses a relatively simple architecture.\nThis means for example that vectors are simple contiguous 'chunks' of memory\n(plus some optimization, but let's ignore that) so \"growing\" always means\nfull copies.  That is not good.\n\nSo I tend to grow my data structures on the C++ side as STL objects, often\nvectors. Once done, I return as Rcpp / R vectors, often in a data.frame. That\nworks pretty well.\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Sorry, forgot about replying here for a few days.\n\nOn 4 September 2019 at 13:13, Vladimir Morozov wrote:\n| Dear Rcpp experts.\n| I'm absolutely new to Rcpp and RcppXts.\n| \n| I want to speed up my R fun",
+      "thread_id": "thread-c6e7c38f742a",
+      "thread_depth": 1,
+      "month": "2019-09"
+    },
+    {
+      "id": "msg-18f82005d959",
+      "message_id": "<23928.60691.438721.481384@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2019-09-11T07:48:19-05:00",
+      "subject": "[Rcpp-devel] accelerate XTS manipulations with Rcpp",
+      "subject_clean": "[Rcpp-devel] accelerate XTS manipulations with Rcpp",
+      "in_reply_to": "<23928.57252.297240.104391@rob.eddelbuettel.com>",
+      "references": [
+        "<CAHqROV6AJvczAR_shyy-rCprFd7wGBPbxsmOYuGe_e6k95XDWA@mail.gmail.com>",
+        "<23928.57252.297240.104391@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "On 11 September 2019 at 06:51, Dirk Eddelbuettel wrote:\n| On 4 September 2019 at 13:13, Vladimir Morozov wrote:\n| | Could you please tell me in general if the following switch to Rcpp will\n| | speed-up my work (currently all my work is in R).\n\nAlso, and while this is the Rcpp list: consider data.table. I use it a lot\nthese days, and \"done right\" it can be tremendously fast. I do some things\nwith it now for which I would have written Rcpp-based helpers in the past.\n\nOne tutorial I liked a lot is \"Life in the Fast Lane: data.table Intro and\nBest Practices\" by Bill Gold at the NY HackR Meetup:\n - one-hour video https://www.youtube.com/watch?v=ztTDLefpPVY\n - slides repo https://github.com/billcgold/presentations/tree/master/data.table-nyhackr_2018-09-17\n\nThere are some excellent questions and answer for it at stackoverflow. \n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 11 September 2019 at 06:51, Dirk Eddelbuettel wrote:\n| On 4 September 2019 at 13:13, Vladimir Morozov wrote:\n| | Could you please tell me in general if the following switch to Rcpp will\n| | speed-u",
+      "thread_id": "thread-c6e7c38f742a",
+      "thread_depth": 2,
+      "month": "2019-09"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-c6e7c38f742a",
+      "subject": "[Rcpp-devel] accelerate XTS manipulations with Rcpp",
+      "message_count": 3,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Vladimir Morozov"
+      ],
+      "started": "2019-09-04T13:13:14+09:00",
+      "last_reply": "2019-09-11T07:48:19-05:00",
+      "root_message_id": "msg-c6e7c38f742a"
+    }
+  ]
+}

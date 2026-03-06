@@ -1,0 +1,151 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2023-09",
+  "messages": [
+    {
+      "id": "msg-04f550087941",
+      "message_id": "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>",
+      "from_name": "Ralf Stubner",
+      "from_email_hash": "2ac4882c3f0915efd06df6654bc99c22c49875a9bb5f05f1541e1f6d50afa523",
+      "date": "2023-09-23T08:28:55Z",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "subject_clean": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi everybody,\n\nI have a question concerning the file-cycle of Rcpp::XPtr: Consider a\nXPtr with the default delete finalizer wrapping some pointer. If I use\nthe copy constructor to create another XPtr, this is pointing at the\nsame underlying object as expected. What happens if one of these\npointers goes out of scope and is at some point garbage collected? Is\nthe underlying object deleted leaving the other XPtr with a broken\npointer? Or is the object protected by the existence of the other\npointer? From my experiments I have the impression that the latter is\nthe case, which would be the desired behaviour. But it would be nice\nif one could be sure.\n\nThanks\nRalf",
+      "body_snippet": "Hi everybody,\n\nI have a question concerning the file-cycle of Rcpp::XPtr: Consider a\nXPtr with the default delete finalizer wrapping some pointer. If I use\nthe copy constructor to create another XPtr,",
+      "thread_id": "thread-04f550087941",
+      "thread_depth": 0,
+      "month": "2023-09"
+    },
+    {
+      "id": "msg-7ceb1c211fe7",
+      "message_id": "<393CAD69-AC6E-4E07-BE43-8AFA997C6EDC@R-project.org>",
+      "from_name": "Simon Urbanek",
+      "from_email_hash": "705f3de0e3c2b9f04cdf5bffe2a443ba65faf9835e4db2d3a43af10255d82925",
+      "date": "2023-09-23T21:49:18+12:00",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "subject_clean": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "in_reply_to": "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>",
+      "references": [
+        "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>"
+      ],
+      "body_plain": "The copy constructor doesn't actually create a copy, it only acts as a wrapper that preserves the same EXTPTR object, it is akin to increasing the reference count, so the C++ class wrapped in the EXTPTR is only released when the EXTPTR can be garbage-collected, i.e. all references are gone (including all \"copies\").\n[Of course that is not true if you were to create two XPtrs with the same pointer and a finalizer each, but that would be a bad idea, obviously].\n\nCheers,\nSimon\n\n\n> On Sep 23, 2023, at 8:28 PM, Ralf Stubner <ralf.stubner at gmail.com> wrote:\n> \n> \n> Hi everybody,\n> \n> I have a question concerning the file-cycle of Rcpp::XPtr: Consider a\n> XPtr with the default delete finalizer wrapping some pointer. If I use\n> the copy constructor to create another XPtr, this is pointing at the\n> same underlying object as expected. What happens if one of these\n> pointers goes out of scope and is at some point garbage collected? Is\n> the underlying object deleted leaving the other XPtr with a broken\n> pointer? Or is the object protected by the existence of the other\n> pointer? From my experiments I have the impression that the latter is\n> the case, which would be the desired behaviour. But it would be nice\n> if one could be sure.\n> \n> Thanks\n> Ralf\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>",
+      "body_snippet": "The copy constructor doesn't actually create a copy, it only acts as a wrapper that preserves the same EXTPTR object, it is akin to increasing the reference count, so the C++ class wrapped in the EXTP",
+      "thread_id": "thread-04f550087941",
+      "thread_depth": 1,
+      "month": "2023-09"
+    },
+    {
+      "id": "msg-c887c7979a6a",
+      "message_id": "<25870.57425.648317.729226@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2023-09-23T07:55:45-05:00",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "subject_clean": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "in_reply_to": "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>",
+      "references": [
+        "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>"
+      ],
+      "body_plain": "Hi Ralf,\n\nOn 23 September 2023 at 08:28, Ralf Stubner wrote:\n| I have a question concerning the file-cycle of Rcpp::XPtr: Consider a\n| XPtr with the default delete finalizer wrapping some pointer. If I use\n| the copy constructor to create another XPtr, this is pointing at the\n| same underlying object as expected. What happens if one of these\n| pointers goes out of scope and is at some point garbage collected? Is\n| the underlying object deleted leaving the other XPtr with a broken\n| pointer? Or is the object protected by the existence of the other\n| pointer? From my experiments I have the impression that the latter is\n| the case, which would be the desired behaviour. But it would be nice\n| if one could be sure.\n\nI had done some experiments with 'expanded finalizers' that use more logging\n(which I find quite convenient via `spdl` -- same nice spdlog interface now\nfrom R and C++) so you could add some display of the pointer address, check\non nullness etc.\n\nI have done a bit more work using XPtr in the context of the tiledb (and the\nrelated, possibly upcoming tiledbsoma package not yet on CRAN) where I use an\nenum (which requires C++17 in the use I have there) to 'type tag' each\nexternal pointer and on each use check I have the correct type. I am not\nthinking to a simple unordered_map from enum to string to also make more\ninformed errors (showing the type as string rather than enum int value) as\nwell as maybe an enhanced show or print at the R level. I have long been\nmeaning to farm that out into a new (simple) add-on package (see issue #1212)\nand should get on with that.  (The 'still somewhat raw' XPtr extension in\ntiledb is eg here:\nhttps://github.com/TileDB-Inc/TileDB-R/blob/1e7bd2fa4e54f3e152c4fec3a65343df49d3f525/src/libtiledb.h#L80-L160\nand the check_xptr_tag is then used throughout the files in src/.\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Hi Ralf,\n\nOn 23 September 2023 at 08:28, Ralf Stubner wrote:\n| I have a question concerning the file-cycle of Rcpp::XPtr: Consider a\n| XPtr with the default delete finalizer wrapping some pointer. If ",
+      "thread_id": "thread-04f550087941",
+      "thread_depth": 1,
+      "month": "2023-09"
+    },
+    {
+      "id": "msg-279fcdba1d75",
+      "message_id": "<25870.61022.883733.619032@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2023-09-23T08:55:42-05:00",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "subject_clean": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "in_reply_to": "<25870.57425.648317.729226@rob.eddelbuettel.com>",
+      "references": [
+        "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>",
+        "<25870.57425.648317.729226@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "PS There is another neat use case where a shared_ptr is allocated.  Now we\ncannot wrap a shared_ptr in an XPtr but ... we can stick the shared_ptr into\na struct, and allocate that with new and then make_xptr.  You are then back\nto well-understood C++ semantics.\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "PS There is another neat use case where a shared_ptr is allocated.  Now we\ncannot wrap a shared_ptr in an XPtr but ... we can stick the shared_ptr into\na struct, and allocate that with new and then ma",
+      "thread_id": "thread-04f550087941",
+      "thread_depth": 2,
+      "month": "2023-09"
+    },
+    {
+      "id": "msg-39204c39554f",
+      "message_id": "<CAFQwRQwNPhbXsXhbVmrwA0DLFfaTzoPTaeiZx=b-BiVEOj2vqA@mail.gmail.com>",
+      "from_name": "Ralf Stubner",
+      "from_email_hash": "2ac4882c3f0915efd06df6654bc99c22c49875a9bb5f05f1541e1f6d50afa523",
+      "date": "2023-09-23T21:29:52Z",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "subject_clean": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "in_reply_to": "<393CAD69-AC6E-4E07-BE43-8AFA997C6EDC@R-project.org>",
+      "references": [
+        "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>",
+        "<393CAD69-AC6E-4E07-BE43-8AFA997C6EDC@R-project.org>"
+      ],
+      "body_plain": "On Sat, Sep 23, 2023 at 9:49?AM Simon Urbanek\n<simon.urbanek at r-project.org> wrote:\n>\n> The copy constructor doesn't actually create a copy, it only acts as a wrapper that preserves the same EXTPTR object, it is akin to increasing the reference count, so the C++ class wrapped in the EXTPTR is only released when the EXTPTR can be garbage-collected, i.e. all references are gone (including all \"copies\").\n> [Of course that is not true if you were to create two XPtrs with the same pointer and a finalizer each, but that would be a bad idea, obviously].\n\nThanks Simon! This seems to be the behaviour I am looking for.\n\nRalf",
+      "body_snippet": "On Sat, Sep 23, 2023 at 9:49?AM Simon Urbanek\n<simon.urbanek at r-project.org> wrote:\n>\n> The copy constructor doesn't actually create a copy, it only acts as a wrapper that preserves the same EXTPTR ",
+      "thread_id": "thread-04f550087941",
+      "thread_depth": 2,
+      "month": "2023-09"
+    },
+    {
+      "id": "msg-99fc82512c05",
+      "message_id": "<CAFQwRQxBo2A+Q3ti4Gs6cV1d2D_Yc+5DXbeVkYo2cdSnr9ioug@mail.gmail.com>",
+      "from_name": "Ralf Stubner",
+      "from_email_hash": "2ac4882c3f0915efd06df6654bc99c22c49875a9bb5f05f1541e1f6d50afa523",
+      "date": "2023-09-23T21:32:18Z",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "subject_clean": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "in_reply_to": "<25870.57425.648317.729226@rob.eddelbuettel.com>",
+      "references": [
+        "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>",
+        "<25870.57425.648317.729226@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Hi Dirk,\n\n> I had done some experiments with 'expanded finalizers' that use more logging\n> (which I find quite convenient via `spdl` -- same nice spdlog interface now\n> from R and C++) so you could add some display of the pointer address, check\n> on nullness etc.\n>\n> I have done a bit more work using XPtr in the context of the tiledb (and the\n> related, possibly upcoming tiledbsoma package not yet on CRAN) where I use an\n> enum (which requires C++17 in the use I have there) to 'type tag' each\n> external pointer and on each use check I have the correct type. I am not\n> thinking to a simple unordered_map from enum to string to also make more\n> informed errors (showing the type as string rather than enum int value) as\n> well as maybe an enhanced show or print at the R level. I have long been\n> meaning to farm that out into a new (simple) add-on package (see issue #1212)\n> and should get on with that.  (The 'still somewhat raw' XPtr extension in\n> tiledb is eg here:\n> https://github.com/TileDB-Inc/TileDB-R/blob/1e7bd2fa4e54f3e152c4fec3a65343df49d3f525/src/libtiledb.h#L80-L160\n> and the check_xptr_tag is then used throughout the files in src/.\n\nThanks! That does sound interesting. I think for my current use-case\nthe existing functionality is sufficient. But i will have a look at\nthese ideas.\n\nRalf",
+      "body_snippet": "Hi Dirk,\n\n> I had done some experiments with 'expanded finalizers' that use more logging\n> (which I find quite convenient via `spdl` -- same nice spdlog interface now\n> from R and C++) so you could ad",
+      "thread_id": "thread-04f550087941",
+      "thread_depth": 2,
+      "month": "2023-09"
+    },
+    {
+      "id": "msg-913c1cd28694",
+      "message_id": "<CALEXWq05_hjLWywRgxGiM2Tza6hSf3zQrQvosz4XQZ2UJaqbTw@mail.gmail.com>",
+      "from_name": "Iñaki Ucar",
+      "from_email_hash": "47657a5f56ea3d5b5c3f07746bcf3ccae957a498748935aaf0369c4b44bcda96",
+      "date": "2023-09-25T15:34:53+02:00",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "subject_clean": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "in_reply_to": "<25870.57425.648317.729226@rob.eddelbuettel.com>",
+      "references": [
+        "<CAFQwRQzD5DtPBYpAmtgSLREDQKBivbd35RHW1PfBhtR49NYaUA@mail.gmail.com>",
+        "<25870.57425.648317.729226@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Hi Ralf,\n\nOn Sat, 23 Sept 2023 at 14:56, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n>\n> Hi Ralf,\n>\n> On 23 September 2023 at 08:28, Ralf Stubner wrote:\n> | I have a question concerning the file-cycle of Rcpp::XPtr: Consider a\n> | XPtr with the default delete finalizer wrapping some pointer. If I use\n> | the copy constructor to create another XPtr, this is pointing at the\n> | same underlying object as expected. What happens if one of these\n> | pointers goes out of scope and is at some point garbage collected? Is\n> | the underlying object deleted leaving the other XPtr with a broken\n> | pointer? Or is the object protected by the existence of the other\n> | pointer? From my experiments I have the impression that the latter is\n> | the case, which would be the desired behaviour. But it would be nice\n> | if one could be sure.\n\nThe answer is yes, XPtr works as a shared_ptr, so you can be sure that\nthe object will be protected until the last reference to it is\ndeleted. A quick check:\n\n#include <Rcpp.h>\nusing namespace Rcpp;\n\nclass Test {\npublic:\n  Test()  { Rcout << this << \" created\" << std::endl; }\n  ~Test() { Rcout << this << \" deleted\" << std::endl; }\n};\n\n// [[Rcpp::export]]\nSEXP test_new() {\n  return XPtr<Test>(new Test());\n}\n\n// [[Rcpp::export]]\nSEXP test_copy(SEXP x_) {\n  XPtr<Test> x(x_);\n  return x;\n}\n\n/*** R\nx <- test_new()\n#> 0x55a93e3845d0 created\ny <- test_copy(x)\nrm(x); invisible(gc())\nrm(y); invisible(gc())\n#> 0x55a93e3845d0 deleted\n*/\n\nBest,\nI?aki\n\n-- \nI?aki ?car\nAssistant Professor of Statistics\nDirector of the Master in Computational Social Science\n\nDepartment of Statistics | Big Data Institute\nUniversidad Carlos III de Madrid\nAv. de la Universidad 30, 28911 Legan?s, Spain\nOffice: 7.3.J25, Tel: +34 916248804",
+      "body_snippet": "Hi Ralf,\n\nOn Sat, 23 Sept 2023 at 14:56, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n>\n> Hi Ralf,\n>\n> On 23 September 2023 at 08:28, Ralf Stubner wrote:\n> | I have a question concerning the file-cy",
+      "thread_id": "thread-04f550087941",
+      "thread_depth": 2,
+      "month": "2023-09"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-04f550087941",
+      "subject": "[Rcpp-devel] Life-cycle of Rcpp::XPtr",
+      "message_count": 7,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Iñaki Ucar",
+        "Ralf Stubner",
+        "Simon Urbanek"
+      ],
+      "started": "2023-09-23T08:28:55+00:00",
+      "last_reply": "2023-09-25T15:34:53+02:00",
+      "root_message_id": "msg-04f550087941"
+    }
+  ]
+}

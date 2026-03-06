@@ -1,0 +1,218 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2021-03",
+  "messages": [
+    {
+      "id": "msg-10a938b8ffab",
+      "message_id": "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+      "from_name": "Subhomoy Ghosh",
+      "from_email_hash": "4c7899562e216b64a7969abc13f4d428058f587abd7f119ce211a1562caf8a13",
+      "date": "2021-03-04T11:38:41-05:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi,\n\n  This is related to my post\n<https://stackoverflow.com/questions/66142449/passing-class-as-argument-in-rcpp-function?noredirect=1#comment116942069_66142449>.\nMy question is in the same spirit except for one additional complexity. How\ncan one create a new instance of a *template* class object with a pointer\non it and create an external pointer that can be further passed as an\nargument of a function? Here is a small example of my goal that will\nobviously not run and show \"Use of class template Uniform2 requires\ntemplate arguments\".\n\n// template class\ntemplate <typename T>\nclass Uniform2 {\n\npublic:\n  Uniform2(T max_,mat D_) :\n  max(max_), D(D_) {}\n\n  ~Uniform2(){};\n\n  T max;\n  mat D;\n};\n\n\n/// get function\n// [[Rcpp::export]]\nXPtr<Uniform2> getUniform(const mat &D, SEXP max,char type) {\n  // create pointer to a template Uniform object and\n  // wrap it as an external pointer\n  if(type=='double') {\n          Rcpp::XPtr<Uniform2> ptr(new Uniform2<double>(as<double>(max), D\n), true);\n          return ptr;\n  } else if(type=='int') {\n          Rcpp::XPtr<Uniform2> ptr(new Uniform2<int>(as<int>(max), D ),\ntrue);\n          return ptr;\n   }\n  // return the external pointer to the R side\n  return Rcpp::XPtr<Uniform2>(R_NilValue);\n}\n\n\n\n//do something\n// [[Rcpp::export]]\ndouble test2(double z, XPtr<Uniform2> xp) {\n\n  double CC= z * xp->max;\n\n  return CC;\n\n}\n\nThanks,\nSubhomoy\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210304/1b10d3c7/attachment.html>",
+      "body_snippet": "Hi,\n\n  This is related to my post\n<https://stackoverflow.com/questions/66142449/passing-class-as-argument-in-rcpp-function?noredirect=1#comment116942069_66142449>.\nMy question is in the same spirit ex",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 0,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-19d5d9fcc6bd",
+      "message_id": "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>",
+      "from_name": "Iñaki Ucar",
+      "from_email_hash": "8e930e9d3254a7fa7e786bc5a69418a943c040e7679d642aaceaf002d44403e6",
+      "date": "2021-03-04T17:56:15+01:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>"
+      ],
+      "body_plain": "On Thu, 4 Mar 2021 at 17:39, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:\n>\n> Hi,\n>\n>   This is related to my post. My question is in the same spirit except for one additional complexity. How can one create a new instance of a template class object with a pointer on it and create an external pointer that can be further passed as an argument of a function? Here is a small example of my goal that will obviously not run and show \"Use of class template Uniform2 requires template arguments\".\n\nYou can create a non-template parent class (e.g., Distribution) from\nwhich your template class derives. Then you just return a pointer to\nthe parent. In [1] you'll see an example of this (Activity is the\nparent class; Seize, Release and the others are template classes that\ninherit from Activity). In your example, you can use something like\n\nRcpp::XPtr<Distribution> ptr(new Uniform2<double>(as<double>(max), D ), true);\n\n[1] https://github.com/r-simmer/simmer/blob/master/src/activity.cpp\n\nIÃ±aki\n\n> // template class\n> template <typename T>\n> class Uniform2 {\n>\n> public:\n>   Uniform2(T max_,mat D_) :\n>   max(max_), D(D_) {}\n>\n>   ~Uniform2(){};\n>\n>   T max;\n>   mat D;\n> };\n>\n>\n> /// get function\n> // [[Rcpp::export]]\n> XPtr<Uniform2> getUniform(const mat &D, SEXP max,char type) {\n>   // create pointer to a template Uniform object and\n>   // wrap it as an external pointer\n>   if(type=='double') {\n>           Rcpp::XPtr<Uniform2> ptr(new Uniform2<double>(as<double>(max), D ), true);\n>           return ptr;\n>   } else if(type=='int') {\n>           Rcpp::XPtr<Uniform2> ptr(new Uniform2<int>(as<int>(max), D ), true);\n>           return ptr;\n>    }\n>   // return the external pointer to the R side\n>   return Rcpp::XPtr<Uniform2>(R_NilValue);\n> }\n>\n>\n>\n> //do something\n> // [[Rcpp::export]]\n> double test2(double z, XPtr<Uniform2> xp) {\n>\n>   double CC= z * xp->max;\n>\n>   return CC;\n>\n> }\n>\n> Thanks,\n> Subhomoy\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n\n\n-- \nIÃ±aki Ãšcar",
+      "body_snippet": "On Thu, 4 Mar 2021 at 17:39, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:\n>\n> Hi,\n>\n>   This is related to my post. My question is in the same spirit except for one additional complexity. How can o",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 1,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-8a4c1f0ebd6e",
+      "message_id": "<24641.4817.47894.695930@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2021-03-04T11:03:13-06:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>"
+      ],
+      "body_plain": "Recall that R offers us a C language interface\n\n   SEXP .Call(\"somename\", SEXP a, SEXP b, ...);\n\nwhich imposes constraints on what you put there. I.e. no C++ fancypants.\n\nYou can write yourself a _C_ function interface and pass your desired type as\na string, or enum (i.e. int), or ... and then dispatch within.\n\nWe are playing the hands we've been dealt here.\n\nDirk\n\n-- \nhttps://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Recall that R offers us a C language interface\n\n   SEXP .Call(\"somename\", SEXP a, SEXP b, ...);\n\nwhich imposes constraints on what you put there. I.e. no C++ fancypants.\n\nYou can write yourself a _C_ ",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 1,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-f8aebef3be52",
+      "message_id": "<24641.5519.480227.806068@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2021-03-04T11:14:55-06:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<24641.4817.47894.695930@rob.eddelbuettel.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+        "<24641.4817.47894.695930@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "PS And building on top of my post and what Inaki told you, you can of course\nhave C++ fancypants __provided the fancypants have something as for example\nthe operator SEXP() in the Rcpp::Nullable().  In short, whatever you do, it\n(ultimately) has to convert to a SEXP or there is no calling from R.\n\nDirk\n\n-- \nhttps://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "PS And building on top of my post and what Inaki told you, you can of course\nhave C++ fancypants __provided the fancypants have something as for example\nthe operator SEXP() in the Rcpp::Nullable().  I",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 2,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-386f4e886e0f",
+      "message_id": "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>",
+      "from_name": "Subhomoy Ghosh",
+      "from_email_hash": "4c7899562e216b64a7969abc13f4d428058f587abd7f119ce211a1562caf8a13",
+      "date": "2021-03-04T14:31:34-05:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+        "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>"
+      ],
+      "body_plain": "Thanks, for the solution. I tried what you suggested and it shows \"no\nmatching constructor for initialization of 'Rcpp::XPtr<Distribution>'\".\nBelow here is my attempt:\n\nclass Distribution {\n\npublic:\n  template <typename T>\n  class Uniform2 {\n\n    public:\n    Uniform2(T max_,mat D_) :\n    max(max_), D(D_) {}\n\n    ~Uniform2(){};\n\n    T max;\n    mat D;\n };\n};\n\n// [[Rcpp::export]]\nXPtr<Distribution> getUniform(const mat &D, SEXP max,int type) {\n  // create pointer to an Uniform object and\n  // wrap it as an external pointer\n  if(type==1) {\n          Rcpp::XPtr<Distribution> ptr(new\nDistribution::Uniform2<double>(as<double>(max), D ), true);\n          return ptr;\n  } else if(type==2) {\n          Rcpp::XPtr<Distribution> ptr(new\nDistribution::Uniform2<int>(as<int>(max), D ), true);\n          return ptr;\n   }\n  // return the external pointer to the R side\n  return Rcpp::XPtr<Distribution>(R_NilValue);\n}\n\nAny idea how this can be fixed?\n\n@Dirk, Thanks! I am aware of the .Call(). I can go that route depending on\nhow it goes.\n\n\n\n\nOn Thu, Mar 4, 2021 at 11:56 AM IÃ±aki Ucar <iucar at fedoraproject.org> wrote:\n\n> On Thu, 4 Mar 2021 at 17:39, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:\n> >\n> > Hi,\n> >\n> >   This is related to my post. My question is in the same spirit except\n> for one additional complexity. How can one create a new instance of a\n> template class object with a pointer on it and create an external pointer\n> that can be further passed as an argument of a function? Here is a small\n> example of my goal that will obviously not run and show \"Use of class\n> template Uniform2 requires template arguments\".\n>\n> You can create a non-template parent class (e.g., Distribution) from\n> which your template class derives. Then you just return a pointer to\n> the parent. In [1] you'll see an example of this (Activity is the\n> parent class; Seize, Release and the others are template classes that\n> inherit from Activity). In your example, you can use something like\n>\n> Rcpp::XPtr<Distribution> ptr(new Uniform2<double>(as<double>(max), D ),\n> true);\n>\n> [1] https://github.com/r-simmer/simmer/blob/master/src/activity.cpp\n>\n> IÃ±aki\n>\n> > // template class\n> > template <typename T>\n> > class Uniform2 {\n> >\n> > public:\n> >   Uniform2(T max_,mat D_) :\n> >   max(max_), D(D_) {}\n> >\n> >   ~Uniform2(){};\n> >\n> >   T max;\n> >   mat D;\n> > };\n> >\n> >\n> > /// get function\n> > // [[Rcpp::export]]\n> > XPtr<Uniform2> getUniform(const mat &D, SEXP max,char type) {\n> >   // create pointer to a template Uniform object and\n> >   // wrap it as an external pointer\n> >   if(type=='double') {\n> >           Rcpp::XPtr<Uniform2> ptr(new Uniform2<double>(as<double>(max),\n> D ), true);\n> >           return ptr;\n> >   } else if(type=='int') {\n> >           Rcpp::XPtr<Uniform2> ptr(new Uniform2<int>(as<int>(max), D ),\n> true);\n> >           return ptr;\n> >    }\n> >   // return the external pointer to the R side\n> >   return Rcpp::XPtr<Uniform2>(R_NilValue);\n> > }\n> >\n> >\n> >\n> > //do something\n> > // [[Rcpp::export]]\n> > double test2(double z, XPtr<Uniform2> xp) {\n> >\n> >   double CC= z * xp->max;\n> >\n> >   return CC;\n> >\n> > }\n> >\n> > Thanks,\n> > Subhomoy\n> > _______________________________________________\n> > Rcpp-devel mailing list\n> > Rcpp-devel at lists.r-forge.r-project.org\n> > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n>\n>\n> --\n> IÃ±aki Ãšcar\n>\n\n\n-- \nSubhomoy\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210304/efd019ec/attachment-0001.html>",
+      "body_snippet": "Thanks, for the solution. I tried what you suggested and it shows \"no\nmatching constructor for initialization of 'Rcpp::XPtr<Distribution>'\".\nBelow here is my attempt:\n\nclass Distribution {\n\npublic:\n ",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 2,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-aed61d0540db",
+      "message_id": "<24641.15279.515817.533099@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2021-03-04T13:57:35-06:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+        "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>",
+        "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>"
+      ],
+      "body_plain": "On 4 March 2021 at 14:31, Subhomoy Ghosh wrote:\n| @Dirk, Thanks! I am aware of the .Call(). I can go that route depending on\n| how it goes.\n\nI may not have been explicit enough. Everything we do goes that route, it's\njust that some of the code accessing it is written for you by Rcpp\nAttributes. The constraints still apply.\n\nDirk\n\n-- \nhttps://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 4 March 2021 at 14:31, Subhomoy Ghosh wrote:\n| @Dirk, Thanks! I am aware of the .Call(). I can go that route depending on\n| how it goes.\n\nI may not have been explicit enough. Everything we do goes ",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 3,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-e73b17170131",
+      "message_id": "<CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>",
+      "from_name": "Iñaki Ucar",
+      "from_email_hash": "8e930e9d3254a7fa7e786bc5a69418a943c040e7679d642aaceaf002d44403e6",
+      "date": "2021-03-04T20:58:42+01:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+        "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>",
+        "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>"
+      ],
+      "body_plain": "On Thu, 4 Mar 2021 at 20:31, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:\n>\n> Thanks, for the solution. I tried what you suggested and it shows \"no matching constructor for initialization of 'Rcpp::XPtr<Distribution>'\". Below here is my attempt:\n>\n> class Distribution {\n>\n> public:\n>   template <typename T>\n>   class Uniform2 {\n\nThis is a nested class, which makes little sense in this context.\nUniform2 should *inherit* from Distribution. Again, see my package as\nan example, which does exactly what you want.\n\n-- \nIÃ±aki Ãšcar",
+      "body_snippet": "On Thu, 4 Mar 2021 at 20:31, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:\n>\n> Thanks, for the solution. I tried what you suggested and it shows \"no matching constructor for initialization of 'Rcpp:",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 3,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-6fa20180ad8b",
+      "message_id": "<CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>",
+      "from_name": "Subhomoy Ghosh",
+      "from_email_hash": "4c7899562e216b64a7969abc13f4d428058f587abd7f119ce211a1562caf8a13",
+      "date": "2021-03-05T11:14:57-05:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+        "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>",
+        "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>",
+        "<CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>"
+      ],
+      "body_plain": "Thanks, IÃ±aki! Your package gave me enough hints to create the following\nattempt which seemed to have worked.\n\n#include <RcppArmadillo.h>\n\nusing namespace Rcpp;\nusing namespace arma;\n\n// [[Rcpp::depends(RcppArmadillo)]]\n\nclass Distribution {\n\npublic:\n  virtual Distribution* clone() {return (new Distribution(*this));}\n  virtual ~Distribution() {}\n\n};\n\ntemplate <typename T>\nclass Uniform : public Distribution {\n\npublic:\n  virtual Uniform<T>* clone() {return (new Uniform<T>(*this));}\n  Uniform(const T &max,int i_) :\n  max(max), i(i_) {}\n\n  ~Uniform(){};\n\n  T max;\n  int i;\n};\n\n\n\n// [[Rcpp::export]]\nXPtr<Distribution> getUniformParam( SEXP max,int i,int type) {\n  // create pointer to an Uniform object and\n  // wrap it as an external pointer for base class\n  if(type==1) {\n          return Rcpp::XPtr<Distribution> (new\nUniform<double>(as<double>(max), i) );\n  } else if(type==2) {\n          return Rcpp::XPtr<Distribution> (new Uniform<int>(as<int>(max),\ni) );\n\n   }\n  // return the external pointer to the R side\n  return Rcpp::XPtr<Distribution>(R_NilValue);\n}\n\n\n\n// [[Rcpp::export]]\ndouble test2(double z, XPtr<Distribution> xp, int type) {\n\n  Distribution* d=xp->clone();\n  double tt=1;\n  // convert the base pointer to derived class pointer\n  if(type==1){\n       Uniform<double> *f = dynamic_cast<Uniform<double> *>(d);\n       tt = z * f->max;\n  } else if (type==2){\n       Uniform<int> *f = dynamic_cast<Uniform<int> *>(d);\n       tt =z * f->max;\n    }\n\n return tt;\n}\n\n// R side\nxp<- getUniformParam(2.3,2,1)\ntest2(2,xp,1)\n\n\nOn Thu, Mar 4, 2021 at 2:58 PM IÃ±aki Ucar <iucar at fedoraproject.org> wrote:\n\n> On Thu, 4 Mar 2021 at 20:31, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:\n> >\n> > Thanks, for the solution. I tried what you suggested and it shows \"no\n> matching constructor for initialization of 'Rcpp::XPtr<Distribution>'\".\n> Below here is my attempt:\n> >\n> > class Distribution {\n> >\n> > public:\n> >   template <typename T>\n> >   class Uniform2 {\n>\n> This is a nested class, which makes little sense in this context.\n> Uniform2 should *inherit* from Distribution. Again, see my package as\n> an example, which does exactly what you want.\n>\n> --\n> IÃ±aki Ãšcar\n>\n\n\n-- \nSubhomoy\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210305/80e73789/attachment.html>",
+      "body_snippet": "Thanks, IÃ±aki! Your package gave me enough hints to create the following\nattempt which seemed to have worked.\n\n#include <RcppArmadillo.h>\n\nusing namespace Rcpp;\nusing namespace arma;\n\n// [[Rcpp::depe",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 4,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-1c96cd074e15",
+      "message_id": "<CALEXWq2A=Dwcn99SOgXABn9fQLFbcPsgpj_13sMXz1DzdKGp8w@mail.gmail.com>",
+      "from_name": "Iñaki Ucar",
+      "from_email_hash": "8e930e9d3254a7fa7e786bc5a69418a943c040e7679d642aaceaf002d44403e6",
+      "date": "2021-03-05T18:44:08+01:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+        "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>",
+        "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>",
+        "<CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>",
+        "<CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>"
+      ],
+      "body_plain": "Excellent. Note that the clone method was required for my use case, but it\nmay be superfluous for yours.\n\nIÃ±aki\n\nEl vie., 5 mar. 2021 17:15, Subhomoy Ghosh <subhomoy25 at gmail.com> escribiÃ³:\n\n> Thanks, IÃ±aki! Your package gave me enough hints to create the following\n> attempt which seemed to have worked.\n>\n> #include <RcppArmadillo.h>\n>\n> using namespace Rcpp;\n> using namespace arma;\n>\n> // [[Rcpp::depends(RcppArmadillo)]]\n>\n> class Distribution {\n>\n> public:\n>   virtual Distribution* clone() {return (new Distribution(*this));}\n>   virtual ~Distribution() {}\n>\n> };\n>\n> template <typename T>\n> class Uniform : public Distribution {\n>\n> public:\n>   virtual Uniform<T>* clone() {return (new Uniform<T>(*this));}\n>   Uniform(const T &max,int i_) :\n>   max(max), i(i_) {}\n>\n>   ~Uniform(){};\n>\n>   T max;\n>   int i;\n> };\n>\n>\n>\n> // [[Rcpp::export]]\n> XPtr<Distribution> getUniformParam( SEXP max,int i,int type) {\n>   // create pointer to an Uniform object and\n>   // wrap it as an external pointer for base class\n>   if(type==1) {\n>           return Rcpp::XPtr<Distribution> (new\n> Uniform<double>(as<double>(max), i) );\n>   } else if(type==2) {\n>           return Rcpp::XPtr<Distribution> (new Uniform<int>(as<int>(max),\n> i) );\n>\n>    }\n>   // return the external pointer to the R side\n>   return Rcpp::XPtr<Distribution>(R_NilValue);\n> }\n>\n>\n>\n> // [[Rcpp::export]]\n> double test2(double z, XPtr<Distribution> xp, int type) {\n>\n>   Distribution* d=xp->clone();\n>   double tt=1;\n>   // convert the base pointer to derived class pointer\n>   if(type==1){\n>        Uniform<double> *f = dynamic_cast<Uniform<double> *>(d);\n>        tt = z * f->max;\n>   } else if (type==2){\n>        Uniform<int> *f = dynamic_cast<Uniform<int> *>(d);\n>        tt =z * f->max;\n>     }\n>\n>  return tt;\n> }\n>\n> // R side\n> xp<- getUniformParam(2.3,2,1)\n> test2(2,xp,1)\n>\n>\n> On Thu, Mar 4, 2021 at 2:58 PM IÃ±aki Ucar <iucar at fedoraproject.org> wrote:\n>\n>> On Thu, 4 Mar 2021 at 20:31, Subhomoy Ghosh <subhomoy25 at gmail.com> wrote:\n>> >\n>> > Thanks, for the solution. I tried what you suggested and it shows \"no\n>> matching constructor for initialization of 'Rcpp::XPtr<Distribution>'\".\n>> Below here is my attempt:\n>> >\n>> > class Distribution {\n>> >\n>> > public:\n>> >   template <typename T>\n>> >   class Uniform2 {\n>>\n>> This is a nested class, which makes little sense in this context.\n>> Uniform2 should *inherit* from Distribution. Again, see my package as\n>> an example, which does exactly what you want.\n>>\n>> --\n>> IÃ±aki Ãšcar\n>>\n>\n>\n> --\n> Subhomoy\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20210305/e78cbb37/attachment.html>",
+      "body_snippet": "Excellent. Note that the clone method was required for my use case, but it\nmay be superfluous for yours.\n\nIÃ±aki\n\nEl vie., 5 mar. 2021 17:15, Subhomoy Ghosh <subhomoy25 at gmail.com> escribiÃ³:\n\n> Tha",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 5,
+      "month": "2021-03"
+    },
+    {
+      "id": "msg-357c0ccbe099",
+      "message_id": "<24642.29029.318297.426812@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2021-03-05T11:59:01-06:00",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "subject_clean": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "in_reply_to": "<CALEXWq2A=Dwcn99SOgXABn9fQLFbcPsgpj_13sMXz1DzdKGp8w@mail.gmail.com>",
+      "references": [
+        "<CAPN1=o2bC=NEd9sR1kg3vaQ6LXNVCri96kEn=N7=1U_8jOuXqg@mail.gmail.com>",
+        "<CALEXWq207Xs6_TCJfV61+NgerXK065jDgrxKUwF06J1egVMbpQ@mail.gmail.com>",
+        "<CAPN1=o0_wEX952BNPz3ABh2dk0Po-uiDySkUYUQOHqyLo1R_ug@mail.gmail.com>",
+        "<CALEXWq25EOZ8CxH=rmXEwTAu+itd3fw5=-nUPBocG4bbqqZorw@mail.gmail.com>",
+        "<CAPN1=o3DOONwHi=4=joBrLOEbMd5Y_F4783Qyk0JpiWDh8e5rw@mail.gmail.com>",
+        "<CALEXWq2A=Dwcn99SOgXABn9fQLFbcPsgpj_13sMXz1DzdKGp8w@mail.gmail.com>"
+      ],
+      "body_plain": "On 5 March 2021 at 18:44, IÃ±aki Ucar wrote:\n| Excellent. Note that the clone method was required for my use case, but it\n| may be superfluous for yours.\n\nIt's very nice to do it straight up with the XPtr class.\n\nA variant using Rcpp Modules is offerend byy RcppAnnoy -- also templated.\n\nDirk\n\n-- \nhttps://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 5 March 2021 at 18:44, IÃ±aki Ucar wrote:\n| Excellent. Note that the clone method was required for my use case, but it\n| may be superfluous for yours.\n\nIt's very nice to do it straight up with the ",
+      "thread_id": "thread-10a938b8ffab",
+      "thread_depth": 6,
+      "month": "2021-03"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-10a938b8ffab",
+      "subject": "[Rcpp-devel] Passing template class as argument in Rcpp function",
+      "message_count": 10,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Iñaki Ucar",
+        "Subhomoy Ghosh"
+      ],
+      "started": "2021-03-04T11:38:41-05:00",
+      "last_reply": "2021-03-05T11:59:01-06:00",
+      "root_message_id": "msg-10a938b8ffab"
+    }
+  ]
+}

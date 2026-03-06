@@ -1,0 +1,39 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2015-06",
+  "messages": [
+    {
+      "id": "msg-74604a9ef095",
+      "message_id": "<CANLFJPr5_tnJ02c_1Om_y0=u4Mwit6zOC7NhF+M3vrv6EMXO_Q@mail.gmail.com>",
+      "from_name": "Baptiste Auguie",
+      "from_email_hash": "64414105cd63c86b6a7b6ec23562eab8951dad404dee28ebb015deb14cc7f538",
+      "date": "2015-06-01T09:06:22+12:00",
+      "subject": "[Rcpp-devel] RcppArmadillo, solve always requires zgels?",
+      "subject_clean": "[Rcpp-devel] RcppArmadillo, solve always requires zgels?",
+      "in_reply_to": "<21867.2242.801512.541835@max.nulle.part>",
+      "references": [
+        "<CANLFJPomkp9as5h_cTCvrtHL6-xRb_4DSVt0s_jN2pHoJJfrWg@mail.gmail.com>",
+        "<21867.2242.801512.541835@max.nulle.part>"
+      ],
+      "body_plain": "Hi,\n\nThanks Dirk for your suggestions. Let me try to clarify a few things below.\nBasically,\n\n- zgels should not be needed (probably, and if I was doing things correctly)\n\n- I believe the template mechanism is simply unaware of the square format\nof my matrix, and defaults to the nrow < ncol case for lack of better\nknowledge. I do not know how to specify that the matrix is square, it's\npassed on from another function, i.e.\n\nhttps://github.com/baptiste/cda/blob/master/src/cd.cpp#L49\nis using A from\nhttps://github.com/baptiste/cda/blob/master/src/cda.cpp#L129\n\nThe way I picture it, I need to give a hint of the square size, and\narmadillo will pick the right function/template/glue (I don't know the\nmechanism at play).\n\nOn 1 June 2015 at 01:12, Dirk Eddelbuettel <edd at debian.org> wrote:\n\n>\n> Hi Baptiste,\n>\n> On 31 May 2015 at 20:47, Baptiste Auguie wrote:\n> | Dear list,\n> |\n> | My cda package (https://github.com/baptiste/cda) solves a linear system\n> Ax=b\n> | with Armadillo; win-builder and CRAN complain about a missing \"zgels_\"\n> when\n> | trying to build on windows or mac, as it's not part of the subset of\n> LAPACK\n> | provided by R libraries (I asked about this in 2011). I have included a\n> copy of\n>\n> Right. When no system lapack/blas is found, R uses its own. Which is a\n> subset.  We were bitten that once and now check in configure for\n> availability\n> of zgesdd.  I suppose this case is similar.\n>\n> Look at the logic in\n>\n>   https://github.com/RcppCore/RcppArmadillo/blob/master/configure\n>\n> You may need to do something similar for zgels.  So this part of the\n> problem\n> (\"do we have zgels ?\") really may be part of \"which type of R installation\n> do\n> we have\".\n>\n> Worst case we need new branching / #ifdef logic --- but right now I think\n> maybe more at the level of your package then at RcppArmadillo.\n>\n>\nThe easiest workaround, I find, is to include zgels.f, as I've been doing\nsince 2011. Now, my premise here is that this function is not needed in my\npackage.\n\n\n> | this file (zgels.f) from Netlib for the past few years just to make the\n> problem\n> | go away, but I've recently realised that zgels is not supposed to be\n> called! It\n> | builds fine on Linux, or any machine with a full LAPACK installed, but\n> I'm now\n> | wondering if solve() always calls zgels (that would be inefficient for my\n> | use-case).\n>\n> From the top-level, when I just use ag (a fantastic and much faster grep\n> alternative; and mail will drop the ansi code for colour highlihting from\n> the\n> console)\n>\n\nYes, I've tried to look at where zgels is called in the original Armadillo;\nit's not crystal clear (for me) with the templates and glue etc.\n\n>\n> edd at max:~/git/rcpparmadillo(master)$ ag zgels\n> inst/include/armadillo_bits/lapack_bones.hpp\n> 97:  #define arma_zgels  zgels\n> 205:  #define arma_zgels  ZGELS\n> 340:  void arma_fortran(arma_zgels)(char* trans, blas_int* m, blas_int* n,\n> blas_int* nrhs, void*   a, blas_int* lda, void*   b, blas_int* ldb, void*\n>  work, blas_int* lwork, blas_int* info);\n>\n> inst/include/armadillo_bits/lapack_wrapper.hpp\n> 689:      arma_fortran(arma_zgels)(trans, m, n, nrhs, (T*)a, lda, (T*)b,\n> ldb, (T*)work, lwork, info);\n> edd at max:~/git/rcpparmadillo(master)$\n>\n> I think you should discuss the merits of what gets called with Conrad.\n>\n\nLooking at the code and docs, the intent for square matrices is probably\nnot to use zgels. I believe my code is simply failing to give enough hints\nfor the templates to work out which case is actually being required.\n\n>\n> | The matrix A is square: the system is not under/overdetermined, and I\n> believe\n> | Armadillo should select LU factorisation rather than (slower) QR. Here's\n> the\n>\n> It is hard to answer this in full generality --- and even harder to change\n> an\n> existing API.\n>\n> If Armadillo has been using QR here for years, we cannot really change this\n> now on the request of a single package.\n\n\n> | error I get from win-builder when I remove zgels.f from my cda package,\n> |\n> | cd.o:cd.cpp:\n> |\n> (.text$_ZN4arma6auxlib8solve_udISt7complexIdENS_3MatIS3_EEEEbRNS4_IT_EES8_RKNS_4BaseIS6_T0_EE\n> | [bool arma::auxlib::solve_ud<std::complex<double>, arma::Mat<std::complex\n> | <double> > >(arma::Mat<std::complex<double> >&,\n> arma::Mat<std::complex<double>\n> | >&, arma::Base<std::complex<double>, arma::Mat<std::complex<double> > >\n> const\n> | &)]+0x3a5): undefined reference to `zgels_'\n> |\n> | So it thinks it should call solve_ud, which is meant for under-determined\n> | systems. Why would that be?\n> | I tried to find the relevant piece in the template code, this looks\n> relevant\n> | but I don't understand it:\n> https://github.com/RcppCore/RcppArmadillo/blob/\n> | master/inst/include/armadillo_bits/glue_solve_meat.hpp#L26\n>\n> Well that seems to be the call in the 'rows < cols' case.\n>\n\nI linked to the case which is returned in the win-builder log; the case of\na square matrix would be a few lines earlier (note that the solve_ud case\nis the default, if previous conditions fail to apply).\n\n\n>\n> But if there is a function solve_ud, can you not just call solve_ud\n> from your package?\n>\n\nThat would be auxlib::solve(out, A, X, slow); Yes, it's probably an option,\nalthough if I were to bypass the high-level solve() interface, I'd probably\nfeel more comfortable with an explicit call to lu() instead.\n\n>\n> I haven't had coffee yet so I may not need the full picture.\n>\nCheers, Dirk\n>\n\nThanks!\n\nbaptiste\n\n>\n>\n>\n> |\n> | Best regards,\n> |\n> | baptiste\n> | _______________________________________________\n> | Rcpp-devel mailing list\n> | Rcpp-devel at lists.r-forge.r-project.org\n> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20150601/a91963b0/attachment-0001.html>",
+      "body_snippet": "Hi,\n\nThanks Dirk for your suggestions. Let me try to clarify a few things below.\nBasically,\n\n- zgels should not be needed (probably, and if I was doing things correctly)\n\n- I believe the template mech",
+      "thread_id": "thread-74604a9ef095",
+      "thread_depth": 0,
+      "month": "2015-06"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-74604a9ef095",
+      "subject": "[Rcpp-devel] RcppArmadillo, solve always requires zgels?",
+      "message_count": 1,
+      "participants": [
+        "Baptiste Auguie"
+      ],
+      "started": "2015-06-01T09:06:22+12:00",
+      "last_reply": "2015-06-01T09:06:22+12:00",
+      "root_message_id": "msg-74604a9ef095"
+    }
+  ]
+}

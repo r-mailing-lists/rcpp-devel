@@ -1,0 +1,94 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2015-12",
+  "messages": [
+    {
+      "id": "msg-8b003432a19d",
+      "message_id": "<EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>",
+      "from_name": "Thomas Lin Pedersen",
+      "from_email_hash": "857cfe30a50281eb6185d22ed6a14fb81af30db40ce31ed83cd373d7cbf2049b",
+      "date": "2015-12-04T12:31:27+01:00",
+      "subject": "[Rcpp-devel] Access package installed into user library",
+      "subject_clean": "[Rcpp-devel] Access package installed into user library",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi\n\nWhile testing my package on an Amazon cloud instance using the Bioconductor AMI (https://www.bioconductor.org/help/bioconductor-cloud-ami/ <https://www.bioconductor.org/help/bioconductor-cloud-ami/>) I ran into the following problem I had not encountered on my work computer (A Mac OS X).\n\nI have a C++ function that makes use of functionality in the igraph package, so to access this I have the following in my function:\n\nEnvironment igraph(\"package:igraph\");\nFunction neighbors = igraph[\"neighbors?];\n\nThis worked fine on my work machine but gave the following error when tried on the Amazon instance:\n\nError: cannot convert to environment\n\nI was able to reduce the error into trying to get access to a package environment that is installed outside the core package library. The instances created using the Bioconductor AMI have the following package storage structure:\n\n> .libPaths()\n[1] \"/home/ubuntu/R-libs\"      \"/usr/local/lib/R/library\"\n\nAny package residing in usr/local/lib/R/library will be loaded into the environment fine, while any package in /home/ubuntu/R-libs will throw the error.\n\nMinimal example:\n\nlibrary(Rcpp)\n\ncppFunction('\n  void testFail() {\n    Environment testEnv(\"package:boot\");\n  }\n')\n\ncppFunction('\n  void testSucces() {\n    Environment testEnv(\"package:stats\");\n  }\n')\n\ntestFail() # Will give error\ntestSucces() # Will work\n\nThe session:\nR version 3.2.2 (2015-08-14)\nPlatform: x86_64-pc-linux-gnu (64-bit)\nRunning under: Ubuntu 14.04.2 LTS\n\nlocale:\n [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8       \n [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   \n [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C              \n[10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       \n\nattached base packages:\n[1] stats     graphics  grDevices utils     datasets  methods   base     \n\nother attached packages:\n[1] Rcpp_0.12.1          BiocInstaller_1.20.0\n\nloaded via a namespace (and not attached):\n[1] tools_3.2.2\n\nBest\n\nThomas Lin Pedersen\n\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20151204/45197ecc/attachment.html>",
+      "body_snippet": "Hi\n\nWhile testing my package on an Amazon cloud instance using the Bioconductor AMI (https://www.bioconductor.org/help/bioconductor-cloud-ami/ <https://www.bioconductor.org/help/bioconductor-cloud-ami",
+      "thread_id": "thread-8b003432a19d",
+      "thread_depth": 0,
+      "month": "2015-12"
+    },
+    {
+      "id": "msg-a4cd70658c1e",
+      "message_id": "<22113.33831.630456.15271@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2015-12-04T06:16:39-06:00",
+      "subject": "[Rcpp-devel] Access package installed into user library",
+      "subject_clean": "[Rcpp-devel] Access package installed into user library",
+      "in_reply_to": "<EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>",
+      "references": [
+        "<EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>"
+      ],
+      "body_plain": "On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:\n| Hi\n| \n| While testing my package on an Amazon cloud instance using the Bioconductor AMI\n| (https://www.bioconductor.org/help/bioconductor-cloud-ami/) I ran into the\n| following problem I had not encountered on my work computer (A Mac OS X).\n| \n| I have a C++ function that makes use of functionality in the igraph package, so\n| to access this I have the following in my function:\n| \n| Environment igraph(\"package:igraph\");\n| Function neighbors = igraph[\"neighbors?];\n| \n| This worked fine on my work machine but gave the following error when tried on\n| the Amazon instance:\n| \n| \n| Error: cannot convert to environment\n| \n| \n| I was able to reduce the error into trying to get access to a package\n| environment that is installed outside the core package library. The instances\n| created using the Bioconductor AMI have the following package storage\n| structure:\n| \n| \n| > .libPaths()\n| [1] \"/home/ubuntu/R-libs\"      \"/usr/local/lib/R/library\"\n| \n| \n| Any package residing in usr/local/lib/R/library will be loaded into the\n| environment fine, while any package in /home/ubuntu/R-libs will throw the\n| error.\n\nSo maybe don't install into /home/ubuntu/R-libs ?\n\nThere are no hardcoded path in Rcpp. This strikes me as a run-time config\n(and hence not an Rcpp question for this list).\n\nDirk\n \n| Minimal example:\n| \n| library(Rcpp)\n| \n| cppFunction('\n|   void testFail() {\n|     Environment testEnv(\"package:boot\");\n|   }\n| ')\n| \n| cppFunction('\n|   void testSucces() {\n|     Environment testEnv(\"package:stats\");\n|   }\n| ')\n| \n| testFail() # Will give error\n| testSucces() # Will work\n| \n| The session:\n| \n| R version 3.2.2 (2015-08-14)\n| Platform: x86_64-pc-linux-gnu (64-bit)\n| Running under: Ubuntu 14.04.2 LTS\n| \n| locale:\n|  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8\n|  [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8\n|  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C\n| [10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C\n| \n| attached base packages:\n| [1] stats     graphics  grDevices utils     datasets  methods   base\n| \n| other attached packages:\n| [1] Rcpp_0.12.1          BiocInstaller_1.20.0\n| \n| loaded via a namespace (and not attached):\n| [1] tools_3.2.2\n| \n| \n| Best\n| \n| Thomas Lin Pedersen\n| \n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:\n| Hi\n| \n| While testing my package on an Amazon cloud instance using the Bioconductor AMI\n| (https://www.bioconductor.org/help/bioconductor-clou",
+      "thread_id": "thread-8b003432a19d",
+      "thread_depth": 1,
+      "month": "2015-12"
+    },
+    {
+      "id": "msg-6d1502a850f1",
+      "message_id": "<AEEF3749-06C2-498E-8519-1FB1D4ED431D@gmail.com>",
+      "from_name": "Thomas Lin Pedersen",
+      "from_email_hash": "857cfe30a50281eb6185d22ed6a14fb81af30db40ce31ed83cd373d7cbf2049b",
+      "date": "2015-12-04T14:01:29+01:00",
+      "subject": "[Rcpp-devel] Access package installed into user library",
+      "subject_clean": "[Rcpp-devel] Access package installed into user library",
+      "in_reply_to": "<22113.33831.630456.15271@max.nulle.part>",
+      "references": [
+        "<EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>",
+        "<22113.33831.630456.15271@max.nulle.part>"
+      ],
+      "body_plain": "> On 04 Dec 2015, at 13:16, Dirk Eddelbuettel <edd at debian.org> wrote:\n> \n> \n> On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:\n> | Hi\n> | \n> | While testing my package on an Amazon cloud instance using the Bioconductor AMI\n> | (https://www.bioconductor.org/help/bioconductor-cloud-ami/) I ran into the\n> | following problem I had not encountered on my work computer (A Mac OS X).\n> | \n> | I have a C++ function that makes use of functionality in the igraph package, so\n> | to access this I have the following in my function:\n> | \n> | Environment igraph(\"package:igraph\");\n> | Function neighbors = igraph[\"neighbors?];\n> | \n> | This worked fine on my work machine but gave the following error when tried on\n> | the Amazon instance:\n> | \n> | \n> | Error: cannot convert to environment\n> | \n> | \n> | I was able to reduce the error into trying to get access to a package\n> | environment that is installed outside the core package library. The instances\n> | created using the Bioconductor AMI have the following package storage\n> | structure:\n> | \n> | \n> | > .libPaths()\n> | [1] \"/home/ubuntu/R-libs\"      \"/usr/local/lib/R/library\"\n> | \n> | \n> | Any package residing in usr/local/lib/R/library will be loaded into the\n> | environment fine, while any package in /home/ubuntu/R-libs will throw the\n> | error.\n> \n> So maybe don't install into /home/ubuntu/R-libs ?\n> \n> There are no hardcoded path in Rcpp. This strikes me as a run-time config\n> (and hence not an Rcpp question for this list).\n> \n> Dirk\n> \n\nOk - (slight embarrassment to follow) I looked at the Environment constructor and found that it basically just called as.environment, which led my to try this out in R. This also failed, but for the reason that the requested package was only loaded, not attached (It?s part of the Import field of my package). calling library() to attach the package solved the issue?\n\nThe obvious follow up question is: Is there no way to use R functions from Rcpp if they are not part of the users search path (but part of the package namespace). I generally tend to avoid putting packages in Depends in order to not pollute the users search path.\n\nThomas\n\n> | Minimal example:\n> | \n> | library(Rcpp)\n> | \n> | cppFunction('\n> |   void testFail() {\n> |     Environment testEnv(\"package:boot\");\n> |   }\n> | ')\n> | \n> | cppFunction('\n> |   void testSucces() {\n> |     Environment testEnv(\"package:stats\");\n> |   }\n> | ')\n> | \n> | testFail() # Will give error\n> | testSucces() # Will work\n> | \n> | The session:\n> | \n> | R version 3.2.2 (2015-08-14)\n> | Platform: x86_64-pc-linux-gnu (64-bit)\n> | Running under: Ubuntu 14.04.2 LTS\n> | \n> | locale:\n> |  [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8\n> |  [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8\n> |  [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C\n> | [10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C\n> | \n> | attached base packages:\n> | [1] stats     graphics  grDevices utils     datasets  methods   base\n> | \n> | other attached packages:\n> | [1] Rcpp_0.12.1          BiocInstaller_1.20.0\n> | \n> | loaded via a namespace (and not attached):\n> | [1] tools_3.2.2\n> | \n> | \n> | Best\n> | \n> | Thomas Lin Pedersen\n> | \n> | _______________________________________________\n> | Rcpp-devel mailing list\n> | Rcpp-devel at lists.r-forge.r-project.org\n> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n> \n> -- \n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "> On 04 Dec 2015, at 13:16, Dirk Eddelbuettel <edd at debian.org> wrote:\n> \n> \n> On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:\n> | Hi\n> | \n> | While testing my package on an Amazon cloud ins",
+      "thread_id": "thread-8b003432a19d",
+      "thread_depth": 2,
+      "month": "2015-12"
+    },
+    {
+      "id": "msg-3452985fce62",
+      "message_id": "<22113.38840.412785.996251@max.nulle.part>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2015-12-04T07:40:08-06:00",
+      "subject": "[Rcpp-devel] Access package installed into user library",
+      "subject_clean": "[Rcpp-devel] Access package installed into user library",
+      "in_reply_to": "<AEEF3749-06C2-498E-8519-1FB1D4ED431D@gmail.com>",
+      "references": [
+        "<EDFBAA38-9C8F-4610-B131-7F4E74AD84F2@gmail.com>",
+        "<22113.33831.630456.15271@max.nulle.part>",
+        "<AEEF3749-06C2-498E-8519-1FB1D4ED431D@gmail.com>"
+      ],
+      "body_plain": "On 4 December 2015 at 14:01, Thomas Lin Pedersen wrote:\n| > On 04 Dec 2015, at 13:16, Dirk Eddelbuettel <edd at debian.org> wrote:\n| > On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:\n| > | Any package residing in usr/local/lib/R/library will be loaded into the\n| > | environment fine, while any package in /home/ubuntu/R-libs will throw the\n| > | error.\n| > \n| > So maybe don't install into /home/ubuntu/R-libs ?\n| > \n| > There are no hardcoded path in Rcpp. This strikes me as a run-time config\n| > (and hence not an Rcpp question for this list).\n| > \n| > Dirk\n| > \n| \n| Ok - (slight embarrassment to follow) I looked at the Environment constructor and found that it basically just called as.environment, which led my to try this out in R. This also failed, but for the reason that the requested package was only loaded, not attached (It?s part of the Import field of my package). calling library() to attach the package solved the issue?\n| \n| The obvious follow up question is: Is there no way to use R functions from Rcpp if they are not part of the users search path (but part of the package namespace). I generally tend to avoid putting packages in Depends in order to not pollute the users search path.\n\nJoin the r-package-devel list and discuss there.  This is now an R discussion\nbeyond Rcpp because Rcpp just talks the R session it was called from.\n\nAs for current best practices: use Import: with appropriate global (or better\nstill if you can) per-symbol importFrom(package, funA, funB, funC) in NAMESPACE.\n\nThat gets you the symbols and leaves your search path alone. You do not need\na package as the mechanism for this just as you do for Depends:.\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 4 December 2015 at 14:01, Thomas Lin Pedersen wrote:\n| > On 04 Dec 2015, at 13:16, Dirk Eddelbuettel <edd at debian.org> wrote:\n| > On 4 December 2015 at 12:31, Thomas Lin Pedersen wrote:\n| > | Any",
+      "thread_id": "thread-8b003432a19d",
+      "thread_depth": 3,
+      "month": "2015-12"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-8b003432a19d",
+      "subject": "[Rcpp-devel] Access package installed into user library",
+      "message_count": 4,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Thomas Lin Pedersen"
+      ],
+      "started": "2015-12-04T12:31:27+01:00",
+      "last_reply": "2015-12-04T07:40:08-06:00",
+      "root_message_id": "msg-8b003432a19d"
+    }
+  ]
+}

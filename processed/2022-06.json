@@ -1,0 +1,586 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2022-06",
+  "messages": [
+    {
+      "id": "msg-410deb1aaa43",
+      "message_id": "<EB4BA05D-4EF0-43A3-ADE9-E524AAB8A74F@univ-lyon1.fr>",
+      "from_name": "THIOULOUSE JEAN",
+      "from_email_hash": "b5a4bcff01e1ba4baa01b603028d47c847a7792941f0a124056b1da10e0afc59",
+      "date": "2022-06-02T15:06:44+02:00",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "subject_clean": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "in_reply_to": "<25239.51623.251833.275516@rob.eddelbuettel.com>",
+      "references": [
+        "<B05915C3-F374-41C2-9F46-D29AF8F4124F@univ-lyon1.fr>",
+        "<25239.51623.251833.275516@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Thank you Ivan and Dirk for your messages. I tried to follow your advice (modifying the src/init.c file by hand to add the things from the C++ function), but the function R_init_ade4 cannot be defined in both init.c and RcppExports.cpp. So I still have the same problem (\"object '_ade4_RVrandtestCpp' not found\").\n\nAs suggested by Ivan Krylov, I have created a new branch of the ade4 package (called ade4-Rcpp on github: https://github.com/sdray/ade4/tree/ade4-Rcpp) with the modifications listed here.\n\nI am also cc-ing this message to rcpp-devel that may be more suitable for followups.\n\nThank you again for your help,\nJean\n\n\n> Le 1 juin 2022 Ã  22:18, Dirk Eddelbuettel <edd at debian.org> a Ã©crit :\n> \n> \n> On 1 June 2022 at 11:03, THIOULOUSE JEAN wrote:\n> | Hello\n> | \n> | I need some help to add C++ functions using Rcpp to the ade4 package.\n> | \n> | The ade4 package (on CRAN) already contains many C functions, mainly to perform randomization tests, and we would like to replace some of these functions by C++ ones using Rcpp, as well as add more new C++ functions, using also Rcpp.\n> | \n> | To start with, I have only one C++ function and one R wrapper function, named respectively RV.randtest and RVrandtestCpp. Both functions work fine, using sourceCpp(\"RVrandtestCpp.cpp\") and calling it with RV.randtest in R from the command line, and I also checked that the RcppExamples package compiles without problem with my configuration. Everything is available in https://github.com/thioulouse/RVrandtest\n> | \n> | Now, I want to integrate these two functions in the ade4 package, so I have done the following things:\n> | \n> | - added Rcpp and RcppArmadillo to the Imports field in the DESCRIPTION file\n> | - added the LinkingTo field, with Rcpp and RcppArmadillo in the DESCRIPTION file\n> | - added importFrom(\"Rcpp\", \"sourceCpp\") in the NAMESPACE file\n> | - added export(\"RV.randtest\") and export(\"RVrandtestCpp\") in the NAMESPACE file\n> | - added RV.randtest.Rd in the man directory and \\alias{RVrandtestCpp} in ade4-internal.Rd\n> | - added RV.randtest.R in the R directory\n> | - added RVrandtestCpp.cpp in the src directory\n> | \n> | Then I used the Rcpp compileAttributes() function to add:\n> | \n> | - RcppExports.cpp in the src directory\n> | - RcppExports.R in the R directory\n> | \n> | But when I check the modified ade4 package (with R CMD BUILD / R CMD CHECK), I get the following notes:\n> | \n> | * checking R code for possible problems ... NOTE\n> | RVrandtestCpp: no visible binding for global variable\n> |   â€˜_ade4_RVrandtestCppâ€™\n> | Undefined global functions or variables:\n> |   _ade4_RVrandtestCpp\n> | \n> | And when running the examples I get the following error:\n> | \n> | > rv1 <- RV.randtest(pca1$tab, pca2$tab, 99)\n> | Error in RVrandtestCpp(X, Y, nrepet) : \n> |   object '_ade4_RVrandtestCpp' not found\n> | Calls: RV.randtest -> RVrandtestCpp\n> | Execution halted\n> | \n> | So I am probably missing something, and I have the following questions:\n> | \n> | Do I have to modify the init.c file in the src directory ? It contains the reference to all the C functions called in the ade4 package, but not the C++ function from Rcpp. Should I add it here ? I tried to do it, with no luck.\n> | \n> | The NAMESPACE file contains this first line: \n> | useDynLib(ade4, .registration = TRUE, .fixes = \"C_\")\n> | The .fixes argument is related to C function calls. Can this raise a problem for calling C++ functions ?\n> | \n> | Why is the _ade4_RVrandtestCpp function (defined by compileAttributes() in RcppExports.cpp) not visible in RVrandtestCpp and not found at runtime ?\n> \n> You most likely have an issue with the code commonly placed in src/init.c\n> which registers entry points.\n> \n> Rcpp is rather good at autogenerating it for more standard packages\n> containing only C++ code.  Mixing C and C++ code is not something the package\n> is that well set up for.  I think I fought the same issue in the past on\n> packages that transitioned, or just added a C++ file or two. I don't think\n> there is a great solution.  I would suggest you\n> - use the init.c you have from the existing package\n> - create a new one-off package with the C++ functions you want to use \n> - manually carry this over to your existing init.c\n> \n> I would generally recommend starting with Rcpp.package.skeleton(\"testpackage\")\n> (or a similar name) and try to move your package to a similar structure. The\n> 'all files in one directory' you have in https://github.com/thioulouse/RVrandtest\n> is not what R prefers.\n> \n> Follow-up may be more suitable for the rcpp-devel list.  This list here is\n> general interest, your question is a bit more specific to ins and outs of\n> just one package.\n> \n> Best, Dirk\n> \n> -- \n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Thank you Ivan and Dirk for your messages. I tried to follow your advice (modifying the src/init.c file by hand to add the things from the C++ function), but the function R_init_ade4 cannot be defined",
+      "thread_id": "thread-410deb1aaa43",
+      "thread_depth": 0,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-be3d5f7cc3bb",
+      "message_id": "<25240.48129.763965.693252@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-06-02T08:32:49-05:00",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "subject_clean": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "in_reply_to": "<20220602162420.5ee5d711@arachnoid>",
+      "references": [
+        "<B05915C3-F374-41C2-9F46-D29AF8F4124F@univ-lyon1.fr>",
+        "<25239.51623.251833.275516@rob.eddelbuettel.com>",
+        "<EB4BA05D-4EF0-43A3-ADE9-E524AAB8A74F@univ-lyon1.fr>",
+        "<20220602162420.5ee5d711@arachnoid>"
+      ],
+      "body_plain": "(Removed CC to r-package-devel)\n\nOn 2 June 2022 at 16:24, Ivan Krylov wrote:\n| Unfortunately, this means editing RcppExports.R, which (I think)\n| prevents you from enjoying the way Rcpp::compileAttributes() sets\n| everything up for you.\n\nYes. I think that is the best I came up with once too in a time of need in a\npackage actively mixing C and C++.  It simply is easier to have just C++, and\nI think you generally can just convert your C files.\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "(Removed CC to r-package-devel)\n\nOn 2 June 2022 at 16:24, Ivan Krylov wrote:\n| Unfortunately, this means editing RcppExports.R, which (I think)\n| prevents you from enjoying the way Rcpp::compileAttrib",
+      "thread_id": "thread-be3d5f7cc3bb",
+      "thread_depth": 0,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-d39ae275bcd0",
+      "message_id": "<debedeea-1b68-0c0f-2b23-b7fcd06f5431@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2022-06-02T15:49:15+02:00",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "subject_clean": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "in_reply_to": "<25240.48129.763965.693252@rob.eddelbuettel.com>",
+      "references": [
+        "<B05915C3-F374-41C2-9F46-D29AF8F4124F@univ-lyon1.fr>",
+        "<25239.51623.251833.275516@rob.eddelbuettel.com>",
+        "<EB4BA05D-4EF0-43A3-ADE9-E524AAB8A74F@univ-lyon1.fr>",
+        "<20220602162420.5ee5d711@arachnoid>",
+        "<25240.48129.763965.693252@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Le 02/06/2022 Ã  15:32, Dirk Eddelbuettel a Ã©critÂ :\n> \n> (Removed CC to r-package-devel)\n> \n> On 2 June 2022 at 16:24, Ivan Krylov wrote:\n> | Unfortunately, this means editing RcppExports.R, which (I think)\n> | prevents you from enjoying the way Rcpp::compileAttributes() sets\n> | everything up for you.\n> \n> Yes. I think that is the best I came up with once too in a time of need in a\n> package actively mixing C and C++.  It simply is easier to have just C++, and\n> I think you generally can just convert your C files.\n... or simply call them from exported C++ and letting Rcpp to manage the \nwhole R export and init.c\n\nBest,\nSerguei.",
+      "body_snippet": "Le 02/06/2022 Ã  15:32, Dirk Eddelbuettel a Ã©critÂ :\n> \n> (Removed CC to r-package-devel)\n> \n> On 2 June 2022 at 16:24, Ivan Krylov wrote:\n> | Unfortunately, this means editing RcppExports.R, which (",
+      "thread_id": "thread-be3d5f7cc3bb",
+      "thread_depth": 1,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-1c37694b3dbc",
+      "message_id": "<25240.49135.304446.679326@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-06-02T08:49:35-05:00",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R\tpackage",
+      "subject_clean": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R\tpackage",
+      "in_reply_to": "<25240.48129.763965.693252@rob.eddelbuettel.com>",
+      "references": [
+        "<B05915C3-F374-41C2-9F46-D29AF8F4124F@univ-lyon1.fr>",
+        "<25239.51623.251833.275516@rob.eddelbuettel.com>",
+        "<EB4BA05D-4EF0-43A3-ADE9-E524AAB8A74F@univ-lyon1.fr>",
+        "<20220602162420.5ee5d711@arachnoid>",
+        "<25240.48129.763965.693252@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "On 2 June 2022 at 08:32, Dirk Eddelbuettel wrote:\n| \n| (Removed CC to r-package-devel)\n| \n| On 2 June 2022 at 16:24, Ivan Krylov wrote:\n| | Unfortunately, this means editing RcppExports.R, which (I think)\n| | prevents you from enjoying the way Rcpp::compileAttributes() sets\n| | everything up for you.\n| \n| Yes. I think that is the best I came up with once too in a time of need in a\n| package actively mixing C and C++.  It simply is easier to have just C++, and\n| I think you generally can just convert your C files.\n\nPS  One thing that works is to rename in the Rcpp::export tag ie\n\n   // [[Rcpp::export(C_my_func_name)]]\n\ncan be used to prefix C_ to a function my_func_name().\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 2 June 2022 at 08:32, Dirk Eddelbuettel wrote:\n| \n| (Removed CC to r-package-devel)\n| \n| On 2 June 2022 at 16:24, Ivan Krylov wrote:\n| | Unfortunately, this means editing RcppExports.R, which (I th",
+      "thread_id": "thread-be3d5f7cc3bb",
+      "thread_depth": 1,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-515675243111",
+      "message_id": "<EEE23FE8-2196-4124-B756-873DABB2986F@univ-lyon1.fr>",
+      "from_name": "Jean Thioulouse",
+      "from_email_hash": "6b183d26d5324d41a64211d844a06a23e430551f97f2d74df6b9a72ae2833b53",
+      "date": "2022-06-02T19:27:05+02:00",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in\tR\tpackage",
+      "subject_clean": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in\tR\tpackage",
+      "in_reply_to": "<25240.49135.304446.679326@rob.eddelbuettel.com>",
+      "references": [
+        "<B05915C3-F374-41C2-9F46-D29AF8F4124F@univ-lyon1.fr>",
+        "<25239.51623.251833.275516@rob.eddelbuettel.com>",
+        "<EB4BA05D-4EF0-43A3-ADE9-E524AAB8A74F@univ-lyon1.fr>",
+        "<20220602162420.5ee5d711@arachnoid>",
+        "<25240.48129.763965.693252@rob.eddelbuettel.com>",
+        "<25240.49135.304446.679326@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "But it seems that the C_ prefix must be added to _myPackage_myFunctionName (to get for example C__ade4_RVrandtestCpp) in the RcppExports.R file. So where should I modify the Rcpp::export tag ?\n\nThanks\nJean\n\n\n> Le 2 juin 2022 Ã  15:49, Dirk Eddelbuettel <edd at debian.org> a Ã©crit :\n> \n> \n> On 2 June 2022 at 08:32, Dirk Eddelbuettel wrote:\n> | \n> | (Removed CC to r-package-devel)\n> | \n> | On 2 June 2022 at 16:24, Ivan Krylov wrote:\n> | | Unfortunately, this means editing RcppExports.R, which (I think)\n> | | prevents you from enjoying the way Rcpp::compileAttributes() sets\n> | | everything up for you.\n> | \n> | Yes. I think that is the best I came up with once too in a time of need in a\n> | package actively mixing C and C++.  It simply is easier to have just C++, and\n> | I think you generally can just convert your C files.\n> \n> PS  One thing that works is to rename in the Rcpp::export tag ie\n> \n>   // [[Rcpp::export(C_my_func_name)]]\n> \n> can be used to prefix C_ to a function my_func_name().\n> \n> Dirk\n> \n> -- \n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "But it seems that the C_ prefix must be added to _myPackage_myFunctionName (to get for example C__ade4_RVrandtestCpp) in the RcppExports.R file. So where should I modify the Rcpp::export tag ?\n\nThanks",
+      "thread_id": "thread-be3d5f7cc3bb",
+      "thread_depth": 2,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-f9f959ee0a1d",
+      "message_id": "<25242.3797.514590.974786@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-06-03T08:38:29-05:00",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in\tR\tpackage",
+      "subject_clean": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in\tR\tpackage",
+      "in_reply_to": "<EEE23FE8-2196-4124-B756-873DABB2986F@univ-lyon1.fr>",
+      "references": [
+        "<B05915C3-F374-41C2-9F46-D29AF8F4124F@univ-lyon1.fr>",
+        "<25239.51623.251833.275516@rob.eddelbuettel.com>",
+        "<EB4BA05D-4EF0-43A3-ADE9-E524AAB8A74F@univ-lyon1.fr>",
+        "<20220602162420.5ee5d711@arachnoid>",
+        "<25240.48129.763965.693252@rob.eddelbuettel.com>",
+        "<25240.49135.304446.679326@rob.eddelbuettel.com>",
+        "<EEE23FE8-2196-4124-B756-873DABB2986F@univ-lyon1.fr>"
+      ],
+      "body_plain": "On 2 June 2022 at 19:27, Jean Thioulouse wrote:\n| \n| But it seems that the C_ prefix must be added to _myPackage_myFunctionName (to get for example C__ade4_RVrandtestCpp) in the RcppExports.R file. So where should I modify the Rcpp::export tag ?\n\nJust how I wrote it below: inside the parens of the Rcpp::export tag.\n\nA full worked example is\n\n   #include <Rcpp.h>\n\n   // [[Rcpp::export(C_foo)]]\n   bool foo() {\n     return true;\n   }\n\n   /*** R\n   C_foo()\n   */\n\n\nwhich when I sourceCpp() it does indeed do as it is told:\n\n   > Rcpp::sourceCpp(\"/tmp/foo.cpp\")\n\n   > C_foo()\n   [1] TRUE\n   > \n\nA quick grep here did not reveal an actual example of where I prefix with C_\nbut for example in the RcppSimdJson package we use this a little bit to\nmassage function names and control what is, or isn't, visible and exported on\nthe R side:\n\n   edd at rob:~/git$ grep Rcpp::export rcppsimdjson/src/*cpp\n   rcppsimdjson/src/deserialize.cpp:// [[Rcpp::export(.deserialize_json)]]\n   rcppsimdjson/src/deserialize.cpp:// [[Rcpp::export(.load_json)]]\n   rcppsimdjson/src/deserialize.cpp:// [[Rcpp::export(.exceptions_enabled)]]\n   rcppsimdjson/src/exported-utils.cpp:// [[Rcpp::export(is_valid_json)]]\n   rcppsimdjson/src/exported-utils.cpp:// [[Rcpp::export(is_valid_utf8)]]\n   rcppsimdjson/src/exported-utils.cpp:// [[Rcpp::export(fminify)]]\n   rcppsimdjson/src/internal-utils.cpp:// [[Rcpp::export(.is_valid_json_arg)]]\n   rcppsimdjson/src/internal-utils.cpp:// [[Rcpp::export(.is_valid_query_arg)]]\n   rcppsimdjson/src/internal-utils.cpp:// [[Rcpp::export(.diagnose_input)]]\n   rcppsimdjson/src/rcppsimdjson_utils_check.cpp:// [[Rcpp::export(.check_int64)]]\n   rcppsimdjson/src/simdjson_example.cpp:// [[Rcpp::export(.validateJSON)]]\n   rcppsimdjson/src/simdjson_example.cpp:// [[Rcpp::export]]\n   rcppsimdjson/src/simdjson_example.cpp:// [[Rcpp::export(.cppVersion)]]\n   rcppsimdjson/src/simdjson_example.cpp:// [[Rcpp::export(.unsupportedArchitecture)]]\n   edd at rob:~/git$ \n\nHope this helps,  Dirk\n\n\n| Thanks\n| Jean\n| \n| \n| > Le 2 juin 2022 Ã  15:49, Dirk Eddelbuettel <edd at debian.org> a Ã©crit :\n| > \n| > \n| > On 2 June 2022 at 08:32, Dirk Eddelbuettel wrote:\n| > | \n| > | (Removed CC to r-package-devel)\n| > | \n| > | On 2 June 2022 at 16:24, Ivan Krylov wrote:\n| > | | Unfortunately, this means editing RcppExports.R, which (I think)\n| > | | prevents you from enjoying the way Rcpp::compileAttributes() sets\n| > | | everything up for you.\n| > | \n| > | Yes. I think that is the best I came up with once too in a time of need in a\n| > | package actively mixing C and C++.  It simply is easier to have just C++, and\n| > | I think you generally can just convert your C files.\n| > \n| > PS  One thing that works is to rename in the Rcpp::export tag ie\n| > \n| >   // [[Rcpp::export(C_my_func_name)]]\n| > \n| > can be used to prefix C_ to a function my_func_name().\n| > \n| > Dirk\n| > \n| > -- \n| > dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n| > _______________________________________________\n| > Rcpp-devel mailing list\n| > Rcpp-devel at lists.r-forge.r-project.org\n| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n| \n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 2 June 2022 at 19:27, Jean Thioulouse wrote:\n| \n| But it seems that the C_ prefix must be added to _myPackage_myFunctionName (to get for example C__ade4_RVrandtestCpp) in the RcppExports.R file. So",
+      "thread_id": "thread-be3d5f7cc3bb",
+      "thread_depth": 3,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-6a0718bb5102",
+      "message_id": "<CA+RVeb70e6gZ-W0=GRMz3PqQh8Jt_xjGBTDQkT9BjPLSDTFL9A@mail.gmail.com>",
+      "from_name": "Maddegedara Lalith",
+      "from_email_hash": "9b7847786b5236bb9935eb44ad6c4cd38f4289cc649885341ffbc1d1e74434f6",
+      "date": "2022-06-14T14:24:19+09:00",
+      "subject": "[Rcpp-devel] Assertion error in ud_ep.c, when running with MPI",
+      "subject_clean": "[Rcpp-devel] Assertion error in ud_ep.c, when running with MPI",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hello,\n\nI want to use RInside in my C++ based MPI application to do time series\nforecasting using the auto.arima library of R. The RInside instance in each\nMPI rank is expected to do an independent calculation (e.g. time series\nforecast).\n\nWith one MPI rank, it always completes without producing any error.\nHowever, with more than 1 mpi ranks, it produces the following error.\nDepending on the run, different numbers of mpi ranks produce the same\nerror. On rare occasions, all the ranks successfully complete the\nexecution. Further, I found that even your example\n\"rinside_mpi_sample4.cpp\" produces the same error.\n\nI am using the Intel MPI library (version 2021.1). I tried compiling with\nicpc and g++. Both produced the same error.\n\nCould you please help me to solve this problem.\n\nWith best regards\nLal\n\n[ibis:14878:0:14992]       ud_ep.c:565  Assertion `ep->dest_ep_id ==\nUCT_UD_EP_NULL_ID || ep->dest_ep_id == ctl->conn_rep.src_ep_id' failed\n\n==== backtrace (tid:  14994) ====\n 0 0x000000000004d455 ucs_debug_print_backtrace()  ???:0\n 1 0x0000000000042b5f uct_ud_ep_process_rx()  ???:0\n 2 0x00000000000471cd uct_ud_mlx5_ep_t_delete()  ???:0\n 3 0x000000000003ebdf uct_ud_iface_release_desc()  ???:0\n 4 0x0000000000040436 ucs_cpu_get_memcpy_bw()  ???:0\n 5 0x000000000004050b ucs_cpu_get_memcpy_bw()  ???:0\n 6 0x0000000000041343 ucs_async_dispatch_handlers()  ???:0\n 7 0x0000000000041488 ucs_async_dispatch_timerq()  ???:0\n 8 0x0000000000043c34 ucs_async_pipe_drain()  ???:0\n 9 0x0000000000007ea5 start_thread()  pthread_create.c:0\n10 0x00000000000fe96d __clone()  ???:0\n=================================\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220614/2c8ec3f3/attachment.html>\n-------------- next part --------------\nA non-text attachment was scrubbed...\nName: ARIMA_MPI.cpp\nType: text/x-c++src\nSize: 3497 bytes\nDesc: not available\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220614/2c8ec3f3/attachment.cpp>",
+      "body_snippet": "Hello,\n\nI want to use RInside in my C++ based MPI application to do time series\nforecasting using the auto.arima library of R. The RInside instance in each\nMPI rank is expected to do an independent ca",
+      "thread_id": "thread-6a0718bb5102",
+      "thread_depth": 0,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-d25e0ce78f4c",
+      "message_id": "<ab771ba8-3ec7-c989-388c-f14b3c2be375@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2022-06-14T09:38:38+02:00",
+      "subject": "[Rcpp-devel] Assertion error in ud_ep.c, when running with MPI",
+      "subject_clean": "[Rcpp-devel] Assertion error in ud_ep.c, when running with MPI",
+      "in_reply_to": "<CA+RVeb70e6gZ-W0=GRMz3PqQh8Jt_xjGBTDQkT9BjPLSDTFL9A@mail.gmail.com>",
+      "references": [
+        "<CA+RVeb70e6gZ-W0=GRMz3PqQh8Jt_xjGBTDQkT9BjPLSDTFL9A@mail.gmail.com>"
+      ],
+      "body_plain": "Hi,\n\nProbably, this issue would be better posted here \nhttps://github.com/openucx/ucx/issues\n\nBest,\nSerguei.\n\nLe 14/06/2022 Ã  07:24, Maddegedara Lalith a Ã©critÂ :\n> Hello,\n> \n> I want to use RInside in my C++ based MPI application toÂ doÂ time series \n> forecasting using the auto.arima library of R. The RInside instanceÂ in \n> each MPI rank is expected to do an independent calculation (e.g. time \n> series forecast).\n> \n> With one MPI rank, it always completes without producing any error.  \n> However, with more than 1 mpi ranks, it produces the following error. \n> Depending on the run, different numbersÂ of mpi ranks produce the same \n> error. On rare occasions, all the ranks successfully complete the \n> execution. Further, I found that even your example \n> \"rinside_mpi_sample4.cpp\" produces the same error.\n> \n> I am using the Intel MPI library (version 2021.1). I tried \n> compilingÂ with icpc and g++. Both produced the same error.\n> Could you please help me to solve this problem.\n> \n> With best regards\n> Lal\n> \n> [ibis:14878:0:14992] Â  Â  Â  ud_ep.c:565 Â Assertion `ep->dest_ep_id == \n> UCT_UD_EP_NULL_ID || ep->dest_ep_id == ctl->conn_rep.src_ep_id' failed\n> \n> ==== backtrace (tid: Â 14994) ====\n>  Â 0 0x000000000004d455 ucs_debug_print_backtrace() Â ???:0\n>  Â 1 0x0000000000042b5f uct_ud_ep_process_rx() Â ???:0\n>  Â 2 0x00000000000471cd uct_ud_mlx5_ep_t_delete() Â ???:0\n>  Â 3 0x000000000003ebdf uct_ud_iface_release_desc() Â ???:0\n>  Â 4 0x0000000000040436 ucs_cpu_get_memcpy_bw() Â ???:0\n>  Â 5 0x000000000004050b ucs_cpu_get_memcpy_bw() Â ???:0\n>  Â 6 0x0000000000041343 ucs_async_dispatch_handlers() Â ???:0\n>  Â 7 0x0000000000041488 ucs_async_dispatch_timerq() Â ???:0\n>  Â 8 0x0000000000043c34 ucs_async_pipe_drain() Â ???:0\n>  Â 9 0x0000000000007ea5 start_thread() Â pthread_create.c:0\n> 10 0x00000000000fe96d __clone() Â ???:0\n> =================================\n> \n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "Hi,\n\nProbably, this issue would be better posted here \nhttps://github.com/openucx/ucx/issues\n\nBest,\nSerguei.\n\nLe 14/06/2022 Ã  07:24, Maddegedara Lalith a Ã©critÂ :\n> Hello,\n> \n> I want to use RInside",
+      "thread_id": "thread-6a0718bb5102",
+      "thread_depth": 1,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-2ead8deeb6a5",
+      "message_id": "<25256.29789.505022.126007@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-06-14T06:43:25-05:00",
+      "subject": "[Rcpp-devel] Assertion error in ud_ep.c, when running with MPI",
+      "subject_clean": "[Rcpp-devel] Assertion error in ud_ep.c, when running with MPI",
+      "in_reply_to": "<ab771ba8-3ec7-c989-388c-f14b3c2be375@gmail.com>",
+      "references": [
+        "<CA+RVeb70e6gZ-W0=GRMz3PqQh8Jt_xjGBTDQkT9BjPLSDTFL9A@mail.gmail.com>",
+        "<ab771ba8-3ec7-c989-388c-f14b3c2be375@gmail.com>"
+      ],
+      "body_plain": "On 14 June 2022 at 09:38, Serguei Sokol wrote:\n| Hi,\n| \n| Probably, this issue would be better posted here \n| https://github.com/openucx/ucx/issues\n\nSeconded. I don't have much to add: these MPI examples are ten years old,\nworked all the time as far as we know, and haven't changed. Maybe some base\nassumption in the libraries is different.\n\nAnd if I may, I am not sure how much you are gaining here. You are fitting\neach time series individually with R. That won't be fast.  You will not gain\nsomething -- but maybe not_that_ much -- by spreading MPI around it. If speed\nis of the essence, maybe you need an equivalent of auto.arima in compiled code.\n\nAs a debugging measure, I'd also try to see if the issue goes away when you\ncall less demaning R code: maybe auto.arima leads to multithreaded code\ninside each call which may upset the R stack called from MPI?\n\nAlso, rinside_mpi_sample4.cpp is (per the one-commit in its history) a\ncontributed example. Maybe its authors can help.\n\nSorry, no smoking gun or immediate help.\n\nDirk\n\n| Best,\n| Serguei.\n| \n| Le 14/06/2022 Ã  07:24, Maddegedara Lalith a Ã©critÂ :\n| > Hello,\n| > \n| > I want to use RInside in my C++ based MPI application toÂ doÂ time series \n| > forecasting using the auto.arima library of R. The RInside instanceÂ in \n| > each MPI rank is expected to do an independent calculation (e.g. time \n| > series forecast).\n| > \n| > With one MPI rank, it always completes without producing any error.  \n| > However, with more than 1 mpi ranks, it produces the following error. \n| > Depending on the run, different numbersÂ of mpi ranks produce the same \n| > error. On rare occasions, all the ranks successfully complete the \n| > execution. Further, I found that even your example \n| > \"rinside_mpi_sample4.cpp\" produces the same error.\n| > \n| > I am using the Intel MPI library (version 2021.1). I tried \n| > compilingÂ with icpc and g++. Both produced the same error.\n| > Could you please help me to solve this problem.\n| > \n| > With best regards\n| > Lal\n| > \n| > [ibis:14878:0:14992] Â  Â  Â  ud_ep.c:565 Â Assertion `ep->dest_ep_id == \n| > UCT_UD_EP_NULL_ID || ep->dest_ep_id == ctl->conn_rep.src_ep_id' failed\n| > \n| > ==== backtrace (tid: Â 14994) ====\n| >  Â 0 0x000000000004d455 ucs_debug_print_backtrace() Â ???:0\n| >  Â 1 0x0000000000042b5f uct_ud_ep_process_rx() Â ???:0\n| >  Â 2 0x00000000000471cd uct_ud_mlx5_ep_t_delete() Â ???:0\n| >  Â 3 0x000000000003ebdf uct_ud_iface_release_desc() Â ???:0\n| >  Â 4 0x0000000000040436 ucs_cpu_get_memcpy_bw() Â ???:0\n| >  Â 5 0x000000000004050b ucs_cpu_get_memcpy_bw() Â ???:0\n| >  Â 6 0x0000000000041343 ucs_async_dispatch_handlers() Â ???:0\n| >  Â 7 0x0000000000041488 ucs_async_dispatch_timerq() Â ???:0\n| >  Â 8 0x0000000000043c34 ucs_async_pipe_drain() Â ???:0\n| >  Â 9 0x0000000000007ea5 start_thread() Â pthread_create.c:0\n| > 10 0x00000000000fe96d __clone() Â ???:0\n| > =================================\n| > \n| > _______________________________________________\n| > Rcpp-devel mailing list\n| > Rcpp-devel at lists.r-forge.r-project.org\n| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n| \n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 14 June 2022 at 09:38, Serguei Sokol wrote:\n| Hi,\n| \n| Probably, this issue would be better posted here \n| https://github.com/openucx/ucx/issues\n\nSeconded. I don't have much to add: these MPI examp",
+      "thread_id": "thread-6a0718bb5102",
+      "thread_depth": 2,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-47cdf1e85ec9",
+      "message_id": "<CAH3kUhFkvnRrXJCiUpHQRSNwykCka8rwzTkvPNcg0KGw76tMng@mail.gmail.com>",
+      "from_name": "Roberto Spadim",
+      "from_email_hash": "58ff001105db1ef34d961d044415a331cd732ab9caa8ccc1519ec30abeb73f18",
+      "date": "2022-06-22T23:07:33-03:00",
+      "subject": "[Rcpp-devel] Help reading libzma file",
+      "subject_clean": "[Rcpp-devel] Help reading libzma file",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi folks\n\nI have a .xz file and need to read it and \"convert\" to a DataFrame using\nRcpp if possible.\n\nBut... I'm with a problem (first time testing this) using liblzma with\nRcpp, I already know how to do this with CMakeLists.txt, but I don't know\nhow to do with RCpp\n\nAnyone have an idea?\n\nOutput from compile time:\n\n> sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\")\n/mingw64/bin/g++ -std=gnu++11  -I\"C:/PROGRA~1/R/R-41~1.2/include\" -DNDEBUG\n  -I\"C:/Users/rspadim/Documents/R/win-library/4.1/Rcpp/include\"\n-I\"D:/Trabalho/FTDB-R/FTDB/src\" -I\"D:/Trabalho/FTDB-R/FTDB/inst/include\"\n     -O2 -Wall  -mfpmath=sse -msse2 -mstackrealign  -c\nD:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp -o\nD:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o\nD:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp:5:10: fatal error: lzma.h: No\nsuch file or directory\n #include <lzma.h>\n          ^~~~~~~~\ncompilation terminated.\nmake: *** [C:/PROGRA~1/R/R-41~1.2/etc/x64/Makeconf:245:\nD:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o] Error 1\nError in sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\") :\n  Error 1 occurred building shared library.\nIn addition: Warning message:\nIn normalizePath(path.expand(path), winslash, mustWork) :\n  path[1]=\"D:/Trabalho/FTDB-R/FTDB/src/../inst/include\": O sistema nÃ£o pode\nencontrar o caminho especificado\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220622/2a4e6154/attachment.html>",
+      "body_snippet": "Hi folks\n\nI have a .xz file and need to read it and \"convert\" to a DataFrame using\nRcpp if possible.\n\nBut... I'm with a problem (first time testing this) using liblzma with\nRcpp, I already know how to",
+      "thread_id": "thread-47cdf1e85ec9",
+      "thread_depth": 0,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-1b7625334b59",
+      "message_id": "<dca4e053-af4e-9c87-3f5f-4c5582170379@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2022-06-23T10:05:17+02:00",
+      "subject": "[Rcpp-devel] Help reading libzma file",
+      "subject_clean": "[Rcpp-devel] Help reading libzma file",
+      "in_reply_to": "<CAH3kUhFkvnRrXJCiUpHQRSNwykCka8rwzTkvPNcg0KGw76tMng@mail.gmail.com>",
+      "references": [
+        "<CAH3kUhFkvnRrXJCiUpHQRSNwykCka8rwzTkvPNcg0KGw76tMng@mail.gmail.com>"
+      ],
+      "body_plain": "Le 23/06/2022 Ã  04:07, Roberto Spadim a Ã©critÂ :\n> Hi folks\n> \n> I have a .xz file and need to read it and \"convert\" to a DataFrame using \n> Rcpp if possible.\n> \n> But... I'm with a problem (first time testing this) using liblzma with \n> Rcpp, I already know how to do this with CMakeLists.txt, but I don't \n> know how to do with RCpp\n> \n> Anyone have an idea?\nYou have to use Makevars file, either in src/ or in $HOME/.R/ dir.\nIn this file you have to add something like:\n\n   PKG_CPPFLAGS += -I<dir_where_lzma.h_leaves>\n   PKG_LDFLAGS += -L<dir_where_liblzma.so_lives> -llzma\n\nTo make this solution portable, you can want to use configure script \nwhich usage is described in WRE \nhttps://cran.r-project.org/doc/manuals/r-release/R-exts.html#Configure-and-cleanup\n\nBest,\nSerguei.\n\n> \n> Output from compile time:\n> \n>  > sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\")\n> /mingw64/bin/g++ -std=gnu++11 Â -I\"C:/PROGRA~1/R/R-41~1.2/include\" \n> -DNDEBUG Â  -I\"C:/Users/rspadim/Documents/R/win-library/4.1/Rcpp/include\" \n> -I\"D:/Trabalho/FTDB-R/FTDB/src\" -I\"D:/Trabalho/FTDB-R/FTDB/inst/include\" \n>  Â  Â  Â  Â -O2 -Wall Â -mfpmath=sse -msse2 -mstackrealign Â -c \n> D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp -o \n> D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o\n> D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp:5:10: fatal error: lzma.h: \n> No such file or directory\n>  Â #include <lzma.h>\n>  Â  Â  Â  Â  Â  ^~~~~~~~\n> compilation terminated.\n> make: *** [C:/PROGRA~1/R/R-41~1.2/etc/x64/Makeconf:245: \n> D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o] Error 1\n> Error in sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\") :\n>  Â  Error 1 occurred building shared library.\n> In addition: Warning message:\n> In normalizePath(path.expand(path), winslash, mustWork) :\n>  Â  path[1]=\"D:/Trabalho/FTDB-R/FTDB/src/../inst/include\": O sistema nÃ£o \n> pode encontrar o caminho especificado\n> \n> \n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "Le 23/06/2022 Ã  04:07, Roberto Spadim a Ã©critÂ :\n> Hi folks\n> \n> I have a .xz file and need to read it and \"convert\" to a DataFrame using \n> Rcpp if possible.\n> \n> But... I'm with a problem (first t",
+      "thread_id": "thread-47cdf1e85ec9",
+      "thread_depth": 1,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-d4addfc1973c",
+      "message_id": "<25268.18296.33909.810801@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-06-23T05:59:04-05:00",
+      "subject": "[Rcpp-devel] Help reading libzma file",
+      "subject_clean": "[Rcpp-devel] Help reading libzma file",
+      "in_reply_to": "<dca4e053-af4e-9c87-3f5f-4c5582170379@gmail.com>",
+      "references": [
+        "<CAH3kUhFkvnRrXJCiUpHQRSNwykCka8rwzTkvPNcg0KGw76tMng@mail.gmail.com>",
+        "<dca4e053-af4e-9c87-3f5f-4c5582170379@gmail.com>"
+      ],
+      "body_plain": "On 23 June 2022 at 10:05, Serguei Sokol wrote:\n| Le 23/06/2022 Ã  04:07, Roberto Spadim a Ã©critÂ :\n| > Hi folks\n| > \n| > I have a .xz file and need to read it and \"convert\" to a DataFrame using \n| > Rcpp if possible.\n| > \n| > But... I'm with a problem (first time testing this) using liblzma with \n| > Rcpp, I already know how to do this with CMakeLists.txt, but I don't \n| > know how to do with RCpp\n| > \n| > Anyone have an idea?\n| You have to use Makevars file, either in src/ or in $HOME/.R/ dir.\n| In this file you have to add something like:\n| \n|    PKG_CPPFLAGS += -I<dir_where_lzma.h_leaves>\n|    PKG_LDFLAGS += -L<dir_where_liblzma.so_lives> -llzma\n| \n| To make this solution portable, you can want to use configure script \n| which usage is described in WRE \n| https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Configure-and-cleanup\n| \n| Best,\n| Serguei.\n| \n| > \n| > Output from compile time:\n| > \n| >  > sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\")\n\nAnd you want to look into using a package, not `sourceCpp()` which is\ndesigned for more one-off interactive work.\n\nYou can start a package with the `Rcpp.package.skeleton()` function, and then\nadd a src/Makevars as correctly suggested by Serguei.  There are also many\nexample Rcpp on CRAN, GitHub and other places to look at.  The `qs` and `fst`\npackages both cover compression too (but do a lot more...), I can't right now\nthink of a simpler package adding just one compressor but there may well be one.\n\nRegards, Dirk\n\n| > /mingw64/bin/g++ -std=gnu++11 Â -I\"C:/PROGRA~1/R/R-41~1.2/include\" \n| > -DNDEBUG Â  -I\"C:/Users/rspadim/Documents/R/win-library/4.1/Rcpp/include\" \n| > -I\"D:/Trabalho/FTDB-R/FTDB/src\" -I\"D:/Trabalho/FTDB-R/FTDB/inst/include\" \n| >  Â  Â  Â  Â -O2 -Wall Â -mfpmath=sse -msse2 -mstackrealign Â -c \n| > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp -o \n| > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o\n| > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp:5:10: fatal error: lzma.h: \n| > No such file or directory\n| >  Â #include <lzma.h>\n| >  Â  Â  Â  Â  Â  ^~~~~~~~\n| > compilation terminated.\n| > make: *** [C:/PROGRA~1/R/R-41~1.2/etc/x64/Makeconf:245: \n| > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o] Error 1\n| > Error in sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\") :\n| >  Â  Error 1 occurred building shared library.\n| > In addition: Warning message:\n| > In normalizePath(path.expand(path), winslash, mustWork) :\n| >  Â  path[1]=\"D:/Trabalho/FTDB-R/FTDB/src/../inst/include\": O sistema nÃ£o \n| > pode encontrar o caminho especificado\n| > \n| > \n| > _______________________________________________\n| > Rcpp-devel mailing list\n| > Rcpp-devel at lists.r-forge.r-project.org\n| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n| \n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 23 June 2022 at 10:05, Serguei Sokol wrote:\n| Le 23/06/2022 Ã  04:07, Roberto Spadim a Ã©critÂ :\n| > Hi folks\n| > \n| > I have a .xz file and need to read it and \"convert\" to a DataFrame using \n| > ",
+      "thread_id": "thread-47cdf1e85ec9",
+      "thread_depth": 2,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-4133d8a26e7b",
+      "message_id": "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+      "from_name": "THIOULOUSE JEAN",
+      "from_email_hash": "b5a4bcff01e1ba4baa01b603028d47c847a7792941f0a124056b1da10e0afc59",
+      "date": "2022-06-23T15:02:11+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi\n\nSorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n\nThanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n\nThe new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n\nI would like to know if it is possible to do the same thing in C++ with Rcpp. I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n\nCan anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n\nThank you,\nJean\n\nâ€”-\nJean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\nhttps://orcid.org/0000-0001-7664-0598 (ORCID page)\nhttps://www.springer.com/fr/book/9781493988488 (ade4 Book)\nhttps://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)",
+      "body_snippet": "Hi\n\nSorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n\nThanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 0,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-5b05aff6ef43",
+      "message_id": "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2022-06-23T15:17:57+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>"
+      ],
+      "body_plain": "Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©critÂ :\n> Hi\n> \n> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n> \n> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n> \n> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n> \n> I would like to know if it is possible to do the same thing in C++ with Rcpp.\nIf I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" \nbefore your \"internal\" functions. They will be available to all C and \nC++ functions in src/ but not seen in R. You don't need extra \"R CMD \nSHLIB\" either.\n\nBest,\nSerguei.\n\n  I have found reading the documentation (Dirk's book and Rcpp \nvignettes) that I could use R CMD SHLIB to build a shared library and \nthen dyn.load it in R. I have created a file named ade4lib.cpp \ncontaining the utilities functions in the src directory, and I can make \nthe shared library (ade4lib.so) with RCMD SHLIB. But this does not solve \nmy problem because, as I understand it, this makes the utilities library \nfunctions available to R (which is useless since they are not interfaced \ncorrectly to R but to C++), and not to the other C++ functions (which is \nwhat i need to do).\n> \n> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n> \n> Thank you,\n> Jean\n> \n> â€”-\n> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n> \n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel",
+      "body_snippet": "Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©critÂ :\n> Hi\n> \n> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n> \n> Thanks to your help, I have succee",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 1,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-6ececba10b4f",
+      "message_id": "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+      "from_name": "Jean Thioulouse",
+      "from_email_hash": "6b183d26d5324d41a64211d844a06a23e430551f97f2d74df6b9a72ae2833b53",
+      "date": "2022-06-23T15:47:44+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>"
+      ],
+      "body_plain": "Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n\nclang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.framework/Resources/include\" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppArmadillo/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c testertracenuCpp.cpp -o testertracenuCpp.o\ntestertracenuCpp.cpp:112:9: error: use of undeclared identifier 'matcentrageCpp'\n    i = matcentrageCpp (ti1p, pl, typ1);\n        ^\n\nJean\n\n\n> Le 23 juin 2022 Ã  15:17, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n> \n> Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©crit :\n>> Hi\n>> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n>> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n>> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n>> I would like to know if it is possible to do the same thing in C++ with Rcpp.\n> If I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" before your \"internal\" functions. They will be available to all C and C++ functions in src/ but not seen in R. You don't need extra \"R CMD SHLIB\" either.\n> \n> Best,\n> Serguei.\n> \n> I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n>> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n>> Thank you,\n>> Jean\n>> â€”-\n>> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n>> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n>> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n>> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n>> _______________________________________________\n>> Rcpp-devel mailing list\n>> Rcpp-devel at lists.r-forge.r-project.org\n>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>",
+      "body_snippet": "Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n\nclang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.f",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 2,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-26e933083fa1",
+      "message_id": "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2022-06-23T16:04:16+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+        "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>"
+      ],
+      "body_plain": "Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©critÂ :\n> \n> Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n> \n> clang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.framework/Resources/include\" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppArmadillo/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c testertracenuCpp.cpp -o testertracenuCpp.o\n> testertracenuCpp.cpp:112:9: error: use of undeclared identifier 'matcentrageCpp'\n>      i = matcentrageCpp (ti1p, pl, typ1);\nI cannot find 'matcentrageCpp' in \nhttps://github.com/sdray/ade4/tree/ade4-Rcpp/. Do you have a current \nstate example somewhere?\n\nSerguei.\n\n>          ^\n> \n> Jean\n> \n> \n>> Le 23 juin 2022 Ã  15:17, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>\n>> Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©crit :\n>>> Hi\n>>> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n>>> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n>>> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n>>> I would like to know if it is possible to do the same thing in C++ with Rcpp.\n>> If I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" before your \"internal\" functions. They will be available to all C and C++ functions in src/ but not seen in R. You don't need extra \"R CMD SHLIB\" either.\n>>\n>> Best,\n>> Serguei.\n>>\n>> I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n>>> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n>>> Thank you,\n>>> Jean\n>>> â€”-\n>>> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n>>> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n>>> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n>>> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n>>> _______________________________________________\n>>> Rcpp-devel mailing list\n>>> Rcpp-devel at lists.r-forge.r-project.org\n>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>>\n>",
+      "body_snippet": "Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©critÂ :\n> \n> Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n> \n",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 3,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-bdf85ff4ead9",
+      "message_id": "<41058B9C-CE63-428E-8549-A268D5C5D82A@univ-lyon1.fr>",
+      "from_name": "Jean Thioulouse",
+      "from_email_hash": "6b183d26d5324d41a64211d844a06a23e430551f97f2d74df6b9a72ae2833b53",
+      "date": "2022-06-23T16:10:52+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+        "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+        "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>"
+      ],
+      "body_plain": "> Le 23 juin 2022 Ã  16:04, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n> \n> Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©crit :\n>> Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n>> clang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.framework/Resources/include\" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppArmadillo/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c testertracenuCpp.cpp -o testertracenuCpp.o\n>> testertracenuCpp.cpp:112:9: error: use of undeclared identifier 'matcentrageCpp'\n>>     i = matcentrageCpp (ti1p, pl, typ1);\n> I cannot find 'matcentrageCpp' in https://github.com/sdray/ade4/tree/ade4-Rcpp/. Do you have a current state example somewhere?\n\nYes, I just pushed it in the ade4-Rcpp branch.\n\n> \n> Serguei.\n> \n>>         ^\n>> Jean\n>>> Le 23 juin 2022 Ã  15:17, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>> \n>>> Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©crit :\n>>>> Hi\n>>>> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n>>>> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n>>>> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n>>>> I would like to know if it is possible to do the same thing in C++ with Rcpp.\n>>> If I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" before your \"internal\" functions. They will be available to all C and C++ functions in src/ but not seen in R. You don't need extra \"R CMD SHLIB\" either.\n>>> \n>>> Best,\n>>> Serguei.\n>>> \n>>> I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n>>>> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n>>>> Thank you,\n>>>> Jean\n>>>> â€”-\n>>>> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n>>>> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n>>>> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n>>>> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n>>>> _______________________________________________\n>>>> Rcpp-devel mailing list\n>>>> Rcpp-devel at lists.r-forge.r-project.org\n>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>>> \n>",
+      "body_snippet": "> Le 23 juin 2022 Ã  16:04, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n> \n> Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©crit :\n>> Thank you Serguei, I tried this, but I still get the \"undec",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 4,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-406b52cf5955",
+      "message_id": "<c1e8793b-6aff-a8d4-2c3f-eaa5936d92b1@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2022-06-23T16:58:16+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<41058B9C-CE63-428E-8549-A268D5C5D82A@univ-lyon1.fr>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+        "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+        "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>",
+        "<41058B9C-CE63-428E-8549-A268D5C5D82A@univ-lyon1.fr>"
+      ],
+      "body_plain": "Rcpp or plain C++ or even C ;) , you still have to declare used functions.\nIn Rcpp package, the most natural way to do it, is to put such \ndeclarations in a file $pkg/inst/include/<pkg_name>.h. In your case, it \nwill be inst/include/ade4.h\n\nIn this file you put:\n\n#include <RcppArmadillo.h>\nint matcentrageCpp (arma::mat& A, const arma::vec& poili, const int typ);\n\nand all other functions of yours you plan to use in a cross-file way.\nThen, in a file where you want to use such functions (e.g. in \ntestertracenuCpp.cpp), you add\n\n#include <ade4.h>\n\nFinally, you add the following line in your src/Makevars:\n\nPKG_CPPFLAGS = -I../inst/include\n\nAfter all this, I've got a compilation without error.\nI can make a PR if you wish.\n\nBest,\nSerguei.\n\nLe 23/06/2022 Ã  16:10, Jean Thioulouse a Ã©critÂ :\n> \n> \n>> Le 23 juin 2022 Ã  16:04, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>\n>> Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©crit :\n>>> Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n>>> clang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.framework/Resources/include\" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppArmadillo/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c testertracenuCpp.cpp -o testertracenuCpp.o\n>>> testertracenuCpp.cpp:112:9: error: use of undeclared identifier 'matcentrageCpp'\n>>>      i = matcentrageCpp (ti1p, pl, typ1);\n>> I cannot find 'matcentrageCpp' in https://github.com/sdray/ade4/tree/ade4-Rcpp/. Do you have a current state example somewhere?\n> \n> Yes, I just pushed it in the ade4-Rcpp branch.\n> \n>>\n>> Serguei.\n>>\n>>>          ^\n>>> Jean\n>>>> Le 23 juin 2022 Ã  15:17, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>>>\n>>>> Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©crit :\n>>>>> Hi\n>>>>> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n>>>>> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n>>>>> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n>>>>> I would like to know if it is possible to do the same thing in C++ with Rcpp.\n>>>> If I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" before your \"internal\" functions. They will be available to all C and C++ functions in src/ but not seen in R. You don't need extra \"R CMD SHLIB\" either.\n>>>>\n>>>> Best,\n>>>> Serguei.\n>>>>\n>>>> I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n>>>>> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n>>>>> Thank you,\n>>>>> Jean\n>>>>> â€”-\n>>>>> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n>>>>> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n>>>>> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n>>>>> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n>>>>> _______________________________________________\n>>>>> Rcpp-devel mailing list\n>>>>> Rcpp-devel at lists.r-forge.r-project.org\n>>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>>>>\n>>\n>",
+      "body_snippet": "Rcpp or plain C++ or even C ;) , you still have to declare used functions.\nIn Rcpp package, the most natural way to do it, is to put such \ndeclarations in a file $pkg/inst/include/<pkg_name>.h. In you",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 5,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-302b32ed5088",
+      "message_id": "<E3D7B152-C055-4586-ADF7-8313F479C34F@univ-lyon1.fr>",
+      "from_name": "THIOULOUSE JEAN",
+      "from_email_hash": "b5a4bcff01e1ba4baa01b603028d47c847a7792941f0a124056b1da10e0afc59",
+      "date": "2022-06-23T15:12:27Z",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<c1e8793b-6aff-a8d4-2c3f-eaa5936d92b1@gmail.com>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+        "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+        "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>",
+        "<41058B9C-CE63-428E-8549-A268D5C5D82A@univ-lyon1.fr>",
+        "<c1e8793b-6aff-a8d4-2c3f-eaa5936d92b1@gmail.com>"
+      ],
+      "body_plain": "> Le 23 juin 2022 Ã  16:58, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n> \n> Rcpp or plain C++ or even C ;) , you still have to declare used functions.\n> In Rcpp package, the most natural way to do it, is to put such declarations in a file $pkg/inst/include/<pkg_name>.h. In your case, it will be inst/include/ade4.h\n> \n> In this file you put:\n> \n> #include <RcppArmadillo.h>\n> int matcentrageCpp (arma::mat& A, const arma::vec& poili, const int typ);\n> \n> and all other functions of yours you plan to use in a cross-file way.\n> Then, in a file where you want to use such functions (e.g. in testertracenuCpp.cpp), you add\n> \n> #include <ade4.h>\n> \n> Finally, you add the following line in your src/Makevars:\n> \n> PKG_CPPFLAGS = -I../inst/include\n> \n> After all this, I've got a compilation without error.\n> I can make a PR if you wish.\n\nYes, please do. Thanks a lot !\n\n> Best,\n> Serguei.\n> \n> Le 23/06/2022 Ã  16:10, Jean Thioulouse a Ã©crit :\n>>> Le 23 juin 2022 Ã  16:04, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>> \n>>> Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©crit :\n>>>> Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n>>>> clang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.framework/Resources/include\" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppArmadillo/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c testertracenuCpp.cpp -o testertracenuCpp.o\n>>>> testertracenuCpp.cpp:112:9: error: use of undeclared identifier 'matcentrageCpp'\n>>>>     i = matcentrageCpp (ti1p, pl, typ1);\n>>> I cannot find 'matcentrageCpp' in https://github.com/sdray/ade4/tree/ade4-Rcpp/. Do you have a current state example somewhere?\n>> Yes, I just pushed it in the ade4-Rcpp branch.\n>>> \n>>> Serguei.\n>>> \n>>>>         ^\n>>>> Jean\n>>>>> Le 23 juin 2022 Ã  15:17, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>>>> \n>>>>> Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©crit :\n>>>>>> Hi\n>>>>>> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n>>>>>> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n>>>>>> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n>>>>>> I would like to know if it is possible to do the same thing in C++ with Rcpp.\n>>>>> If I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" before your \"internal\" functions. They will be available to all C and C++ functions in src/ but not seen in R. You don't need extra \"R CMD SHLIB\" either.\n>>>>> \n>>>>> Best,\n>>>>> Serguei.\n>>>>> \n>>>>> I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n>>>>>> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n>>>>>> Thank you,\n>>>>>> Jean\n>>>>>> â€”-\n>>>>>> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n>>>>>> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n>>>>>> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n>>>>>> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n>>>>>> _______________________________________________\n>>>>>> Rcpp-devel mailing list\n>>>>>> Rcpp-devel at lists.r-forge.r-project.org\n>>>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>>>>> \n>>> \n>",
+      "body_snippet": "> Le 23 juin 2022 Ã  16:58, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n> \n> Rcpp or plain C++ or even C ;) , you still have to declare used functions.\n> In Rcpp package, the most natural wa",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 6,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-9246ba7d55a8",
+      "message_id": "<489503f7-6083-b399-5271-c7d9e2165cb1@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2022-06-23T17:38:24+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<E3D7B152-C055-4586-ADF7-8313F479C34F@univ-lyon1.fr>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+        "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+        "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>",
+        "<41058B9C-CE63-428E-8549-A268D5C5D82A@univ-lyon1.fr>",
+        "<c1e8793b-6aff-a8d4-2c3f-eaa5936d92b1@gmail.com>",
+        "<E3D7B152-C055-4586-ADF7-8313F479C34F@univ-lyon1.fr>"
+      ],
+      "body_plain": "Le 23/06/2022 Ã  17:12, THIOULOUSE JEAN a Ã©critÂ :\n> ...\n>> I can make a PR if you wish.\n> \n> Yes, please do. Thanks a lot !\n\nDone: https://github.com/sdray/ade4/pull/31\nSerguei.\n\n>>\n>> Le 23/06/2022 Ã  16:10, Jean Thioulouse a Ã©crit :\n>>>> Le 23 juin 2022 Ã  16:04, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>>>\n>>>> Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©crit :\n>>>>> Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n>>>>> clang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.framework/Resources/include\" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppArmadillo/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c testertracenuCpp.cpp -o testertracenuCpp.o\n>>>>> testertracenuCpp.cpp:112:9: error: use of undeclared identifier 'matcentrageCpp'\n>>>>>      i = matcentrageCpp (ti1p, pl, typ1);\n>>>> I cannot find 'matcentrageCpp' in https://github.com/sdray/ade4/tree/ade4-Rcpp/. Do you have a current state example somewhere?\n>>> Yes, I just pushed it in the ade4-Rcpp branch.\n>>>>\n>>>> Serguei.\n>>>>\n>>>>>          ^\n>>>>> Jean\n>>>>>> Le 23 juin 2022 Ã  15:17, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>>>>>\n>>>>>> Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©crit :\n>>>>>>> Hi\n>>>>>>> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n>>>>>>> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n>>>>>>> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n>>>>>>> I would like to know if it is possible to do the same thing in C++ with Rcpp.\n>>>>>> If I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" before your \"internal\" functions. They will be available to all C and C++ functions in src/ but not seen in R. You don't need extra \"R CMD SHLIB\" either.\n>>>>>>\n>>>>>> Best,\n>>>>>> Serguei.\n>>>>>>\n>>>>>> I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n>>>>>>> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n>>>>>>> Thank you,\n>>>>>>> Jean\n>>>>>>> â€”-\n>>>>>>> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n>>>>>>> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n>>>>>>> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n>>>>>>> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n>>>>>>> _______________________________________________\n>>>>>>> Rcpp-devel mailing list\n>>>>>>> Rcpp-devel at lists.r-forge.r-project.org\n>>>>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>>>>>>\n>>>>\n>>\n>",
+      "body_snippet": "Le 23/06/2022 Ã  17:12, THIOULOUSE JEAN a Ã©critÂ :\n> ...\n>> I can make a PR if you wish.\n> \n> Yes, please do. Thanks a lot !\n\nDone: https://github.com/sdray/ade4/pull/31\nSerguei.\n\n>>\n>> Le 23/06/2022",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 7,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-57895317fed4",
+      "message_id": "<25268.36210.657848.13342@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-06-23T10:57:38-05:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<489503f7-6083-b399-5271-c7d9e2165cb1@gmail.com>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+        "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+        "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>",
+        "<41058B9C-CE63-428E-8549-A268D5C5D82A@univ-lyon1.fr>",
+        "<c1e8793b-6aff-a8d4-2c3f-eaa5936d92b1@gmail.com>",
+        "<E3D7B152-C055-4586-ADF7-8313F479C34F@univ-lyon1.fr>",
+        "<489503f7-6083-b399-5271-c7d9e2165cb1@gmail.com>"
+      ],
+      "body_plain": "One belated follow-up:  one can in general control visibility so\n\n- a function can be in C(++) and used by other C(++) functions\n  (and we have examples)\n\n- a function can be exported to R easily via [[Rcpp::export()]] thanks to\n  magic of Rcpp::compileAttributes()\n\n- a function can also be \"privatedly\" exported to R using a name starting\n  with a dot such as [[Rcpp::export(.myfunc)]]\n\n- once at the R level we have the usual NAMESPACE control, also via roxygen2\n  and its @export tag\n\nWhen something like this seems to 'stumble' with a larger package, it is\nsometimes worthwhile to experient quickly with a minimal throw-away package\nas the mechanism is strictly the same and when it works for one...\n\nCheers, Dirk\n\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "One belated follow-up:  one can in general control visibility so\n\n- a function can be in C(++) and used by other C(++) functions\n  (and we have examples)\n\n- a function can be exported to R easily via ",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 8,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-1c2dcb10beaf",
+      "message_id": "<CAH3kUhFkZ-Gmh0RsR_ifSGNR9XJVL84X8WaXPMoQ_cofOcJbaA@mail.gmail.com>",
+      "from_name": "Roberto Spadim",
+      "from_email_hash": "58ff001105db1ef34d961d044415a331cd732ab9caa8ccc1519ec30abeb73f18",
+      "date": "2022-06-23T20:46:17-03:00",
+      "subject": "[Rcpp-devel] Help reading libzma file",
+      "subject_clean": "[Rcpp-devel] Help reading libzma file",
+      "in_reply_to": "<25268.18296.33909.810801@rob.eddelbuettel.com>",
+      "references": [
+        "<CAH3kUhFkvnRrXJCiUpHQRSNwykCka8rwzTkvPNcg0KGw76tMng@mail.gmail.com>",
+        "<dca4e053-af4e-9c87-3f5f-4c5582170379@gmail.com>",
+        "<25268.18296.33909.810801@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Uhm, yes I see\nI testd with package, and linux, it works\nBut with Windows it don't find the liblzma\n\nEm qui., 23 de jun. de 2022 Ã s 07:59, Dirk Eddelbuettel <edd at debian.org>\nescreveu:\n\n>\n> On 23 June 2022 at 10:05, Serguei Sokol wrote:\n> | Le 23/06/2022 Ã  04:07, Roberto Spadim a Ã©crit :\n> | > Hi folks\n> | >\n> | > I have a .xz file and need to read it and \"convert\" to a DataFrame\n> using\n> | > Rcpp if possible.\n> | >\n> | > But... I'm with a problem (first time testing this) using liblzma with\n> | > Rcpp, I already know how to do this with CMakeLists.txt, but I don't\n> | > know how to do with RCpp\n> | >\n> | > Anyone have an idea?\n> | You have to use Makevars file, either in src/ or in $HOME/.R/ dir.\n> | In this file you have to add something like:\n> |\n> |    PKG_CPPFLAGS += -I<dir_where_lzma.h_leaves>\n> |    PKG_LDFLAGS += -L<dir_where_liblzma.so_lives> -llzma\n> |\n> | To make this solution portable, you can want to use configure script\n> | which usage is described in WRE\n> |\n> https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Configure-and-cleanup\n> |\n> | Best,\n> | Serguei.\n> |\n> | >\n> | > Output from compile time:\n> | >\n> | >  > sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\")\n>\n> And you want to look into using a package, not `sourceCpp()` which is\n> designed for more one-off interactive work.\n>\n> You can start a package with the `Rcpp.package.skeleton()` function, and\n> then\n> add a src/Makevars as correctly suggested by Serguei.  There are also many\n> example Rcpp on CRAN, GitHub and other places to look at.  The `qs` and\n> `fst`\n> packages both cover compression too (but do a lot more...), I can't right\n> now\n> think of a simpler package adding just one compressor but there may well\n> be one.\n>\n> Regards, Dirk\n>\n> | > /mingw64/bin/g++ -std=gnu++11  -I\"C:/PROGRA~1/R/R-41~1.2/include\"\n> | > -DNDEBUG\n> -I\"C:/Users/rspadim/Documents/R/win-library/4.1/Rcpp/include\"\n> | > -I\"D:/Trabalho/FTDB-R/FTDB/src\"\n> -I\"D:/Trabalho/FTDB-R/FTDB/inst/include\"\n> | >         -O2 -Wall  -mfpmath=sse -msse2 -mstackrealign  -c\n> | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp -o\n> | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o\n> | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp:5:10: fatal error:\n> lzma.h:\n> | > No such file or directory\n> | >   #include <lzma.h>\n> | >            ^~~~~~~~\n> | > compilation terminated.\n> | > make: *** [C:/PROGRA~1/R/R-41~1.2/etc/x64/Makeconf:245:\n> | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o] Error 1\n> | > Error in sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\") :\n> | >    Error 1 occurred building shared library.\n> | > In addition: Warning message:\n> | > In normalizePath(path.expand(path), winslash, mustWork) :\n> | >    path[1]=\"D:/Trabalho/FTDB-R/FTDB/src/../inst/include\": O sistema\n> nÃ£o\n> | > pode encontrar o caminho especificado\n> | >\n> | >\n> | > _______________________________________________\n> | > Rcpp-devel mailing list\n> | > Rcpp-devel at lists.r-forge.r-project.org\n> | >\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n> |\n> | _______________________________________________\n> | Rcpp-devel mailing list\n> | Rcpp-devel at lists.r-forge.r-project.org\n> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n> --\n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n\n\n-- \nRoberto Spadim\nSPAEmpresarial - Software ERP/Scada\nEng. AutomaÃ§Ã£o e Controle, Eng. Financeira\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220623/b7df0596/attachment.html>",
+      "body_snippet": "Uhm, yes I see\nI testd with package, and linux, it works\nBut with Windows it don't find the liblzma\n\nEm qui., 23 de jun. de 2022 Ã s 07:59, Dirk Eddelbuettel <edd at debian.org>\nescreveu:\n\n>\n> On 23 J",
+      "thread_id": "thread-47cdf1e85ec9",
+      "thread_depth": 3,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-3400a9d29fda",
+      "message_id": "<25269.1346.368025.207369@rob.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2022-06-23T19:28:50-05:00",
+      "subject": "[Rcpp-devel] Help reading libzma file",
+      "subject_clean": "[Rcpp-devel] Help reading libzma file",
+      "in_reply_to": "<CAH3kUhFkZ-Gmh0RsR_ifSGNR9XJVL84X8WaXPMoQ_cofOcJbaA@mail.gmail.com>",
+      "references": [
+        "<CAH3kUhFkvnRrXJCiUpHQRSNwykCka8rwzTkvPNcg0KGw76tMng@mail.gmail.com>",
+        "<dca4e053-af4e-9c87-3f5f-4c5582170379@gmail.com>",
+        "<25268.18296.33909.810801@rob.eddelbuettel.com>",
+        "<CAH3kUhFkZ-Gmh0RsR_ifSGNR9XJVL84X8WaXPMoQ_cofOcJbaA@mail.gmail.com>"
+      ],
+      "body_plain": "On 23 June 2022 at 20:46, Roberto Spadim wrote:\n| Uhm, yes I see\n| I testd with package, and linux, it works\n| But with Windows it don't find the liblzma\n\n\"Par for the course\" as they say -- Windows has not standard library location\nso you will need an 'extra convention' as either the CRAN rules of installing\na bunch of library in one jointly accessed directory, or by following\nper-library environment variables. Here is what RcppGSL does for GSL:\n\nPKG_CPPFLAGS= -I../windows/gsl-2.7/include -I../inst/include\nPKG_LIBS= -L../windows/gsl-2.7/lib${R_ARCH}${CRT} -lgsl -lgslcblas\n\nall: clean winlibs\n\nwinlibs:\n\t\"${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe\" \"../tools/winlibs.R\"\n\nclean:\n\trm -f $(SHLIB) $(OBJECTS)\n\nie it can just assume GSL is present. CRAN documents somewhere what libraries\nyu can expect; I cannot from the top of my head recall if LZMA is part of\nthat set.\n\nPortable development is hard for a reason. Operating systems are idiosyncratic.\n\nDirk\n\n| \n| Em qui., 23 de jun. de 2022 Ã s 07:59, Dirk Eddelbuettel <edd at debian.org>\n| escreveu:\n| \n| >\n| > On 23 June 2022 at 10:05, Serguei Sokol wrote:\n| > | Le 23/06/2022 Ã  04:07, Roberto Spadim a Ã©crit :\n| > | > Hi folks\n| > | >\n| > | > I have a .xz file and need to read it and \"convert\" to a DataFrame\n| > using\n| > | > Rcpp if possible.\n| > | >\n| > | > But... I'm with a problem (first time testing this) using liblzma with\n| > | > Rcpp, I already know how to do this with CMakeLists.txt, but I don't\n| > | > know how to do with RCpp\n| > | >\n| > | > Anyone have an idea?\n| > | You have to use Makevars file, either in src/ or in $HOME/.R/ dir.\n| > | In this file you have to add something like:\n| > |\n| > |    PKG_CPPFLAGS += -I<dir_where_lzma.h_leaves>\n| > |    PKG_LDFLAGS += -L<dir_where_liblzma.so_lives> -llzma\n| > |\n| > | To make this solution portable, you can want to use configure script\n| > | which usage is described in WRE\n| > |\n| > https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Configure-and-cleanup\n| > |\n| > | Best,\n| > | Serguei.\n| > |\n| > | >\n| > | > Output from compile time:\n| > | >\n| > | >  > sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\")\n| >\n| > And you want to look into using a package, not `sourceCpp()` which is\n| > designed for more one-off interactive work.\n| >\n| > You can start a package with the `Rcpp.package.skeleton()` function, and\n| > then\n| > add a src/Makevars as correctly suggested by Serguei.  There are also many\n| > example Rcpp on CRAN, GitHub and other places to look at.  The `qs` and\n| > `fst`\n| > packages both cover compression too (but do a lot more...), I can't right\n| > now\n| > think of a simpler package adding just one compressor but there may well\n| > be one.\n| >\n| > Regards, Dirk\n| >\n| > | > /mingw64/bin/g++ -std=gnu++11  -I\"C:/PROGRA~1/R/R-41~1.2/include\"\n| > | > -DNDEBUG\n| > -I\"C:/Users/rspadim/Documents/R/win-library/4.1/Rcpp/include\"\n| > | > -I\"D:/Trabalho/FTDB-R/FTDB/src\"\n| > -I\"D:/Trabalho/FTDB-R/FTDB/inst/include\"\n| > | >         -O2 -Wall  -mfpmath=sse -msse2 -mstackrealign  -c\n| > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp -o\n| > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o\n| > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp:5:10: fatal error:\n| > lzma.h:\n| > | > No such file or directory\n| > | >   #include <lzma.h>\n| > | >            ^~~~~~~~\n| > | > compilation terminated.\n| > | > make: *** [C:/PROGRA~1/R/R-41~1.2/etc/x64/Makeconf:245:\n| > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o] Error 1\n| > | > Error in sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\") :\n| > | >    Error 1 occurred building shared library.\n| > | > In addition: Warning message:\n| > | > In normalizePath(path.expand(path), winslash, mustWork) :\n| > | >    path[1]=\"D:/Trabalho/FTDB-R/FTDB/src/../inst/include\": O sistema\n| > nÃ£o\n| > | > pode encontrar o caminho especificado\n| > | >\n| > | >\n| > | > _______________________________________________\n| > | > Rcpp-devel mailing list\n| > | > Rcpp-devel at lists.r-forge.r-project.org\n| > | >\n| > https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n| > |\n| > | _______________________________________________\n| > | Rcpp-devel mailing list\n| > | Rcpp-devel at lists.r-forge.r-project.org\n| > | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n| > --\n| > dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n| >\n| \n| \n| -- \n| Roberto Spadim\n| SPAEmpresarial - Software ERP/Scada\n| Eng. AutomaÃ§Ã£o e Controle, Eng. Financeira\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 23 June 2022 at 20:46, Roberto Spadim wrote:\n| Uhm, yes I see\n| I testd with package, and linux, it works\n| But with Windows it don't find the liblzma\n\n\"Par for the course\" as they say -- Windows h",
+      "thread_id": "thread-47cdf1e85ec9",
+      "thread_depth": 4,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-033147711638",
+      "message_id": "<CAH3kUhHu1Qgj5U63RZGAqLQ9W7mtAZThBwWaP8U-F9Vsx_WfzQ@mail.gmail.com>",
+      "from_name": "Roberto Spadim",
+      "from_email_hash": "58ff001105db1ef34d961d044415a331cd732ab9caa8ccc1519ec30abeb73f18",
+      "date": "2022-06-23T21:41:57-03:00",
+      "subject": "[Rcpp-devel] Help reading libzma file",
+      "subject_clean": "[Rcpp-devel] Help reading libzma file",
+      "in_reply_to": "<25269.1346.368025.207369@rob.eddelbuettel.com>",
+      "references": [
+        "<CAH3kUhFkvnRrXJCiUpHQRSNwykCka8rwzTkvPNcg0KGw76tMng@mail.gmail.com>",
+        "<dca4e053-af4e-9c87-3f5f-4c5582170379@gmail.com>",
+        "<25268.18296.33909.810801@rob.eddelbuettel.com>",
+        "<CAH3kUhFkZ-Gmh0RsR_ifSGNR9XJVL84X8WaXPMoQ_cofOcJbaA@mail.gmail.com>",
+        "<25269.1346.368025.207369@rob.eddelbuettel.com>"
+      ],
+      "body_plain": "Nice, thanks Dirk, I will test it!\n\nEm qui., 23 de jun. de 2022 Ã s 21:28, Dirk Eddelbuettel <edd at debian.org>\nescreveu:\n\n>\n> On 23 June 2022 at 20:46, Roberto Spadim wrote:\n> | Uhm, yes I see\n> | I testd with package, and linux, it works\n> | But with Windows it don't find the liblzma\n>\n> \"Par for the course\" as they say -- Windows has not standard library\n> location\n> so you will need an 'extra convention' as either the CRAN rules of\n> installing\n> a bunch of library in one jointly accessed directory, or by following\n> per-library environment variables. Here is what RcppGSL does for GSL:\n>\n> PKG_CPPFLAGS= -I../windows/gsl-2.7/include -I../inst/include\n> PKG_LIBS= -L../windows/gsl-2.7/lib${R_ARCH}${CRT} -lgsl -lgslcblas\n>\n> all: clean winlibs\n>\n> winlibs:\n>         \"${R_HOME}/bin${R_ARCH_BIN}/Rscript.exe\" \"../tools/winlibs.R\"\n>\n> clean:\n>         rm -f $(SHLIB) $(OBJECTS)\n>\n> ie it can just assume GSL is present. CRAN documents somewhere what\n> libraries\n> yu can expect; I cannot from the top of my head recall if LZMA is part of\n> that set.\n>\n> Portable development is hard for a reason. Operating systems are\n> idiosyncratic.\n>\n> Dirk\n>\n> |\n> | Em qui., 23 de jun. de 2022 Ã s 07:59, Dirk Eddelbuettel <edd at debian.org>\n> | escreveu:\n> |\n> | >\n> | > On 23 June 2022 at 10:05, Serguei Sokol wrote:\n> | > | Le 23/06/2022 Ã  04:07, Roberto Spadim a Ã©crit :\n> | > | > Hi folks\n> | > | >\n> | > | > I have a .xz file and need to read it and \"convert\" to a DataFrame\n> | > using\n> | > | > Rcpp if possible.\n> | > | >\n> | > | > But... I'm with a problem (first time testing this) using liblzma\n> with\n> | > | > Rcpp, I already know how to do this with CMakeLists.txt, but I\n> don't\n> | > | > know how to do with RCpp\n> | > | >\n> | > | > Anyone have an idea?\n> | > | You have to use Makevars file, either in src/ or in $HOME/.R/ dir.\n> | > | In this file you have to add something like:\n> | > |\n> | > |    PKG_CPPFLAGS += -I<dir_where_lzma.h_leaves>\n> | > |    PKG_LDFLAGS += -L<dir_where_liblzma.so_lives> -llzma\n> | > |\n> | > | To make this solution portable, you can want to use configure script\n> | > | which usage is described in WRE\n> | > |\n> | >\n> https://cran.r-project.org/doc/manuals/r-release/R-exts.html#Configure-and-cleanup\n> | > |\n> | > | Best,\n> | > | Serguei.\n> | > |\n> | > | >\n> | > | > Output from compile time:\n> | > | >\n> | > | >  > sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\")\n> | >\n> | > And you want to look into using a package, not `sourceCpp()` which is\n> | > designed for more one-off interactive work.\n> | >\n> | > You can start a package with the `Rcpp.package.skeleton()` function,\n> and\n> | > then\n> | > add a src/Makevars as correctly suggested by Serguei.  There are also\n> many\n> | > example Rcpp on CRAN, GitHub and other places to look at.  The `qs` and\n> | > `fst`\n> | > packages both cover compression too (but do a lot more...), I can't\n> right\n> | > now\n> | > think of a simpler package adding just one compressor but there may\n> well\n> | > be one.\n> | >\n> | > Regards, Dirk\n> | >\n> | > | > /mingw64/bin/g++ -std=gnu++11  -I\"C:/PROGRA~1/R/R-41~1.2/include\"\n> | > | > -DNDEBUG\n> | > -I\"C:/Users/rspadim/Documents/R/win-library/4.1/Rcpp/include\"\n> | > | > -I\"D:/Trabalho/FTDB-R/FTDB/src\"\n> | > -I\"D:/Trabalho/FTDB-R/FTDB/inst/include\"\n> | > | >         -O2 -Wall  -mfpmath=sse -msse2 -mstackrealign  -c\n> | > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp -o\n> | > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o\n> | > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.cpp:5:10: fatal error:\n> | > lzma.h:\n> | > | > No such file or directory\n> | > | >   #include <lzma.h>\n> | > | >            ^~~~~~~~\n> | > | > compilation terminated.\n> | > | > make: *** [C:/PROGRA~1/R/R-41~1.2/etc/x64/Makeconf:245:\n> | > | > D:/Trabalho/FTDB-R/FTDB/src/xz/xz/decode.o] Error 1\n> | > | > Error in sourceCpp(\"D:/Trabalho/FTDB-R/FTDB/src/ftdbR.cpp\") :\n> | > | >    Error 1 occurred building shared library.\n> | > | > In addition: Warning message:\n> | > | > In normalizePath(path.expand(path), winslash, mustWork) :\n> | > | >    path[1]=\"D:/Trabalho/FTDB-R/FTDB/src/../inst/include\": O sistema\n> | > nÃ£o\n> | > | > pode encontrar o caminho especificado\n> | > | >\n> | > | >\n> | > | > _______________________________________________\n> | > | > Rcpp-devel mailing list\n> | > | > Rcpp-devel at lists.r-forge.r-project.org\n> | > | >\n> | >\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n> | > |\n> | > | _______________________________________________\n> | > | Rcpp-devel mailing list\n> | > | Rcpp-devel at lists.r-forge.r-project.org\n> | > |\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n> | > --\n> | > dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> | >\n> |\n> |\n> | --\n> | Roberto Spadim\n> | SPAEmpresarial - Software ERP/Scada\n> | Eng. AutomaÃ§Ã£o e Controle, Eng. Financeira\n>\n> --\n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n\n\n-- \nRoberto Spadim\nSPAEmpresarial - Software ERP/Scada\nEng. AutomaÃ§Ã£o e Controle, Eng. Financeira\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20220623/32a5032c/attachment-0001.html>",
+      "body_snippet": "Nice, thanks Dirk, I will test it!\n\nEm qui., 23 de jun. de 2022 Ã s 21:28, Dirk Eddelbuettel <edd at debian.org>\nescreveu:\n\n>\n> On 23 June 2022 at 20:46, Roberto Spadim wrote:\n> | Uhm, yes I see\n> | I",
+      "thread_id": "thread-47cdf1e85ec9",
+      "thread_depth": 5,
+      "month": "2022-06"
+    },
+    {
+      "id": "msg-f8bdb743505d",
+      "message_id": "<005EFDFF-056F-43CB-9CA3-DBCAD3EB68BF@univ-lyon1.fr>",
+      "from_name": "Jean Thioulouse",
+      "from_email_hash": "6b183d26d5324d41a64211d844a06a23e430551f97f2d74df6b9a72ae2833b53",
+      "date": "2022-06-24T12:32:03+02:00",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "subject_clean": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "in_reply_to": "<489503f7-6083-b399-5271-c7d9e2165cb1@gmail.com>",
+      "references": [
+        "<35EDE89A-A5AA-4B27-8E82-1DD35B9281E0@univ-lyon1.fr>",
+        "<27550f3d-aa65-cfb9-cc6e-8ad79d7a266e@gmail.com>",
+        "<B9E10EBA-7513-4977-B80F-B34836AC86A9@univ-lyon1.fr>",
+        "<099a89db-5844-006e-f85e-701ab4fbb9f1@gmail.com>",
+        "<41058B9C-CE63-428E-8549-A268D5C5D82A@univ-lyon1.fr>",
+        "<c1e8793b-6aff-a8d4-2c3f-eaa5936d92b1@gmail.com>",
+        "<E3D7B152-C055-4586-ADF7-8313F479C34F@univ-lyon1.fr>",
+        "<489503f7-6083-b399-5271-c7d9e2165cb1@gmail.com>"
+      ],
+      "body_plain": "> Le 23 juin 2022 Ã  17:38, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n> \n> Le 23/06/2022 Ã  17:12, THIOULOUSE JEAN a Ã©crit :\n>> ...\n>>> I can make a PR if you wish.\n>> Yes, please do. Thanks a lot !\n> \n> Done: https://github.com/sdray/ade4/pull/31\n> Serguei.\n\nIt works perfectly, thank you very much Serguei !\n\nJean\n\n> \n>>> \n>>> Le 23/06/2022 Ã  16:10, Jean Thioulouse a Ã©crit :\n>>>>> Le 23 juin 2022 Ã  16:04, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>>>> \n>>>>> Le 23/06/2022 Ã  15:47, Jean Thioulouse a Ã©crit :\n>>>>>> Thank you Serguei, I tried this, but I still get the \"undeclared identifier\" error for these internal functions during package compilation:\n>>>>>> clang++ -arch arm64 -std=gnu++14 -I\"/Library/Frameworks/R.framework/Resources/include\" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppArmadillo/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c testertracenuCpp.cpp -o testertracenuCpp.o\n>>>>>> testertracenuCpp.cpp:112:9: error: use of undeclared identifier 'matcentrageCpp'\n>>>>>>     i = matcentrageCpp (ti1p, pl, typ1);\n>>>>> I cannot find 'matcentrageCpp' in https://github.com/sdray/ade4/tree/ade4-Rcpp/. Do you have a current state example somewhere?\n>>>> Yes, I just pushed it in the ade4-Rcpp branch.\n>>>>> \n>>>>> Serguei.\n>>>>> \n>>>>>>         ^\n>>>>>> Jean\n>>>>>>> Le 23 juin 2022 Ã  15:17, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n>>>>>>> \n>>>>>>> Le 23/06/2022 Ã  15:02, THIOULOUSE JEAN a Ã©crit :\n>>>>>>>> Hi\n>>>>>>>> Sorry to bother you again with my C/C++ problems in the ade4 package (available on CRAN & GitHub).\n>>>>>>>> Thanks to your help, I have succeeded in converting several of the C functions to C++ using Rcpp. Now the package compiles without problem and all my C++ functions run fine in the dedicated GitHub branch of the package (ade4-Rcpp).\n>>>>>>>> The new problem I am facing now is that in ade4, I use a library of about 30 utilities functions collected in one file named adesub.c, with adesub.h headers file. From what I understand, during package compilation these functions are added to the ade4 shared library and they can be called by my other C functions without being declared in the init.c or NAMESPACE files, as they do not need to be known by R.\n>>>>>>>> I would like to know if it is possible to do the same thing in C++ with Rcpp.\n>>>>>>> If I understand correctly you goal, just don't put \"// [[Rcpp::export]]\" before your \"internal\" functions. They will be available to all C and C++ functions in src/ but not seen in R. You don't need extra \"R CMD SHLIB\" either.\n>>>>>>> \n>>>>>>> Best,\n>>>>>>> Serguei.\n>>>>>>> \n>>>>>>> I have found reading the documentation (Dirk's book and Rcpp vignettes) that I could use R CMD SHLIB to build a shared library and then dyn.load it in R. I have created a file named ade4lib.cpp containing the utilities functions in the src directory, and I can make the shared library (ade4lib.so) with RCMD SHLIB. But this does not solve my problem because, as I understand it, this makes the utilities library functions available to R (which is useless since they are not interfaced correctly to R but to C++), and not to the other C++ functions (which is what i need to do).\n>>>>>>>> Can anybody see where I am mistaken, and point me to the right direction to accomplish this ?\n>>>>>>>> Thank you,\n>>>>>>>> Jean\n>>>>>>>> â€”-\n>>>>>>>> Jean THIOULOUSE - https://lbbe-web.univ-lyon1.fr/en/annuaires-des-membres/thioulouse-jean\n>>>>>>>> https://orcid.org/0000-0001-7664-0598 (ORCID page)\n>>>>>>>> https://www.springer.com/fr/book/9781493988488 (ade4 Book)\n>>>>>>>> https://pbil.univ-lyon1.fr/JTHome/Biblio/ThioulouseEB2021.pdf (Evol. Biol. paper)\n>>>>>>>> _______________________________________________\n>>>>>>>> Rcpp-devel mailing list\n>>>>>>>> Rcpp-devel at lists.r-forge.r-project.org\n>>>>>>>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>>>>>>> \n>>>>> \n>>> \n>",
+      "body_snippet": "> Le 23 juin 2022 Ã  17:38, Serguei Sokol <serguei.sokol at gmail.com> a Ã©crit :\n> \n> Le 23/06/2022 Ã  17:12, THIOULOUSE JEAN a Ã©crit :\n>> ...\n>>> I can make a PR if you wish.\n>> Yes, please do. Tha",
+      "thread_id": "thread-4133d8a26e7b",
+      "thread_depth": 8,
+      "month": "2022-06"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-be3d5f7cc3bb",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "message_count": 5,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Jean Thioulouse",
+        "Serguei Sokol"
+      ],
+      "started": "2022-06-02T08:32:49-05:00",
+      "last_reply": "2022-06-03T08:38:29-05:00",
+      "root_message_id": "msg-be3d5f7cc3bb"
+    },
+    {
+      "id": "thread-410deb1aaa43",
+      "subject": "[Rcpp-devel] [R-pkg-devel] moving from C to C++ with Rcpp in R package",
+      "message_count": 1,
+      "participants": [
+        "THIOULOUSE JEAN"
+      ],
+      "started": "2022-06-02T15:06:44+02:00",
+      "last_reply": "2022-06-02T15:06:44+02:00",
+      "root_message_id": "msg-410deb1aaa43"
+    },
+    {
+      "id": "thread-6a0718bb5102",
+      "subject": "[Rcpp-devel] Assertion error in ud_ep.c, when running with MPI",
+      "message_count": 3,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Maddegedara Lalith",
+        "Serguei Sokol"
+      ],
+      "started": "2022-06-14T14:24:19+09:00",
+      "last_reply": "2022-06-14T06:43:25-05:00",
+      "root_message_id": "msg-6a0718bb5102"
+    },
+    {
+      "id": "thread-47cdf1e85ec9",
+      "subject": "[Rcpp-devel] Help reading libzma file",
+      "message_count": 6,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Roberto Spadim",
+        "Serguei Sokol"
+      ],
+      "started": "2022-06-22T23:07:33-03:00",
+      "last_reply": "2022-06-23T21:41:57-03:00",
+      "root_message_id": "msg-47cdf1e85ec9"
+    },
+    {
+      "id": "thread-4133d8a26e7b",
+      "subject": "[Rcpp-devel] Rcpp shared libraries (?)",
+      "message_count": 10,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Jean Thioulouse",
+        "Serguei Sokol",
+        "THIOULOUSE JEAN"
+      ],
+      "started": "2022-06-23T15:02:11+02:00",
+      "last_reply": "2022-06-24T12:32:03+02:00",
+      "root_message_id": "msg-4133d8a26e7b"
+    }
+  ]
+}

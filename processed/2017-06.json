@@ -1,0 +1,921 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2017-06",
+  "messages": [
+    {
+      "id": "msg-930c2b6947b4",
+      "message_id": "<290985F5-CD64-4D4A-865A-38EF5CB489EE@mailbox.org>",
+      "from_name": "f.krah at mailbox.org",
+      "from_email_hash": "abf80c0347d77de2980b3d822bd9872b118c0f8c080c1186e2ae709edb1a494c",
+      "date": "2017-06-02T15:40:00+02:00",
+      "subject": "[Rcpp-devel] RcppParallel wrong after correct",
+      "subject_clean": "[Rcpp-devel] RcppParallel wrong after correct",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi all,\n\nI wrote a function foo using RcppParallel and I am observing a bug, which I can?t figure out.\nI first wrote the function in R, then in Rcpp, then RcppParallel.\n\nfoo is doing exactly what it is supposed to do in R and Rcpp.\nHowever, I am observing some wired things in RcppParallel.\n\nfoo_par is running, giving almost what I want.\n\nfoo compares two matrices columnwise all pairwise combinations.\nthus we have 3 loops. \nIn the smallest step it takes two values e.g. m[c(row1, row2), 1] from the first matrix and checks if they are\nappear in 1 column in the second matrix. If they are 1 is returned, if not 0.\n\nHowever, before that there is a check if one of the c(1,2) is even, then only a NA is returned. \nCheck below for this step.\n\nThe wired thing is, that this works perfectly fine the very 1st instance this case happens \nand not any more in the thereafter examples. \n\nE.g: \n\n> foo(m1, m2)\n     [,1] [,2] [,3] [,4]\n[1,]    1    1    1    1\n[2,]    1   NA    1    0*\n[3,]    1    0*    1    0*\n\nthe 0s with * should be NA. \n\n\n\nif ( (row1 % 2 == 0) || (row2 % 2 == 0) ){\n       \n           result_matrix(count, col) = NA_REAL;\n\n          } else { \n\ndo the 0, 1 stuff\n}\n\n** count: i am using a counter for the filling of the resulting matrix (indicates the row where it should be put)\n** col: this is from the outest loop. it loops over columns and then writes the result into the according col in the result matrix. \n\n\n\nIs this enough information?\nIf someone needs to see the full function, I would prefer to send this via mail directly, since \nthis is for a publication?\n\nI appreciate any hints!\nAnd I am wondering if this is coming from the parallelization itself?\nThe modulo is somehow not working correctly?\n\nCheers, \nFranz\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170602/f1e7447f/attachment.html>",
+      "body_snippet": "Hi all,\n\nI wrote a function foo using RcppParallel and I am observing a bug, which I can?t figure out.\nI first wrote the function in R, then in Rcpp, then RcppParallel.\n\nfoo is doing exactly what it i",
+      "thread_id": "thread-930c2b6947b4",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-fd9b92b9814a",
+      "message_id": "<54BB66D0-42C2-425F-A0F5-ADD83BB90DF5@r-enthusiasts.com>",
+      "from_name": "Romain Francois",
+      "from_email_hash": "8f31c4dddde5f249ac380b8d2d5d1eff7bd702b45de9f90ab8075a7b03949f03",
+      "date": "2017-06-02T15:56:55+02:00",
+      "subject": "[Rcpp-devel] RcppParallel wrong after correct",
+      "subject_clean": "[Rcpp-devel] RcppParallel wrong after correct",
+      "in_reply_to": "<290985F5-CD64-4D4A-865A-38EF5CB489EE@mailbox.org>",
+      "references": [
+        "<290985F5-CD64-4D4A-865A-38EF5CB489EE@mailbox.org>"
+      ],
+      "body_plain": "Can you prepare a reprex ?\n\n> Le 2 juin 2017 ? 15:40, \"f.krah at mailbox.org\" <f.krah at mailbox.org> a ?crit :\n> \n> Hi all,\n> \n> I wrote a function foo using RcppParallel and I am observing a bug, which I can?t figure out.\n> I first wrote the function in R, then in Rcpp, then RcppParallel.\n> \n> foo is doing exactly what it is supposed to do in R and Rcpp.\n> However, I am observing some wired things in RcppParallel.\n> \n> foo_par is running, giving almost what I want.\n> \n> foo compares two matrices columnwise all pairwise combinations.\n> thus we have 3 loops. \n> In the smallest step it takes two values e.g. m[c(row1, row2), 1] from the first matrix and checks if they are\n> appear in 1 column in the second matrix. If they are 1 is returned, if not 0.\n> \n> However, before that there is a check if one of the c(1,2) is even, then only a NA is returned. \n> Check below for this step.\n> \n> The wired thing is, that this works perfectly fine the very 1st instance this case happens \n> and not any more in the thereafter examples. \n> \n> E.g: \n> \n> > foo(m1, m2)\n>      [,1] [,2] [,3] [,4]\n> [1,]    1    1    1    1\n> [2,]    1   NA    1    0*\n> [3,]    1    0*    1    0*\n> \n> the 0s with * should be NA. \n> \n> \n> \n> if ( (row1 % 2 == 0) || (row2 % 2 == 0) ){\n>        \n>            result_matrix(count, col) = NA_REAL;\n> \n>           } else { \n> \n> do the 0, 1 stuff\n> }\n> \n> ** count: i am using a counter for the filling of the resulting matrix (indicates the row where it should be put)\n> ** col: this is from the outest loop. it loops over columns and then writes the result into the according col in the result matrix. \n> \n> \n> \n> Is this enough information?\n> If someone needs to see the full function, I would prefer to send this via mail directly, since \n> this is for a publication?\n> \n> I appreciate any hints!\n> And I am wondering if this is coming from the parallelization itself?\n> The modulo is somehow not working correctly?\n> \n> Cheers, \n> Franz\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170602/7a73e4a6/attachment.html>",
+      "body_snippet": "Can you prepare a reprex ?\n\n> Le 2 juin 2017 ? 15:40, \"f.krah at mailbox.org\" <f.krah at mailbox.org> a ?crit :\n> \n> Hi all,\n> \n> I wrote a function foo using RcppParallel and I am observing a bug, wh",
+      "thread_id": "thread-930c2b6947b4",
+      "thread_depth": 1,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-7a3716b52768",
+      "message_id": "<22833.30163.854490.809230@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-02T09:27:31-05:00",
+      "subject": "[Rcpp-devel] RcppParallel wrong after correct",
+      "subject_clean": "[Rcpp-devel] RcppParallel wrong after correct",
+      "in_reply_to": "<54BB66D0-42C2-425F-A0F5-ADD83BB90DF5@r-enthusiasts.com>",
+      "references": [
+        "<290985F5-CD64-4D4A-865A-38EF5CB489EE@mailbox.org>",
+        "<54BB66D0-42C2-425F-A0F5-ADD83BB90DF5@r-enthusiasts.com>"
+      ],
+      "body_plain": "On 2 June 2017 at 15:56, Romain Francois wrote:\n| Can you prepare a reprex ?\n\nSeconded. Minimally reproducible example or your post does not exist.\n\nhttps://stackoverflow.com/questions/5963269/how-to-make-a-great-r-reproducible-example/\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 2 June 2017 at 15:56, Romain Francois wrote:\n| Can you prepare a reprex ?\n\nSeconded. Minimally reproducible example or your post does not exist.\n\nhttps://stackoverflow.com/questions/5963269/how-to-",
+      "thread_id": "thread-930c2b6947b4",
+      "thread_depth": 2,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-1bff6bc204f4",
+      "message_id": "<CANnL8gp+1OCuhOU_zzSK+428QWikbyWeAengvWovU-4H_-XqsQ@mail.gmail.com>",
+      "from_name": "Tim Keitt",
+      "from_email_hash": "d1fbfc1cb7ef35401094f34c8b86be970c51c67d04033c5e7eff9b5bfec47e48",
+      "date": "2017-06-04T09:25:39+08:00",
+      "subject": "[Rcpp-devel] RcppParallel wrong after correct",
+      "subject_clean": "[Rcpp-devel] RcppParallel wrong after correct",
+      "in_reply_to": "<54BB66D0-42C2-425F-A0F5-ADD83BB90DF5@r-enthusiasts.com>",
+      "references": [
+        "<290985F5-CD64-4D4A-865A-38EF5CB489EE@mailbox.org>",
+        "<54BB66D0-42C2-425F-A0F5-ADD83BB90DF5@r-enthusiasts.com>"
+      ],
+      "body_plain": "On Fri, Jun 2, 2017 at 9:56 PM, Romain Francois <romain at r-enthusiasts.com>\nwrote:\n\n> The modulo is somehow not working correctly?\n\n\nPossible. Modulo in C++ behaves differently than in R.\n\nMore likely is you are working outside the index bound that RcppParallel\nuses to chunk the work.\n\nTHK\n\nhttp://www.keittlab.org/\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170604/5aee2ae1/attachment.html>",
+      "body_snippet": "On Fri, Jun 2, 2017 at 9:56 PM, Romain Francois <romain at r-enthusiasts.com>\nwrote:\n\n> The modulo is somehow not working correctly?\n\n\nPossible. Modulo in C++ behaves differently than in R.\n\nMore like",
+      "thread_id": "thread-930c2b6947b4",
+      "thread_depth": 2,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-03f3bc2781ee",
+      "message_id": "<22836.2286.899676.675202@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-04T08:19:42-05:00",
+      "subject": "[Rcpp-devel] [ANN] Interim release Rcpp 0.12.11.2 available via Rcpp Drat",
+      "subject_clean": "[Rcpp-devel] [ANN] Interim release Rcpp 0.12.11.2 available via Rcpp Drat",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "The recent Rcpp release 0.12.11 addressed a few things which R 3.4.0\nrequired, notably for package registration.  We got most of that right, but\nthe code change came reasonably late which shortened the testing (while the\nrelease needed to get out to address some other things).\n\nSo by now we know two corner cases which needed touchups which JJ promptly\nput into with Rcpp Attributes:  i) \"named\" export tags, and ii) registration\nfrom the skeleton generator when Modules is turned on.\n\nSo the current master branch is available as release 0.12.11.2 via the drat\nrepo.  You can do the usual\n\n     drat::addRepo(\"RcppCore\")   ## if in .Rprofile this is always \"on\"\n     install.packages(\"Rcpp\")\n\nto get it, or a direct\n\n     install.packages(\"Rcpp\", repos=\"http://RcppCore.github.io/drat\")\n\nif you feel you can do without the (tiny) drat package. See \n\n     http://rcppcore.github.io/drat/\n\nfor more.\n\nAgain, thanks to JJ for putting fixes in essentially with hours of this\nsurfacing, and to everybody for continued testing and feedback.\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "The recent Rcpp release 0.12.11 addressed a few things which R 3.4.0\nrequired, notably for package registration.  We got most of that right, but\nthe code change came reasonably late which shortened th",
+      "thread_id": "thread-03f3bc2781ee",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-40afb7e2ecb9",
+      "message_id": "<22836.8235.1098.137142@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-04T09:58:51-05:00",
+      "subject": "[Rcpp-devel] [ANN] RcppArmadillo 0.7.900.2.0",
+      "subject_clean": "[Rcpp-devel] [ANN] RcppArmadillo 0.7.900.2.0",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "A new RcppArmadillo release is on CRAN after quite some rounds of testing,\nand prereleases announced here. It offers OpenMP \"inside\" Armadillo\noperations which is pretty neat.  See the included blog post below, the full\nversion with hyperlinks is at\n\n   http://dirk.eddelbuettel.com/blog/2017/06/04#rcpparmadillo_0.7.900.2.0\n\nThanks,  Dirk\n\n\n  Sun, 04 Jun 2017\n\n  RcppArmadillo 0.7.900.2.0\n\n   armadillo image\n\n   The new RcppArmadillo release 0.7.900.2.0 is now on CRAN, and the Debian\n   package was just updated as well.\n\n   Armadillo is a powerful and expressive C++ template library for linear\n   algebra aiming towards a good balance between speed and ease of use with a\n   syntax deliberately close to a Matlab. RcppArmadillo integrates this\n   library with the R environment and language--and is widely used by\n   (currently) 350 other packages on CRAN---an increase of 32 since the last\n   CRAN release of 0.7.800.2.0 in April!\n\n   With the 7.900.* series of Armadillo, Conrad has started to more fully\n   utilize OpenMP (also see Wikipedia on OpenMP) for operations that can be\n   parallelized. To use this in your package you need to update its\n   src/Makevars{,.win} file similarly to what the skeleton default now uses\n\n PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)\n PKG_LIBS = $(SHLIB_OPENMP_CFLAGS) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS)\n\n   and you may want to enable C++11 while you are at it---though this may\n   pose issues with older-than-ancient RHEL installations which are still\n   (way too) pervasive so we do not do it by default (yet).\n\n   Here, we once again rely on the build infrastructure automagically\n   provided by R itself: if and when OpenMP is available, R will use it via\n   $(SHLIB_OPENMP_CXXFLAGS) etc; see the fine WRE manual for details. That\n   said, some operating systems make this harder than other, and macOS\n   usually takes the crown. See for example this blog post by James for\n   surviving in that environment. I am a little short of details because on\n   Linux these things just work, and have for well over a decade. The\n   rcpp-devel mailing list will be the best place for questions.\n\n   Changes in this release relative to the previous CRAN release are as\n   follows:\n\n    Changes in RcppArmadillo version 0.7.900.2.0 (2017-06-02)\n\n       * Upgraded to Armadillo release 7.900.2 (Evil Banana Republic)\n\n            * Expanded clamp() to handle cubes\n\n            * Computationally expensive element-wise functions (such as\n              exp(), log(), cos(), etc) can now be automatically sped up via\n              OpenMP; this requires a C++11/C++14 compiler with OpenMP 3.0+\n              support for GCC and clang compilers\n\n            * One caveat: when using GCC, use of -march=native in conjunction\n              with -fopenmp may lead to speed regressions on recent\n              processors\n\n       * Added gcc 7 to support compiler check (James Balamuta in #128\n         addressing #126).\n\n       * A unit test helper function for rmultinom was corrected (#133).\n\n       * OpenMP support was added to the skeleton helper in inline.R\n\n   Courtesy of CRANberries, there is a diffstat report. More detailed\n   information is on the RcppArmadillo page. Questions, comments etc should\n   go to the rcpp-devel mailing list off the R-Forge page.\n\n   This post by Dirk Eddelbuettel originated on his Thinking inside the box\n   blog. Please report excessive re-aggregation in third-party for-profit\n   settings.\n\n                                                  /code/rcpp | permanent link\n\n                                                                        [IMG]\n\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "A new RcppArmadillo release is on CRAN after quite some rounds of testing,\nand prereleases announced here. It offers OpenMP \"inside\" Armadillo\noperations which is pretty neat.  See the included blog p",
+      "thread_id": "thread-40afb7e2ecb9",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-da60a6323c1b",
+      "message_id": "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+      "from_name": "Wolf Vollprecht",
+      "from_email_hash": "98d6fd789190668f788db9906913cad98e8aa1be8f387e0e0c0a9580233d80bc",
+      "date": "2017-06-06T14:15:46-07:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Dear RCpp developer community,\n\nI put together a small proof of concept for the xtensor R bindings over the\nweekend.\nIt lives here: https://github.com/QuantStack/xtensor-r\n\nxtensor is an exciting C++ library which provides a unified C++ tensor\ninterface for Python/NumPy, Julia and soon R.\n\nMy biggest question is in the memory management of R. Maybe you could do a\nquick code review?\nIs it enough to call Rcpp_release_object with the SEXP in the destructor of\nthe rxarray (which I haven't implemented yet)?\nAlso for the shape of the rxarray, I allocate another R-vector. Is that\ngoing to get destroyed upon destruction of the R-array?\n\nBest,\n\nWolf\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170606/63eab776/attachment.html>",
+      "body_snippet": "Dear RCpp developer community,\n\nI put together a small proof of concept for the xtensor R bindings over the\nweekend.\nIt lives here: https://github.com/QuantStack/xtensor-r\n\nxtensor is an exciting C++ ",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-62809810d443",
+      "message_id": "<22839.10067.831354.645270@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-06T17:06:11-05:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+      "references": [
+        "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>"
+      ],
+      "body_plain": "Howdy,\n\nOn 6 June 2017 at 14:15, Wolf Vollprecht wrote:\n| I put together a small proof of concept for the xtensor R bindings over the\n| weekend.?\n| It lives here:?https://github.com/QuantStack/xtensor-r\n\nNice!  Not sure I have spare cycles right now for this but that is very welcome.\n \n| xtensor is an exciting C++ library which provides a unified C++ tensor\n| interface for Python/NumPy, Julia and soon R.\n| \n| My biggest question is in the memory management of R. Maybe you could do a\n| quick code review?\n| Is it enough to call Rcpp_release_object with the SEXP in the destructor of the\n| rxarray (which I haven't implemented yet)?\n| Also for the shape of the rxarray, I allocate another R-vector. Is that going\n| to get destroyed upon destruction of the R-array?\n\nThe general idea when working with R objects is that\n\n  -- on the way in from R to the C++ functions we construct object such that\n     the existing memory (from R) is used; one example is how RcppArmadillo\n     uses the 'advanced' constructors of Armadillo allowing to operate\n     without copies; hence R managed memory is used while C++ functions are\n     called; in general this side of the conversion is the templates as<>()\n     converters;\n     \n  -- on the way back we use the *alloc functions from the C-level API of R to\n     construct objects that use memory from R's pool, once we return these\n     objects to R as SEXP they are indistinguishable to R from its own; these\n     are the wrap() functions (and I think we may make on occassion make \"one\n     final copy\" at his level, but I'd have to double-check).     \n\nI haven't had a chance to look at what Wes is doing with Apache Arrow, and\nwhat is happening with xtensor -- so thanks for getting the ball rolling.\n\nDirk\n     \n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Howdy,\n\nOn 6 June 2017 at 14:15, Wolf Vollprecht wrote:\n| I put together a small proof of concept for the xtensor R bindings over the\n| weekend.?\n| It lives here:?https://github.com/QuantStack/xtensor",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 1,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-d9e136de1392",
+      "message_id": "<CANdCyddqUJx9LWL4OJw+gRpEWG5JdPkoqFK5VhLzNJ1uWEtcBg@mail.gmail.com>",
+      "from_name": "Xiaojie Qiu",
+      "from_email_hash": "6b95ad313655be296c45349b3a047328365e3a04b246750a320fe45de17053e4",
+      "date": "2017-06-06T22:22:10Z",
+      "subject": "[Rcpp-devel] Parallel ANN search with openMPI",
+      "subject_clean": "[Rcpp-devel] Parallel ANN search with openMPI",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi Rcpp friends,\n\nI have a question regarding to parallel my rcpp code for KNN querying. I\nused ANN c++ package and the following is a test code related to the code\nfor the querying. I can run through the code when I don' use the openMP.\nBut I get error like the following when I use it :\n\n *** caught illegal operation ***\naddress 0x1128e667d, cause 'illegal opcode'\n\nI have a few questions, 1. what are the potential errors I made in the\nfollowing code?  2. do we need to require the annkSearch function\nbe thread-safe in order to use openMP here? 3. If  we cannot use openMP\nhere because annkSearch is not thread-safe, can we use RcppParallel here?\n\nThanks a lot,\n\n*ANNpoint pq;*\n*  pq = annAllocPt(d);*\n*  int i, j;*\n*  nn_idx    = new ANNidx[k];    // Allocate near neigh indices*\n*  dists    = new ANNdist[k];   // Allocate near neighbor dists*\n*  omp_set_num_threads(3);*\n*  for(j = 0; j < d; j++)*\n*  {*\n*    pq[j]=data[ d_ptr[j]++ ];*\n*  }*\n\n*  // ------------ test kdtree search loop:   ------------ *\n*  Rcout << \"before search 1\" << std::endl;*\n*  #pragma omp parallel for shared(the_tree, k, error_bound) private(i, pq,\nnn_idx, dists)*\n*  for(i = 0; i < 3; i ++)*\n*  { *\n*    if(i == 2){*\n*      the_tree->annkSearch( // search*\n*          pq, // query point*\n*          k,    // number of near neighbors*\n*          nn_idx,   // nearest neighbors (returned)*\n*          dists,    // distance (returned)*\n*          error_bound); // error bound*\n*    }*\n*  }*\n*  Rcout << \"end search 1\" << std::endl;*\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170606/b83ce795/attachment.html>",
+      "body_snippet": "Hi Rcpp friends,\n\nI have a question regarding to parallel my rcpp code for KNN querying. I\nused ANN c++ package and the following is a test code related to the code\nfor the querying. I can run through",
+      "thread_id": "thread-d9e136de1392",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-3cefe64f6dd5",
+      "message_id": "<22839.14937.753998.166743@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-06T18:27:21-05:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": "<22839.10067.831354.645270@max.eddelbuettel.com>",
+      "references": [
+        "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+        "<22839.10067.831354.645270@max.eddelbuettel.com>"
+      ],
+      "body_plain": "On 6 June 2017 at 17:06, Dirk Eddelbuettel wrote:\n| The general idea when working with R objects is that\n| \n|   -- on the way in from R to the C++ functions we construct object such that\n|      the existing memory (from R) is used; one example is how RcppArmadillo\n|      uses the 'advanced' constructors of Armadillo allowing to operate\n|      without copies; hence R managed memory is used while C++ functions are\n|      called; in general this side of the conversion is the templates as<>()\n|      converters;\n|      \n|   -- on the way back we use the *alloc functions from the C-level API of R to\n|      construct objects that use memory from R's pool, once we return these\n|      objects to R as SEXP they are indistinguishable to R from its own; these\n|      are the wrap() functions (and I think we may make on occassion make \"one\n|      final copy\" at his level, but I'd have to double-check).     \n\nActually, let me rephrase: \"in most cases not involving native R types\" do we\nmake one copy at the return.\n\nThe general approach is iterator based, see internal/wrap.h. But there is a\nlot of template magic...\n\nDirk\n\n| I haven't had a chance to look at what Wes is doing with Apache Arrow, and\n| what is happening with xtensor -- so thanks for getting the ball rolling.\n| \n| Dirk\n|      \n| -- \n| http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 6 June 2017 at 17:06, Dirk Eddelbuettel wrote:\n| The general idea when working with R objects is that\n| \n|   -- on the way in from R to the C++ functions we construct object such that\n|      the ex",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 2,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-057cc7f8d06f",
+      "message_id": "<CADDUUuDA_R=n4gyJh4wRLggQkGnO3dctqBN5ocZvSnHwCVsABw@mail.gmail.com>",
+      "from_name": "Wolf Vollprecht",
+      "from_email_hash": "98d6fd789190668f788db9906913cad98e8aa1be8f387e0e0c0a9580233d80bc",
+      "date": "2017-06-06T18:01:06-07:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": "<22839.14937.753998.166743@max.eddelbuettel.com>",
+      "references": [
+        "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+        "<22839.10067.831354.645270@max.eddelbuettel.com>",
+        "<22839.14937.753998.166743@max.eddelbuettel.com>"
+      ],
+      "body_plain": "Ok, I think I got the idea.\n\nIn the R->xtensor bindings, we always work directly on memory allocated\nthrough R (either passed in from R or allocated from C++ code).\n\nThe review-relevant lines are really only ~10 lines: https://github.com/\nQuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L145\n\n    const int vtype = traits::r_sexptype_traits<int>::rtype;\n    SEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n\n    int* r_shape = INTEGER(shape_sxp);\n        // set shape values ...\n    m_sexp = Rf_allocArray(SXP, shape_sxp);\n\nSo afterwards, the idea would be to make a call to\n\nRcpp_PreserveObject(m_sexp);\n\nright? And if the destructor of the object is called (and the object is\nowned from C++) we would just call\n\nRcpp_ReleaseObject(m_sexp);\n\nAnd the memory is going to be freed again, at some point. And calling\nRcpp_ReleaseObject(m_sexp) would also clear the shape_sxp \"attribute\",\nright?\n\nThanks for your reply!\nWolf\n\n\n2017-06-06 16:27 GMT-07:00 Dirk Eddelbuettel <edd at debian.org>:\n\n>\n> On 6 June 2017 at 17:06, Dirk Eddelbuettel wrote:\n> | The general idea when working with R objects is that\n> |\n> |   -- on the way in from R to the C++ functions we construct object such\n> that\n> |      the existing memory (from R) is used; one example is how\n> RcppArmadillo\n> |      uses the 'advanced' constructors of Armadillo allowing to operate\n> |      without copies; hence R managed memory is used while C++ functions\n> are\n> |      called; in general this side of the conversion is the templates\n> as<>()\n> |      converters;\n> |\n> |   -- on the way back we use the *alloc functions from the C-level API of\n> R to\n> |      construct objects that use memory from R's pool, once we return\n> these\n> |      objects to R as SEXP they are indistinguishable to R from its own;\n> these\n> |      are the wrap() functions (and I think we may make on occassion make\n> \"one\n> |      final copy\" at his level, but I'd have to double-check).\n>\n> Actually, let me rephrase: \"in most cases not involving native R types\" do\n> we\n> make one copy at the return.\n>\n> The general approach is iterator based, see internal/wrap.h. But there is a\n> lot of template magic...\n>\n> Dirk\n>\n> | I haven't had a chance to look at what Wes is doing with Apache Arrow,\n> and\n> | what is happening with xtensor -- so thanks for getting the ball rolling.\n> |\n> | Dirk\n> |\n> | --\n> | http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> | _______________________________________________\n> | Rcpp-devel mailing list\n> | Rcpp-devel at lists.r-forge.r-project.org\n> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170606/d4305249/attachment-0001.html>",
+      "body_snippet": "Ok, I think I got the idea.\n\nIn the R->xtensor bindings, we always work directly on memory allocated\nthrough R (either passed in from R or allocated from C++ code).\n\nThe review-relevant lines are real",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 3,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-ee415e961da8",
+      "message_id": "<22839.21437.488636.370944@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-06T20:15:41-05:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": "<CADDUUuDA_R=n4gyJh4wRLggQkGnO3dctqBN5ocZvSnHwCVsABw@mail.gmail.com>",
+      "references": [
+        "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+        "<22839.10067.831354.645270@max.eddelbuettel.com>",
+        "<22839.14937.753998.166743@max.eddelbuettel.com>",
+        "<CADDUUuDA_R=n4gyJh4wRLggQkGnO3dctqBN5ocZvSnHwCVsABw@mail.gmail.com>"
+      ],
+      "body_plain": "On 6 June 2017 at 18:01, Wolf Vollprecht wrote:\n| Ok, I think I got the idea.?\n| \n| In the R->xtensor bindings, we always work directly on memory allocated through\n| R (either passed in from R or allocated from C++ code).\n| \n| The review-relevant lines are really only ~10 lines:?https://github.com/\n| QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L145\n| \n| ? ? const int vtype = traits::r_sexptype_traits<int>::rtype;\n| ? ? SEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n| \n| ? ? int* r_shape = INTEGER(shape_sxp);\n| ? ? ? ? // set shape values ...?\n| ? ? m_sexp = Rf_allocArray(SXP, shape_sxp);\n| \n| So afterwards, the idea would be to make a call to?\n| \n| Rcpp_PreserveObject(m_sexp);\n| \n| right? And if the destructor of the object is called (and the object is owned\n| from C++) we would just call?\n| \n| Rcpp_ReleaseObject(m_sexp);\n| \n| And the memory is going to be freed again, at some point. And calling\n| Rcpp_ReleaseObject(m_sexp) would also clear the shape_sxp \"attribute\", right?\n\nYes, that is roughly correct and how we used to do things -- but you can\nprobably even do better by relying on\n\n    Rcpp::Shield<yourTypeHere>\n\nwhich then covers the preserve / release parts in its own ctor / dtor pair.\n\nAnd I glanced at your repo, that looks pretty good so far. You found how to\ndeclare C++14 as its default C++ standard, this of course requires R 3.4.0.\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 6 June 2017 at 18:01, Wolf Vollprecht wrote:\n| Ok, I think I got the idea.?\n| \n| In the R->xtensor bindings, we always work directly on memory allocated through\n| R (either passed in from R or allo",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 4,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-bb05a9ad9ada",
+      "message_id": "<CAJ_LAMB_Q9G54XkqjyjQaFtj63T7otQGkVTvuWUvcYxyxHJ+Fg@mail.gmail.com>",
+      "from_name": "Qiang Kou",
+      "from_email_hash": "0d4fdf3da64c31856471223111f08d09403b37154155aca4b413b87e0d1611b8",
+      "date": "2017-06-06T21:19:16-04:00",
+      "subject": "[Rcpp-devel] Parallel ANN search with openMPI",
+      "subject_clean": "[Rcpp-devel] Parallel ANN search with openMPI",
+      "in_reply_to": "<CANdCyddqUJx9LWL4OJw+gRpEWG5JdPkoqFK5VhLzNJ1uWEtcBg@mail.gmail.com>",
+      "references": [
+        "<CANdCyddqUJx9LWL4OJw+gRpEWG5JdPkoqFK5VhLzNJ1uWEtcBg@mail.gmail.com>"
+      ],
+      "body_plain": "Hi, Xiaojie,\n\nPlease provide a reproducible example. I am afraid it is very hard to help\nwith just a small code snippet.\n\nBest,\n\nQiang Kou\n\nOn Tue, Jun 6, 2017 at 6:22 PM, Xiaojie Qiu <xqiu at uw.edu> wrote:\n\n> Hi Rcpp friends,\n>\n> I have a question regarding to parallel my rcpp code for KNN querying. I\n> used ANN c++ package and the following is a test code related to the code\n> for the querying. I can run through the code when I don' use the openMP.\n> But I get error like the following when I use it :\n>\n>  *** caught illegal operation ***\n> address 0x1128e667d, cause 'illegal opcode'\n>\n> I have a few questions, 1. what are the potential errors I made in the\n> following code?  2. do we need to require the annkSearch function\n> be thread-safe in order to use openMP here? 3. If  we cannot use openMP\n> here because annkSearch is not thread-safe, can we use RcppParallel here?\n>\n> Thanks a lot,\n>\n> *ANNpoint pq;*\n> *  pq = annAllocPt(d);*\n> *  int i, j;*\n> *  nn_idx    = new ANNidx[k];    // Allocate near neigh indices*\n> *  dists    = new ANNdist[k];   // Allocate near neighbor dists*\n> *  omp_set_num_threads(3);*\n> *  for(j = 0; j < d; j++)*\n> *  {*\n> *    pq[j]=data[ d_ptr[j]++ ];*\n> *  }*\n>\n> *  // ------------ test kdtree search loop:   ------------ *\n> *  Rcout << \"before search 1\" << std::endl;*\n> *  #pragma omp parallel for shared(the_tree, k, error_bound) private(i,\n> pq, nn_idx, dists)*\n> *  for(i = 0; i < 3; i ++)*\n> *  { *\n> *    if(i == 2){*\n> *      the_tree->annkSearch( // search*\n> *          pq, // query point*\n> *          k,    // number of near neighbors*\n> *          nn_idx,   // nearest neighbors (returned)*\n> *          dists,    // distance (returned)*\n> *          error_bound); // error bound*\n> *    }*\n> *  }*\n> *  Rcout << \"end search 1\" << std::endl;*\n>\n>\n>\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n\n\n\n-- \nQiang Kou\nqkou at umail.iu.edu\nSchool of Informatics and Computing, Indiana University\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170606/d224fd89/attachment.html>",
+      "body_snippet": "Hi, Xiaojie,\n\nPlease provide a reproducible example. I am afraid it is very hard to help\nwith just a small code snippet.\n\nBest,\n\nQiang Kou\n\nOn Tue, Jun 6, 2017 at 6:22 PM, Xiaojie Qiu <xqiu at uw.edu>",
+      "thread_id": "thread-d9e136de1392",
+      "thread_depth": 1,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-6e08eba208aa",
+      "message_id": "<EF932A97-33E9-44C9-9117-D131A3324225@r-enthusiasts.com>",
+      "from_name": "Romain Francois",
+      "from_email_hash": "8f31c4dddde5f249ac380b8d2d5d1eff7bd702b45de9f90ab8075a7b03949f03",
+      "date": "2017-06-07T09:29:44+02:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": "<CADDUUuDA_R=n4gyJh4wRLggQkGnO3dctqBN5ocZvSnHwCVsABw@mail.gmail.com>",
+      "references": [
+        "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+        "<22839.10067.831354.645270@max.eddelbuettel.com>",
+        "<22839.14937.753998.166743@max.eddelbuettel.com>",
+        "<CADDUUuDA_R=n4gyJh4wRLggQkGnO3dctqBN5ocZvSnHwCVsABw@mail.gmail.com>"
+      ],
+      "body_plain": "Hi, \n\nInstead of doing that: \n\nconst int vtype = traits::r_sexptype_traits<int>::rtype;\nSEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n\nPerhaps your rxarray object could hold an IntegerVector. Also not quite sure why you use the first line at all, which does not depend on T, so vtype is always going to be INTSXP. \n\n\nAlso, you should avoid using std::cout in https://github.com/QuantStack/xtensor-r/blob/master/src/rcpp_hello_xtensor.cpp#L14 <https://github.com/QuantStack/xtensor-r/blob/master/src/rcpp_hello_xtensor.cpp#L14>\n\nYou can use Rcpp::Rcout instead, or Rprintf. \n\n> And the memory is going to be freed again, at some point. And calling Rcpp_ReleaseObject(m_sexp) would also clear the shape_sxp \"attribute\", right?\n\n\nThe shape_sxp object you create here (and don?t protect)\nhttps://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L152 <https://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L152>\n\nIs probably duplicated here: \nhttps://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L160 <https://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L160>\n\nAs part of allocArray?s business: \nhttps://github.com/wch/r-source/blob/d60c742aa8acc764874db87e3c748e27986e1134/src/main/array.c#L259 <https://github.com/wch/r-source/blob/d60c742aa8acc764874db87e3c748e27986e1134/src/main/array.c#L259>\n\nRomain\n\n\n\n> Le 7 juin 2017 ? 03:01, Wolf Vollprecht <w.vollprecht at gmail.com> a ?crit :\n> \n> Ok, I think I got the idea. \n> \n> In the R->xtensor bindings, we always work directly on memory allocated through R (either passed in from R or allocated from C++ code).\n> \n> The review-relevant lines are really only ~10 lines: https://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L145 <https://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L145>\n> \n>     const int vtype = traits::r_sexptype_traits<int>::rtype;\n>     SEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n> \n>     int* r_shape = INTEGER(shape_sxp);\n>         // set shape values ... \n>     m_sexp = Rf_allocArray(SXP, shape_sxp);\n> \n> So afterwards, the idea would be to make a call to \n> \n> Rcpp_PreserveObject(m_sexp);\n> \n> right? And if the destructor of the object is called (and the object is owned from C++) we would just call \n> \n> Rcpp_ReleaseObject(m_sexp);\n> \n> And the memory is going to be freed again, at some point. And calling Rcpp_ReleaseObject(m_sexp) would also clear the shape_sxp \"attribute\", right?\n> \n> Thanks for your reply! \n> \n> Wolf\n> \n> \n> 2017-06-06 16:27 GMT-07:00 Dirk Eddelbuettel <edd at debian.org <mailto:edd at debian.org>>:\n> \n> On 6 June 2017 at 17:06, Dirk Eddelbuettel wrote:\n> | The general idea when working with R objects is that\n> |\n> |   -- on the way in from R to the C++ functions we construct object such that\n> |      the existing memory (from R) is used; one example is how RcppArmadillo\n> |      uses the 'advanced' constructors of Armadillo allowing to operate\n> |      without copies; hence R managed memory is used while C++ functions are\n> |      called; in general this side of the conversion is the templates as<>()\n> |      converters;\n> |\n> |   -- on the way back we use the *alloc functions from the C-level API of R to\n> |      construct objects that use memory from R's pool, once we return these\n> |      objects to R as SEXP they are indistinguishable to R from its own; these\n> |      are the wrap() functions (and I think we may make on occassion make \"one\n> |      final copy\" at his level, but I'd have to double-check).\n> \n> Actually, let me rephrase: \"in most cases not involving native R types\" do we\n> make one copy at the return.\n> \n> The general approach is iterator based, see internal/wrap.h. But there is a\n> lot of template magic...\n> \n> Dirk\n> \n> | I haven't had a chance to look at what Wes is doing with Apache Arrow, and\n> | what is happening with xtensor -- so thanks for getting the ball rolling.\n> |\n> | Dirk\n> |\n> | --\n> | http://dirk.eddelbuettel.com <http://dirk.eddelbuettel.com/> | @eddelbuettel | edd at debian.org <mailto:edd at debian.org>\n> | _______________________________________________\n> | Rcpp-devel mailing list\n> | Rcpp-devel at lists.r-forge.r-project.org <mailto:Rcpp-devel at lists.r-forge.r-project.org>\n> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel <https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel>\n> \n> --\n> http://dirk.eddelbuettel.com <http://dirk.eddelbuettel.com/> | @eddelbuettel | edd at debian.org <mailto:edd at debian.org>\n> \n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170607/8c7d3b44/attachment-0001.html>",
+      "body_snippet": "Hi, \n\nInstead of doing that: \n\nconst int vtype = traits::r_sexptype_traits<int>::rtype;\nSEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n\nPerhaps your rxarray object could hold an IntegerVector. ",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 4,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-07ff823ce611",
+      "message_id": "<22839.56492.572908.447345@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-07T05:59:56-05:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": "<EF932A97-33E9-44C9-9117-D131A3324225@r-enthusiasts.com>",
+      "references": [
+        "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+        "<22839.10067.831354.645270@max.eddelbuettel.com>",
+        "<22839.14937.753998.166743@max.eddelbuettel.com>",
+        "<CADDUUuDA_R=n4gyJh4wRLggQkGnO3dctqBN5ocZvSnHwCVsABw@mail.gmail.com>",
+        "<EF932A97-33E9-44C9-9117-D131A3324225@r-enthusiasts.com>"
+      ],
+      "body_plain": "On 7 June 2017 at 09:29, Romain Francois wrote:\n| Hi, \n| \n| Instead of doing that: \n| \n| const int vtype = traits::r_sexptype_traits<int>::rtype;\n| SEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n| \n| Perhaps your rxarray object could hold an IntegerVector. Also not quite sure\n| why you use the first line at all, which does not depend on T, so vtype is\n| always going to be INTSXP. \n| \n| Also, you should avoid using std::cout in https://github.com/QuantStack/\n| xtensor-r/blob/master/src/rcpp_hello_xtensor.cpp#L14\n| \n| You can use Rcpp::Rcout instead, or Rprintf. \n\nYep. And 'install_and_test.R' builds via build() and installs the package\nwhich is muddled; the demo code is better in inst/demo/ or inst/scripts.\n\nFor what it is worth I looked into taking the xtensor .deb package and\ncreating an Ubuntu 16.04 package via the launchpad.net service. I have that\nin 'my' PPA (https://launchpad.net/~edd/+archive/ubuntu/misc/+packages) and\nwill try the same for a 14.04 package at which point we could use Travis\neasily. I may create a simple 'more standard R package' PR.\n\nDirk\n\n|     And the memory is going to be freed again, at some point. And calling\n|     Rcpp_ReleaseObject(m_sexp) would also clear the shape_sxp \"attribute\",\n|     right?\n| \n| The shape_sxp object you create here (and don?t protect)\n| https://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/\n| rxarray.hpp#L152\n| \n| Is probably duplicated here: \n| https://github.com/QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/\n| rxarray.hpp#L160\n| \n| As part of allocArray?s business: \n| https://github.com/wch/r-source/blob/d60c742aa8acc764874db87e3c748e27986e1134/\n| src/main/array.c#L259\n| \n| Romain\n| \n| \n| \n| \n|     Le 7 juin 2017 ? 03:01, Wolf Vollprecht <w.vollprecht at gmail.com> a ?crit :\n| \n|     Ok, I think I got the idea. \n| \n|     In the R->xtensor bindings, we always work directly on memory allocated\n|     through R (either passed in from R or allocated from C++ code).\n| \n|     The review-relevant lines are really only ~10 lines: https://github.com/\n|     QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/rxarray.hpp#L145\n| \n|         const int vtype = traits::r_sexptype_traits<int>::rtype;\n|         SEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n| \n|         int* r_shape = INTEGER(shape_sxp);\n|             // set shape values ... \n|         m_sexp = Rf_allocArray(SXP, shape_sxp);\n| \n|     So afterwards, the idea would be to make a call to \n| \n|     Rcpp_PreserveObject(m_sexp);\n| \n|     right? And if the destructor of the object is called (and the object is\n|     owned from C++) we would just call \n| \n|     Rcpp_ReleaseObject(m_sexp);\n| \n|     And the memory is going to be freed again, at some point. And calling\n|     Rcpp_ReleaseObject(m_sexp) would also clear the shape_sxp \"attribute\",\n|     right?\n| \n|     Thanks for your reply! \n|     [cleardot]\n|     Wolf\n|    \n| \n|     2017-06-06 16:27 GMT-07:00 Dirk Eddelbuettel <edd at debian.org>:\n| \n|        \n|         On 6 June 2017 at 17:06, Dirk Eddelbuettel wrote:\n|         | The general idea when working with R objects is that\n|         |\n|         |   -- on the way in from R to the C++ functions we construct object\n|         such that\n|         |      the existing memory (from R) is used; one example is how\n|         RcppArmadillo\n|         |      uses the 'advanced' constructors of Armadillo allowing to\n|         operate\n|         |      without copies; hence R managed memory is used while C++\n|         functions are\n|         |      called; in general this side of the conversion is the templates\n|         as<>()\n|         |      converters;\n|         |\n|         |   -- on the way back we use the *alloc functions from the C-level API\n|         of R to\n|         |      construct objects that use memory from R's pool, once we return\n|         these\n|         |      objects to R as SEXP they are indistinguishable to R from its\n|         own; these\n|         |      are the wrap() functions (and I think we may make on occassion\n|         make \"one\n|         |      final copy\" at his level, but I'd have to double-check).\n| \n|         Actually, let me rephrase: \"in most cases not involving native R types\"\n|         do we\n|         make one copy at the return.\n| \n|         The general approach is iterator based, see internal/wrap.h. But there\n|         is a\n|         lot of template magic...\n| \n|         Dirk\n|        \n|         | I haven't had a chance to look at what Wes is doing with Apache\n|         Arrow, and\n|         | what is happening with xtensor -- so thanks for getting the ball\n|         rolling.\n|         |\n|         | Dirk\n|         |\n|         | --\n|         | http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n|         | _______________________________________________\n|         | Rcpp-devel mailing list\n|         | Rcpp-devel at lists.r-forge.r-project.org\n|         | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/\n|         rcpp-devel\n| \n|         --\n|         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n| \n| \n|     _______________________________________________\n|     Rcpp-devel mailing list\n|     Rcpp-devel at lists.r-forge.r-project.org\n|     https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n| \n| \n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 7 June 2017 at 09:29, Romain Francois wrote:\n| Hi, \n| \n| Instead of doing that: \n| \n| const int vtype = traits::r_sexptype_traits<int>::rtype;\n| SEXP shape_sxp = Rf_allocVector(vtype, shape.size())",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 5,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-cfe1a5447fda",
+      "message_id": "<CADDUUuD9=qxVyLXRGHE5vbJa5K3H9uqgc=yFY84fm3O5yLa2Hg@mail.gmail.com>",
+      "from_name": "Wolf Vollprecht",
+      "from_email_hash": "98d6fd789190668f788db9906913cad98e8aa1be8f387e0e0c0a9580233d80bc",
+      "date": "2017-06-07T16:06:08-07:00",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "subject_clean": "[Rcpp-devel] Code review for xtensor R bindings",
+      "in_reply_to": "<22839.56492.572908.447345@max.eddelbuettel.com>",
+      "references": [
+        "<CADDUUuAiLnrCqR1zFxJeB-kyWVhWkZpGctRReorQ9+oJ9Ck7+A@mail.gmail.com>",
+        "<22839.10067.831354.645270@max.eddelbuettel.com>",
+        "<22839.14937.753998.166743@max.eddelbuettel.com>",
+        "<CADDUUuDA_R=n4gyJh4wRLggQkGnO3dctqBN5ocZvSnHwCVsABw@mail.gmail.com>",
+        "<EF932A97-33E9-44C9-9117-D131A3324225@r-enthusiasts.com>",
+        "<22839.56492.572908.447345@max.eddelbuettel.com>"
+      ],
+      "body_plain": "The idea with IntegerVector for shape is great. I had to fix some minor\nstuff in xtensor but it appears to be working.\n\nOk, good to know about the shape copy!\n\nYeah, this is literally a weekend project for now (and I haven't used R\nbefore) so this was just a quick-n-dirty test script.\n\nCheers,\n\nWolf\n\n\n2017-06-07 3:59 GMT-07:00 Dirk Eddelbuettel <edd at debian.org>:\n\n>\n> On 7 June 2017 at 09:29, Romain Francois wrote:\n> | Hi,\n> |\n> | Instead of doing that:\n> |\n> | const int vtype = traits::r_sexptype_traits<int>::rtype;\n> | SEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n> |\n> | Perhaps your rxarray object could hold an IntegerVector. Also not quite\n> sure\n> | why you use the first line at all, which does not depend on T, so vtype\n> is\n> | always going to be INTSXP.\n> |\n> | Also, you should avoid using std::cout in https://github.com/QuantStack/\n> | xtensor-r/blob/master/src/rcpp_hello_xtensor.cpp#L14\n> |\n> | You can use Rcpp::Rcout instead, or Rprintf.\n>\n> Yep. And 'install_and_test.R' builds via build() and installs the package\n> which is muddled; the demo code is better in inst/demo/ or inst/scripts.\n>\n> For what it is worth I looked into taking the xtensor .deb package and\n> creating an Ubuntu 16.04 package via the launchpad.net service. I have\n> that\n> in 'my' PPA (https://launchpad.net/~edd/+archive/ubuntu/misc/+packages)\n> and\n> will try the same for a 14.04 package at which point we could use Travis\n> easily. I may create a simple 'more standard R package' PR.\n>\n> Dirk\n>\n> |     And the memory is going to be freed again, at some point. And calling\n> |     Rcpp_ReleaseObject(m_sexp) would also clear the shape_sxp\n> \"attribute\",\n> |     right?\n> |\n> | The shape_sxp object you create here (and don?t protect)\n> | https://github.com/QuantStack/xtensor-r/blob/master/inst/\n> include/xtensor-r/\n> | rxarray.hpp#L152\n> |\n> | Is probably duplicated here:\n> | https://github.com/QuantStack/xtensor-r/blob/master/inst/\n> include/xtensor-r/\n> | rxarray.hpp#L160\n> |\n> | As part of allocArray?s business:\n> | https://github.com/wch/r-source/blob/d60c742aa8acc764874db87e3c748e\n> 27986e1134/\n> | src/main/array.c#L259\n> |\n> | Romain\n> |\n> |\n> |\n> |\n> |     Le 7 juin 2017 ? 03:01, Wolf Vollprecht <w.vollprecht at gmail.com> a\n> ?crit :\n> |\n> |     Ok, I think I got the idea.\n> |\n> |     In the R->xtensor bindings, we always work directly on memory\n> allocated\n> |     through R (either passed in from R or allocated from C++ code).\n> |\n> |     The review-relevant lines are really only ~10 lines:\n> https://github.com/\n> |     QuantStack/xtensor-r/blob/master/inst/include/xtensor-r/\n> rxarray.hpp#L145\n> |\n> |         const int vtype = traits::r_sexptype_traits<int>::rtype;\n> |         SEXP shape_sxp = Rf_allocVector(vtype, shape.size());\n> |\n> |         int* r_shape = INTEGER(shape_sxp);\n> |             // set shape values ...\n> |         m_sexp = Rf_allocArray(SXP, shape_sxp);\n> |\n> |     So afterwards, the idea would be to make a call to\n> |\n> |     Rcpp_PreserveObject(m_sexp);\n> |\n> |     right? And if the destructor of the object is called (and the object\n> is\n> |     owned from C++) we would just call\n> |\n> |     Rcpp_ReleaseObject(m_sexp);\n> |\n> |     And the memory is going to be freed again, at some point. And calling\n> |     Rcpp_ReleaseObject(m_sexp) would also clear the shape_sxp\n> \"attribute\",\n> |     right?\n> |\n> |     Thanks for your reply!\n> |     [cleardot]\n> |     Wolf\n> |\n> |\n> |     2017-06-06 16:27 GMT-07:00 Dirk Eddelbuettel <edd at debian.org>:\n> |\n> |\n> |         On 6 June 2017 at 17:06, Dirk Eddelbuettel wrote:\n> |         | The general idea when working with R objects is that\n> |         |\n> |         |   -- on the way in from R to the C++ functions we construct\n> object\n> |         such that\n> |         |      the existing memory (from R) is used; one example is how\n> |         RcppArmadillo\n> |         |      uses the 'advanced' constructors of Armadillo allowing to\n> |         operate\n> |         |      without copies; hence R managed memory is used while C++\n> |         functions are\n> |         |      called; in general this side of the conversion is the\n> templates\n> |         as<>()\n> |         |      converters;\n> |         |\n> |         |   -- on the way back we use the *alloc functions from the\n> C-level API\n> |         of R to\n> |         |      construct objects that use memory from R's pool, once we\n> return\n> |         these\n> |         |      objects to R as SEXP they are indistinguishable to R from\n> its\n> |         own; these\n> |         |      are the wrap() functions (and I think we may make on\n> occassion\n> |         make \"one\n> |         |      final copy\" at his level, but I'd have to double-check).\n> |\n> |         Actually, let me rephrase: \"in most cases not involving native R\n> types\"\n> |         do we\n> |         make one copy at the return.\n> |\n> |         The general approach is iterator based, see internal/wrap.h. But\n> there\n> |         is a\n> |         lot of template magic...\n> |\n> |         Dirk\n> |\n> |         | I haven't had a chance to look at what Wes is doing with Apache\n> |         Arrow, and\n> |         | what is happening with xtensor -- so thanks for getting the\n> ball\n> |         rolling.\n> |         |\n> |         | Dirk\n> |         |\n> |         | --\n> |         | http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> |         | _______________________________________________\n> |         | Rcpp-devel mailing list\n> |         | Rcpp-devel at lists.r-forge.r-project.org\n> |         | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/\n> |         rcpp-devel\n> |\n> |         --\n> |         http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n> |\n> |\n> |     _______________________________________________\n> |     Rcpp-devel mailing list\n> |     Rcpp-devel at lists.r-forge.r-project.org\n> |     https://lists.r-forge.r-project.org/cgi-bin/mailman/\n> listinfo/rcpp-devel\n> |\n> |\n> | _______________________________________________\n> | Rcpp-devel mailing list\n> | Rcpp-devel at lists.r-forge.r-project.org\n> | https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170607/5c1d07c2/attachment-0001.html>",
+      "body_snippet": "The idea with IntegerVector for shape is great. I had to fix some minor\nstuff in xtensor but it appears to be working.\n\nOk, good to know about the shape copy!\n\nYeah, this is literally a weekend projec",
+      "thread_id": "thread-da60a6323c1b",
+      "thread_depth": 6,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-58cf47e0f94c",
+      "message_id": "<b48697ee-99dc-c0df-9d8f-e2d9a60f5091@nevrome.de>",
+      "from_name": "Clemens Schmid",
+      "from_email_hash": "06f52dd29d4a848393a89ac652f52ac01499eed9797f2f12fd356918b0800b95",
+      "date": "2017-06-08T14:29:56+02:00",
+      "subject": "[Rcpp-devel] Performance issues with simple list class",
+      "subject_clean": "[Rcpp-devel] Performance issues with simple list class",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Dear Rcpp developers,\n\nfirst of all thank you for your persistent work on and with Rcpp - this\nmailinglist is impressive!\n\nI implemented a class_A and a list class_B following this\n(https://stackoverflow.com/a/44303993/3216883) example by Romain\nFrancois in the Rcpp modules framework.\nclass_A in my setup is far more complex than the example and my factory\nfunction of class_B takes a DataFrame instead of a List. Nevertheless I\ndidn't include code here - linked example is already quite comprehensive.\n\nI can instantiate objects of class_A in R and store them in the\nstd::vector in class_B. That works fine. Unfortunately I run into\nperformance problems with this approach. class_B is supposed to store up\nto 100,000 instances of class_A, but the new() call in R for just 2000\nalready takes far too long (ca. 20s). I tried to figure out what exactly\ntakes this long and I realized that it's neither the construction of the\nindividual objects of class_A, nor pushing them into the vector. The\nbottleneck seems to be somehow related to how this object of class_B is\nexposed to R. That's  especially sad because I don't want to interact a\nlot with class_B in R, but mostly use it in my C++-Code. The interaction\nwith R works with an as.data.frame() function which is again pretty fast.\n\nDo you have any ideas how I could avoid this bottleneck?\n\nClemens Schmid",
+      "body_snippet": "Dear Rcpp developers,\n\nfirst of all thank you for your persistent work on and with Rcpp - this\nmailinglist is impressive!\n\nI implemented a class_A and a list class_B following this\n(https://stackoverf",
+      "thread_id": "thread-58cf47e0f94c",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-8de33c717705",
+      "message_id": "<CANdCydeutJakBhYOr+Z3qd-He1Kqnd8hNcE0r=YTv+FKn_B8ew@mail.gmail.com>",
+      "from_name": "Xiaojie Qiu",
+      "from_email_hash": "6b95ad313655be296c45349b3a047328365e3a04b246750a320fe45de17053e4",
+      "date": "2017-06-09T18:48:56Z",
+      "subject": "[Rcpp-devel] R binding for nmslib ANN package",
+      "subject_clean": "[Rcpp-devel] R binding for nmslib ANN package",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi All,\n\nIs there anyone interested to build a R package based on Rcpp for the\ncurrent fastest and most accurate ANN searching package (\nhttps://github.com/searchivarius/nmslib)? It is several magnitude faster\nand more accurate than the Annoy package Rcppannoy Dirk built. I just\nlearnt Rcpp and am not good at C++ programming. If someone is interested, I\nwould like to team up.\n\nBest,\nXiaojie\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170609/01d192aa/attachment.html>",
+      "body_snippet": "Hi All,\n\nIs there anyone interested to build a R package based on Rcpp for the\ncurrent fastest and most accurate ANN searching package (\nhttps://github.com/searchivarius/nmslib)? It is several magnitu",
+      "thread_id": "thread-8de33c717705",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-53f22946e3e3",
+      "message_id": "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>",
+      "from_name": "Wolf Vollprecht",
+      "from_email_hash": "98d6fd789190668f788db9906913cad98e8aa1be8f387e0e0c0a9580233d80bc",
+      "date": "2017-06-12T01:11:32-07:00",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "subject_clean": "[Rcpp-devel] Starting R Interpreter from C++",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "I am trying to run C++ tests from C++ directly.\nIt looks like I need to start the R interpreter for memory management etc.\n\nSo far I have achieved moderate success through:\n\nint Rf_initEmbeddedR(int argc, char **argv)\n{\n    Rf_initialize_R(argc, argv);\n    setup_Rmainloop();\n    return 1;\n}\n\n\nHowever, the code crashes with\n\nError: function 'dataptr' not provided by package 'Rcpp'\nFatal error: unable to initialize the JIT\n\nIs there a simpler way to initialize the R environment from C++ (through\nRcpp?). Or any other insights?\n\nBest,\n\nWolf\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170612/f6f1840a/attachment.html>",
+      "body_snippet": "I am trying to run C++ tests from C++ directly.\nIt looks like I need to start the R interpreter for memory management etc.\n\nSo far I have achieved moderate success through:\n\nint Rf_initEmbeddedR(int a",
+      "thread_id": "thread-53f22946e3e3",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-7f9f6278991f",
+      "message_id": "<86BA79A1-A2BE-436B-BDFD-C4808C5D4EBC@r-enthusiasts.com>",
+      "from_name": "Romain Francois",
+      "from_email_hash": "8f31c4dddde5f249ac380b8d2d5d1eff7bd702b45de9f90ab8075a7b03949f03",
+      "date": "2017-06-12T11:22:26+02:00",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "subject_clean": "[Rcpp-devel] Starting R Interpreter from C++",
+      "in_reply_to": "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>",
+      "references": [
+        "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>"
+      ],
+      "body_plain": "You might be looking for RInside.\n\n\n> Le 12 juin 2017 ? 10:11, Wolf Vollprecht <w.vollprecht at gmail.com> a ?crit :\n> \n> I am trying to run C++ tests from C++ directly. \n> It looks like I need to start the R interpreter for memory management etc.\n> \n> So far I have achieved moderate success through:\n> \n> int Rf_initEmbeddedR(int argc, char **argv)\n> {\n>     Rf_initialize_R(argc, argv);\n>     setup_Rmainloop();\n>     return 1;\n> }\n> \n> \n> However, the code crashes with \n> \n> Error: function 'dataptr' not provided by package 'Rcpp'\n> Fatal error: unable to initialize the JIT\n> \n> Is there a simpler way to initialize the R environment from C++ (through Rcpp?). Or any other insights?\n> \n> Best, \n> \n> Wolf\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170612/c9c048b1/attachment.html>",
+      "body_snippet": "You might be looking for RInside.\n\n\n> Le 12 juin 2017 ? 10:11, Wolf Vollprecht <w.vollprecht at gmail.com> a ?crit :\n> \n> I am trying to run C++ tests from C++ directly. \n> It looks like I need to sta",
+      "thread_id": "thread-53f22946e3e3",
+      "thread_depth": 1,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-26638d3a80b5",
+      "message_id": "<22846.30164.215734.399807@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-12T06:07:00-05:00",
+      "subject": "[Rcpp-devel] Performance issues with simple list class",
+      "subject_clean": "[Rcpp-devel] Performance issues with simple list class",
+      "in_reply_to": "<b48697ee-99dc-c0df-9d8f-e2d9a60f5091@nevrome.de>",
+      "references": [
+        "<b48697ee-99dc-c0df-9d8f-e2d9a60f5091@nevrome.de>"
+      ],
+      "body_plain": "On 8 June 2017 at 14:29, Clemens Schmid wrote:\n| Dear Rcpp developers,\n| \n| first of all thank you for your persistent work on and with Rcpp - this\n| mailinglist is impressive!\n| \n| I implemented a class_A and a list class_B following this\n| (https://stackoverflow.com/a/44303993/3216883) example by Romain\n| Francois in the Rcpp modules framework.\n| class_A in my setup is far more complex than the example and my factory\n| function of class_B takes a DataFrame instead of a List. Nevertheless I\n| didn't include code here - linked example is already quite comprehensive.\n| \n| I can instantiate objects of class_A in R and store them in the\n| std::vector in class_B. That works fine. Unfortunately I run into\n| performance problems with this approach. class_B is supposed to store up\n| to 100,000 instances of class_A, but the new() call in R for just 2000\n| already takes far too long (ca. 20s). I tried to figure out what exactly\n| takes this long and I realized that it's neither the construction of the\n| individual objects of class_A, nor pushing them into the vector. The\n| bottleneck seems to be somehow related to how this object of class_B is\n| exposed to R. That's  especially sad because I don't want to interact a\n| lot with class_B in R, but mostly use it in my C++-Code. The interaction\n| with R works with an as.data.frame() function which is again pretty fast.\n| \n| Do you have any ideas how I could avoid this bottleneck?\n\nI fear nobody can tell without code.\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 8 June 2017 at 14:29, Clemens Schmid wrote:\n| Dear Rcpp developers,\n| \n| first of all thank you for your persistent work on and with Rcpp - this\n| mailinglist is impressive!\n| \n| I implemented a cl",
+      "thread_id": "thread-58cf47e0f94c",
+      "thread_depth": 1,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-cfcd165b5011",
+      "message_id": "<22846.30437.271446.819939@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-12T06:11:33-05:00",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "subject_clean": "[Rcpp-devel] Starting R Interpreter from C++",
+      "in_reply_to": "<86BA79A1-A2BE-436B-BDFD-C4808C5D4EBC@r-enthusiasts.com>",
+      "references": [
+        "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>",
+        "<86BA79A1-A2BE-436B-BDFD-C4808C5D4EBC@r-enthusiasts.com>"
+      ],
+      "body_plain": "On 12 June 2017 at 11:22, Romain Francois wrote:\n| You might be looking for RInside.\n\nExactly correct in the narrow sense of 'how to get R going from C++'.\n\nOn 12 June 2017 at 01:11, Wolf Vollprecht wrote:\n| I am trying to run C++ tests from C++ directly.?\n| It looks like I need to start the R interpreter for memory management etc.\n\nThe wider, normal sense of the question is, I suspect, how to add unit tests\nto an R package such as your xtensor-r.  Give me a day or two and I may get a\nchance to add this to my variant of your project.\n\nYou generally do NOT want force an embedded R interpreter __as any Rcpp\nproject is already called from R__.  Use CRAN as a repository of (as of\ntoday) 1045 example packages.  I don't think a single one embeds R for\ntesting.  The RUnit (older, used by Rcpp itself) and testthat frameworks are\npopular. \n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 12 June 2017 at 11:22, Romain Francois wrote:\n| You might be looking for RInside.\n\nExactly correct in the narrow sense of 'how to get R going from C++'.\n\nOn 12 June 2017 at 01:11, Wolf Vollprecht w",
+      "thread_id": "thread-53f22946e3e3",
+      "thread_depth": 2,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-14dfb1967539",
+      "message_id": "<CAJdZCv3o1RprbCwr4BXtCNNYrRZqFct_qHuVQ4QAGp_=7EWKAg@mail.gmail.com>",
+      "from_name": "Dmitriy Selivanov",
+      "from_email_hash": "b5f1eb84f974753f041744d0a8e5a4925d52a379a6002f7c62db36ab2ceef7ef",
+      "date": "2017-06-12T21:00:43+04:00",
+      "subject": "[Rcpp-devel] R binding for nmslib ANN package (Xiaojie Qiu)",
+      "subject_clean": "[Rcpp-devel] R binding for nmslib ANN package (Xiaojie Qiu)",
+      "in_reply_to": "<CAJdZCv3aR7+VL-EMc+oD8E+nm+743cxN8-NfU+phbvHvmVFDoQ@mail.gmail.com>",
+      "references": [
+        "<CAJdZCv320SnuBoWHftRLncSnSO01H_gZH4P61v11uRKRTwb0tw@mail.gmail.com>",
+        "<CAJdZCv1CEnkusKhKQ7+AsaztaRiMk-3+gPsGo8eTKis_=7VUrg@mail.gmail.com>",
+        "<CAJdZCv27T3LJKMMgtfi1AAnbVdfaG3TpxmuT7xfQxBnN-nTnYg@mail.gmail.com>",
+        "<CAJdZCv3aR7+VL-EMc+oD8E+nm+743cxN8-NfU+phbvHvmVFDoQ@mail.gmail.com>"
+      ],
+      "body_plain": "I'm interested, but not sure when will have time. You can start to play\nwith, check python bindings and try to replicate with Rcpp. If you will\nhave some questions you can write directly to me. Will figure out something.\n\n10 ???. 2017 ?. 14:00 ???????????? <\nrcpp-devel-request at lists.r-forge.r-project.org> ???????:\n\nSend Rcpp-devel mailing list submissions to\n        rcpp-devel at lists.r-forge.r-project.org\n\nTo subscribe or unsubscribe via the World Wide Web, visit\n        https://lists.r-forge.r-project.org/cgi-bin/mailman/\nlistinfo/rcpp-devel\n\nor, via email, send a message with subject or body 'help' to\n        rcpp-devel-request at lists.r-forge.r-project.org\n\nYou can reach the person managing the list at\n        rcpp-devel-owner at lists.r-forge.r-project.org\n\nWhen replying, please edit your Subject line so it is more specific\nthan \"Re: Contents of Rcpp-devel digest...\"\n\n\nToday's Topics:\n\n   1. R binding for nmslib ANN package (Xiaojie Qiu)\n\n\n----------------------------------------------------------------------\n\nMessage: 1\nDate: Fri, 09 Jun 2017 18:48:56 +0000\nFrom: Xiaojie Qiu <xqiu at uw.edu>\nTo: \"rcpp-devel at lists.r-forge.r-project.org\"\n        <rcpp-devel at lists.r-forge.r-project.org>\nSubject: [Rcpp-devel] R binding for nmslib ANN package\nMessage-ID:\n        <CANdCydeutJakBhYOr+Z3qd-He1Kqnd8hNcE0r=YTv+FKn_B8ew at mail.gmail.com>\nContent-Type: text/plain; charset=\"utf-8\"\n\nHi All,\n\nIs there anyone interested to build a R package based on Rcpp for the\ncurrent fastest and most accurate ANN searching package (\nhttps://github.com/searchivarius/nmslib)? It is several magnitude faster\nand more accurate than the Annoy package Rcppannoy Dirk built. I just\nlearnt Rcpp and am not good at C++ programming. If someone is interested, I\nwould like to team up.\n\nBest,\nXiaojie\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-\ndevel/attachments/20170609/01d192aa/attachment-0001.html>\n\n------------------------------\n\n_______________________________________________\nRcpp-devel mailing list\nRcpp-devel at lists.r-forge.r-project.org\nhttps://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\nEnd of Rcpp-devel Digest, Vol 92, Issue 8\n*****************************************\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170612/50323740/attachment.html>",
+      "body_snippet": "I'm interested, but not sure when will have time. You can start to play\nwith, check python bindings and try to replicate with Rcpp. If you will\nhave some questions you can write directly to me. Will f",
+      "thread_id": "thread-14dfb1967539",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-6a12ed6dcff9",
+      "message_id": "<CADDUUuDqTWkCRH5xrNofx1xFKY0E+OxGyrRLxnjyxJPSDgsmPw@mail.gmail.com>",
+      "from_name": "Wolf Vollprecht",
+      "from_email_hash": "98d6fd789190668f788db9906913cad98e8aa1be8f387e0e0c0a9580233d80bc",
+      "date": "2017-06-12T12:47:58-07:00",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "subject_clean": "[Rcpp-devel] Starting R Interpreter from C++",
+      "in_reply_to": "<22846.30437.271446.819939@max.eddelbuettel.com>",
+      "references": [
+        "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>",
+        "<86BA79A1-A2BE-436B-BDFD-C4808C5D4EBC@r-enthusiasts.com>",
+        "<22846.30437.271446.819939@max.eddelbuettel.com>"
+      ],
+      "body_plain": "RInside seems to have done the trick! Awesome.\n\nI have no strong opinions on how to implement the tests. The only reason\nwhy I wanted the embedded R solution is because we use it that way with\nPython and Julia, and it gives us \"raw C++\" tests. In the future, we might\nalso have a xtensor-test package, that we can easily use to write tests for\nall three languages (in C++) at the same time (through metaprogramming).\n\nBut we will definitly also add tests in R (as we have done with Python and\nJulia, too).\nIt would be awesome if you have a chance to add some to your variant.\nI am going to fix up the C++ tests that I've added to the \"big\" PR and make\nsure that at least those we have right now work fine to establish a\nbaseline to work from.\n\nCheers!\n\nWolf\n\n\n2017-06-12 4:11 GMT-07:00 Dirk Eddelbuettel <edd at debian.org>:\n\n>\n> On 12 June 2017 at 11:22, Romain Francois wrote:\n> | You might be looking for RInside.\n>\n> Exactly correct in the narrow sense of 'how to get R going from C++'.\n>\n> On 12 June 2017 at 01:11, Wolf Vollprecht wrote:\n> | I am trying to run C++ tests from C++ directly.\n> | It looks like I need to start the R interpreter for memory management\n> etc.\n>\n> The wider, normal sense of the question is, I suspect, how to add unit\n> tests\n> to an R package such as your xtensor-r.  Give me a day or two and I may\n> get a\n> chance to add this to my variant of your project.\n>\n> You generally do NOT want force an embedded R interpreter __as any Rcpp\n> project is already called from R__.  Use CRAN as a repository of (as of\n> today) 1045 example packages.  I don't think a single one embeds R for\n> testing.  The RUnit (older, used by Rcpp itself) and testthat frameworks\n> are\n> popular.\n>\n> Dirk\n>\n> --\n> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170612/fdc53c81/attachment.html>",
+      "body_snippet": "RInside seems to have done the trick! Awesome.\n\nI have no strong opinions on how to implement the tests. The only reason\nwhy I wanted the embedded R solution is because we use it that way with\nPython ",
+      "thread_id": "thread-53f22946e3e3",
+      "thread_depth": 3,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-5a73c3a72124",
+      "message_id": "<CAKw=oCzL89+c_a2XG34yqdZXzTf7-tieoM-4nEYWxehPT8zkiw@mail.gmail.com>",
+      "from_name": "JJ Allaire",
+      "from_email_hash": "a9c305e04711922728c52959da2daecf82e361748cb52e6ee571e18c898a3343",
+      "date": "2017-06-12T16:15:02-04:00",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "subject_clean": "[Rcpp-devel] Starting R Interpreter from C++",
+      "in_reply_to": "<CADDUUuDqTWkCRH5xrNofx1xFKY0E+OxGyrRLxnjyxJPSDgsmPw@mail.gmail.com>",
+      "references": [
+        "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>",
+        "<86BA79A1-A2BE-436B-BDFD-C4808C5D4EBC@r-enthusiasts.com>",
+        "<22846.30437.271446.819939@max.eddelbuettel.com>",
+        "<CADDUUuDqTWkCRH5xrNofx1xFKY0E+OxGyrRLxnjyxJPSDgsmPw@mail.gmail.com>"
+      ],
+      "body_plain": "There is also a way to write C++ unit test with the catch framework and\nhave them added to the R test suite:\nhttps://rdrr.io/cran/testthat/man/use_catch.html\n\nNote this was originally built with integration with testthat in mind but\nyou can call it from any R test suite (docs on doing this are on the linked\nto page).\n\nOn Mon, Jun 12, 2017 at 3:47 PM, Wolf Vollprecht <w.vollprecht at gmail.com>\nwrote:\n\n> RInside seems to have done the trick! Awesome.\n>\n> I have no strong opinions on how to implement the tests. The only reason\n> why I wanted the embedded R solution is because we use it that way with\n> Python and Julia, and it gives us \"raw C++\" tests. In the future, we might\n> also have a xtensor-test package, that we can easily use to write tests for\n> all three languages (in C++) at the same time (through metaprogramming).\n>\n> But we will definitly also add tests in R (as we have done with Python and\n> Julia, too).\n> It would be awesome if you have a chance to add some to your variant.\n> I am going to fix up the C++ tests that I've added to the \"big\" PR and\n> make sure that at least those we have right now work fine to establish a\n> baseline to work from.\n>\n> Cheers!\n>\n> Wolf\n>\n>\n> 2017-06-12 4:11 GMT-07:00 Dirk Eddelbuettel <edd at debian.org>:\n>\n>>\n>> On 12 June 2017 at 11:22, Romain Francois wrote:\n>> | You might be looking for RInside.\n>>\n>> Exactly correct in the narrow sense of 'how to get R going from C++'.\n>>\n>> On 12 June 2017 at 01:11, Wolf Vollprecht wrote:\n>> | I am trying to run C++ tests from C++ directly.\n>> | It looks like I need to start the R interpreter for memory management\n>> etc.\n>>\n>> The wider, normal sense of the question is, I suspect, how to add unit\n>> tests\n>> to an R package such as your xtensor-r.  Give me a day or two and I may\n>> get a\n>> chance to add this to my variant of your project.\n>>\n>> You generally do NOT want force an embedded R interpreter __as any Rcpp\n>> project is already called from R__.  Use CRAN as a repository of (as of\n>> today) 1045 example packages.  I don't think a single one embeds R for\n>> testing.  The RUnit (older, used by Rcpp itself) and testthat frameworks\n>> are\n>> popular.\n>>\n>> Dirk\n>>\n>> --\n>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>>\n>\n>\n> _______________________________________________\n> Rcpp-devel mailing list\n> Rcpp-devel at lists.r-forge.r-project.org\n> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170612/b24a7c75/attachment-0001.html>",
+      "body_snippet": "There is also a way to write C++ unit test with the catch framework and\nhave them added to the R test suite:\nhttps://rdrr.io/cran/testthat/man/use_catch.html\n\nNote this was originally built with integ",
+      "thread_id": "thread-53f22946e3e3",
+      "thread_depth": 4,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-e7f4807d7e9b",
+      "message_id": "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+      "from_name": "Binxiang Ni",
+      "from_email_hash": "531c791801542493a93061057ae271c351ae9735762033ab01af7a2dd38cc4f8",
+      "date": "2017-06-13T10:55:40-05:00",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hi,\n\nI am working on fixing sparse matrix conversion for RcppArmadillo. Now a\nproblem comes up to me: what kind of sparse matrix is expected to pass from\nArmadillo to R? That is, what should the result of wrap() be? dgCMatrix(if\nlogical, lgCMatrix or ngCMatrix)  or their original type?\n\nIf you are familiar with sparse matrix, please do me a favor.\n\nBest,\nBinxiang\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170613/f8af1e7d/attachment.html>",
+      "body_snippet": "Hi,\n\nI am working on fixing sparse matrix conversion for RcppArmadillo. Now a\nproblem comes up to me: what kind of sparse matrix is expected to pass from\nArmadillo to R? That is, what should the resul",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-16df496b6d5a",
+      "message_id": "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+      "from_name": "Douglas Bates",
+      "from_email_hash": "c908588836123be177df15f4b3132be3a2b4b95c4eaeddcc72b433a3981bb1b3",
+      "date": "2017-06-13T16:24:28Z",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>"
+      ],
+      "body_plain": "On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com> wrote:\n\n> Hi,\n>\n> I am working on fixing sparse matrix conversion for RcppArmadillo. Now a\n> problem comes up to me: what kind of sparse matrix is expected to pass from\n> Armadillo to R? That is, what should the result of wrap() be? dgCMatrix(if\n> logical, lgCMatrix or ngCMatrix)  or their original type?\n>\n\nWhat do you mean by \"their original type\"?\n\nIt seems that the correspondence is\nArmadillo           Matrix package\nsp_mat       <=> dgCMatrix\nsp_cx_mat <=> zgCMatrix\nsp_imat      <=> igCMatrix\n\nAfter that you are going to need to convert the values vector in the\nArmadillo representation to a datatype available in R.  (In fact there is\nalways an implicit conversion because the rowind and colptr vectors are\nunsigned integers in Armadillo and integers in R.  However that change is\njust a cast of a pointer.)\n\nI wouldn't worry about the logical values because LOGICAL in R is just a\n32-bit integer.  ngCMatrix in R is a pattern matrix which only stores the\npositions of the non-zeros, not their values.  These are used in the\nsymbolic phase of many sparse matrix operations, particularly\ndecompositions.  The symbolic phase only uses the pattern of nonzeros.  It\ndoesn't appear that there is a corresponding type in Armadillo.\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170613/eb1cd0ab/attachment.html>",
+      "body_snippet": "On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com> wrote:\n\n> Hi,\n>\n> I am working on fixing sparse matrix conversion for RcppArmadillo. Now a\n> problem comes up to me: what kind of",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 1,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-b02354618adb",
+      "message_id": "<CADDUUuCy3bBOLgwiEMCgaZvpA+pY5MX_fSv_0ztBpeGyrLDgLQ@mail.gmail.com>",
+      "from_name": "Wolf Vollprecht",
+      "from_email_hash": "98d6fd789190668f788db9906913cad98e8aa1be8f387e0e0c0a9580233d80bc",
+      "date": "2017-06-13T15:22:38-07:00",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "subject_clean": "[Rcpp-devel] Starting R Interpreter from C++",
+      "in_reply_to": "<CAKw=oCzL89+c_a2XG34yqdZXzTf7-tieoM-4nEYWxehPT8zkiw@mail.gmail.com>",
+      "references": [
+        "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>",
+        "<86BA79A1-A2BE-436B-BDFD-C4808C5D4EBC@r-enthusiasts.com>",
+        "<22846.30437.271446.819939@max.eddelbuettel.com>",
+        "<CADDUUuDqTWkCRH5xrNofx1xFKY0E+OxGyrRLxnjyxJPSDgsmPw@mail.gmail.com>",
+        "<CAKw=oCzL89+c_a2XG34yqdZXzTf7-tieoM-4nEYWxehPT8zkiw@mail.gmail.com>"
+      ],
+      "body_plain": "Dear all,\n\nthanks so much for your help. Our tests are up and running on Travis now\n(thanks to RInside!).\n\nWe've discovered one issue, though, when compiling with Clang. It might be\nof interest to you:\nhttps://travis-ci.org/QuantStack/xtensor-r/jobs/242587636\nI am not 100% sure if the issue comes from RCpp or from xtensor (I'll need\nmore time to investigate, this is just a FYI).\n\nIn file included from\n/home/travis/build/QuantStack/xtensor-r/test/test_rarray.cpp:11:\nIn file included from\n/home/travis/build/QuantStack/xtensor-r/inst/include/xtensor-r/rarray.hpp:18:\nIn file included from\n/home/travis/build/QuantStack/xtensor-r/inst/include/xtensor-r/rcontainer.hpp:19:\nIn file included from\n/home/travis/miniconda/lib/R/library/Rcpp/include/Rcpp.h:65:\nIn file included from\n/home/travis/miniconda/lib/R/library/Rcpp/include/Rcpp/InternalFunction.h:30:\nIn file included from\n/home/travis/miniconda/lib/R/library/Rcpp/include/Rcpp/InternalFunctionWithStdFunction.h:27:\nIn file included from\n/usr/bin/../lib/gcc/x86_64-linux-gnu/4.9/../../../../include/c++/4.9/tr1/functional:39:\n/usr/bin/../lib/gcc/x86_64-linux-gnu/4.9/../../../../include/c++/4.9/tr1/tuple:130:5:\nerror: declaration conflicts with target of using declaration already in\nscope\n    class tuple : public _Tuple_impl<0, _Elements...>\n\nCheers,\n\nWolf\n\n2017-06-12 13:15 GMT-07:00 JJ Allaire <jj.allaire at gmail.com>:\n\n> There is also a way to write C++ unit test with the catch framework and\n> have them added to the R test suite: https://rdrr.io/cran/\n> testthat/man/use_catch.html\n>\n> Note this was originally built with integration with testthat in mind but\n> you can call it from any R test suite (docs on doing this are on the linked\n> to page).\n>\n> On Mon, Jun 12, 2017 at 3:47 PM, Wolf Vollprecht <w.vollprecht at gmail.com>\n> wrote:\n>\n>> RInside seems to have done the trick! Awesome.\n>>\n>> I have no strong opinions on how to implement the tests. The only reason\n>> why I wanted the embedded R solution is because we use it that way with\n>> Python and Julia, and it gives us \"raw C++\" tests. In the future, we might\n>> also have a xtensor-test package, that we can easily use to write tests for\n>> all three languages (in C++) at the same time (through metaprogramming).\n>>\n>> But we will definitly also add tests in R (as we have done with Python\n>> and Julia, too).\n>> It would be awesome if you have a chance to add some to your variant.\n>> I am going to fix up the C++ tests that I've added to the \"big\" PR and\n>> make sure that at least those we have right now work fine to establish a\n>> baseline to work from.\n>>\n>> Cheers!\n>>\n>> Wolf\n>>\n>>\n>> 2017-06-12 4:11 GMT-07:00 Dirk Eddelbuettel <edd at debian.org>:\n>>\n>>>\n>>> On 12 June 2017 at 11:22, Romain Francois wrote:\n>>> | You might be looking for RInside.\n>>>\n>>> Exactly correct in the narrow sense of 'how to get R going from C++'.\n>>>\n>>> On 12 June 2017 at 01:11, Wolf Vollprecht wrote:\n>>> | I am trying to run C++ tests from C++ directly.\n>>> | It looks like I need to start the R interpreter for memory management\n>>> etc.\n>>>\n>>> The wider, normal sense of the question is, I suspect, how to add unit\n>>> tests\n>>> to an R package such as your xtensor-r.  Give me a day or two and I may\n>>> get a\n>>> chance to add this to my variant of your project.\n>>>\n>>> You generally do NOT want force an embedded R interpreter __as any Rcpp\n>>> project is already called from R__.  Use CRAN as a repository of (as of\n>>> today) 1045 example packages.  I don't think a single one embeds R for\n>>> testing.  The RUnit (older, used by Rcpp itself) and testthat frameworks\n>>> are\n>>> popular.\n>>>\n>>> Dirk\n>>>\n>>> --\n>>> http://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n>>>\n>>\n>>\n>> _______________________________________________\n>> Rcpp-devel mailing list\n>> Rcpp-devel at lists.r-forge.r-project.org\n>> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n>>\n>\n>\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170613/038e989d/attachment.html>",
+      "body_snippet": "Dear all,\n\nthanks so much for your help. Our tests are up and running on Travis now\n(thanks to RInside!).\n\nWe've discovered one issue, though, when compiling with Clang. It might be\nof interest to you",
+      "thread_id": "thread-53f22946e3e3",
+      "thread_depth": 5,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-807e207b94cd",
+      "message_id": "<22848.28948.278929.529414@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-13T18:11:16-05:00",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "subject_clean": "[Rcpp-devel] Starting R Interpreter from C++",
+      "in_reply_to": "<CADDUUuCy3bBOLgwiEMCgaZvpA+pY5MX_fSv_0ztBpeGyrLDgLQ@mail.gmail.com>",
+      "references": [
+        "<CADDUUuC=qB=PePK7L80TqVFjPOo6gyXqisp+kdsS9uHbf47U5w@mail.gmail.com>",
+        "<86BA79A1-A2BE-436B-BDFD-C4808C5D4EBC@r-enthusiasts.com>",
+        "<22846.30437.271446.819939@max.eddelbuettel.com>",
+        "<CADDUUuDqTWkCRH5xrNofx1xFKY0E+OxGyrRLxnjyxJPSDgsmPw@mail.gmail.com>",
+        "<CAKw=oCzL89+c_a2XG34yqdZXzTf7-tieoM-4nEYWxehPT8zkiw@mail.gmail.com>",
+        "<CADDUUuCy3bBOLgwiEMCgaZvpA+pY5MX_fSv_0ztBpeGyrLDgLQ@mail.gmail.com>"
+      ],
+      "body_plain": "On 13 June 2017 at 15:22, Wolf Vollprecht wrote:\n| thanks so much for your help. Our tests are up and running on Travis now\n| (thanks to RInside!).\n\nI am very happy for you that you got that sorted out and you that you got\nscratch that itch -- but allow me mention once more we said here before.\nNobody here tests the way you do. You are putting the cart before the horse.\n\nTest your C++ code from C++ with any one of the bazillion frameworks: catch\n(as suggested by JJ who reminded us that it is available via testthat), or\ngoogle-test, or Boost test, or ...\n\nTest the R integration from R via tests/ or either one of RUnit or testthat.\n \n| We've discovered one issue, though, when compiling with Clang. It might be of\n\nMinimal and reproducible reports on Rcpp are always welcome as an issue ticket.\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 13 June 2017 at 15:22, Wolf Vollprecht wrote:\n| thanks so much for your help. Our tests are up and running on Travis now\n| (thanks to RInside!).\n\nI am very happy for you that you got that sorted ou",
+      "thread_id": "thread-53f22946e3e3",
+      "thread_depth": 6,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-979ac001dec3",
+      "message_id": "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2017-06-14T11:00:11+02:00",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+        "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>"
+      ],
+      "body_plain": "Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n> On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com <mailto:binxiangni at gmail.com>> wrote:\n> \n>     Hi,\n> \n>     I am working on fixing sparse matrix conversion for RcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is expected to pass from\n>     Armadillo to R? That is, what should the result of wrap() be? dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n> \n> \n> What do you mean by \"their original type\"?\n> \n> It seems that the correspondence is\n> Armadillo           Matrix package\n> sp_mat       <=> dgCMatrix\n> sp_cx_mat <=> zgCMatrix\n> sp_imat      <=> igCMatrix\nI would also consider the format used in a package slam.\nIt simply stores the indexes and non-zero values in a triplet (i,j,v).\n\nSerguei.",
+      "body_snippet": "Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n> On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com <mailto:binxiangni at gmail.com>> wrote:\n> \n>     Hi,\n> \n>     I am working on fi",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 2,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-4ea197b5c28a",
+      "message_id": "<CAO7JsnTo8bA6LTsHz0udyjF-KAaE2kp-rKb13tyudg6gV=JiAQ@mail.gmail.com>",
+      "from_name": "Douglas Bates",
+      "from_email_hash": "c908588836123be177df15f4b3132be3a2b4b95c4eaeddcc72b433a3981bb1b3",
+      "date": "2017-06-14T13:21:54Z",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+        "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+        "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>"
+      ],
+      "body_plain": "On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com>\nwrote:\n\n> Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n> > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com\n> <mailto:binxiangni at gmail.com>> wrote:\n> >\n> >     Hi,\n> >\n> >     I am working on fixing sparse matrix conversion for RcppArmadillo.\n> Now a problem comes up to me: what kind of sparse matrix is expected to\n> pass from\n> >     Armadillo to R? That is, what should the result of wrap() be?\n> dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n> >\n> >\n> > What do you mean by \"their original type\"?\n> >\n> > It seems that the correspondence is\n> > Armadillo           Matrix package\n> > sp_mat       <=> dgCMatrix\n> > sp_cx_mat <=> zgCMatrix\n> > sp_imat      <=> igCMatrix\n> I would also consider the format used in a package slam.\n> It simply stores the indexes and non-zero values in a triplet (i,j,v).\n>\n\nThat is the format of the dgTMatrix class from the Matrix package for R but\nnot, as far as I can tell, in Armadillo.  A brief glance at the Armadillo\ndocumentation indicates that sparse matrices are always in the compressed\nsparse column (CSC) format.\n\nI would point out that the sparse matrix facilities in Eigen and RcppEigen\nare much more extensive than those in Armadillo.\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170614/bc4c3163/attachment.html>",
+      "body_snippet": "On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com>\nwrote:\n\n> Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n> > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmai",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 3,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-7f4188f39fc0",
+      "message_id": "<22849.16826.22396.339250@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-14T09:01:30-05:00",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+        "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+        "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>"
+      ],
+      "body_plain": "On 14 June 2017 at 11:00, Serguei Sokol wrote:\n| Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n| > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com <mailto:binxiangni at gmail.com>> wrote:\n| > \n| >     Hi,\n| > \n| >     I am working on fixing sparse matrix conversion for RcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is expected to pass from\n| >     Armadillo to R? That is, what should the result of wrap() be? dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n| > \n| > \n| > What do you mean by \"their original type\"?\n| > \n| > It seems that the correspondence is\n| > Armadillo           Matrix package\n| > sp_mat       <=> dgCMatrix\n| > sp_cx_mat <=> zgCMatrix\n| > sp_imat      <=> igCMatrix\n| I would also consider the format used in a package slam.\n| It simply stores the indexes and non-zero values in a triplet (i,j,v).\n\nThere is more here:  https://en.wikipedia.org/wiki/Sparse_matrix\n\nBut it would probably be good to hear from some actual users of sparse\nmatrices such as Doug (thanks for piping in already!), Soren or anybody else\nwith exposure to sparse matrices, ideally via CRAN packages we can wire up\nfor testing.\n\n\nDirk\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 14 June 2017 at 11:00, Serguei Sokol wrote:\n| Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n| > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com <mailto:binxiangni at gmail.co",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 3,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-5ca0e0839b71",
+      "message_id": "<1ade20d8-f08c-df7b-e147-539e4b1babff@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2017-06-14T16:06:58+02:00",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<CAO7JsnTo8bA6LTsHz0udyjF-KAaE2kp-rKb13tyudg6gV=JiAQ@mail.gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+        "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+        "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>",
+        "<CAO7JsnTo8bA6LTsHz0udyjF-KAaE2kp-rKb13tyudg6gV=JiAQ@mail.gmail.com>"
+      ],
+      "body_plain": "Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n> \n> \n> On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com <mailto:serguei.sokol at gmail.com>> wrote:\n> \n>     Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n>      > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com <mailto:binxiangni at gmail.com> <mailto:binxiangni at gmail.com\n>     <mailto:binxiangni at gmail.com>>> wrote:\n>      >\n>      >     Hi,\n>      >\n>      >     I am working on fixing sparse matrix conversion for RcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is expected to pass from\n>      >     Armadillo to R? That is, what should the result of wrap() be? dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n>      >\n>      >\n>      > What do you mean by \"their original type\"?\n>      >\n>      > It seems that the correspondence is\n>      > Armadillo           Matrix package\n>      > sp_mat       <=> dgCMatrix\n>      > sp_cx_mat <=> zgCMatrix\n>      > sp_imat      <=> igCMatrix\n>     I would also consider the format used in a package slam.\n>     It simply stores the indexes and non-zero values in a triplet (i,j,v).\n> \n> \n> That is the format of the dgTMatrix class from the Matrix package for R but not, as far as I can tell, in Armadillo.  A brief glance at the Armadillo \n> documentation indicates that sparse matrices are always in the compressed sparse column (CSC) format.\nIndeed, but nothing prevents Binxiang to develop a wrap() that will convert\narmadillo format to one or many of R formats, right?",
+      "body_snippet": "Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n> \n> \n> On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com <mailto:serguei.sokol at gmail.com>> wrote:\n> \n>     Le 13/06/2017 ? 18",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 4,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-257545af379c",
+      "message_id": "<CAO7JsnT7cj3pAqF7rEJ-EV_qke+Lr2suZu1AVpkPNT2O4bjVcg@mail.gmail.com>",
+      "from_name": "Douglas Bates",
+      "from_email_hash": "c908588836123be177df15f4b3132be3a2b4b95c4eaeddcc72b433a3981bb1b3",
+      "date": "2017-06-14T15:33:05Z",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<1ade20d8-f08c-df7b-e147-539e4b1babff@gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+        "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+        "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>",
+        "<CAO7JsnTo8bA6LTsHz0udyjF-KAaE2kp-rKb13tyudg6gV=JiAQ@mail.gmail.com>",
+        "<1ade20d8-f08c-df7b-e147-539e4b1babff@gmail.com>"
+      ],
+      "body_plain": "On Wed, Jun 14, 2017 at 9:06 AM Serguei Sokol <serguei.sokol at gmail.com>\nwrote:\n\n> Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n> >\n> >\n> > On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com\n> <mailto:serguei.sokol at gmail.com>> wrote:\n> >\n> >     Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n> >      > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <\n> binxiangni at gmail.com <mailto:binxiangni at gmail.com> <mailto:\n> binxiangni at gmail.com\n> >     <mailto:binxiangni at gmail.com>>> wrote:\n> >      >\n> >      >     Hi,\n> >      >\n> >      >     I am working on fixing sparse matrix conversion for\n> RcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is\n> expected to pass from\n> >      >     Armadillo to R? That is, what should the result of wrap() be?\n> dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n> >      >\n> >      >\n> >      > What do you mean by \"their original type\"?\n> >      >\n> >      > It seems that the correspondence is\n> >      > Armadillo           Matrix package\n> >      > sp_mat       <=> dgCMatrix\n> >      > sp_cx_mat <=> zgCMatrix\n> >      > sp_imat      <=> igCMatrix\n> >     I would also consider the format used in a package slam.\n> >     It simply stores the indexes and non-zero values in a triplet\n> (i,j,v).\n> >\n> >\n> > That is the format of the dgTMatrix class from the Matrix package for R\n> but not, as far as I can tell, in Armadillo.  A brief glance at the\n> Armadillo\n> > documentation indicates that sparse matrices are always in the\n> compressed sparse column (CSC) format.\n> Indeed, but nothing prevents Binxiang to develop a wrap() that will convert\n> armadillo format to one or many of R formats, right?\n>\n\nWhy? Is there a reason for doing type conversion from the dgCMatrix format\nto another format in an Rcpp wrap function instead of with the existing\nfunctions from the Matrix package?\n\nBear in mind that dgCMatrix is an efficient format both in terms of the\namount of memory required  (that's the \"compressed\" part of the name) and\nin terms of performing operations with the matrix.  Most operations on\nsparse matrices stored in the triplet format start by creating a CSC or CSR\n(compressed sparse row) form of the matrix anyway.\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170614/7a9fef46/attachment.html>",
+      "body_snippet": "On Wed, Jun 14, 2017 at 9:06 AM Serguei Sokol <serguei.sokol at gmail.com>\nwrote:\n\n> Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n> >\n> >\n> > On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.s",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 5,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-c7bd8671d5e2",
+      "message_id": "<4cbe9f66-6755-70bc-3a59-2a660015b596@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2017-06-14T17:55:49+02:00",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<CAO7JsnT7cj3pAqF7rEJ-EV_qke+Lr2suZu1AVpkPNT2O4bjVcg@mail.gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+        "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+        "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>",
+        "<CAO7JsnTo8bA6LTsHz0udyjF-KAaE2kp-rKb13tyudg6gV=JiAQ@mail.gmail.com>",
+        "<1ade20d8-f08c-df7b-e147-539e4b1babff@gmail.com>",
+        "<CAO7JsnT7cj3pAqF7rEJ-EV_qke+Lr2suZu1AVpkPNT2O4bjVcg@mail.gmail.com>"
+      ],
+      "body_plain": "Le 14/06/2017 ? 17:33, Douglas Bates a ?crit :\n> \n> \n> On Wed, Jun 14, 2017 at 9:06 AM Serguei Sokol <serguei.sokol at gmail.com <mailto:serguei.sokol at gmail.com>> wrote:\n> \n>     Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n>      >\n>      >\n>      > On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com <mailto:serguei.sokol at gmail.com> <mailto:serguei.sokol at gmail.com\n>     <mailto:serguei.sokol at gmail.com>>> wrote:\n>      >\n>      >     Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n>      >      > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com <mailto:binxiangni at gmail.com> <mailto:binxiangni at gmail.com\n>     <mailto:binxiangni at gmail.com>> <mailto:binxiangni at gmail.com <mailto:binxiangni at gmail.com>\n>      >     <mailto:binxiangni at gmail.com <mailto:binxiangni at gmail.com>>>> wrote:\n>      >      >\n>      >      >     Hi,\n>      >      >\n>      >      >     I am working on fixing sparse matrix conversion for RcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is expected to\n>     pass from\n>      >      >     Armadillo to R? That is, what should the result of wrap() be? dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n>      >      >\n>      >      >\n>      >      > What do you mean by \"their original type\"?\n>      >      >\n>      >      > It seems that the correspondence is\n>      >      > Armadillo           Matrix package\n>      >      > sp_mat       <=> dgCMatrix\n>      >      > sp_cx_mat <=> zgCMatrix\n>      >      > sp_imat      <=> igCMatrix\n>      >     I would also consider the format used in a package slam.\n>      >     It simply stores the indexes and non-zero values in a triplet (i,j,v).\n>      >\n>      >\n>      > That is the format of the dgTMatrix class from the Matrix package for R but not, as far as I can tell, in Armadillo.  A brief glance at the Armadillo\n>      > documentation indicates that sparse matrices are always in the compressed sparse column (CSC) format.\n>     Indeed, but nothing prevents Binxiang to develop a wrap() that will convert\n>     armadillo format to one or many of R formats, right?\n> \n> \n> Why?\nSure, Matrix is very versatile and rich in features but the price for this is its heavy weight.\nIt can take several seconds to load it up. On my rather mighty PC (Intel Xeon E5-2609 v2 @ 2.50GHz with 16 GB of memory),\nI have:\n > system.time(library(Matrix))\nutilisateur     syst?me      ?coul?\n       1.427       0.052       1.619\n\nI don't have my laptop here but the load time can be longer.\nWhile for slam it takes only a fraction of second:\n\n > system.time(library(slam))\nutilisateur     syst?me      ?coul?\n       0.012       0.000       0.011\nWhen slam can suffice, why not to use it?\n\n> Is there a reason for doing type conversion from the dgCMatrix format to another format in an Rcpp wrap function instead of with the existing functions \n> from the Matrix package?\n> \n> Bear in mind that dgCMatrix is an efficient format both in terms of the amount of memory required  (that's the \"compressed\" part of the name) and in terms of \n> performing operations with the matrix.  Most operations on sparse matrices stored in the triplet format start by creating a CSC or CSR (compressed sparse row) \n> form of the matrix anyway.\nIn Matrix package, I presume?\nFew basic operations that I have seen in slam, stay with triplet format.\nSo if a user did not load Matrix package and want to use e.g. slam format,\nit would be great if wrap() could give him expected format.",
+      "body_snippet": "Le 14/06/2017 ? 17:33, Douglas Bates a ?crit :\n> \n> \n> On Wed, Jun 14, 2017 at 9:06 AM Serguei Sokol <serguei.sokol at gmail.com <mailto:serguei.sokol at gmail.com>> wrote:\n> \n>     Le 14/06/2017 ? 15",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 6,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-17949aabf5a9",
+      "message_id": "<CAJdZCv2zZKZAZD3N+xiiM5Z7V8noVd03DQPzCVLe9LsyOUbQ1g@mail.gmail.com>",
+      "from_name": "Dmitriy Selivanov",
+      "from_email_hash": "b5f1eb84f974753f041744d0a8e5a4925d52a379a6002f7c62db36ab2ceef7ef",
+      "date": "2017-06-14T20:44:55+04:00",
+      "subject": "[Rcpp-devel] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "My 2 cents. Last couple of years I used sparse matrices a lot. Matrix\npackage is really great. I'm not sure I understand issue with wrapping - as\nDoug said CSC format is main in both Armadillo and Matrix. Given matrix in\nCSC format (dgCMatrix/CsparseMatrix) it is trivial to convert it to COO or\nCSR with as(x, \"TsparseMatrix\") / as(x, \"RsparseMatrix\").\n\nSecond point is about slam package and COO format. I didn't use it, but\nused scipy, Armadillo, Eigen. And none of these packages use COO format for\noperations on matrices... I doubt it could be efficient.\n\nThird point is that I have feeling that nowadays CSR format is more\nmainstream. For instance Eigen implements multithreaded sparse - dense\nmultiplications and sparse solvers (\nhttps://eigen.tuxfamily.org/dox/TopicMultiThreading.html). Same story about\nsparse BLAS with Intel MKL - it works with CSR matrices. I realize that CSR\n= transposed CSC, but still it is not convenient to transpose mind each\ntime. (Would be great to add more support for CSR matrices, but this is out\nof scope of this discussion).\n\nAnd last my observation - I agree with Doug that it seems that Eigen has\nmuch stronger support for operations with sparse matrices.\n\n14 ???. 2017 ?. 19:55 ???????????? <rcpp-devel-request at lists.r-\nforge.r-project.org> ???????:\n\nSend Rcpp-devel mailing list submissions to\n        rcpp-devel at lists.r-forge.r-project.org\n\nTo subscribe or unsubscribe via the World Wide Web, visit\n        https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo\n/rcpp-devel\n\nor, via email, send a message with subject or body 'help' to\n        rcpp-devel-request at lists.r-forge.r-project.org\n\nYou can reach the person managing the list at\n        rcpp-devel-owner at lists.r-forge.r-project.org\n\nWhen replying, please edit your Subject line so it is more specific\nthan \"Re: Contents of Rcpp-devel digest...\"\n\n\nToday's Topics:\n\n   1. Re: [RcppArmadillo] Result of Rcpp Wrap() for Sparse      Matrix\n      (Douglas Bates)\n   2. Re: [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix\n      (Dirk Eddelbuettel)\n   3. Re: [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix\n      (Serguei Sokol)\n   4. Re: [RcppArmadillo] Result of Rcpp Wrap() for Sparse      Matrix\n      (Douglas Bates)\n   5. Re: [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix\n      (Serguei Sokol)\n\n\n----------------------------------------------------------------------\n\nMessage: 1\nDate: Wed, 14 Jun 2017 13:21:54 +0000\nFrom: Douglas Bates <bates at stat.wisc.edu>\nTo: serguei.sokol at gmail.com, Binxiang Ni <binxiangni at gmail.com>,\n        rcpp-devel at lists.r-forge.r-project.org\nSubject: Re: [Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for\n        Sparse  Matrix\nMessage-ID:\n        <CAO7JsnTo8bA6LTsHz0udyjF-KAaE2kp-rKb13tyudg6gV=JiAQ at mail.gmail.com>\nContent-Type: text/plain; charset=\"utf-8\"\n\nOn Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com>\nwrote:\n\n> Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n> > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com\n> <mailto:binxiangni at gmail.com>> wrote:\n> >\n> >     Hi,\n> >\n> >     I am working on fixing sparse matrix conversion for RcppArmadillo.\n> Now a problem comes up to me: what kind of sparse matrix is expected to\n> pass from\n> >     Armadillo to R? That is, what should the result of wrap() be?\n> dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n> >\n> >\n> > What do you mean by \"their original type\"?\n> >\n> > It seems that the correspondence is\n> > Armadillo           Matrix package\n> > sp_mat       <=> dgCMatrix\n> > sp_cx_mat <=> zgCMatrix\n> > sp_imat      <=> igCMatrix\n> I would also consider the format used in a package slam.\n> It simply stores the indexes and non-zero values in a triplet (i,j,v).\n>\n\nThat is the format of the dgTMatrix class from the Matrix package for R but\nnot, as far as I can tell, in Armadillo.  A brief glance at the Armadillo\ndocumentation indicates that sparse matrices are always in the compressed\nsparse column (CSC) format.\n\nI would point out that the sparse matrix facilities in Eigen and RcppEigen\nare much more extensive than those in Armadillo.\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/\nattachments/20170614/bc4c3163/attachment-0001.html>\n\n------------------------------\n\nMessage: 2\nDate: Wed, 14 Jun 2017 09:01:30 -0500\nFrom: Dirk Eddelbuettel <edd at debian.org>\nTo: serguei.sokol at gmail.com\nCc: rcpp-devel at lists.r-forge.r-project.org, Binxiang Ni\n        <binxiangni at gmail.com>\nSubject: Re: [Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for\n        Sparse Matrix\nMessage-ID: <22849.16826.22396.339250 at max.eddelbuettel.com>\nContent-Type: text/plain; charset=iso-8859-1\n\n\nOn 14 June 2017 at 11:00, Serguei Sokol wrote:\n| Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n| > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com\n<mailto:binxiangni at gmail.com>> wrote:\n| >\n| >     Hi,\n| >\n| >     I am working on fixing sparse matrix conversion for RcppArmadillo.\nNow a problem comes up to me: what kind of sparse matrix is expected to\npass from\n| >     Armadillo to R? That is, what should the result of wrap() be?\ndgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n| >\n| >\n| > What do you mean by \"their original type\"?\n| >\n| > It seems that the correspondence is\n| > Armadillo           Matrix package\n| > sp_mat       <=> dgCMatrix\n| > sp_cx_mat <=> zgCMatrix\n| > sp_imat      <=> igCMatrix\n| I would also consider the format used in a package slam.\n| It simply stores the indexes and non-zero values in a triplet (i,j,v).\n\nThere is more here:  https://en.wikipedia.org/wiki/Sparse_matrix\n\nBut it would probably be good to hear from some actual users of sparse\nmatrices such as Doug (thanks for piping in already!), Soren or anybody else\nwith exposure to sparse matrices, ideally via CRAN packages we can wire up\nfor testing.\n\n\nDirk\n\n--\nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org\n\n\n------------------------------\n\nMessage: 3\nDate: Wed, 14 Jun 2017 16:06:58 +0200\nFrom: Serguei Sokol <serguei.sokol at gmail.com>\nTo: Douglas Bates <bates at stat.wisc.edu>, Binxiang Ni\n        <binxiangni at gmail.com>, rcpp-devel at lists.r-forge.r-project.org\nSubject: Re: [Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for\n        Sparse Matrix\nMessage-ID: <1ade20d8-f08c-df7b-e147-539e4b1babff at gmail.com>\nContent-Type: text/plain; charset=utf-8; format=flowed\n\nLe 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n>\n>\n> On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com\n<mailto:serguei.sokol at gmail.com>> wrote:\n>\n>     Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n>      > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <binxiangni at gmail.com\n<mailto:binxiangni at gmail.com> <mailto:binxiangni at gmail.com\n>     <mailto:binxiangni at gmail.com>>> wrote:\n>      >\n>      >     Hi,\n>      >\n>      >     I am working on fixing sparse matrix conversion for\nRcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is\nexpected to pass from\n>      >     Armadillo to R? That is, what should the result of wrap() be?\ndgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n>      >\n>      >\n>      > What do you mean by \"their original type\"?\n>      >\n>      > It seems that the correspondence is\n>      > Armadillo           Matrix package\n>      > sp_mat       <=> dgCMatrix\n>      > sp_cx_mat <=> zgCMatrix\n>      > sp_imat      <=> igCMatrix\n>     I would also consider the format used in a package slam.\n>     It simply stores the indexes and non-zero values in a triplet (i,j,v).\n>\n>\n> That is the format of the dgTMatrix class from the Matrix package for R\nbut not, as far as I can tell, in Armadillo.  A brief glance at the\nArmadillo\n> documentation indicates that sparse matrices are always in the compressed\nsparse column (CSC) format.\nIndeed, but nothing prevents Binxiang to develop a wrap() that will convert\narmadillo format to one or many of R formats, right?\n\n\n------------------------------\n\nMessage: 4\nDate: Wed, 14 Jun 2017 15:33:05 +0000\nFrom: Douglas Bates <bates at stat.wisc.edu>\nTo: serguei.sokol at gmail.com, Binxiang Ni <binxiangni at gmail.com>,\n        rcpp-devel at lists.r-forge.r-project.org\nSubject: Re: [Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for\n        Sparse  Matrix\nMessage-ID:\n        <CAO7JsnT7cj3pAqF7rEJ-EV_qke+Lr2suZu1AVpkPNT2O4bjVcg at mail.gmail.com>\nContent-Type: text/plain; charset=\"utf-8\"\n\nOn Wed, Jun 14, 2017 at 9:06 AM Serguei Sokol <serguei.sokol at gmail.com>\nwrote:\n\n> Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n> >\n> >\n> > On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <serguei.sokol at gmail.com\n> <mailto:serguei.sokol at gmail.com>> wrote:\n> >\n> >     Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n> >      > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <\n> binxiangni at gmail.com <mailto:binxiangni at gmail.com> <mailto:\n> binxiangni at gmail.com\n> >     <mailto:binxiangni at gmail.com>>> wrote:\n> >      >\n> >      >     Hi,\n> >      >\n> >      >     I am working on fixing sparse matrix conversion for\n> RcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is\n> expected to pass from\n> >      >     Armadillo to R? That is, what should the result of wrap() be?\n> dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original type?\n> >      >\n> >      >\n> >      > What do you mean by \"their original type\"?\n> >      >\n> >      > It seems that the correspondence is\n> >      > Armadillo           Matrix package\n> >      > sp_mat       <=> dgCMatrix\n> >      > sp_cx_mat <=> zgCMatrix\n> >      > sp_imat      <=> igCMatrix\n> >     I would also consider the format used in a package slam.\n> >     It simply stores the indexes and non-zero values in a triplet\n> (i,j,v).\n> >\n> >\n> > That is the format of the dgTMatrix class from the Matrix package for R\n> but not, as far as I can tell, in Armadillo.  A brief glance at the\n> Armadillo\n> > documentation indicates that sparse matrices are always in the\n> compressed sparse column (CSC) format.\n> Indeed, but nothing prevents Binxiang to develop a wrap() that will\nconvert\n> armadillo format to one or many of R formats, right?\n>\n\nWhy? Is there a reason for doing type conversion from the dgCMatrix format\nto another format in an Rcpp wrap function instead of with the existing\nfunctions from the Matrix package?\n\nBear in mind that dgCMatrix is an efficient format both in terms of the\namount of memory required  (that's the \"compressed\" part of the name) and\nin terms of performing operations with the matrix.  Most operations on\nsparse matrices stored in the triplet format start by creating a CSC or CSR\n(compressed sparse row) form of the matrix anyway.\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/\nattachments/20170614/7a9fef46/attachment-0001.html>\n\n------------------------------\n\nMessage: 5\nDate: Wed, 14 Jun 2017 17:55:49 +0200\nFrom: Serguei Sokol <serguei.sokol at gmail.com>\nTo: Douglas Bates <bates at stat.wisc.edu>, Binxiang Ni\n        <binxiangni at gmail.com>, rcpp-devel at lists.r-forge.r-project.org\nSubject: Re: [Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for\n        Sparse Matrix\nMessage-ID: <4cbe9f66-6755-70bc-3a59-2a660015b596 at gmail.com>\nContent-Type: text/plain; charset=utf-8; format=flowed\n\nLe 14/06/2017 ? 17:33, Douglas Bates a ?crit :\n>\n>\n> On Wed, Jun 14, 2017 at 9:06 AM Serguei Sokol <serguei.sokol at gmail.com\n<mailto:serguei.sokol at gmail.com>> wrote:\n>\n>     Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n>      >\n>      >\n>      > On Wed, Jun 14, 2017 at 3:59 AM Serguei Sokol <\nserguei.sokol at gmail.com <mailto:serguei.sokol at gmail.com> <mailto:\nserguei.sokol at gmail.com\n>     <mailto:serguei.sokol at gmail.com>>> wrote:\n>      >\n>      >     Le 13/06/2017 ? 18:24, Douglas Bates a ?crit :\n>      >      > On Tue, Jun 13, 2017 at 10:56 AM Binxiang Ni <\nbinxiangni at gmail.com <mailto:binxiangni at gmail.com> <mailto:\nbinxiangni at gmail.com\n>     <mailto:binxiangni at gmail.com>> <mailto:binxiangni at gmail.com <mailto:\nbinxiangni at gmail.com>\n>      >     <mailto:binxiangni at gmail.com <mailto:binxiangni at gmail.com>>>>\nwrote:\n>      >      >\n>      >      >     Hi,\n>      >      >\n>      >      >     I am working on fixing sparse matrix conversion for\nRcppArmadillo. Now a problem comes up to me: what kind of sparse matrix is\nexpected to\n>     pass from\n>      >      >     Armadillo to R? That is, what should the result of\nwrap() be? dgCMatrix(if logical, lgCMatrix or ngCMatrix)  or their original\ntype?\n>      >      >\n>      >      >\n>      >      > What do you mean by \"their original type\"?\n>      >      >\n>      >      > It seems that the correspondence is\n>      >      > Armadillo           Matrix package\n>      >      > sp_mat       <=> dgCMatrix\n>      >      > sp_cx_mat <=> zgCMatrix\n>      >      > sp_imat      <=> igCMatrix\n>      >     I would also consider the format used in a package slam.\n>      >     It simply stores the indexes and non-zero values in a triplet\n(i,j,v).\n>      >\n>      >\n>      > That is the format of the dgTMatrix class from the Matrix package\nfor R but not, as far as I can tell, in Armadillo.  A brief glance at the\nArmadillo\n>      > documentation indicates that sparse matrices are always in the\ncompressed sparse column (CSC) format.\n>     Indeed, but nothing prevents Binxiang to develop a wrap() that will\nconvert\n>     armadillo format to one or many of R formats, right?\n>\n>\n> Why?\nSure, Matrix is very versatile and rich in features but the price for this\nis its heavy weight.\nIt can take several seconds to load it up. On my rather mighty PC (Intel\nXeon E5-2609 v2 @ 2.50GHz with 16 GB of memory),\nI have:\n > system.time(library(Matrix))\nutilisateur     syst?me      ?coul?\n       1.427       0.052       1.619\n\nI don't have my laptop here but the load time can be longer.\nWhile for slam it takes only a fraction of second:\n\n > system.time(library(slam))\nutilisateur     syst?me      ?coul?\n       0.012       0.000       0.011\nWhen slam can suffice, why not to use it?\n\n> Is there a reason for doing type conversion from the dgCMatrix format to\nanother format in an Rcpp wrap function instead of with the existing\nfunctions\n> from the Matrix package?\n>\n> Bear in mind that dgCMatrix is an efficient format both in terms of the\namount of memory required  (that's the \"compressed\" part of the name) and\nin terms of\n> performing operations with the matrix.  Most operations on sparse\nmatrices stored in the triplet format start by creating a CSC or CSR\n(compressed sparse row)\n> form of the matrix anyway.\nIn Matrix package, I presume?\nFew basic operations that I have seen in slam, stay with triplet format.\nSo if a user did not load Matrix package and want to use e.g. slam format,\nit would be great if wrap() could give him expected format.\n\n\n------------------------------\n\n_______________________________________________\nRcpp-devel mailing list\nRcpp-devel at lists.r-forge.r-project.org\nhttps://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n\nEnd of Rcpp-devel Digest, Vol 92, Issue 12\n******************************************\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170614/7e595cd2/attachment-0001.html>",
+      "body_snippet": "My 2 cents. Last couple of years I used sparse matrices a lot. Matrix\npackage is really great. I'm not sure I understand issue with wrapping - as\nDoug said CSC format is main in both Armadillo and Mat",
+      "thread_id": "thread-17949aabf5a9",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-bc269f0c302f",
+      "message_id": "<22849.29439.794778.745257@max.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2017-06-14T12:31:43-05:00",
+      "subject": "[Rcpp-devel] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<CAJdZCv2zZKZAZD3N+xiiM5Z7V8noVd03DQPzCVLe9LsyOUbQ1g@mail.gmail.com>",
+      "references": [
+        "<CAJdZCv2zZKZAZD3N+xiiM5Z7V8noVd03DQPzCVLe9LsyOUbQ1g@mail.gmail.com>"
+      ],
+      "body_plain": "On 14 June 2017 at 20:44, Dmitriy Selivanov wrote:\n| My 2 cents. Last couple of years I used sparse matrices a lot. Matrix package\n| is really great. I'm not sure I understand issue with wrapping - as Doug said\n| CSC format is main in both Armadillo and Matrix. Given matrix in CSC format\n| (dgCMatrix/CsparseMatrix) it is trivial to convert it to COO or CSR with as(x,\n| \"TsparseMatrix\") / as(x, \"RsparseMatrix\").\n| \n| Second point is about slam package and COO format. I didn't use it, but used\n| scipy, Armadillo, Eigen. And none of these packages use COO format for\n| operations on matrices... I doubt it could be efficient.\n| \n| Third point is that I have feeling that nowadays CSR format is more mainstream.\n| For instance Eigen implements multithreaded sparse - dense multiplications and\n| sparse solvers (https://eigen.tuxfamily.org/dox/TopicMultiThreading.html). Same\n| story about sparse BLAS with Intel MKL - it works with CSR matrices. I realize\n| that CSR = transposed CSC, but still it is not convenient to transpose mind\n| each time. (Would be great to add more support for CSR matrices, but this is\n| out of scope of this discussion).\n\nReally nice summary, and very helpful because ...\n \n| And last my observation - I agree with Doug that it seems that Eigen has much\n| stronger support for operations with sparse matrices.\n\n... this year we have Binxiang trying to get (Rcpp)Armadillo closer to\n(Rcpp)Eigen in terms of sparse matrix support.  It is a valid goal because\nmany of really like Armadillo yet have more needs for sparse matrix support\nwith Armadillo and eg MLPACK or other things built on top of Armadillo.\n\nI also want to add that the load-time critique with respect to Matrix hits\nmore on whether S4 is a good or bad idea (and for something as complex and\nfeature-rich as Matrix it is almost certainly a good one) and has little to\ndo with the representation of sparse matrix indices.\n\nDirk\n\nPS Please consider removing quoted text. This message I am replying to\nexceeded the size limit so I had to manually approve it (and I also\nincremented the limit from the old, small default, but still...)\n\n-- \nhttp://dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 14 June 2017 at 20:44, Dmitriy Selivanov wrote:\n| My 2 cents. Last couple of years I used sparse matrices a lot. Matrix package\n| is really great. I'm not sure I understand issue with wrapping - as",
+      "thread_id": "thread-17949aabf5a9",
+      "thread_depth": 1,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-3ec8370715b1",
+      "message_id": "<a166b4d3-ba37-9d1e-d278-11cb7bfc45f1@gmail.com>",
+      "from_name": "Serguei Sokol",
+      "from_email_hash": "6dc103b0da942b68438faac0c6eca9778287edfda380e202f475cb4d246d2c59",
+      "date": "2017-06-15T11:38:34+02:00",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "subject_clean": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "in_reply_to": "<1ade20d8-f08c-df7b-e147-539e4b1babff@gmail.com>",
+      "references": [
+        "<CAAvrcup_mpq07vhcR32SQnU7DwbUR0uf+cJr=aG5xSDK97rsSw@mail.gmail.com>",
+        "<CAO7JsnTf03nOpTFmpc9kvjxSCjgfwL-cr4RDuxPfMvS1vEmO9g@mail.gmail.com>",
+        "<0a8b6f2a-40ca-3e08-65a7-41385a2b712c@gmail.com>",
+        "<CAO7JsnTo8bA6LTsHz0udyjF-KAaE2kp-rKb13tyudg6gV=JiAQ@mail.gmail.com>",
+        "<1ade20d8-f08c-df7b-e147-539e4b1babff@gmail.com>"
+      ],
+      "body_plain": "Le 14/06/2017 ? 16:06, Serguei Sokol a ?crit :\n> Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n>>\n>> ...\n>> That is the format of the dgTMatrix class from the Matrix package for R but not, as far as I can tell, in Armadillo.  A brief glance at the Armadillo \n>> documentation indicates that sparse matrices are always in the compressed sparse column (CSC) format.\n> Indeed, but nothing prevents Binxiang to develop a wrap() that will convert\n> armadillo format to one or many of R formats, right?\nI realize that I was asking too much to wrap(). After having a glance on\nhttp://gallery.rcpp.org/articles/custom-templated-wrap-and-as-for-seamingless-interfaces/\nI understand that it cannot convert a given object to more than one R format.\nThere is no mechanism equivalent to T as in as<T>().\nGiven this, I agree that the most logical solution would be to stay with\nCSC format which is common to Armadillo and Matrix package.",
+      "body_snippet": "Le 14/06/2017 ? 16:06, Serguei Sokol a ?crit :\n> Le 14/06/2017 ? 15:21, Douglas Bates a ?crit :\n>>\n>> ...\n>> That is the format of the dgTMatrix class from the Matrix package for R but not, as far as ",
+      "thread_id": "thread-e7f4807d7e9b",
+      "thread_depth": 5,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-bfad6a14414d",
+      "message_id": "<CANjbG7OXov3kn-VjEj2uCu=EFX5VMVFn6R-CEjO-TAvzW1JDqQ@mail.gmail.com>",
+      "from_name": "Jose",
+      "from_email_hash": "34ef9be96d3318ed7c2acb6ce8e8566d14f6c60095d4dbff46afd1823feeccb0",
+      "date": "2017-06-19T20:28:54+02:00",
+      "subject": "[Rcpp-devel] R/C++ distributable binaries",
+      "subject_clean": "[Rcpp-devel] R/C++ distributable binaries",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Hello,\n\nI'm working on a C++ visualization tool.\nI've recently added some functionalities from R packages using RInside and\nRcpp. It went pretty smoothly but I'm now wondering about dynamic/static\nlinking since I want to distribute self-contained binaries. I'm not even\nsure if this is possible with R and C++ since I believe a local R session\nis needed with RInside. It's not a big deal to enforce users to have R\ninstalled but I'm concerned about different platforms and versions.\n\nDoes anybody have any insight on this? Thanks in advance.\n\nBest Regards,\n\nJose\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170619/d4c58859/attachment.html>",
+      "body_snippet": "Hello,\n\nI'm working on a C++ visualization tool.\nI've recently added some functionalities from R packages using RInside and\nRcpp. It went pretty smoothly but I'm now wondering about dynamic/static\nlin",
+      "thread_id": "thread-bfad6a14414d",
+      "thread_depth": 0,
+      "month": "2017-06"
+    },
+    {
+      "id": "msg-774b949ee615",
+      "message_id": "<CAN55XP51J7tF-QQmar3Gxr-gAQzv6Y-wprDkcySnHHhBCk6j+g@mail.gmail.com>",
+      "from_name": "FHRB Toledo",
+      "from_email_hash": "b3ec475056d5b77b674772268d79bafdeda3717828f2a81b0785af55188222c3",
+      "date": "2017-06-30T15:18:55-05:00",
+      "subject": "[Rcpp-devel] CRTP and Modules",
+      "subject_clean": "[Rcpp-devel] CRTP and Modules",
+      "in_reply_to": null,
+      "references": [],
+      "body_plain": "Dear All,\n\nI am trying to deploy a way to enable user extensions for a package that\nuses Rcpp. In that sense, I have found a vignette from dplyr package\n(\"Hybrid Evaluation\") where it is used CRTP.\n\nThus, I am trying to reproduce e toy example of that to be exposed by Rcpp\nModules. Digging on the matter I found about the package RcppAnnoy which\nhave partially solved the issue. But, I still have a question: How to have\ndifferent implementations one for each Derived classes exposed by the Rcpp\nModules, specifically, how to expose the CRTP interface?\n\nFollowing you can find What I did up to the moment. I also read an recent\nthread in stackoverflow where Dirk mentioned RcppAnnoy but, I can't find\nthe way to expose the especializations.\n\nMany thanks in advance for your help over that. By the way, I would be glad\nwith any comment or suggestion to fullfill the requirements for the CTRP.\neven out of the scope of the Modules.\n\n[CODE:]\n\n\n#include <Rcpp.h>\n\ntemplate < class Derived >\nclass Base {\n\n  public :\n\n    Base< Derived > ( void ) { } ;\n    virtual ~Base< Derived > ( void ) { } ;\n\n    // CRTP interface\n    virtual double operation ( void )\n      { return static_cast< Derived * >( this ) -> implementation ( ) ; }\n\n  private :\n\n} ;\n\nclass Multiply : public Base< Multiply > {\n\n  public :\n\n    Multiply ( double, double ) ;\n\n    double implementation ( void ) ;\n\n  private :\n\n    double x, y ;\n\n} ;\n\nclass Sum : public Base< Sum > {\n\n  public :\n\n    Sum ( double, double ) ;\n\n    double implementation ( void ) ;\n\n  private :\n\n    double x, y ;\n\n} ;\n\nMultiply::Multiply ( double x_, double y_ ) : x ( x_ ), y ( y_ ) { }\n\ndouble Multiply::implementation ( void ) { return x * y ; }\n\nSum::Sum ( double x_, double y_ ) : x ( x_ ), y ( y_ ) { }\n\ndouble Sum::implementation ( void ) { return x + y ; }\n\nRCPP_EXPOSED_CLASS_NODECL( Base< Multiply > )\nRCPP_EXPOSED_CLASS_NODECL( Base< Sum > )\nRCPP_EXPOSED_CLASS( Multiply )\nRCPP_EXPOSED_CLASS( Sum )\n\nRCPP_MODULE( CRTP ) {\n\n\n    // needs templated parameter -- doesn't work\n    Rcpp::class_< Base >( \"Base\" )\n\n      // exposing interface specialization member function\n      .method( \"operation\", & Base::operation )\n\n    ;\n\n\n    // exposing the class\n    Rcpp::class_< Multiply >( \"Multiply\" )\n\n      // explicit inheritance\n      // .derives< Base >( \"Base\" )\n\n      // exposing the default constructor\n      .constructor< double, double >( )\n\n      // exposing Base member functions\n      // .method( \"operation\", & Multiply::operation ) // doesn't work\n\n    ;\n\n    // idem above\n    Rcpp::class_< Sum >( \"Sum\" )\n\n      // explicit inheritance\n      // .derives< Base >( \"Base\" )\n\n      .constructor< double, double >( )\n\n      .method( \"operation\", & Sum::implementation ) // works :) but it\nisn't CRTP\n\n    ;\n\n}\n\nCheers,\nFH\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20170630/480b124d/attachment.html>",
+      "body_snippet": "Dear All,\n\nI am trying to deploy a way to enable user extensions for a package that\nuses Rcpp. In that sense, I have found a vignette from dplyr package\n(\"Hybrid Evaluation\") where it is used CRTP.\n\nT",
+      "thread_id": "thread-774b949ee615",
+      "thread_depth": 0,
+      "month": "2017-06"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-930c2b6947b4",
+      "subject": "[Rcpp-devel] RcppParallel wrong after correct",
+      "message_count": 4,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Romain Francois",
+        "Tim Keitt",
+        "f.krah at mailbox.org"
+      ],
+      "started": "2017-06-02T15:40:00+02:00",
+      "last_reply": "2017-06-04T09:25:39+08:00",
+      "root_message_id": "msg-930c2b6947b4"
+    },
+    {
+      "id": "thread-03f3bc2781ee",
+      "subject": "[Rcpp-devel] [ANN] Interim release Rcpp 0.12.11.2 available via Rcpp Drat",
+      "message_count": 1,
+      "participants": [
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2017-06-04T08:19:42-05:00",
+      "last_reply": "2017-06-04T08:19:42-05:00",
+      "root_message_id": "msg-03f3bc2781ee"
+    },
+    {
+      "id": "thread-40afb7e2ecb9",
+      "subject": "[Rcpp-devel] [ANN] RcppArmadillo 0.7.900.2.0",
+      "message_count": 1,
+      "participants": [
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2017-06-04T09:58:51-05:00",
+      "last_reply": "2017-06-04T09:58:51-05:00",
+      "root_message_id": "msg-40afb7e2ecb9"
+    },
+    {
+      "id": "thread-da60a6323c1b",
+      "subject": "[Rcpp-devel] Code review for xtensor R bindings",
+      "message_count": 8,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Romain Francois",
+        "Wolf Vollprecht"
+      ],
+      "started": "2017-06-06T14:15:46-07:00",
+      "last_reply": "2017-06-07T16:06:08-07:00",
+      "root_message_id": "msg-da60a6323c1b"
+    },
+    {
+      "id": "thread-d9e136de1392",
+      "subject": "[Rcpp-devel] Parallel ANN search with openMPI",
+      "message_count": 2,
+      "participants": [
+        "Qiang Kou",
+        "Xiaojie Qiu"
+      ],
+      "started": "2017-06-06T22:22:10+00:00",
+      "last_reply": "2017-06-06T21:19:16-04:00",
+      "root_message_id": "msg-d9e136de1392"
+    },
+    {
+      "id": "thread-58cf47e0f94c",
+      "subject": "[Rcpp-devel] Performance issues with simple list class",
+      "message_count": 2,
+      "participants": [
+        "Clemens Schmid",
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2017-06-08T14:29:56+02:00",
+      "last_reply": "2017-06-12T06:07:00-05:00",
+      "root_message_id": "msg-58cf47e0f94c"
+    },
+    {
+      "id": "thread-8de33c717705",
+      "subject": "[Rcpp-devel] R binding for nmslib ANN package",
+      "message_count": 1,
+      "participants": [
+        "Xiaojie Qiu"
+      ],
+      "started": "2017-06-09T18:48:56+00:00",
+      "last_reply": "2017-06-09T18:48:56+00:00",
+      "root_message_id": "msg-8de33c717705"
+    },
+    {
+      "id": "thread-53f22946e3e3",
+      "subject": "[Rcpp-devel] Starting R Interpreter from C++",
+      "message_count": 7,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "JJ Allaire",
+        "Romain Francois",
+        "Wolf Vollprecht"
+      ],
+      "started": "2017-06-12T01:11:32-07:00",
+      "last_reply": "2017-06-13T18:11:16-05:00",
+      "root_message_id": "msg-53f22946e3e3"
+    },
+    {
+      "id": "thread-14dfb1967539",
+      "subject": "[Rcpp-devel] R binding for nmslib ANN package (Xiaojie Qiu)",
+      "message_count": 1,
+      "participants": [
+        "Dmitriy Selivanov"
+      ],
+      "started": "2017-06-12T21:00:43+04:00",
+      "last_reply": "2017-06-12T21:00:43+04:00",
+      "root_message_id": "msg-14dfb1967539"
+    },
+    {
+      "id": "thread-e7f4807d7e9b",
+      "subject": "[Rcpp-devel] [RcppArmadillo] Result of Rcpp Wrap() for Sparse Matrix",
+      "message_count": 9,
+      "participants": [
+        "Binxiang Ni",
+        "Dirk Eddelbuettel",
+        "Douglas Bates",
+        "Serguei Sokol"
+      ],
+      "started": "2017-06-13T10:55:40-05:00",
+      "last_reply": "2017-06-15T11:38:34+02:00",
+      "root_message_id": "msg-e7f4807d7e9b"
+    },
+    {
+      "id": "thread-17949aabf5a9",
+      "subject": "[Rcpp-devel] Result of Rcpp Wrap() for Sparse Matrix",
+      "message_count": 2,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Dmitriy Selivanov"
+      ],
+      "started": "2017-06-14T20:44:55+04:00",
+      "last_reply": "2017-06-14T12:31:43-05:00",
+      "root_message_id": "msg-17949aabf5a9"
+    },
+    {
+      "id": "thread-bfad6a14414d",
+      "subject": "[Rcpp-devel] R/C++ distributable binaries",
+      "message_count": 1,
+      "participants": [
+        "Jose"
+      ],
+      "started": "2017-06-19T20:28:54+02:00",
+      "last_reply": "2017-06-19T20:28:54+02:00",
+      "root_message_id": "msg-bfad6a14414d"
+    },
+    {
+      "id": "thread-774b949ee615",
+      "subject": "[Rcpp-devel] CRTP and Modules",
+      "message_count": 1,
+      "participants": [
+        "FHRB Toledo"
+      ],
+      "started": "2017-06-30T15:18:55-05:00",
+      "last_reply": "2017-06-30T15:18:55-05:00",
+      "root_message_id": "msg-774b949ee615"
+    }
+  ]
+}
