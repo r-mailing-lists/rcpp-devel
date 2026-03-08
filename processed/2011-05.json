@@ -2795,22 +2795,6 @@
       "thread_id": "thread-9c0d65053cf4",
       "thread_depth": 6,
       "month": "2011-05"
-    },
-    {
-      "id": "msg-3672dac36b45",
-      "message_id": "<BANLkTikg8NOCDnDwpL5xMF3DuC4J_Px5=g@mail.gmail.com>",
-      "from_name": "Christian Gunning",
-      "from_email_hash": "993933755764e5405bb6c91b6a384a924c176550557cdb95e04b36a3f00699e8",
-      "date": "2011-05-31T23:51:10-07:00",
-      "subject": "[Rcpp-devel] R.e.  Fwd: problem with rmultinom function",
-      "subject_clean": "[Rcpp-devel] R.e.  Fwd: problem with rmultinom function",
-      "in_reply_to": null,
-      "references": [],
-      "body_plain": "On Tue, May 31, 2011 at 10:55 AM,\n<rcpp-devel-request at r-forge.wu-wien.ac.at> wrote:\n> Hi,\n> I sent this message a couple of days ago, but I haven't heard anything yet.\n> I think you didnt receive it, that's why I send it again.\n\nI didn't see anything.  If you're not subscribed to the list,\nsubmissions silently fail.  Plus, you must send from the subscribing\naddress.  I've made this mistake a few times...\n\n> I have a strange problem that I spent several days trying to fix it, but\n> unfortunately I wasn't able to catch it. I'm running the rcpp code for 3000\n> iterations(running the same code for 3000 times) on different datasets. but\n> for some datasets, in the final iterations (like 2667 th iteration) the code\n> stops running and it jumps out of the R environment. and if I run the same\n> code (without any changes) on the same dataset(still without any changes)\n> the problem might never happen and it goes to the last iteration without any\n> problem(or the problem may occur in another iteration). and the interesting\n> part is that error code is different each time, I got error codes like:\n>\n> what(): ?invalid partial string match\n> what(): ?'prob' is missing\n> what(): ?unused argument(s) (<environment>)\n> and etc...\n> I'm pretty sure that problem occurs in the line of code that I am using\n> rmultinom function, but I included the necessary function\n> Function rmultinom = stats[\"rmultinom\"];\n>\n> to be more clear I wrote a simple function and I attached it in this email.\n> in this code I didn't read any dataset, I just used some variables to define\n> the size of structures that I need to get from dataset. if you run the code\n> with these values for P, K, unum,qnum, the error occurs in the first 10\n> iterations, but If you change the values of those parameters to smaller\n> values, the error may never happen.\n> I tried to used an cpp implementation for rmultinom, it works but the\n> program would be as slow as R version.\n>\n>\n> do you have any idea why this problem occur? or did anybody ever have the\n> same problem or can give me some tips to fix it?\n>\n> ps: all datasets are generated through the sampe process(with a single\n> simulation code)\n\nI'm attaching a cleanup of the code using inline -- you can now just\nsource this in R.  I'm not sure, but I think you might be working\nunder some mistaken assumptions.  Hopefully the attached code is more\nconceptually clear.\n\nThere were a few offhand things that I modified, e.g. maxItr wasn't\nused in the attached code.  There are a number of things that I\n*didn't* change for which there seem to be faster/better methods, but\nI'm not sure of your purpose.  For example, can any of the in-loop\nassignments (qnum, qlength) be moved to the top?\n\nLastly, are you *just* using rmultinom and Cwhich to roll a K or P\nsided die?  If so, what about something like as<int>(runif(1, 0, K))?\nEven if you're rolling a weighted die, it seems like there's a better\nway...\n\nHopefully this sheds at least a bit of light on your question.\nApologies if I've misunderstood.\n-Christian\n\n## Compile/run from R using the following (assuming inline package is\ninstalled):\nsource('gibbs.R.txt')\nfun1(10)\n\n-- \nA man, a plan, a cat, a ham, a yak, a yam, a hat, a canal ? Panama!\n-------------- next part --------------\n#include \"SamplingCode.h\"\n\n\ninc = '\n//using namespace Rcpp;\nint Cwhich(IntegerVector binVec){\n  int vecsize = binVec.size();\n  for ( int i =0; i < vecsize; i++)\n    if (binVec(i) == 1)\n      return i;\n  std::cout << \"soemthing went wrong, no value equal to one was found !\" << std::endl;\n  return -1;\n}\n'\n\n#RcppExport SEXP doGibbs(SEXP RmaxItr){//doGibbs <- function(Questions, K, P, gibbs.max.iter, Z.Q=NULL, Y.Q = NULL){\n\nsrc = '\n\tEnvironment stats(\"package:stats\"); \n\tFunction rmultinom = stats[\"rmultinom\"];\n\tRcpp::RNGScope scope;\n//\tRcpp::List questions(Rquestions);\n\t\n\tunsigned int K =50;\n\tunsigned int P = 50;\n    NumericVector probs1(P, 1.0/P); //added -- instead of rep\n    NumericVector probs2(K, 1.0/K); //added\n\tunsigned int maxItr = Rcpp::as<int>(RmaxItr);\n\tRcpp::List ZQ;\n\tRcpp::List YQ;\n\tunsigned int unum=300;\n\n\tstd::cout<<unum<<std::endl;\n\tstd::cout<<\"point1\"<<std::endl;\n\tfor(unsigned itr=0; itr<maxItr; itr++){ //changed\n\t\t\tstd::cout<<\"itr\"<<itr<<std::endl;\n\t\tfor ( unsigned int u=0; u < unum; u++) {\n\t\t\tRcpp::List QZQ;\n\t\t\tunsigned int qnum= 100;\n            IntegerVector tmpu(qnum); //added\n\t\t\t//YQ.insert(u, rep(0, qnum ));\t\n\n\t\t\tfor( unsigned int q=0; q<qnum; q++){\n\t\t\t\t//as<Rcpp::IntegerVector>(YQ(u))(q) = Cwhich(rmultinom(1,1, probs1 ));\n\t\t\t\ttmpu(q) = Cwhich(rmultinom(1,1, probs1 ));\n\t\t\t\tunsigned int qlength=200;\n\t\t\t\tIntegerVector tmpq(qlength); //added\n\t\t\t\t//QZQ.insert(q, rep(0, qlength ));\n\n\t\t\t\tfor( unsigned int n=0; n<qlength; n++){   \n\t\t\t\t\t\ttmpq(n)= Cwhich(rmultinom(1,1, probs2 ));\t\n\t\t\t\t\t\t//as<Rcpp::IntegerVector>(QZQ(q))(n)= Cwhich(rmultinom(1,1, probs2 ));\t\n\t\t\t\t}\n\t\t\t\tQZQ.insert(q, tmpq);\n\t\t\t}\n\t\t\tYQ.insert(u, tmpu);\n\t\t\tZQ.insert(u, QZQ);\n\t\t}\n    }\n'\n\nrequire(inline)\nfun1 = cxxfunction(signature(RmaxItr='integer'), body=src, includes=inc, plugin='Rcpp')\n#}",
-      "body_snippet": "On Tue, May 31, 2011 at 10:55 AM,\n<rcpp-devel-request at r-forge.wu-wien.ac.at> wrote:\n> Hi,\n> I sent this message a couple of days ago, but I haven't heard anything yet.\n> I think you didnt receive i",
-      "thread_id": "thread-3672dac36b45",
-      "thread_depth": 0,
-      "month": "2011-05"
     }
   ],
   "threads": [
@@ -3287,17 +3271,6 @@
       "started": "2011-05-31T05:44:20-07:00",
       "last_reply": "2011-05-31T05:44:20-07:00",
       "root_message_id": "msg-c7b287a8cbb2"
-    },
-    {
-      "id": "thread-3672dac36b45",
-      "subject": "[Rcpp-devel] R.e.  Fwd: problem with rmultinom function",
-      "message_count": 1,
-      "participants": [
-        "Christian Gunning"
-      ],
-      "started": "2011-05-31T23:51:10-07:00",
-      "last_reply": "2011-05-31T23:51:10-07:00",
-      "root_message_id": "msg-3672dac36b45"
     }
   ]
 }

@@ -4,74 +4,6 @@
   "month": "2022-04",
   "messages": [
     {
-      "id": "msg-f5f13e573334",
-      "message_id": "<CAH3kUhFbmsw+5O-91FqvD=MM5ostaua_GPeVoankN=5VCCharg@mail.gmail.com>",
-      "from_name": "Roberto Spadim",
-      "from_email_hash": "58ff001105db1ef34d961d044415a331cd732ab9caa8ccc1519ec30abeb73f18",
-      "date": "2022-04-27T20:58:38-03:00",
-      "subject": "[Rcpp-devel] help with data.frame and numericvector",
-      "subject_clean": "[Rcpp-devel] help with data.frame and numericvector",
-      "in_reply_to": null,
-      "references": [],
-      "body_plain": "Hello folks,\nI'm converting some R functions to RCpp at\nhttps://github.com/OVVO-Financial/NNS/\n\nMy problem is with a R \"cast\" function\n\nhttps://github.com/OVVO-Financial/NNS/blob/d3f37c6f217a41ce15b31f7a840b6b1ad63e5f36/R/Partial_Moments.R#L20\n\nbasically this line:\n\n---\nLPM <- function(degree, target, variable){\nif(any(class(variable)%in%c(\"tbl\",\"data.table\"))) variable <-\nas.vector(unlist(variable))\n...\n}\n---\n\nMy Rcpp version don't accept data.table type, it return an error of\ntype not allow:\n\nError in LPM(2, 0, tail(appended_returns, 1)) :\n  Not compatible with requested type: [type=list; target=double].\n\nIs there some way to accept a \"anytype\" at Rcpp, and convert it to\nnumericvector when need?\nMy Rcpp version is:\n\nhttps://github.com/OVVO-Financial/NNS/blob/NNS-Beta-Version/src/partial_moments_rcpp.cpp#L68\n\nand fucntion signature is:\nNumericVector LPM_CPv(const double degree, const NumericVector target,\nconst NumericVector variable) {\n\ni think i should use SEXP as \"anytype\" and at function body check if I\nshould \"cast\" to NumericVector",
-      "body_snippet": "Hello folks,\nI'm converting some R functions to RCpp at\nhttps://github.com/OVVO-Financial/NNS/\n\nMy problem is with a R \"cast\" function\n\nhttps://github.com/OVVO-Financial/NNS/blob/d3f37c6f217a41ce15b31",
-      "thread_id": "thread-f5f13e573334",
-      "thread_depth": 0,
-      "month": "2022-04"
-    },
-    {
-      "id": "msg-160a29851020",
-      "message_id": "<25193.58102.250987.66844@rob.eddelbuettel.com>",
-      "from_name": "Dirk Eddelbuettel",
-      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
-      "date": "2022-04-27T19:42:30-05:00",
-      "subject": "[Rcpp-devel] help with data.frame and numericvector",
-      "subject_clean": "[Rcpp-devel] help with data.frame and numericvector",
-      "in_reply_to": "<CAH3kUhFbmsw+5O-91FqvD=MM5ostaua_GPeVoankN=5VCCharg@mail.gmail.com>",
-      "references": [
-        "<CAH3kUhFbmsw+5O-91FqvD=MM5ostaua_GPeVoankN=5VCCharg@mail.gmail.com>"
-      ],
-      "body_plain": "On 27 April 2022 at 20:58, Roberto Spadim wrote:\n| Hello folks,\n| I'm converting some R functions to RCpp at\n| https://github.com/OVVO-Financial/NNS/\n| \n| My problem is with a R \"cast\" function\n| \n| https://github.com/OVVO-Financial/NNS/blob/d3f37c6f217a41ce15b31f7a840b6b1ad63e5f36/R/Partial_Moments.R#L20\n| \n| basically this line:\n| \n| ---\n| LPM <- function(degree, target, variable){\n| if(any(class(variable)%in%c(\"tbl\",\"data.table\"))) variable <-\n| as.vector(unlist(variable))\n| ...\n| }\n| ---\n| \n| My Rcpp version don't accept data.table type, it return an error of\n| type not allow:\n| \n| Error in LPM(2, 0, tail(appended_returns, 1)) :\n|   Not compatible with requested type: [type=list; target=double].\n| \n| Is there some way to accept a \"anytype\" at Rcpp, and convert it to\n| numericvector when need?\n\nIn a way. We have a more-or-less FAQ about how to accomodate 'different\nrun-time types' (think: int vector vs double vector) at compile time. The\neasiest is to use a SEXP which *is* already your \"anytype\" as it (most\nliterally) covers \"any\" type in R.  See for example\n\n   https://gallery.rcpp.org/articles/rcpp-wrap-and-recurse/\n\nwhich shows the basic pattern of switching on TYPEOF().\n\nOtherwise, a tip: decompose compound expressions\n\n if(any(class(variable)%in%c(\"tbl\",\"data.table\"))) variable <- as.vector(unlist(variable))\n\ninto more basic assignments (on the C++ side).  We are getting some wonderful\nhelp from the compiler but the template meta-programming driving this is\nfinicky. Do NOT assume you can stack expressions as you might in R. No shame\nin doing multiple basic expressions -- the compiler (once it knows what to\ndo) may well optimise temporaries away.\n\nDirk\n\n| My Rcpp version is:\n| \n| https://github.com/OVVO-Financial/NNS/blob/NNS-Beta-Version/src/partial_moments_rcpp.cpp#L68\n| \n| and fucntion signature is:\n| NumericVector LPM_CPv(const double degree, const NumericVector target,\n| const NumericVector variable) {\n| \n| i think i should use SEXP as \"anytype\" and at function body check if I\n| should \"cast\" to NumericVector\n| _______________________________________________\n| Rcpp-devel mailing list\n| Rcpp-devel at lists.r-forge.r-project.org\n| https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
-      "body_snippet": "On 27 April 2022 at 20:58, Roberto Spadim wrote:\n| Hello folks,\n| I'm converting some R functions to RCpp at\n| https://github.com/OVVO-Financial/NNS/\n| \n| My problem is with a R \"cast\" function\n| \n| h",
-      "thread_id": "thread-f5f13e573334",
-      "thread_depth": 1,
-      "month": "2022-04"
-    },
-    {
-      "id": "msg-35ab1c477d6b",
-      "message_id": "<CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>",
-      "from_name": "Roberto Spadim",
-      "from_email_hash": "58ff001105db1ef34d961d044415a331cd732ab9caa8ccc1519ec30abeb73f18",
-      "date": "2022-04-30T14:16:04-03:00",
-      "subject": "[Rcpp-devel] Doubt about best pratices",
-      "subject_clean": "[Rcpp-devel] Doubt about best pratices",
-      "in_reply_to": null,
-      "references": [],
-      "body_plain": "Hi folks!\n\nWhat's the best pratices to accept a dataframe and numericmatrix in a function?\n\nShould I have two different methods to deal with NumericMatrix and DataFrame?\nCould I convert DataFrame to matrix? What's the impact of doing this,\ni.e. does the as.matrix copy dataframe data?\n\nThanks in advance!\n\n---\nToday I'm doing something like this:\n\nvoid RCPP_function(const RObject &vec, const RObject &mat) {\n  if(mat.isNULL())\n    Rcpp::stop(\"mat can't be null\");\n  NumericMatrix variable_matrix;\n  if (is<NumericMatrix>(mat))\n    variable_matrix = as<NumericMatrix>(mat);\n  else\n    variable_matrix = Rcpp::internal::convert_using_rfunction(mat, \"as.matrix\");\n\n  NumericVector variable_vector;\n  if((is<NumericVector>(target) || is<DataFrame>(target)) && !target.isNULL()){\n      variable_vector=as<NumericVector>(target);\n  }else{\n      variable_vector=colMeans(variable_matrix);\n  }\n\n  ...\n  do something with data\n  but here it's sure to be:\n   NumericVector (variable_vector)\n   NumericMatrix (variable_matrix)\n  ...\n}\n\n\n-- \nRoberto Spadim",
-      "body_snippet": "Hi folks!\n\nWhat's the best pratices to accept a dataframe and numericmatrix in a function?\n\nShould I have two different methods to deal with NumericMatrix and DataFrame?\nCould I convert DataFrame to m",
-      "thread_id": "thread-35ab1c477d6b",
-      "thread_depth": 0,
-      "month": "2022-04"
-    },
-    {
-      "id": "msg-c2b49195265a",
-      "message_id": "<CA19E100-F308-40C3-8A16-415D85250E3C@dcn.davis.ca.us>",
-      "from_name": "Jeff Newmiller",
-      "from_email_hash": "ee1094c33a9a250a7334f3a1fc915e1e7bae14a1c68d3b0c50991971fd069cb2",
-      "date": "2022-04-30T10:26:17-07:00",
-      "subject": "[Rcpp-devel] Doubt about best pratices",
-      "subject_clean": "[Rcpp-devel] Doubt about best pratices",
-      "in_reply_to": "<CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>",
-      "references": [
-        "<CAH3kUhHEz6Jd8c44mE5bn_sCJSKUh7FDbEV9arywHfkzwkYmOQ@mail.gmail.com>"
-      ],
-      "body_plain": "A data frame is designed to represent different types in different columns. A matrix is designed so that all elements are the same.\n\nIt sounds like you need matrices for your algorithm. I would simply require that... or attempt to convert it immediately and stop if the result is not numeric. \n\nOn April 30, 2022 10:16:04 AM PDT, Roberto Spadim <roberto at spadim.com.br> wrote:\n>Hi folks!\n>\n>What's the best pratices to accept a dataframe and numericmatrix in a function?\n>\n>Should I have two different methods to deal with NumericMatrix and DataFrame?\n>Could I convert DataFrame to matrix? What's the impact of doing this,\n>i.e. does the as.matrix copy dataframe data?\n>\n>Thanks in advance!\n>\n>---\n>Today I'm doing something like this:\n>\n>void RCPP_function(const RObject &vec, const RObject &mat) {\n>  if(mat.isNULL())\n>    Rcpp::stop(\"mat can't be null\");\n>  NumericMatrix variable_matrix;\n>  if (is<NumericMatrix>(mat))\n>    variable_matrix = as<NumericMatrix>(mat);\n>  else\n>    variable_matrix = Rcpp::internal::convert_using_rfunction(mat, \"as.matrix\");\n>\n>  NumericVector variable_vector;\n>  if((is<NumericVector>(target) || is<DataFrame>(target)) && !target.isNULL()){\n>      variable_vector=as<NumericVector>(target);\n>  }else{\n>      variable_vector=colMeans(variable_matrix);\n>  }\n>\n>  ...\n>  do something with data\n>  but here it's sure to be:\n>   NumericVector (variable_vector)\n>   NumericMatrix (variable_matrix)\n>  ...\n>}\n>\n>\n>-- \n>Roberto Spadim\n>_______________________________________________\n>Rcpp-devel mailing list\n>Rcpp-devel at lists.r-forge.r-project.org\n>https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel\n-- \nSent from my phone. Please excuse my brevity.",
-      "body_snippet": "A data frame is designed to represent different types in different columns. A matrix is designed so that all elements are the same.\n\nIt sounds like you need matrices for your algorithm. I would simply",
-      "thread_id": "thread-35ab1c477d6b",
-      "thread_depth": 1,
-      "month": "2022-04"
-    },
-    {
       "id": "msg-ec6ea6707151",
       "message_id": "<8E548406-7E7C-41B8-8743-FFD88DF53E79@dcn.davis.ca.us>",
       "from_name": "Jeff Newmiller",
@@ -93,30 +25,6 @@
     }
   ],
   "threads": [
-    {
-      "id": "thread-f5f13e573334",
-      "subject": "[Rcpp-devel] help with data.frame and numericvector",
-      "message_count": 2,
-      "participants": [
-        "Dirk Eddelbuettel",
-        "Roberto Spadim"
-      ],
-      "started": "2022-04-27T20:58:38-03:00",
-      "last_reply": "2022-04-27T19:42:30-05:00",
-      "root_message_id": "msg-f5f13e573334"
-    },
-    {
-      "id": "thread-35ab1c477d6b",
-      "subject": "[Rcpp-devel] Doubt about best pratices",
-      "message_count": 2,
-      "participants": [
-        "Jeff Newmiller",
-        "Roberto Spadim"
-      ],
-      "started": "2022-04-30T14:16:04-03:00",
-      "last_reply": "2022-04-30T10:26:17-07:00",
-      "root_message_id": "msg-35ab1c477d6b"
-    },
     {
       "id": "thread-ec6ea6707151",
       "subject": "[Rcpp-devel] Doubt about best pratices",
