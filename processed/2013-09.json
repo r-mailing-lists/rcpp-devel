@@ -2723,6 +2723,69 @@
       "thread_id": "thread-495877fa660f",
       "thread_depth": 3,
       "month": "2013-09"
+    },
+    {
+      "id": "msg-28978b6b1297",
+      "message_id": "<2BD940E325B5434B9DC0690C09BF79D811F377@exmbx03-cdc.nexus.csiro.au>",
+      "from_name": "Luke.Domanski at csiro.au",
+      "from_email_hash": "cc1df0752af0cb2b315ccb5354c57698df946bf082f3a7548a9a2bc9262221f7",
+      "date": "2013-09-30T22:08:04Z",
+      "subject": "[Rcpp-devel] Problem exposing inherited member function of derived class to R through RCPP_MODULE",
+      "subject_clean": "[Rcpp-devel] Problem exposing inherited member function of derived class to R through RCPP_MODULE",
+      "in_reply_to": "<2BD940E325B5434B9DC0690C09BF79D811E5F0@exmbx03-cdc.nexus.csiro.au>",
+      "references": [
+        "<2BD940E325B5434B9DC0690C09BF79D811E448@exmbx03-cdc.nexus.csiro.au>",
+        "<5242861F.3070603@r-enthusiasts.com>",
+        "<2BD940E325B5434B9DC0690C09BF79D811E5F0@exmbx03-cdc.nexus.csiro.au>"
+      ],
+      "body_plain": "Hi All,\n\nJust a comment on a side effect/issue with my previously posted solution to this problem, i.e.:\n\n> you can also solve the problem by overwriting the\n> inherited members in the derived class such that they trivially call\n> the base class implementation. As described briefly in my original\n> email.\n\nLike follows:\n\nClass A {\n\tpublic:\n\t\tvoid fun2(){ };\n\t\tvoid fun1(){ fun2(); };\n}\n\nClass A_derived : public A {\n\tpublic:\n\t\tvoid fun2(){ };\n\t\tvoid fun1(){ A::fun1(); };\n}\n\nRCPP_MODULE(testing) {\n      class_<A_derived>(\"A_derived\")\n      .method(\"fun1\", &A_derived::fun1)\n      ;\n}\n\nThe issue here is that the call tree under A::fun1() will only call functions of the base class unless they are defined virtual, so any functions you re implement in the derived class are ignored. In the above example, this means A::fun2() is called from A::fun1() instead of A_derived::fun2(). A::fun2() must be declared as virtual for A_derived::fun2() to be called from A::fun1().\n\nIf for some reason you cannot make A::fun2() virtual (e.g. fun2 need to be a template), you can just create a wrapper function in the derived class and expose this to R with its name changed to the function being wrapped. E.g.\n\nI am not sure how to overcome this problem if (for some reason) you cannot use a virtual function, e.g. fun2 is a template function.\n\nCheers,\nLuke Domanski\n \n\n> Excellent,\n> \n> Thanks Romain.\n> \n> Re. code posted at https://gist.github.com/romainfrancois/6695921:\n> In the real code I extend \"A_derived\" with other functionality, not\n> just inherit into it, but this typedef trick will be enough to get me\n> started. Thanks. I will have to brush up on my C++ some more and see if\n> it is possible to add this functionality within the typedef\n> syntax/mechanism, such that the resulting type still acts like a true\n> class.\n> \n> To others reading, you can also solve the problem by overwriting the\n> inherited members in the derived class such that they trivially call\n> the base class implementation. As described briefly in my original\n> email.\n> \n> Luke.\n> \n> \n> > -----Original Message-----\n> >\n> > Hello,\n> >\n> > Due to the way modules are currently implemented, what goes in .field\n> > and .method must be member of the actual class, not inherited. I'm\n> not\n> > sure how to express it otherwise.\n> >\n> > So instead of using public inheritance as you do in:\n> >\n> > class A_derived : public A<B_derived> {};\n> >\n> > You can use a typedef. See the code in this gist:\n> > https://gist.github.com/romainfrancois/6695921\n> >\n> > Romain\n> >\n> > Le 25/09/13 06:30, Luke.Domanski at csiro.au a ?crit :\n> > > Hi All,\n> > >\n> > > Thanks for your previous help on\n> > > http://comments.gmane.org/gmane.comp.lang.r.rcpp/5972\n> > >\n> > > I have been able to implement an RCPP_MODULE of the \"real code\"\n> > > containing classes represented by classes A and B in the above\n> > thread.\n> > > That set/group of classes implements a generic base class that will\n> > be\n> > > extended from to provide particular functionality.\n> > >\n> > > I now wish to expose via RCPP_MODULE a class A_derived which\n> derives\n> > > from A<B_derived>. I want to expose member variable var1 and\n> > > function\n> > > fun1 of class A_derived which are both inherited from A<B_derived>.\n> > i.e.\n> > > no overwriting definition of A_derived::var1 or A_derived::fun1\n> > exist,\n> > > only A<B_derived>::var1 and A<B_derived>::fun1.\n> > >\n> > > However, the following RCPP_MODULE definition produces the\n> > > subsequent compiler error.\n> > >\n> > > RCPP_MODULE(testing) {\n> > >\n> > >      class_<A_derived>(\"A_derived\")\n> > >\n> > >      .field( \"var1\", &A_derived::var1)\n> > >\n> > >      .method(\"fun1\", &A_derived::fun1)\n> > >\n> > >      ;\n> > >\n> > > }\n> > >\n> > > test2.cpp: In function 'void _rcpp_module_testing_init()':\n> > >\n> > > test2.cpp:33:37: error: no matching function for call to\n> > > 'Rcpp::class_<A_derived>::field(const char [5], double\n> > A<B_derived>::*)'\n> > >\n> > > test2.cpp:33:37: note: candidate is:\n> > >\n> > > C:/.../R/win-\n> > library/3.0/Rcpp/include/Rcpp/module/Module_Field.h:68:7:\n> > > note: template<class T> Rcpp::class_<Class>::self&\n> > > Rcpp::class_::field(const char*, T Class::*, const char*) [with T =\n> > T,\n> > > Class = A_derived, Rcpp::class_<Class>::self =\n> > > Rcpp::class_<A_derived>]\n> > >\n> > > It seems the compiler is converting A_derived::var1 and fun1 into\n> > > their true references A<B_derived>::var1 and fun1, but the Rcpp\n> > > templates cannot handle the situation where the referenced variable\n> > or\n> > > function is not a \"proper\" member of the class.\n> > >\n> > > However, the error goes away if overwrite var1 and fun1 in\n> > > A_derived, and implement A_derived::fun1() as:\n> > >\n> > > void A_derived::fun1() {\n> > >\n> > >      A<B_derived>::fun1();\n> > >\n> > > };\n> > >\n> > > This is not ideal.\n> > >\n> > > Can someone please help me formulate the correct RCPP_MODULE\n> > definition?\n> > > Is there something that I am doing wrong, or have I once again\n> > > triggered a chain of the template meta program that is not\n> > implemented in Rcpp.\n> > >\n> > > Full code and error reduct follows:\n> > >\n> > > -----test2.cpp-----\n> > >\n> > > #include <RcppCommon.h>\n> > >\n> > > class B {\n> > >\n> > >      public:\n> > >\n> > >          B (SEXP b);\n> > >\n> > > };\n> > >\n> > > template <class T> class A {\n> > >\n> > >      public:\n> > >\n> > >          double var1;\n> > >\n> > >          void fun1();\n> > >\n> > > };\n> > >\n> > > class B_derived : public B {\n> > >\n> > >      public:\n> > >\n> > >          B_derived(SEXP b);\n> > >\n> > > };\n> > >\n> > > class A_derived : public A<B_derived> {};\n> > >\n> > > #include <Rcpp.h>\n> > >\n> > > B::B(SEXP b) {};\n> > >\n> > > template <class T> void A<T>::fun1(){\n> > >\n> > >      Rcpp::Rcout << \"Object of Type: \" << typeid(this).name() <<\n> > \"\\n\";\n> > >\n> > > }\n> > >\n> > > B_derived::B_derived(SEXP b) : B::B(b) {};\n> > >\n> > > using namespace Rcpp;\n> > >\n> > > RCPP_MODULE(testing) {\n> > >\n> > >      class_<A_derived>(\"A_derived\")\n> > >\n> > >      .field( \"var1\", &A_derived::var1)\n> > >\n> > >      .method(\"fun1\", &A_derived::fun1)\n> > >\n> > >      ;\n> > >\n> > > }\n> > >\n> > > ----end test2.cpp----\n> > >\n> > >  > require(R)\n> > >\n> > >  > sourceCpp(file=\"test2.cpp\", verbose=TRUE)\n> > >\n> > > ...snip...\n> > >\n> > > g++ -m32 -I\"C:/PROGRA~1/R/R-30~1.1/include\" -DNDEBUG\n> > > -I\"C:/.../R/win-library/3.0/Rcpp/include\"\n> > > -I\"d:/RCompile/CRANpkg/extralibs64/local/include\"     -O2 -Wall\n> > > -mtune=core2 -c test2.cpp -o test2.o\n> > >\n> > > test2.cpp: In function 'void _rcpp_module_testing_init()':\n> > >\n> > > test2.cpp:33:37: error: no matching function for call to\n> > > 'Rcpp::class_<A_derived>::field(const char [5], double\n> > A<B_derived>::*)'\n> > >\n> > > test2.cpp:33:37: note: candidate is:\n> > >\n> > > C:/.../R/win-\n> > library/3.0/Rcpp/include/Rcpp/module/Module_Field.h:68:7:\n> > > note: template<class T> Rcpp::class_<Class>::self&\n> > > Rcpp::class_::field(const char*, T Class::*, const char*) [with T =\n> > T,\n> > > Class = A_derived, Rcpp::class_<Class>::self =\n> > > Rcpp::class_<A_derived>]\n> > >\n> > > make: *** [test2.o] Error 1\n> > >\n> > > Error in sourceCpp(file = \"test2.cpp\", verbose = TRUE) :\n> > >\n> > >    Error 1 occurred building shared library.\n> > >\n> > > Cheers,\n> > >\n> > > Luke Domanski.\n> >\n> >\n> > --\n> > Romain Francois\n> > Professional R Enthusiast\n> > +33(0) 6 28 91 30 30",
+      "body_snippet": "Hi All,\n\nJust a comment on a side effect/issue with my previously posted solution to this problem, i.e.:\n\n> you can also solve the problem by overwriting the\n> inherited members in the derived class s",
+      "thread_id": "thread-96d0723b2082",
+      "thread_depth": 3,
+      "month": "2013-09"
+    },
+    {
+      "id": "msg-b6a0fc5ff079",
+      "message_id": "<CAO7JsnRfAurXqYXEvXO9OgZ5+5oXgSPh0aaz3cvyebxL48V6DQ@mail.gmail.com>",
+      "from_name": "Douglas Bates",
+      "from_email_hash": "c908588836123be177df15f4b3132be3a2b4b95c4eaeddcc72b433a3981bb1b3",
+      "date": "2013-09-30T17:10:35-05:00",
+      "subject": "[Rcpp-devel] RcppEigen not compiling under Solaris 10 INTEL",
+      "subject_clean": "[Rcpp-devel] RcppEigen not compiling under Solaris 10 INTEL",
+      "in_reply_to": "<CAO7JsnRzQ4=1jz7AzR=xxc4dXC8QKAA6W7B4mCvg6bsKpTjtoQ@mail.gmail.com>",
+      "references": [
+        "<E9A101192BE76249BEF0AEA4AA4E857CA2746ADD6F@ITCCRMAIL02.MED.HARVARD.EDU>",
+        "<21065.58772.113681.364066@max.nulle.part>",
+        "<31E214B6DF75104E942856C2F74953CB05057FEC@exchange>",
+        "<21065.59975.204250.592604@max.nulle.part>",
+        "<CAO7JsnRzQ4=1jz7AzR=xxc4dXC8QKAA6W7B4mCvg6bsKpTjtoQ@mail.gmail.com>"
+      ],
+      "body_plain": "On Mon, Sep 30, 2013 at 4:42 PM, Douglas Bates <bates at stat.wisc.edu> wrote:\n\n> On Mon, Sep 30, 2013 at 4:16 PM, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n>>\n>> Hi Martyn,\n>>\n>> On 30 September 2013 at 21:02, Martyn Plummer wrote:\n>> | I've already been asked to look into this by Brian.  I can't say I've\n>> rolled up my sleeves very far, but the problem appears to be in Eigen\n>> itself.\n>>\n>> Cool!  Good to know.\n>>\n>> | I should clarify that I'm not volunteering to maintain RcppEigen, but I\n>> will provide patches as and when.\n>>\n>> That too is appreciated!\n>>\n>> The Eigen code on CRAN has not been updated in a while. The version number\n>> (0.3.1.2.1) reflect both upstream Eigen 3.1.2 (two patch releases behind\n>> Eigen in the 3.1.* series which is now at 3.1.4) and the mandatory change\n>> for\n>> JSS once the paper was accepted.\n>>\n>> Changing 3.1.2 to 3.1.3/3.1.4 may help. Or it may not.  Maybe 3.2.0\n>> upstream\n>> will help.\n>>\n>> Changing to 3.1.4 or, better, 3.2, would be a good idea.  In particular,\n> the 3.2 version provides Cholesky, LU and QR sparse factorizations that do\n> not depend on SuiteSparse (the package of C libraries of which CHOLMOD is\n> part).\n>\n> Unfortunately, the current maintainer played a little fast and loose by\n> adding a couple of wrinkles to the Eigen code itself and using these\n> wrinkles in lme4.\n>\n> I had been hoping to put off the switch to Eigen 3.2 for a while longer as\n> I am facing some deadline pressures on another project.  But perhaps it\n> would be best to create an experimental branch using Eigen 3.2.  Best case,\n> the fixes for lme4 are easy.  Worst case ...\n>\n> Ben's message came through while I was writing this.  If you are\n> interested look at the last link he gives\n>\n> http://permalink.gmane.org/gmane.comp.lib.eigen/991\n>\n> and you will see that the sort of error messages showing up in the\n> RcppEigen log were present in 2010 and the reaction of the Eigen developers\n> is that the compiler is complaining about code that follows the standard\n> and is compilable on other systems.\n>\n\nIt seems that a good place for someone with access to a Solaris system to\nstart is to download versions 3.1.4 and 3.2 of Eigen from\nhttp://eigen.tuxfamily.org and see if the simple program\n\n$ cat test.cc\n#include \"eigen/Eigen/Eigen\"\nusing namespace Eigen;\nint main() {\n return 0;\n}\n$\n$ CC test.cc\n\ncompiles with one of those versions.  If that doesn't compile the way\nforward will be difficult.\n-------------- next part --------------\nAn HTML attachment was scrubbed...\nURL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20130930/de574ea8/attachment.html>",
+      "body_snippet": "On Mon, Sep 30, 2013 at 4:42 PM, Douglas Bates <bates at stat.wisc.edu> wrote:\n\n> On Mon, Sep 30, 2013 at 4:16 PM, Dirk Eddelbuettel <edd at debian.org> wrote:\n>\n>>\n>> Hi Martyn,\n>>\n>> On 30 September",
+      "thread_id": "thread-495877fa660f",
+      "thread_depth": 5,
+      "month": "2013-09"
+    },
+    {
+      "id": "msg-29366305bc72",
+      "message_id": "<2BD940E325B5434B9DC0690C09BF79D811F38C@exmbx03-cdc.nexus.csiro.au>",
+      "from_name": "Luke.Domanski at csiro.au",
+      "from_email_hash": "cc1df0752af0cb2b315ccb5354c57698df946bf082f3a7548a9a2bc9262221f7",
+      "date": "2013-09-30T23:22:28Z",
+      "subject": "[Rcpp-devel] Problem exposing inherited member function of derived class to R through RCPP_MODULE",
+      "subject_clean": "[Rcpp-devel] Problem exposing inherited member function of derived class to R through RCPP_MODULE",
+      "in_reply_to": "<2BD940E325B5434B9DC0690C09BF79D811F377@exmbx03-cdc.nexus.csiro.au>",
+      "references": [
+        "<2BD940E325B5434B9DC0690C09BF79D811E448@exmbx03-cdc.nexus.csiro.au>",
+        "<5242861F.3070603@r-enthusiasts.com>",
+        "<2BD940E325B5434B9DC0690C09BF79D811E5F0@exmbx03-cdc.nexus.csiro.au>",
+        "<2BD940E325B5434B9DC0690C09BF79D811F377@exmbx03-cdc.nexus.csiro.au>"
+      ],
+      "body_plain": "> \n> If for some reason you cannot make A::fun2() virtual (e.g. fun2 need to\n> be a template), you can just create a wrapper function in the derived\n> class and expose this to R with its name changed to the function being\n> wrapped. E.g.\n> \n> I am not sure how to overcome this problem if (for some reason) you\n> cannot use a virtual function, e.g. fun2 is a template function.\n> \n\nSorry, that didn't make any sense. The following was supposed to be deleted from the post\n\n> If for some reason you cannot make A::fun2() virtual (e.g. fun2 need to\n> be a template), you can just create a wrapper function in the derived\n> class and expose this to R with its name changed to the function being\n> wrapped. E.g.",
+      "body_snippet": "> \n> If for some reason you cannot make A::fun2() virtual (e.g. fun2 need to\n> be a template), you can just create a wrapper function in the derived\n> class and expose this to R with its name changed ",
+      "thread_id": "thread-96d0723b2082",
+      "thread_depth": 4,
+      "month": "2013-09"
     }
   ],
   "threads": [
@@ -2994,13 +3057,13 @@
     {
       "id": "thread-96d0723b2082",
       "subject": "[Rcpp-devel] Problem exposing inherited member function of derived class to R through RCPP_MODULE",
-      "message_count": 3,
+      "message_count": 5,
       "participants": [
         "Luke.Domanski at csiro.au",
         "Romain Francois"
       ],
       "started": "2013-09-25T04:30:33+00:00",
-      "last_reply": "2013-09-25T21:59:25+00:00",
+      "last_reply": "2013-09-30T23:22:28+00:00",
       "root_message_id": "msg-96d0723b2082"
     },
     {
@@ -3068,7 +3131,7 @@
     {
       "id": "thread-495877fa660f",
       "subject": "[Rcpp-devel] RcppEigen not compiling under Solaris 10 INTEL",
-      "message_count": 9,
+      "message_count": 10,
       "participants": [
         "Dirk Eddelbuettel",
         "Douglas Bates",
@@ -3076,7 +3139,7 @@
         "Sul, Young L"
       ],
       "started": "2013-09-30T16:46:39-04:00",
-      "last_reply": "2013-09-30T16:44:42-05:00",
+      "last_reply": "2013-09-30T17:10:35-05:00",
       "root_message_id": "msg-495877fa660f"
     },
     {
