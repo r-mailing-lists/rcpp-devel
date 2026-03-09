@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      force_redownload:
+        description: 'Force re-download all mbox files (not just current month)'
+        type: boolean
+        default: false
 
 jobs:
   update:
@@ -12,6 +17,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Cache mbox archives
+        if: inputs.force_redownload != true
         uses: actions/cache@v4
         with:
           path: raw
@@ -23,6 +29,7 @@ jobs:
         run: |
           LIST_NAME=$(jq -r '.list' config.json)
           BASE_URL=$(jq -r '.source_url' config.json)
+          FORCE="${{ inputs.force_redownload }}"
 
           mkdir -p raw
 
@@ -36,7 +43,7 @@ jobs:
               MBOX_NAME="${MBOX_NAME%.txt}.mbox"
 
               CURRENT_MONTH=$(date +"%Y-%B")
-              if [ -f "raw/$MBOX_NAME" ] && [[ "$BASENAME" != *"$CURRENT_MONTH"* ]]; then
+              if [ "$FORCE" != "true" ] && [ -f "raw/$MBOX_NAME" ] && [[ "$BASENAME" != *"$CURRENT_MONTH"* ]]; then
                 continue
               fi
 
@@ -54,11 +61,17 @@ jobs:
             "https://github.com/r-mailing-lists/rmail-parser/releases/latest/download/rmail-parser-linux-x86_64"
           chmod +x rmail-parser
 
+      - name: Download aliases
+        run: |
+          curl -sL -o aliases.json \
+            "https://raw.githubusercontent.com/r-mailing-lists/viewer/main/aliases.json" \
+            2>/dev/null || echo '{"aliases":[]}' > aliases.json
+
       - name: Parse mbox files
         run: |
           LIST_NAME=$(jq -r '.list' config.json)
           mkdir -p processed
-          ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME"
+          ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json
           mv processed/meta.json meta.json
           mv processed/index.json index.json
           mv processed/message-order.json message-order.json
