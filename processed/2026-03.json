@@ -1,0 +1,224 @@
+{
+  "list": "rcpp-devel",
+  "description": "",
+  "month": "2026-03",
+  "messages": [
+    {
+      "id": "msg-b0b0f3130e2c",
+      "message_id": "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2026-03-31T10:54:21Z",
+      "subject": "[Rcpp-devel] CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] CRAN package Rcpp",
+      "in_reply_to": "<27083.32145.716178.549069@hornik.net>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>"
+      ],
+      "body_plain": "Hi Kurt,\n\nOn 31 March 2026 at 09:53, Kurt Hornik wrote:\n| Dear Dirk,\n| \n| I hope you are getting some kind of Easter Break :-)  [I don't.]\n\nNope :-/\n\nMy wife's in Paris for a few days, giving a seminar at the OECD today (and\nhad a seminar to give in Canada too last week, honoring one of her late\nmentors and then colleague).  I am at home as it is a teaching term for me\nand prefer not to leave for two weeks.\n\n| We could really use your help on the following.  Last week Luke\n| committed the last round of non-API changes, this time addressing the\n| non-API *variables*.  As a consequence, we now get close to 400 CRAN\n| package NOTE the use of R_UnboundValue (plus around 40 NOTE the use of\n| R_NamespaceRegistry, and a few more), where most of the R_UnboundValue\n| uses seem to be via Rcpp.\n\nWe know. I noticed a few days ago and filed\n\n  https://github.com/RcppCore/Rcpp/issues/1465\n\nwhich I?aki addressed already in the (now pending) PR\n\n  https://github.com/RcppCore/Rcpp/pull/1466\n\nbut it so happens that we had two PRs aheead of it in the reverse dependency\nqueue.  One has been taken care of, the other is running now.\n\n| Specifically, you have e.g.\n| \n| #if R_VERSION < R_Version(4,5,0)\n|            SEXP res = Rf_findVarInFrame( env, nameSym ) ;\n| #else\n|            SEXP res = R_getVarEx(nameSym, env, FALSE, R_UnboundValue);\n| #endif\n|            if( res == R_UnboundValue ) return R_NilValue ;\n| \n| where indeed Rf_findVarInFrame returns R_UnboundValue \"if not found\",\n| but R_getVarEx could use any value, e.g. an R R_NilValue or a C NULL.\n| \n| Changing to something like\n| \n| #if R_VERSION < R_Version(4,5,0)\n|            SEXP res = Rf_findVarInFrame( env, nameSym ) ;\n|            if( res == R_UnboundValue ) return R_NilValue ;\n| #else\n|            SEXP res = R_getVarEx(nameSym, env, FALSE, NULL);\n|     \t   if( res == NULL ) return R_NilValue ;\n| #endif\n| \n| will avoid using the non-API R_UnboundValue for current versions of R.\n\nI?aki's PR actually removes both branches (in two spots), and alters a third\nsimilarly. Maybe Luke can glance at that and comment?\n\n| Luke has a patched version of Rcpp with these changes, with which the\n| number of package for which we NOTE the use of R_UnboundValue goes down\n| to about 80, which is a major step forward.\n| \n| I know you prefer that we do not NMU Rcpp: so could Luke send you his\n| patches and you kindly provide a new Rcpp hot-fix release with these\n| patches?  That would really help us move forward, and be very much\n| appreciated.\n\nWe would welcome a patch by Luke at the repo (or by email) so that we could\nreview it.\n\nI presume a CRAN hotfix would ideally be against the last released Rcpp\nversion now on CRAN, our PRs get of course applied to the main branch which\nby now is a few PRs ahead. We probably should not comingle this.\n\nThe current reverse depends check should be finished in 1 1/2 days.  \n\nCheers, Dirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Hi Kurt,\n\nOn 31 March 2026 at 09:53, Kurt Hornik wrote:\n| Dear Dirk,\n| \n| I hope you are getting some kind of Easter Break :-)  [I don't.]\n\nNope :-/\n\nMy wife's in Paris for a few days, giving a semina",
+      "thread_id": "thread-b0b0f3130e2c",
+      "thread_depth": 0,
+      "month": "2026-03"
+    },
+    {
+      "id": "msg-67f8036f3487",
+      "message_id": "<27083.62838.18218.566988@hornik.net>",
+      "from_name": "Kurt Hornik",
+      "from_email_hash": "6740dd468a52e648b787a10cae32d1e43b6db87654353fbd95012a5ae5b82a59",
+      "date": "2026-03-31T16:25:26Z",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "in_reply_to": "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>",
+        "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+        "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>"
+      ],
+      "body_plain": ">>>>> luke-tierney  writes:\n\nGreat, thanks.  So this is ready for a hot fix release, or requires more\ntesting on our end?\n\nBest\n-k\n\n> On Tue, 31 Mar 2026, Dirk Eddelbuettel wrote:\n>> \n>> Hi Kurt,\n>> \n>> On 31 March 2026 at 09:53, Kurt Hornik wrote:\n>> | Dear Dirk,\n>> |\n>> | I hope you are getting some kind of Easter Break :-)  [I don't.]\n>> \n>> Nope :-/\n>> \n>> My wife's in Paris for a few days, giving a seminar at the OECD today (and\n>> had a seminar to give in Canada too last week, honoring one of her late\n>> mentors and then colleague).  I am at home as it is a teaching term for me\n>> and prefer not to leave for two weeks.\n>> \n>> | We could really use your help on the following.  Last week Luke\n>> | committed the last round of non-API changes, this time addressing the\n>> | non-API *variables*.  As a consequence, we now get close to 400 CRAN\n>> | package NOTE the use of R_UnboundValue (plus around 40 NOTE the use of\n>> | R_NamespaceRegistry, and a few more), where most of the R_UnboundValue\n>> | uses seem to be via Rcpp.\n>> \n>> We know. I noticed a few days ago and filed\n>> \n>> https://github.com/RcppCore/Rcpp/issues/1465\n>> \n>> which I?aki addressed already in the (now pending) PR\n>> \n>> https://github.com/RcppCore/Rcpp/pull/1466\n>> \n>> but it so happens that we had two PRs aheead of it in the reverse dependency\n>> queue.  One has been taken care of, the other is running now.\n>> \n>> | Specifically, you have e.g.\n>> |\n>> | #if R_VERSION < R_Version(4,5,0)\n>> |            SEXP res = Rf_findVarInFrame( env, nameSym ) ;\n>> | #else\n>> |            SEXP res = R_getVarEx(nameSym, env, FALSE, R_UnboundValue);\n>> | #endif\n>> |            if( res == R_UnboundValue ) return R_NilValue ;\n>> |\n>> | where indeed Rf_findVarInFrame returns R_UnboundValue \"if not found\",\n>> | but R_getVarEx could use any value, e.g. an R R_NilValue or a C NULL.\n>> |\n>> | Changing to something like\n>> |\n>> | #if R_VERSION < R_Version(4,5,0)\n>> |            SEXP res = Rf_findVarInFrame( env, nameSym ) ;\n>> |            if( res == R_UnboundValue ) return R_NilValue ;\n>> | #else\n>> |            SEXP res = R_getVarEx(nameSym, env, FALSE, NULL);\n>> |     \t   if( res == NULL ) return R_NilValue ;\n>> | #endif\n>> |\n>> | will avoid using the non-API R_UnboundValue for current versions of R.\n>> \n>> I?aki's PR actually removes both branches (in two spots), and alters a third\n>> similarly. Maybe Luke can glance at that and comment?\n>> \n>> | Luke has a patched version of Rcpp with these changes, with which the\n>> | number of package for which we NOTE the use of R_UnboundValue goes down\n>> | to about 80, which is a major step forward.\n>> |\n>> | I know you prefer that we do not NMU Rcpp: so could Luke send you his\n>> | patches and you kindly provide a new Rcpp hot-fix release with these\n>> | patches?  That would really help us move forward, and be very much\n>> | appreciated.\n>> \n>> We would welcome a patch by Luke at the repo (or by email) so that we could\n>> review it.\n\n> The changes in PR1466 look good. I'll use that version for my next\n> check round.\n\n> Thanks,\n\n> luke\n\n>> \n>> I presume a CRAN hotfix would ideally be against the last released Rcpp\n>> version now on CRAN, our PRs get of course applied to the main branch which\n>> by now is a few PRs ahead. We probably should not comingle this.\n>> \n>> The current reverse depends check should be finished in 1 1/2 days.\n>> \n>> Cheers, Dirk\n>> \n>> \n\n> -- \n> Luke Tierney\n> Ralph E. Wareham Professor of Mathematical Sciences\n> University of Iowa                  Phone:             319-335-3386\n> Department of Statistics and        Fax:               319-335-3017\n>     Actuarial Science\n> 241 Schaeffer Hall                  email:   luke-tierney at uiowa.edu\n> Iowa City, IA 52242                 WWW:  http://www.stat.uiowa.edu/",
+      "body_snippet": ">>>>> luke-tierney  writes:\n\nGreat, thanks.  So this is ready for a hot fix release, or requires more\ntesting on our end?\n\nBest\n-k\n\n> On Tue, 31 Mar 2026, Dirk Eddelbuettel wrote:\n>> \n>> Hi Kurt,\n>> \n",
+      "thread_id": "thread-67f8036f3487",
+      "thread_depth": 0,
+      "month": "2026-03"
+    },
+    {
+      "id": "msg-1d6cca4c7cab",
+      "message_id": "<27083.64142.391785.797646@paul.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2026-03-31T16:47:10Z",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "in_reply_to": "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>",
+        "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+        "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>"
+      ],
+      "body_plain": "On 31 March 2026 at 11:10, luke-tierney at uiowa.edu wrote:\n| The changes in PR1466 look good. I'll use that version for my next\n| check round.\n\nSounds good.\n\nOnly one comment, just in case: PR #1466 is against current 'master', but it\nshould work against the last release Rcpp 1.1.1. With a battery of recent PRs\nI didn't notice until today that the first version of #1466 was not yet\nbehaving well for R older than 4.5.0, that should now be fine.\n\nIf you apply against Rcpp 1.1.1, it should probably be Rcpp 1.1.1-1 or\nsomething like that in the 4.7.0/ directory of CRAN.\n\nI feel less certain about supporting patching R 4.6.0 now. This change was\nmade March 26 -- a mere five days ago -- and given a severity of 'NOTE'.\nCould we discuss how we may arrive at, say, an understanding that NOTEs are\nmeant as heads-up with a possible and desired fix within the next six months,\nnot a hot-fix rolled out a mere five days later?\n\nRegards, Dirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 31 March 2026 at 11:10, luke-tierney at uiowa.edu wrote:\n| The changes in PR1466 look good. I'll use that version for my next\n| check round.\n\nSounds good.\n\nOnly one comment, just in case: PR #1466 ",
+      "thread_id": "thread-1d6cca4c7cab",
+      "thread_depth": 0,
+      "month": "2026-03"
+    },
+    {
+      "id": "msg-a0dbc46ba60c",
+      "message_id": "<27083.65133.330428.406057@hornik.net>",
+      "from_name": "Kurt Hornik",
+      "from_email_hash": "6740dd468a52e648b787a10cae32d1e43b6db87654353fbd95012a5ae5b82a59",
+      "date": "2026-03-31T17:03:41Z",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "in_reply_to": "<27083.64142.391785.797646@paul.eddelbuettel.com>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>",
+        "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+        "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>",
+        "<27083.64142.391785.797646@paul.eddelbuettel.com>"
+      ],
+      "body_plain": ">>>>> Dirk Eddelbuettel writes:\n\n> On 31 March 2026 at 11:10, luke-tierney at uiowa.edu wrote:\n> | The changes in PR1466 look good. I'll use that version for my next\n> | check round.\n\n> Sounds good.\n\n> Only one comment, just in case: PR #1466 is against current 'master', but it\n> should work against the last release Rcpp 1.1.1. With a battery of recent PRs\n> I didn't notice until today that the first version of #1466 was not yet\n> behaving well for R older than 4.5.0, that should now be fine.\n\n> If you apply against Rcpp 1.1.1, it should probably be Rcpp 1.1.1-1 or\n> something like that in the 4.7.0/ directory of CRAN.\n\n> I feel less certain about supporting patching R 4.6.0 now. This change\n> was made March 26 -- a mere five days ago -- and given a severity of\n> 'NOTE'.  Could we discuss how we may arrive at, say, an understanding\n> that NOTEs are meant as heads-up with a possible and desired fix\n> within the next six months, not a hot-fix rolled out a mere five days\n> later?\n\nDirk,\n\nOf course, this is \"only a NOTE\" which normally we would not ask to fix\nimmediately, but in the course of the next regular update.  However, as\nI wrote in my original message, about 300 CRAN packages are currently\ngetting the R_UnboundValue NOTE via Rcpp, and their regular updates\nwould get blocked by this (or require additional manual processing by\nthe CRAN submission team).  It would really be great if this could be\navoided ...\n\nBest\n-k\n\n> Regards, Dirk\n\n> -- \n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": ">>>>> Dirk Eddelbuettel writes:\n\n> On 31 March 2026 at 11:10, luke-tierney at uiowa.edu wrote:\n> | The changes in PR1466 look good. I'll use that version for my next\n> | check round.\n\n> Sounds good.\n\n",
+      "thread_id": "thread-1d6cca4c7cab",
+      "thread_depth": 1,
+      "month": "2026-03"
+    },
+    {
+      "id": "msg-3b892716ae42",
+      "message_id": "<27084.1108.494584.152914@paul.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2026-03-31T17:28:52Z",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "in_reply_to": "<27083.65133.330428.406057@hornik.net>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>",
+        "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+        "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>",
+        "<27083.64142.391785.797646@paul.eddelbuettel.com>",
+        "<27083.65133.330428.406057@hornik.net>"
+      ],
+      "body_plain": "On 31 March 2026 at 19:03, Kurt Hornik wrote:\n| Of course, this is \"only a NOTE\" which normally we would not ask to fix\n| immediately, but in the course of the next regular update.  However, as\n| I wrote in my original message, about 300 CRAN packages are currently\n\nYou could consider silencing the NOTE now if it goes to far. Or add a\nwhitelist of tolerated NOTEs at package update. As I understand, you use\nenvironment variables for that type of conditioning for other 'choices'.\n\nBy not doing that, I think you are the one forcing a 'five day hotfix'.\n\n| getting the R_UnboundValue NOTE via Rcpp, and their regular updates\n| would get blocked by this (or require additional manual processing by\n| the CRAN submission team).  It would really be great if this could be\n| avoided ...\n\nYes. The middle ground of 'the repository maintainers reserve the right to\napply patches' always struck me as desirable (just how a Debian package\ntypically carries a tar.gz with diffs, often just debian/ but allowing for\nchanges 'as needed').\n\nI believe I have mentioned this, or even advocated for it, decades ago. Of\ncourse it went nowhere. Proposals are cheap, implementating a rigorous\nprocedure takes effort and nobody has spare time.\n\nWe still have to think through how to best propagate this. Sticking it into a\nsubdirectory of src/contrib/ is in fact awfully close to a fully blessed\nrelease.  Which I with the maintainer responsibility of over 3000 direct\nreverse dependencies would really avoid if I could. Yet at the same time we\nmay also need to make it available to other 'builder' like r-universe or\nbioconductor.\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 31 March 2026 at 19:03, Kurt Hornik wrote:\n| Of course, this is \"only a NOTE\" which normally we would not ask to fix\n| immediately, but in the course of the next regular update.  However, as\n| I wr",
+      "thread_id": "thread-1d6cca4c7cab",
+      "thread_depth": 2,
+      "month": "2026-03"
+    },
+    {
+      "id": "msg-3c7dacac03eb",
+      "message_id": "<27084.2127.996852.90799@hornik.net>",
+      "from_name": "Kurt Hornik",
+      "from_email_hash": "6740dd468a52e648b787a10cae32d1e43b6db87654353fbd95012a5ae5b82a59",
+      "date": "2026-03-31T17:45:51Z",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "in_reply_to": "<27084.1108.494584.152914@paul.eddelbuettel.com>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>",
+        "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+        "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>",
+        "<27083.64142.391785.797646@paul.eddelbuettel.com>",
+        "<27083.65133.330428.406057@hornik.net>",
+        "<27084.1108.494584.152914@paul.eddelbuettel.com>"
+      ],
+      "body_plain": ">>>>> Dirk Eddelbuettel writes:\n\n> On 31 March 2026 at 19:03, Kurt Hornik wrote:\n> | Of course, this is \"only a NOTE\" which normally we would not ask to fix\n> | immediately, but in the course of the next regular update.  However, as\n> | I wrote in my original message, about 300 CRAN packages are currently\n\n> You could consider silencing the NOTE now if it goes to far. Or add a\n> whitelist of tolerated NOTEs at package update. As I understand, you use\n> environment variables for that type of conditioning for other\n> 'choices'.\n\nLuke can speak for himself, but I guess we really want package code to\nstop using R_UnboundValue \"as quickly as possible\" ... it was never part\nof the API, and should never have been used in package code.\n\nWe can always do an NMU for Rcpp if a hotfix release is too much trouble\non your end?\n\nBest\n-k\n\n> By not doing that, I think you are the one forcing a 'five day hotfix'.\n\n> | getting the R_UnboundValue NOTE via Rcpp, and their regular updates\n> | would get blocked by this (or require additional manual processing by\n> | the CRAN submission team).  It would really be great if this could be\n> | avoided ...\n\n> Yes. The middle ground of 'the repository maintainers reserve the right to\n> apply patches' always struck me as desirable (just how a Debian package\n> typically carries a tar.gz with diffs, often just debian/ but allowing for\n> changes 'as needed').\n\n> I believe I have mentioned this, or even advocated for it, decades ago. Of\n> course it went nowhere. Proposals are cheap, implementating a rigorous\n> procedure takes effort and nobody has spare time.\n\n> We still have to think through how to best propagate this. Sticking it into a\n> subdirectory of src/contrib/ is in fact awfully close to a fully blessed\n> release.  Which I with the maintainer responsibility of over 3000 direct\n> reverse dependencies would really avoid if I could. Yet at the same time we\n> may also need to make it available to other 'builder' like r-universe or\n> bioconductor.\n\n> Dirk\n\n> -- \n> dirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": ">>>>> Dirk Eddelbuettel writes:\n\n> On 31 March 2026 at 19:03, Kurt Hornik wrote:\n> | Of course, this is \"only a NOTE\" which normally we would not ask to fix\n> | immediately, but in the course of the n",
+      "thread_id": "thread-1d6cca4c7cab",
+      "thread_depth": 3,
+      "month": "2026-03"
+    },
+    {
+      "id": "msg-4940266798ce",
+      "message_id": "<27084.3197.567752.334637@paul.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2026-03-31T18:03:41Z",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "in_reply_to": "<27084.2127.996852.90799@hornik.net>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>",
+        "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+        "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>",
+        "<27083.64142.391785.797646@paul.eddelbuettel.com>",
+        "<27083.65133.330428.406057@hornik.net>",
+        "<27084.1108.494584.152914@paul.eddelbuettel.com>",
+        "<27084.2127.996852.90799@hornik.net>"
+      ],
+      "body_plain": "On 31 March 2026 at 19:45, Kurt Hornik wrote:\n| >>>>> Dirk Eddelbuettel writes:\n| \n| > On 31 March 2026 at 19:03, Kurt Hornik wrote:\n| > | Of course, this is \"only a NOTE\" which normally we would not ask to fix\n| > | immediately, but in the course of the next regular update.  However, as\n| > | I wrote in my original message, about 300 CRAN packages are currently\n| \n| > You could consider silencing the NOTE now if it goes to far. Or add a\n| > whitelist of tolerated NOTEs at package update. As I understand, you use\n| > environment variables for that type of conditioning for other\n| > 'choices'.\n| \n| Luke can speak for himself, but I guess we really want package code to\n| stop using R_UnboundValue \"as quickly as possible\" ... it was never part\n| of the API, and should never have been used in package code.\n| \n| We can always do an NMU for Rcpp if a hotfix release is too much trouble\n| on your end?\n\nWe pursue two goals here. Number one is to _always_ keep our main git branch\nin a releasable state, which we also make available via e.g. r-universe. We\nhave a decent track record on this. And a release affects three thousand\npackages directly and a few thousand more recursively. So we stick to goal\nnumber two as well: have a predictable release plan, and pattern, and execute\nit. Both approaches have worked well for us given our resources.\n\nMy *strong* preference therefore remains the same as it was the previous\ntimes base R changes broke things requiring last minutes actions: you are\ncordially invited to the use GitHub version from the master branch in all\nyour test setups. That will quieten the NOTE. It may even make sense in the\ncontext of R-devel.  But that is NOT the same as suggesting and even making a\nrelease. The less exposure you give such a modified version, the fewer\n'surprises' may come back to us.\n\nSo applying a single patch to the last actual release may be the least bad\noption. As said, I would also prefer it if that version stayed local to the\nCRAN _test machines_ as opposed to whole mirrored archive as it is not\nrelease we plan, validate, or make.\n\nDirk\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "On 31 March 2026 at 19:45, Kurt Hornik wrote:\n| >>>>> Dirk Eddelbuettel writes:\n| \n| > On 31 March 2026 at 19:03, Kurt Hornik wrote:\n| > | Of course, this is \"only a NOTE\" which normally we would not ",
+      "thread_id": "thread-1d6cca4c7cab",
+      "thread_depth": 4,
+      "month": "2026-03"
+    },
+    {
+      "id": "msg-9cde07982d16",
+      "message_id": "<27084.11092.774807.129605@paul.eddelbuettel.com>",
+      "from_name": "Dirk Eddelbuettel",
+      "from_email_hash": "447d8de83a7b9c5d61116890bacb6dc0c76aee31b3011a41fb7d3c62dac9042f",
+      "date": "2026-03-31T20:15:16Z",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "subject_clean": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "in_reply_to": "<f008d9a5-11c5-d78f-c6e0-23aaa06a313a@uiowa.edu>",
+      "references": [
+        "<27083.32145.716178.549069@hornik.net>",
+        "<27083.42973.73846.362215@paul.eddelbuettel.com>",
+        "<162f1055-4398-b7cd-70be-bfb04e1bdada@uiowa.edu>",
+        "<27083.62838.18218.566988@hornik.net>",
+        "<f008d9a5-11c5-d78f-c6e0-23aaa06a313a@uiowa.edu>"
+      ],
+      "body_plain": "Ok, did this prior to the faculty meeting as one should and now have a hotfix\nnon-release Rcpp 1.1.1-1 here:\n\n  https://dirk.eddelbuettel.com/tmp/Rcpp_1.1.1-1.tar.gz\n\nIt was constructed by taking the last release 1.1.1, and manually patching in\nthe the desired (pending) changes in PR #1466 (\"R_UnboudedValue\") plus one\nalso needed change from PR #1460 (\"ENCLOS\").\n\nIt passes R CMD check --as-cran and R-devel CMD check --as-cran (using\ncurrent r89754)\n\nDirk\n\n\nDetails and checksums below\n\n  $ md5sum Rcpp_1.1.1-1.tar.gz\n  283907c6026efe97b2b666ef7d94edca  Rcpp_1.1.1-1.tar.gz\n  $ sha256sum Rcpp_1.1.1-1.tar.gz\n  ddd2bc03a910fa5102d0760493f4e2ace9cc8ea0d2038134be163bb7b3ebfdf4  Rcpp_1.1.1-1.tar.gz\n  $ ls -l Rcpp_1.1.1-1.tar.gz \n  -rw-r--r-- 1 edd edd 1853693 Mar 31 15:01 Rcpp_1.1.1-1.tar.gz\n  $ \n\n\n-- \ndirk.eddelbuettel.com | @eddelbuettel | edd at debian.org",
+      "body_snippet": "Ok, did this prior to the faculty meeting as one should and now have a hotfix\nnon-release Rcpp 1.1.1-1 here:\n\n  https://dirk.eddelbuettel.com/tmp/Rcpp_1.1.1-1.tar.gz\n\nIt was constructed by taking the ",
+      "thread_id": "thread-9cde07982d16",
+      "thread_depth": 0,
+      "month": "2026-03"
+    }
+  ],
+  "threads": [
+    {
+      "id": "thread-b0b0f3130e2c",
+      "subject": "[Rcpp-devel] CRAN package Rcpp",
+      "message_count": 1,
+      "participants": [
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2026-03-31T10:54:21Z",
+      "last_reply": "2026-03-31T10:54:21Z",
+      "root_message_id": "msg-b0b0f3130e2c"
+    },
+    {
+      "id": "thread-67f8036f3487",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "message_count": 1,
+      "participants": [
+        "Kurt Hornik"
+      ],
+      "started": "2026-03-31T16:25:26Z",
+      "last_reply": "2026-03-31T16:25:26Z",
+      "root_message_id": "msg-67f8036f3487"
+    },
+    {
+      "id": "thread-1d6cca4c7cab",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "message_count": 5,
+      "participants": [
+        "Dirk Eddelbuettel",
+        "Kurt Hornik"
+      ],
+      "started": "2026-03-31T16:47:10Z",
+      "last_reply": "2026-03-31T18:03:41Z",
+      "root_message_id": "msg-1d6cca4c7cab"
+    },
+    {
+      "id": "thread-9cde07982d16",
+      "subject": "[Rcpp-devel] [External] Re: CRAN package Rcpp",
+      "message_count": 1,
+      "participants": [
+        "Dirk Eddelbuettel"
+      ],
+      "started": "2026-03-31T20:15:16Z",
+      "last_reply": "2026-03-31T20:15:16Z",
+      "root_message_id": "msg-9cde07982d16"
+    }
+  ]
+}
