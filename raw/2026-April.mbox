@@ -724,3 +724,192 @@ Cheers, Dirk
 -- 
 Dirk Eddelbuettel | edd at debian.org | http://dirk.eddelbuettel.com
 
+From herve.perdry at protonmail.com  Wed Apr 29 18:50:00 2026
+From: herve.perdry at protonmail.com (=?utf-8?Q?Herv=C3=A9_Perdry?=)
+Date: Wed, 29 Apr 2026 16:50:00 +0000
+Subject: [Rcpp-devel] Memory leak when a warning is catched before the end
+ of a function
+Message-ID: <1fkSUCjHY4kL30MBMDORrjGxWCy72D4r_nUriH6I_OGu_ARNdOtJO9qmzliljLcnthMFgxOgDVroShlN_0jfF8GG3wUXOEiKBgE8wW2pd58=@protonmail.com>
+
+Hello,
+
+I'm sorry if this is not the right place to post this, but I ran across this phenomenon and I think some people here might find it of interest.
+Here is a test that runs well (it sends a warning as we're trying to push back to vectors of different sizes in a data frame):
+
+R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" \
+	-e "Rcpp::cppFunction('Rcpp::DataFrame test(SEXP a, SEXP b) { \
+	Rcpp::DataFrame DF; \
+	DF.push_back(a);    \
+	DF.push_back(b);    \
+	return DF; }');     \
+            test(1:4, 11:15)"
+
+And here is a test where valgrind reports that 78 bytes are "definitely lost":
+
+R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" \
+	-e "Rcpp::cppFunction('Rcpp::DataFrame test(SEXP a, SEXP b) { \
+	Rcpp::DataFrame DF; \
+	DF.push_back(a);    \
+	DF.push_back(b);    \
+	return DF; }');     \
+            tryCatch( test(1:4, 11:15), warning = function(w) {} )"
+
+My understanding is that when run in "tryCatch" as above, the test function is aborted and the object DF is not properly freed.
+
+Yours
+
+HP
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20260429/731b33f9/attachment.htm>
+
+From edd at debian.org  Wed Apr 29 19:25:38 2026
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Apr 2026 12:25:38 -0500
+Subject: [Rcpp-devel] Memory leak when a warning is catched before the
+ end of a function
+In-Reply-To: <1fkSUCjHY4kL30MBMDORrjGxWCy72D4r_nUriH6I_OGu_ARNdOtJO9qmzliljLcnthMFgxOgDVroShlN_0jfF8GG3wUXOEiKBgE8wW2pd58=@protonmail.com>
+References: <1fkSUCjHY4kL30MBMDORrjGxWCy72D4r_nUriH6I_OGu_ARNdOtJO9qmzliljLcnthMFgxOgDVroShlN_0jfF8GG3wUXOEiKBgE8wW2pd58=@protonmail.com>
+Message-ID: <27122.16146.857793.546122@paul.eddelbuettel.com>
+
+
+Hi Herve,
+
+On 29 April 2026 at 16:50, Herv? Perdry wrote:
+| I'm sorry if this is not the right place to post this, but I ran across this phenomenon and I think some people here might find it of interest.
+| Here is a test that runs well (it sends a warning as we're trying to push back to vectors of different sizes in a data frame):
+| 
+| R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" \
+| 	-e "Rcpp::cppFunction('Rcpp::DataFrame test(SEXP a, SEXP b) { \
+| 	Rcpp::DataFrame DF; \
+| 	DF.push_back(a);    \
+| 	DF.push_back(b);    \
+| 	return DF; }');     \
+|             test(1:4, 11:15)"
+| 
+| And here is a test where valgrind reports that 78 bytes are "definitely lost":
+| 
+| R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" \
+| 	-e "Rcpp::cppFunction('Rcpp::DataFrame test(SEXP a, SEXP b) { \
+| 	Rcpp::DataFrame DF; \
+| 	DF.push_back(a);    \
+| 	DF.push_back(b);    \
+| 	return DF; }');     \
+|             tryCatch( test(1:4, 11:15), warning = function(w) {} )"
+| 
+| My understanding is that when run in "tryCatch" as above, the test function is aborted and the object DF is not properly freed.
+
+Well what is your real question here? In R you cannot have a data.frame with
+different column lengths, and Rcpp long documented that it does not recycle.
+
+C++ still has resource control so the destructor should still be reached. You
+can turn on debug mode / add a 'print' to the destructor.
+
+Dirk
+
+-- 
+Dirk Eddelbuettel | edd at debian.org | http://dirk.eddelbuettel.com
+
+From kevinushey at gmail.com  Wed Apr 29 19:31:33 2026
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Wed, 29 Apr 2026 10:31:33 -0700
+Subject: [Rcpp-devel] Memory leak when a warning is catched before the
+ end of a function
+In-Reply-To: <27122.16146.857793.546122@paul.eddelbuettel.com>
+References: <1fkSUCjHY4kL30MBMDORrjGxWCy72D4r_nUriH6I_OGu_ARNdOtJO9qmzliljLcnthMFgxOgDVroShlN_0jfF8GG3wUXOEiKBgE8wW2pd58=@protonmail.com>
+ <27122.16146.857793.546122@paul.eddelbuettel.com>
+Message-ID: <CAJXgQP0CBggQKSWqB3sGcVTvqi9mtL--xTwY-KU+Ue0NxOEhWw@mail.gmail.com>
+
+Thanks; I think the issue here is real.
+
+The problem here is that the tryCatch handler is causing the
+Rf_warning call to longjmp out of the C++ frame, and there's a
+std::string being lost after the jump.
+
+I'll promote this to the Rcpp issue tracker and prepare a patch.
+
+Best,
+Kevin
+
+On Wed, Apr 29, 2026 at 10:26?AM Dirk Eddelbuettel <edd at debian.org> wrote:
+>
+>
+> Hi Herve,
+>
+> On 29 April 2026 at 16:50, Herv? Perdry wrote:
+> | I'm sorry if this is not the right place to post this, but I ran across this phenomenon and I think some people here might find it of interest.
+> | Here is a test that runs well (it sends a warning as we're trying to push back to vectors of different sizes in a data frame):
+> |
+> | R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" \
+> |       -e "Rcpp::cppFunction('Rcpp::DataFrame test(SEXP a, SEXP b) { \
+> |       Rcpp::DataFrame DF; \
+> |       DF.push_back(a);    \
+> |       DF.push_back(b);    \
+> |       return DF; }');     \
+> |             test(1:4, 11:15)"
+> |
+> | And here is a test where valgrind reports that 78 bytes are "definitely lost":
+> |
+> | R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" \
+> |       -e "Rcpp::cppFunction('Rcpp::DataFrame test(SEXP a, SEXP b) { \
+> |       Rcpp::DataFrame DF; \
+> |       DF.push_back(a);    \
+> |       DF.push_back(b);    \
+> |       return DF; }');     \
+> |             tryCatch( test(1:4, 11:15), warning = function(w) {} )"
+> |
+> | My understanding is that when run in "tryCatch" as above, the test function is aborted and the object DF is not properly freed.
+>
+> Well what is your real question here? In R you cannot have a data.frame with
+> different column lengths, and Rcpp long documented that it does not recycle.
+>
+> C++ still has resource control so the destructor should still be reached. You
+> can turn on debug mode / add a 'print' to the destructor.
+>
+> Dirk
+>
+> --
+> Dirk Eddelbuettel | edd at debian.org | http://dirk.eddelbuettel.com
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+
+From edd at debian.org  Wed Apr 29 19:36:00 2026
+From: edd at debian.org (Dirk Eddelbuettel)
+Date: Wed, 29 Apr 2026 12:36:00 -0500
+Subject: [Rcpp-devel] Memory leak when a warning is catched before the
+ end of a function
+In-Reply-To: <27122.16146.857793.546122@paul.eddelbuettel.com>
+References: <1fkSUCjHY4kL30MBMDORrjGxWCy72D4r_nUriH6I_OGu_ARNdOtJO9qmzliljLcnthMFgxOgDVroShlN_0jfF8GG3wUXOEiKBgE8wW2pd58=@protonmail.com>
+ <27122.16146.857793.546122@paul.eddelbuettel.com>
+Message-ID: <27122.16768.925847.916990@paul.eddelbuettel.com>
+
+
+On 29 April 2026 at 12:25, Dirk Eddelbuettel wrote:
+| Well what is your real question here? In R you cannot have a data.frame with
+| different column lengths, and Rcpp long documented that it does not recycle.
+| 
+| C++ still has resource control so the destructor should still be reached. You
+| can turn on debug mode / add a 'print' to the destructor.
+
+Also no leak on
+
+   R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes"  \
+        -e "Rcpp::cppFunction('Rcpp::DataFrame test(SEXP a, SEXP b) { \
+               Rcpp::DataFrame DF; \
+               DF.push_back(a);    \
+               DF.push_back(b);    \
+              return DF; }');     \
+            tryCatch( test(1:4, 11:14), warning = function(w) {} )"
+
+i.e. when I make it a saner DF.
+
+Kevin already identified the warning text created as the issue. Looks like
+we're on it.  Thanks for alerting us.
+
+Dirk
+
+-- 
+Dirk Eddelbuettel | edd at debian.org | http://dirk.eddelbuettel.com
+
