@@ -1,0 +1,86 @@
+From mskb01 at gmail.com  Sun May 24 23:56:13 2026
+From: mskb01 at gmail.com (Kumar MS)
+Date: Sun, 24 May 2026 17:56:13 -0400
+Subject: [Rcpp-devel] Nesting RcppParallel Worker objects and
+ oversubscription
+Message-ID: <CAFbaAiC5CFSrBGTQvXTOqLD=FtL_aeN+GCv0Ze8HT3f2wJ=9Hw@mail.gmail.com>
+
+Hello,
+
+I have an Rcpp function that nests RcppParallel workers. ( I am doing
+cross-validation. The outer worker parallelizes over a grid of
+hyperparameter values, and the inner worker parallelizes over folds ).
+
+Before calling this function, I do a
+`RcppParallel::setThreadOptions(6)` to set a desired number of threads
+of six. However, I observe that whenever the nested worker gets
+called, the total number of threads goes much higher (~12 or higher)
+with CPU usage shooting to ~1200% on an M4 Mac with the code compiled
+and linked against Homebrew's intel tbb.
+
+I have also tried `tbb::global_control
+ctll(tbb::global_control::max_allowed_parallelism, 6);` I see the same
+behavior.
+
+It appears nesting ignores the global setting?
+
+Thank you,
+Kumar
+
+From kevinushey at gmail.com  Mon May 25 00:12:09 2026
+From: kevinushey at gmail.com (Kevin Ushey)
+Date: Sun, 24 May 2026 15:12:09 -0700
+Subject: [Rcpp-devel] Nesting RcppParallel Worker objects and
+ oversubscription
+In-Reply-To: <CAFbaAiC5CFSrBGTQvXTOqLD=FtL_aeN+GCv0Ze8HT3f2wJ=9Hw@mail.gmail.com>
+References: <CAFbaAiC5CFSrBGTQvXTOqLD=FtL_aeN+GCv0Ze8HT3f2wJ=9Hw@mail.gmail.com>
+Message-ID: <CAJXgQP1VhTSXs+OimGAjc2k+bEd5x6JFimJtfPYq4=e5YuGynw@mail.gmail.com>
+
+The short answer here is -- don't do that.
+
+The behavior you're seeing is expected ? TBB is not designed for nested
+parallelFor calls with externally managed thread counts. Both
+setThreadOptions and global_control::max_allowed_parallelism constrain the
+thread pool size, but not oversubscription across nested task arenas, and
+TBB may spin up additional threads in nested contexts specifically to avoid
+deadlock. The cleanest fix is to flatten your parallelism into a single
+parallelFor over the full grid ? folds index space, decomposing the
+combined index inside the worker ? this gives TBB a complete view of the
+work, avoids the nesting issue entirely, and typically improves load
+balancing as a bonus.
+
+Best,
+Kevin
+
+On Sun, May 24, 2026, 2:56?PM Kumar MS <mskb01 at gmail.com> wrote:
+
+> Hello,
+>
+> I have an Rcpp function that nests RcppParallel workers. ( I am doing
+> cross-validation. The outer worker parallelizes over a grid of
+> hyperparameter values, and the inner worker parallelizes over folds ).
+>
+> Before calling this function, I do a
+> `RcppParallel::setThreadOptions(6)` to set a desired number of threads
+> of six. However, I observe that whenever the nested worker gets
+> called, the total number of threads goes much higher (~12 or higher)
+> with CPU usage shooting to ~1200% on an M4 Mac with the code compiled
+> and linked against Homebrew's intel tbb.
+>
+> I have also tried `tbb::global_control
+> ctll(tbb::global_control::max_allowed_parallelism, 6);` I see the same
+> behavior.
+>
+> It appears nesting ignores the global setting?
+>
+> Thank you,
+> Kumar
+> _______________________________________________
+> Rcpp-devel mailing list
+> Rcpp-devel at lists.r-forge.r-project.org
+> https://lists.r-forge.r-project.org/cgi-bin/mailman/listinfo/rcpp-devel
+>
+-------------- next part --------------
+An HTML attachment was scrubbed...
+URL: <http://lists.r-forge.r-project.org/pipermail/rcpp-devel/attachments/20260524/7c9b85ea/attachment.htm>
+
