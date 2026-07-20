@@ -16,6 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache mbox archives
+        if: inputs.force_redownload != true
+        uses: actions/cache@v4
+        with:
+          path: raw
+          key: mbox-${{ github.repository }}-${{ hashFiles('raw/*.mbox') }}
+          restore-keys: |
+            mbox-${{ github.repository }}-
+
       - name: Download latest mbox files
         run: |
           LIST_NAME=$(jq -r '.list' config.json)
@@ -33,8 +42,14 @@ jobs:
               MBOX_NAME="${BASENAME%.gz}"
               MBOX_NAME="${MBOX_NAME%.txt}.mbox"
 
-              CURRENT_MONTH=$(date +"%Y-%B")
-              if [ "$FORCE" != "true" ] && [ -f "raw/$MBOX_NAME" ] && [[ "$BASENAME" != *"$CURRENT_MONTH"* ]]; then
+              # Always re-download the current period; skip finalized past periods.
+              # Handles monthly (2026-July), quarterly (2026q3), and annual (2026).
+              Y=$(date -u +%Y); MON=$(date -u +%-m)
+              MONTHS=(_ January February March April May June July August September October November December)
+              CUR_MONTH="${Y}-${MONTHS[$MON]}"; CUR_QUARTER="${Y}q$(( (MON - 1) / 3 + 1 ))"
+              STEM="${BASENAME%.gz}"; STEM="${STEM%.txt}"
+              if [ "$FORCE" != "true" ] && [ -f "raw/$MBOX_NAME" ] \
+                 && [ "$STEM" != "$CUR_MONTH" ] && [ "$STEM" != "$CUR_QUARTER" ] && [ "$STEM" != "$Y" ]; then
                 continue
               fi
 
