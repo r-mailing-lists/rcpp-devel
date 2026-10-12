@@ -9,6 +9,10 @@ on:
         description: 'Force re-download all mbox files (not just current month)'
         type: boolean
         default: false
+      periods:
+        description: 'Periods to download again, space separated (for example: 2026-July 2026q2)'
+        type: string
+        default: ''
 
 jobs:
   update:
@@ -16,23 +20,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Cache mbox archives
-        if: inputs.force_redownload != true
-        uses: actions/cache@v4
-        with:
-          path: raw
-          key: mbox-${{ github.repository }}-${{ hashFiles('raw/*.mbox') }}
-          restore-keys: |
-            mbox-${{ github.repository }}-
-
       - name: Download latest mbox files
+        env:
+          FORCE: ${{ inputs.force_redownload }}
+          PERIODS: ${{ inputs.periods }}
         run: |
           LIST_NAME=$(jq -r '.list' config.json)
           BASE_URL=$(jq -r '.source_url' config.json)
-          FORCE="${{ inputs.force_redownload }}"
 
           mkdir -p raw
 
+          # Fetch the current and the previous period again (a message can reach the
+          # source after its period's last run), any period named in PERIODS, and any
+          # file we do not have yet. Handles monthly (2026-July), quarterly (2026q3),
+          # and annual (2026).
+          Y=$(date -u +%Y); MON=$((10#$(date -u +%m)))
+          MONTHS=(_ January February March April May June July August September October November December)
+          QUARTER=$(( (MON - 1) / 3 + 1 ))
+          CUR_MONTH="${Y}-${MONTHS[$MON]}"; CUR_QUARTER="${Y}q${QUARTER}"
+          PREV_Y=$((Y - 1))
+          if [ "$MON" -eq 1 ]; then PREV_MONTH="${PREV_Y}-December"; else PREV_MONTH="${Y}-${MONTHS[$((MON - 1))]}"; fi
+          if [ "$QUARTER" -eq 1 ]; then PREV_QUARTER="${PREV_Y}q4"; else PREV_QUARTER="${Y}q$((QUARTER - 1))"; fi
+          WANTED=" $(printf '%s' "$PERIODS" | tr -s '[:space:]' ' ') "
+
+          # The loop below runs in a pipeline subshell; the stems it sees are kept in a file.
+          LISTED=$(mktemp)
           curl -sL "$BASE_URL" | \
             grep -oE 'href="[^"]*\.txt(\.gz)?"' | \
             sed 's/href="//;s/"//' | \
@@ -41,25 +53,46 @@ jobs:
               BASENAME=$(basename "$archive")
               MBOX_NAME="${BASENAME%.gz}"
               MBOX_NAME="${MBOX_NAME%.txt}.mbox"
-
-              # Always re-download the current period; skip finalized past periods.
-              # Handles monthly (2026-July), quarterly (2026q3), and annual (2026).
-              Y=$(date -u +%Y); MON=$(date -u +%-m)
-              MONTHS=(_ January February March April May June July August September October November December)
-              CUR_MONTH="${Y}-${MONTHS[$MON]}"; CUR_QUARTER="${Y}q$(( (MON - 1) / 3 + 1 ))"
               STEM="${BASENAME%.gz}"; STEM="${STEM%.txt}"
+              echo "$STEM" >> "$LISTED"
+
               if [ "$FORCE" != "true" ] && [ -f "raw/$MBOX_NAME" ] \
-                 && [ "$STEM" != "$CUR_MONTH" ] && [ "$STEM" != "$CUR_QUARTER" ] && [ "$STEM" != "$Y" ]; then
-                continue
+                 && [ "$STEM" != "$CUR_MONTH" ] && [ "$STEM" != "$PREV_MONTH" ] \
+                 && [ "$STEM" != "$CUR_QUARTER" ] && [ "$STEM" != "$PREV_QUARTER" ] \
+                 && [ "$STEM" != "$Y" ] && [ "$STEM" != "$PREV_Y" ]; then
+                case "$WANTED" in
+                  *" $STEM "*) ;;
+                  *) continue ;;
+                esac
               fi
 
               echo "Downloading $BASENAME..."
+              # Replace the existing file only with a complete download that starts like an mbox.
+              TMP=$(mktemp)
               if [[ "$archive" == *.gz ]]; then
-                curl -sL "$URL" | gunzip > "raw/$MBOX_NAME" 2>/dev/null || true
+                if ( set -o pipefail; curl -fsSL "$URL" | gunzip > "$TMP" ) && [ -s "$TMP" ]; then OK=true; else OK=false; fi
               else
-                curl -sL "$URL" > "raw/$MBOX_NAME" 2>/dev/null || true
+                if curl -fsSL "$URL" -o "$TMP" && [ -s "$TMP" ]; then OK=true; else OK=false; fi
+              fi
+              if [ "$OK" = true ] && [ "$(head -c 5 "$TMP")" = "From " ]; then
+                mv "$TMP" "raw/$MBOX_NAME"
+              else
+                rm -f "$TMP"
+                if [ -f "raw/$MBOX_NAME" ]; then
+                  echo "::warning::Could not download $BASENAME, kept the existing raw/$MBOX_NAME as it was"
+                else
+                  echo "::warning::Could not download $BASENAME, raw/$MBOX_NAME was not created"
+                fi
               fi
             done
+
+          # A requested period that is not in the listing was probably mistyped.
+          set -f
+          for requested in $PERIODS; do
+            grep -qxF -- "$requested" "$LISTED" || echo "::warning::Period $requested is not in the listing at $BASE_URL"
+          done
+          set +f
+          rm -f "$LISTED"
 
       - name: Download rmail-parser
         run: |
