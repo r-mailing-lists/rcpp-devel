@@ -13,12 +13,39 @@ on:
         description: 'Periods to download again, space separated (for example: 2026-July 2026q2)'
         type: string
         default: ''
+      max_requests:
+        description: 'Source pages: requests this run may make, with no limit on periods. This is how history is fetched. Leave empty for an ordinary run. Used only where a sources/ directory exists.'
+        type: string
+        default: ''
 
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check source page inputs
+        env:
+          FORCE: ${{ inputs.force_redownload }}
+          PERIODS: ${{ inputs.periods }}
+          MAX_REQUESTS: ${{ inputs.max_requests }}
+        run: |
+          # This runs before anything is downloaded, so a refusal leaves nothing to commit.
+          # It is the one place that decides what a valid max_requests is.
+          if [ ! -d sources ]; then
+            exit 0
+          fi
+          case "$MAX_REQUESTS" in
+            *[!0-9]*) echo "::error::max_requests must be a whole number, got '$MAX_REQUESTS'"; exit 1 ;;
+          esac
+          if [ "${#MAX_REQUESTS}" -gt 4 ]; then
+            echo "::error::max_requests must have at most four digits, got '$MAX_REQUESTS'"; exit 1
+          fi
+          # A budget that is empty or all zeros indexes nothing, so it does not count as set.
+          if [ -z "${MAX_REQUESTS//0/}" ] && { [ "$FORCE" = "true" ] || [ -n "${PERIODS//[[:space:]]/}" ]; }; then
+            echo "::error::This repository has sources/. A run that downloads periods again must set max_requests to more than zero, so that the periods are indexed again before they are parsed."
+            exit 1
+          fi
 
       - name: Download latest mbox files
         env:
@@ -106,11 +133,36 @@ jobs:
             "https://raw.githubusercontent.com/r-mailing-lists/rmail-parser/main/aliases.json" \
             2>/dev/null || echo '{"aliases":[]}' > aliases.json
 
+      - name: Fetch source pages
+        env:
+          MAX_REQUESTS: ${{ inputs.max_requests }}
+        run: |
+          # Source pages are on only in a repository that has a sources/ directory.
+          # Committing that directory switches them on; removing it switches them off.
+          if [ ! -d sources ]; then
+            exit 0
+          fi
+          BASE_URL=$(jq -r '.source_url' config.json)
+          if [ -z "$MAX_REQUESTS" ]; then
+            # An ordinary run: a small budget, and only the two newest periods,
+            # the ones downloaded again above. It never walks into history.
+            ./rmail-parser sources --raw raw/ --out sources/ --base-url "$BASE_URL" --max-requests 50 --max-periods 2
+          else
+            # Started by hand with a budget, already checked above: every period, newest
+            # first, until it is spent.
+            ./rmail-parser sources --raw raw/ --out sources/ --base-url "$BASE_URL" --max-requests "$MAX_REQUESTS"
+          fi
+
       - name: Parse mbox files
         run: |
           LIST_NAME=$(jq -r '.list' config.json)
           mkdir -p processed
-          ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json
+          if [ -d sources ]; then
+            BASE_URL=$(jq -r '.source_url' config.json)
+            ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json --sources sources/ --base-url "$BASE_URL"
+          else
+            ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json
+          fi
           mv processed/meta.json meta.json
           mv processed/index.json index.json
           mv processed/message-order.json message-order.json
@@ -121,6 +173,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add raw/ processed/ meta.json index.json message-order.json contributors.json
+          if [ -d sources ]; then
+            # A run that was cut off can leave a temporary file behind. It is never committed.
+            find sources -name '*.json.tmp' -delete
+            git add sources/
+          fi
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
