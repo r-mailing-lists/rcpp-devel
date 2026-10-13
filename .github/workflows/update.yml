@@ -51,9 +51,51 @@ jobs:
         env:
           FORCE: ${{ inputs.force_redownload }}
           PERIODS: ${{ inputs.periods }}
+          MAILMAN_USERNAME: ${{ secrets.MAILMAN_USERNAME }}
+          MAILMAN_PASSWORD: ${{ secrets.MAILMAN_PASSWORD }}
         run: |
+          # Both secrets set: the archive is members-only, and the step logs in first.
+          # Neither set (a public archive): no login, no cookie, the requests are the same
+          # as ever. One of the two set is a mistake, caught before any request is made.
+          # Nothing secret is printed: no tracing, and curl is never verbose.
+          if [ -n "$MAILMAN_USERNAME" ] && [ -z "$MAILMAN_PASSWORD" ]; then
+            echo "::error::MAILMAN_USERNAME is set but MAILMAN_PASSWORD is not. Set both secrets to log in, or neither."; exit 1
+          fi
+          if [ -z "$MAILMAN_USERNAME" ] && [ -n "$MAILMAN_PASSWORD" ]; then
+            echo "::error::MAILMAN_PASSWORD is set but MAILMAN_USERNAME is not. Set both secrets to log in, or neither."; exit 1
+          fi
+
           LIST_NAME=$(jq -r '.list' config.json)
           BASE_URL=$(jq -r '.source_url' config.json)
+
+          # Extra curl options: empty for a public archive, the cookie jar for a members-only one.
+          # GZ is for gunzip. Mailman's private archive hands out the text of a .gz file, not
+          # the gzip bytes, so a logged-in download may be plain text; -f lets that through.
+          # The check below that the file starts with "From " still decides what is saved.
+          AUTH=(); GZ=()
+          if [ -n "$MAILMAN_USERNAME" ]; then
+            # The password goes to source_url, so it must not travel in clear.
+            case "$BASE_URL" in
+              https://*|http://127.0.0.1:*) ;;
+              *) echo "::error::source_url must start with https:// to log in, so that the password is not sent in clear."; exit 1 ;;
+            esac
+            JAR=$(mktemp)
+            trap 'rm -f "$JAR"' EXIT
+            # Mailman 2.1 answers a wrong password with the login form again and no cookie,
+            # so the jar is what tells a login from a failed one.
+            if ! curl -sS -o /dev/null -c "$JAR" \
+              --data-urlencode "username=$MAILMAN_USERNAME" \
+              --data-urlencode "password=$MAILMAN_PASSWORD" \
+              --data-urlencode "submit=Let me in..." "$BASE_URL"; then
+              echo "::error::Could not reach $BASE_URL to log in."
+              exit 1
+            fi
+            if ! awk -F'\t' 'NF >= 7 { found = 1 } END { exit !found }' "$JAR"; then
+              echo "::error::Could not log in to $BASE_URL: the server set no cookie. Check the MAILMAN_USERNAME and MAILMAN_PASSWORD secrets."
+              exit 1
+            fi
+            AUTH=(-b "$JAR"); GZ=(-cf)
+          fi
 
           mkdir -p raw
 
@@ -72,7 +114,7 @@ jobs:
 
           # The loop below runs in a pipeline subshell; the stems it sees are kept in a file.
           LISTED=$(mktemp)
-          curl -sL "$BASE_URL" | \
+          curl -sL "${AUTH[@]}" "$BASE_URL" | \
             grep -oE 'href="[^"]*\.txt(\.gz)?"' | \
             sed 's/href="//;s/"//' | \
             while read -r archive; do
@@ -97,9 +139,9 @@ jobs:
               # Replace the existing file only with a complete download that starts like an mbox.
               TMP=$(mktemp)
               if [[ "$archive" == *.gz ]]; then
-                if ( set -o pipefail; curl -fsSL "$URL" | gunzip > "$TMP" ) && [ -s "$TMP" ]; then OK=true; else OK=false; fi
+                if ( set -o pipefail; curl -fsSL "${AUTH[@]}" "$URL" | gunzip "${GZ[@]}" > "$TMP" ) && [ -s "$TMP" ]; then OK=true; else OK=false; fi
               else
-                if curl -fsSL "$URL" -o "$TMP" && [ -s "$TMP" ]; then OK=true; else OK=false; fi
+                if curl -fsSL "${AUTH[@]}" "$URL" -o "$TMP" && [ -s "$TMP" ]; then OK=true; else OK=false; fi
               fi
               if [ "$OK" = true ] && [ "$(head -c 5 "$TMP")" = "From " ]; then
                 mv "$TMP" "raw/$MBOX_NAME"
@@ -119,6 +161,13 @@ jobs:
             grep -qxF -- "$requested" "$LISTED" || echo "::warning::Period $requested is not in the listing at $BASE_URL"
           done
           set +f
+          # With a login, a listing that names no archive means the cookie gave no access.
+          # For a public archive an empty listing is left alone, as it always was.
+          if [ -n "$MAILMAN_USERNAME" ] && [ ! -s "$LISTED" ]; then
+            rm -f "$LISTED"
+            echo "::error::The listing at $BASE_URL names no .txt or .txt.gz file, so the login gave no access to the archive."
+            exit 1
+          fi
           rm -f "$LISTED"
 
       - name: Download rmail-parser
@@ -139,6 +188,8 @@ jobs:
         run: |
           # Source pages are on only in a repository that has a sources/ directory.
           # Committing that directory switches them on; removing it switches them off.
+          # They are for public archives only: the parser sends no cookie, so a
+          # members-only list must not have a sources/ directory.
           if [ ! -d sources ]; then
             exit 0
           fi
