@@ -208,11 +208,18 @@ jobs:
         run: |
           LIST_NAME=$(jq -r '.list' config.json)
           mkdir -p processed
+          # The messages of a members-only archive may be published, its addresses may not.
+          # An older parser that does not know the flag fails this step, so nothing unhidden
+          # is ever committed.
+          HIDE=()
+          case "$(jq -r '.source_url' config.json)" in
+            */mailman/private/*) HIDE=(--hide-addresses) ;;
+          esac
           if [ -d sources ]; then
             BASE_URL=$(jq -r '.source_url' config.json)
-            ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json --sources sources/ --base-url "$BASE_URL"
+            ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json --sources sources/ --base-url "$BASE_URL" "${HIDE[@]}"
           else
-            ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json
+            ./rmail-parser parse --input raw/ --output processed/ --list "$LIST_NAME" --aliases aliases.json "${HIDE[@]}"
           fi
           mv processed/meta.json meta.json
           mv processed/index.json index.json
