@@ -2,7 +2,10 @@ name: Update Archive
 
 on:
   schedule:
-    - cron: '0 6 * * *'
+    # 01:17 UTC: off the hour, because GitHub starts runs scheduled on the hour hours
+    # late, and early enough for the data build (r-mailing-lists/data, 04:47 UTC) to
+    # read every archive's run of the night.
+    - cron: '17 1 * * *'
   workflow_dispatch:
     inputs:
       force_redownload:
@@ -95,6 +98,8 @@ jobs:
               exit 1
             fi
             AUTH=(-b "$JAR"); GZ=(-cf)
+            # Shows in the log that the login ran. The name, the password and the cookie are never printed.
+            echo "Login: the server set a session cookie."
           fi
 
           mkdir -p raw
@@ -125,26 +130,61 @@ jobs:
               STEM="${BASENAME%.gz}"; STEM="${STEM%.txt}"
               echo "$STEM" >> "$LISTED"
 
-              if [ "$FORCE" != "true" ] && [ -f "raw/$MBOX_NAME" ] \
-                 && [ "$STEM" != "$CUR_MONTH" ] && [ "$STEM" != "$PREV_MONTH" ] \
-                 && [ "$STEM" != "$CUR_QUARTER" ] && [ "$STEM" != "$PREV_QUARTER" ] \
-                 && [ "$STEM" != "$Y" ] && [ "$STEM" != "$PREV_Y" ]; then
+              # A growing period: the current or the previous one, downloaded again on every run.
+              case "$STEM" in
+                "$CUR_MONTH"|"$PREV_MONTH"|"$CUR_QUARTER"|"$PREV_QUARTER"|"$Y"|"$PREV_Y") GROWING=true ;;
+                *) GROWING=false ;;
+              esac
+
+              if [ "$FORCE" != "true" ] && [ -f "raw/$MBOX_NAME" ] && [ "$GROWING" != true ]; then
                 case "$WANTED" in
                   *" $STEM "*) ;;
                   *) continue ;;
                 esac
               fi
 
-              echo "Downloading $BASENAME..."
               # Replace the existing file only with a complete download that starts like an mbox.
               TMP=$(mktemp)
-              if [[ "$archive" == *.gz ]]; then
-                if ( set -o pipefail; curl -fsSL "${AUTH[@]}" "$URL" | gunzip "${GZ[@]}" > "$TMP" ) && [ -s "$TMP" ]; then OK=true; else OK=false; fi
+              OK=false; READ_NAME="$BASENAME"
+              # Mailman appends each message to <period>.txt as it arrives, and makes the
+              # <period>.txt.gz that the listing names from it once a night. For a growing
+              # period the plain file is asked for first. Where it cannot be had, or does
+              # not start like an mbox, the .txt.gz is downloaded as before.
+              if [ "$GROWING" = true ] && [[ "$archive" == *.txt.gz ]]; then
+                echo "Downloading ${BASENAME%.gz}, the live file..."
+                if curl -fsSL "${AUTH[@]}" "${URL%.gz}" -o "$TMP" && [ -s "$TMP" ] && [ "$(head -c 5 "$TMP")" = "From " ]; then
+                  OK=true; READ_NAME="${BASENAME%.gz}"
+                else
+                  echo "Could not use ${BASENAME%.gz}, downloading $BASENAME instead..."
+                fi
               else
-                if curl -fsSL "${AUTH[@]}" "$URL" -o "$TMP" && [ -s "$TMP" ]; then OK=true; else OK=false; fi
+                echo "Downloading $BASENAME..."
+              fi
+              if [ "$OK" != true ]; then
+                if [[ "$archive" == *.gz ]]; then
+                  if ( set -o pipefail; curl -fsSL "${AUTH[@]}" "$URL" | gunzip "${GZ[@]}" > "$TMP" ) && [ -s "$TMP" ]; then OK=true; fi
+                else
+                  if curl -fsSL "${AUTH[@]}" "$URL" -o "$TMP" && [ -s "$TMP" ]; then OK=true; fi
+                fi
               fi
               if [ "$OK" = true ] && [ "$(head -c 5 "$TMP")" = "From " ]; then
-                mv "$TMP" "raw/$MBOX_NAME"
+                # An earlier run may have taken the live file, which is ahead of the nightly
+                # .txt.gz and may be ahead of a later read of the live file. In an ordinary
+                # run, a growing period's copy that starts with all of what was read and
+                # holds more is newer than it, and is kept. A run that names the period or
+                # forces the download always replaces the copy: that is the repair path.
+                NAMED=false; case "$WANTED" in *" $STEM "*) NAMED=true ;; esac
+                KEEP=false
+                if [ "$GROWING" = true ] && [ "$NAMED" != true ] && [ "$FORCE" != "true" ] && [ -f "raw/$MBOX_NAME" ]; then
+                  HAVE=$(( $(wc -c < "raw/$MBOX_NAME") )); GOT=$(( $(wc -c < "$TMP") ))
+                  if [ "$HAVE" -gt "$GOT" ] && head -c "$GOT" "raw/$MBOX_NAME" | cmp -s - "$TMP"; then KEEP=true; fi
+                fi
+                if [ "$KEEP" = true ]; then
+                  rm -f "$TMP"
+                  echo "Kept raw/$MBOX_NAME as it was: it holds all of $READ_NAME and more"
+                else
+                  mv "$TMP" "raw/$MBOX_NAME"
+                fi
               else
                 rm -f "$TMP"
                 if [ -f "raw/$MBOX_NAME" ]; then
@@ -241,4 +281,17 @@ jobs:
           else
             git commit -m "chore: update archive $(date +%Y-%m-%d)"
             git push
+          fi
+          # GitHub switches off the schedule of a public repository after 60 days without
+          # activity, and a quiet list can go that long without mail. When the newest
+          # commit is more than 30 days old, a one-line .heartbeat file with today's date
+          # (UTC) is committed and pushed with this run's own token. On any other day
+          # nothing more happens here.
+          LAST_COMMIT=$(git log -1 --format=%ct)
+          if [ $(( $(date -u +%s) - LAST_COMMIT )) -gt $(( 30 * 86400 )) ]; then
+            date -u +%F > .heartbeat
+            git add .heartbeat
+            git commit -m "chore: heartbeat $(date -u +%F)"
+            git push
+            echo "Heartbeat: the newest commit was more than 30 days old, so .heartbeat was committed"
           fi
